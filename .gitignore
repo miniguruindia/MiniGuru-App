@@ -1,0 +1,47 @@
+# Flutter / Dart / Node / Backend cleanup
+
+# Flutter build folders
+app/build/
+app/.dart_tool/
+app/.idea/
+app/.vscode/
+app/.flutter-plugins
+app/.flutter-plugins-dependencies
+app/.gradle/
+app/android/.gradle/
+app/ios/Pods/
+app/ios/Flutter/
+
+# Node modules (if any in admin panel or backend)
+**/node_modules/
+**/dist/
+**/build/
+
+# Python env (if backend uses Python)
+backend/venv/
+backend/__pycache__/
+
+# Environment files
+*.env
+*.env.local
+*.log
+
+# APK / IPA / binaries
+*.apk
+*.aab
+*.ipa
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Large auto-generated database files
+*.sqlite
+*.db
+
+# Any compressed large archives
+*.zip
+*.tar
+*.gz
+*.7z
+
