@@ -37,5 +37,5 @@
 
   "forwardPorts": [3000, 8080],
 
-  "workspaceFolder": "/workspaces/MiniGuru-App/miniguru-codes"
+  "workspaceFolder": "/workspaces/MiniGuru-App"
 }
