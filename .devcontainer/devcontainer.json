@@ -1,20 +1,17 @@
 {
-  "name": "MiniGuru Full Stack Development Environment",
-  // Use the universal image which supports many tools, including Node.js
-  "image": "mcr.microsoft.com/devcontainers/universal:latest",
-
+  "name": "MiniGuru Full Stack Development Environment (Fixed)",
+  
+  // FIX 1: Change to a more stable base image for combined Node.js/tools environment.
+  "image": "mcr.microsoft.com/devcontainers/javascript-node:20", 
+  
   "features": {
-    // Install Node.js v20 (modern, stable, and avoids GLIBC errors)
+    // FIX 2: REMOVE the problematic 'ghcr.io/flutter-dev/devcontainers/flutter:latest' feature.
+    // Node.js is included in the base image, but we'll include the feature for clarity/version pinning.
     "ghcr.io/devcontainers/features/node:1": {
       "version": "20"
-    },
-    // Install the necessary Flutter SDK
-    "ghcr.io/flutter-dev/devcontainers/flutter:latest": {
-      "version": "latest"
     }
   },
-
-  // Install VS Code Extensions for all developers using this codespace
+  
   "customizations": {
     "vscode": {
       "extensions": [
@@ -22,23 +19,37 @@
         "Prisma.prisma-VSCode",
         "dbaeumer.vscode-eslint",
         "esbenp.prettier-vscode",
-        "bradlc.vscode-tailwindcss" // For Next.js/Shadcn UI admin dashboard
+        "bradlc.vscode-tailwindcss" 
       ]
     }
   },
-
-  // Run these commands AFTER the container is created to set up dependencies
+  
+  // FIX 3: Manually install Flutter and set the environment path.
   "postCreateCommand": [
-    // Install backend dependencies and generate Prisma client
-    "npm install --prefix miniguru-codes/backend",
-    "npx prisma generate --schema miniguru-codes/backend/prisma/schema.prisma",
-    // Install admin dashboard dependencies
-    "npm install --prefix miniguru-codes/admin"
+    // 1. Manually Install and Setup Flutter SDK (replaces the broken feature)
+    "echo 'Installing Flutter SDK...'",
+    "git clone https://github.com/flutter/flutter.git -b stable /usr/local/flutter",
+    // Make Flutter tools accessible for subsequent commands and session
+    "export PATH=\"$PATH:/usr/local/flutter/bin\"",
+    // Add path permanently to bashrc for future terminal sessions
+    "echo 'export PATH=\"$PATH:/usr/local/flutter/bin\"' >> /home/vscode/.bashrc",
+    "/usr/local/flutter/bin/flutter doctor", // Runs doctor to download necessary artifacts
+
+    // 2. Install backend dependencies and generate Prisma client (Relative to workspaceFolder)
+    "echo 'Installing Backend dependencies...'",
+    "npm install --prefix backend",
+    "npx prisma generate --schema backend/prisma/schema.prisma", 
+    
+    // 3. Install admin dashboard dependencies
+    "echo 'Installing Admin dependencies...'",
+    "npm install --prefix admin"
   ],
 
-  // Forward these ports so you can view the backend API and the Flutter app
   "forwardPorts": [3000, 8080],
-
-  // Start in the miniguru-codes directory for easier access to all sub-folders
-  "workspaceFolder": "/workspaces/MiniGuru-App/miniguru-codes"
+  
+  // FIX 4: Ensure the path is absolutely correct based on the repository rename
+  "workspaceFolder": "/workspaces/MiniGuru-App/miniguru-codes",
+  
+  // FIX 5: Ensure VS Code opens the correct files/folders to avoid the UI/Explorer error
+  "initializeCommand": "code --install-extension Dart-Code.flutter --install-extension Prisma.prisma-VSCode"
 }
