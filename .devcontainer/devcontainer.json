@@ -1,0 +1,21 @@
+{
+  "name": "MiniGuru Development",
+  "forwardPorts": [3000, 5001, 5555],
+  "portsAttributes": {
+    "3000": {
+      "label": "Admin Panel",
+      "onAutoForward": "notify",
+      "visibility": "public"
+    },
+    "5001": {
+      "label": "Backend API",
+      "onAutoForward": "notify",
+      "visibility": "public"
+    },
+    "5555": {
+      "label": "Prisma Studio",
+      "onAutoForward": "ignore",
+      "visibility": "public"
+    }
+  }
+}
