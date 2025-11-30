@@ -2,6 +2,8 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import Image from 'next/image'
+import Link from 'next/link'
 import { login } from '@/utils/api/auth'
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -14,33 +16,50 @@ export default function LoginPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
+  const [loading, setLoading] = useState(false)
   const router = useRouter()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
+    setLoading(true)
 
     try {
-       await login(email, password);
-       const token = await getAuthToken();
-        if (!validateToken(token)) {
-          throw new UnauthorizedError('Invalid token');
-        }
+      await login(email, password);
+      const token = await getAuthToken();
+      if (!validateToken(token)) {
+        throw new UnauthorizedError('Invalid token');
+      }
       router.push('/')
     } catch (err) {
       if (err instanceof UnauthorizedError) {
         setError('Invalid email or password')
       } else {
-        setError(err.message)
+        setError(err.message || 'Login failed')
       }
+    } finally {
+      setLoading(false)
     }
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100">
-      <Card className="w-full max-w-md">
-        <CardHeader>
-          <CardTitle className="text-2xl font-bold text-center">Login</CardTitle>
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
+      <Card className="w-full max-w-md shadow-xl">
+        <CardHeader className="space-y-4">
+          {/* Logo */}
+          <div className="flex justify-center">
+            <Image 
+              src="/logo.png" 
+              alt="MiniGuru Logo" 
+              width={120} 
+              height={120}
+              className="rounded-lg"
+              priority
+            />
+          </div>
+          <CardTitle className="text-2xl font-bold text-center">
+            Admin Login
+          </CardTitle>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -51,7 +70,9 @@ export default function LoginPage() {
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
+                placeholder="admin@miniguru.in"
                 required
+                disabled={loading}
               />
             </div>
             <div>
@@ -61,15 +82,30 @@ export default function LoginPage() {
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
+                placeholder="Enter your password"
                 required
+                disabled={loading}
               />
             </div>
+            
+            {/* Forgot Password Link */}
+            <div className="flex justify-end">
+              <Link 
+                href="/forgot-password" 
+                className="text-sm text-blue-600 hover:text-blue-800 hover:underline"
+              >
+                Forgot password?
+              </Link>
+            </div>
+
             {error && <p className="text-red-500 text-sm">{error}</p>}
-            <Button type="submit" className="w-full">Login</Button>
+            
+            <Button type="submit" className="w-full" disabled={loading}>
+              {loading ? 'Logging in...' : 'Login'}
+            </Button>
           </form>
         </CardContent>
       </Card>
     </div>
   )
 }
-

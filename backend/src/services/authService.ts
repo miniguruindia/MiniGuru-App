@@ -1,36 +1,75 @@
-import jwt from 'jsonwebtoken';
+import jwt, { Secret, SignOptions } from 'jsonwebtoken';
 import prisma from '../utils/prismaClient';
 import bcrypt from 'bcryptjs';
 import dotenv from 'dotenv';
 
-import JwtPayload from '../types/jwt';
-
 dotenv.config();
 
+// Custom JWT Payload type
+interface CustomJwtPayload {
+  userId: string;
+  role?: string;
+  iat?: number;
+  exp?: number;
+}
 
-const generateAccessToken = (userId: string, role: string) => {
-    return jwt.sign({ userId, role }, process.env.JWT_SECRET as string, { expiresIn: process.env.JWT_EXPIRES_IN });
+// -------------------------------
+// Generate Access Token
+// -------------------------------
+const generateAccessToken = (userId: string, role: string): string => {
+    const secret = process.env.JWT_SECRET as Secret;
+    const options: SignOptions = {
+        expiresIn: process.env.JWT_EXPIRES_IN || '1h'
+    };
+    
+    return jwt.sign({ userId, role }, secret, options);
 };
 
-const generateRefreshToken = (userId: string) => {
-    return jwt.sign({ userId }, process.env.REFRESH_TOKEN_SECRET as string, { expiresIn: process.env.REFRESH_TOKEN_EXPIRES_IN });
+// -------------------------------
+// Generate Refresh Token
+// -------------------------------
+const generateRefreshToken = (userId: string): string => {
+    const secret = process.env.REFRESH_TOKEN_SECRET as Secret;
+    const options: SignOptions = {
+        expiresIn: process.env.REFRESH_TOKEN_EXPIRES_IN || '7d'
+    };
+    
+    return jwt.sign({ userId }, secret, options);
 };
 
-const verifyToken = (token: string, secret: string): Promise<JwtPayload> => {
+// -------------------------------
+// Verify Token
+// -------------------------------
+const verifyToken = (token: string, secret: string): Promise<CustomJwtPayload> => {
     return new Promise((resolve, reject) => {
         jwt.verify(token, secret, (err, decoded) => {
             if (err) return reject(err);
-            resolve(decoded as JwtPayload);
+            resolve(decoded as CustomJwtPayload);
         });
     });
 };
 
+// -------------------------------
+// Authenticate user
+// -------------------------------
 const authenticateUser = async (email: string, password: string) => {
     const user = await prisma.user.findUnique({ where: { email } });
-    if (!user || !(await bcrypt.compare(password, user.passwordHash))) {
-        throw new Error('Invalid credentials');
+
+    if (!user) {
+        throw new Error("Invalid credentials");
     }
+
+    const isMatch = await bcrypt.compare(password, user.passwordHash);
+    if (!isMatch) {
+        throw new Error("Invalid credentials");
+    }
+
     return user;
 };
 
-export { generateAccessToken, generateRefreshToken, verifyToken, authenticateUser };
+export {
+    generateAccessToken,
+    generateRefreshToken,
+    verifyToken,
+    authenticateUser
+};

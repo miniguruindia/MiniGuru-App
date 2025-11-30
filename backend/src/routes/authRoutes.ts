@@ -10,3 +10,9 @@ authRouter.post('/logout', logout);
 authRouter.post('/register', registerValidationRules(),register)
 
 export default authRouter;
+
+import { requestPasswordReset, resetPassword } from '../controllers/auth/passwordResetController';
+
+// Add these lines after your existing routes
+authRouter.post('/request-password-reset', requestPasswordReset);
+authRouter.post('/reset-password', resetPassword);
