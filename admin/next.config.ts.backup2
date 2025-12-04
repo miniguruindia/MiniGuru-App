@@ -13,17 +13,6 @@ const nextConfig: NextConfig = {
       }
     ]
   },
-  
-  // Fix Server Actions for Codespaces
-  experimental: {
-    serverActions: {
-      allowedOrigins: [
-        'studious-acorn-x5gxwwvjx6xv26975-3000.app.github.dev',
-        'localhost:3000',
-        '*.app.github.dev'
-      ]
-    }
-  }
 };
 
 export default nextConfig;

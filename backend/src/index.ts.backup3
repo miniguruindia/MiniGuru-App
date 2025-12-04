@@ -15,50 +15,36 @@ import projectRouter from './routes/projectRoutes';
 import adminRouter from './routes/adminRoutes';
 import { paymentRouter } from './routes/paymentRoutes';
 
+// Load environment variables FIRST
 dotenv.config();
 
 const app = express();
 
+// Logging middleware
 app.use(pinoHttp({ logger }));
 
-// CORS Configuration with Debug Logging
-const corsOptions = {
-  origin: function (origin: any, callback: any) {
-    const allowedOrigins = [
-      'https://studious-acorn-x5gxwwvjx6xv26975-3000.app.github.dev',
-      'http://localhost:3000'
-    ];
-    
-    console.log('🔍 CORS Request from origin:', origin);
-    
-    if (!origin || allowedOrigins.indexOf(origin) !== -1 || /https:\/\/.*\.app\.github\.dev$/.test(origin)) {
-      console.log('✅ CORS Allowed for:', origin);
-      callback(null, true);
-    } else {
-      console.log('❌ CORS Blocked for:', origin);
-      callback(new Error('Not allowed by CORS'));
-    }
-  },
+// CORS configuration for Codespaces
+app.use(cors({
+  origin: true,
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
-  exposedHeaders: ['Content-Range', 'X-Content-Range']
-};
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
 
-app.use(cors(corsOptions));
-
+// Body parsing middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// Health check endpoint
 app.get('/', (req, res) => {
   res.json({ 
     status: 'ok', 
     message: 'MiniGuru API is running',
-    timestamp: new Date().toISOString(),
-    cors: 'enabled'
+    timestamp: new Date().toISOString()
   });
 });
 
+// API Routes - Register BEFORE app.listen()
 app.use('/auth', authRouter);
 app.use('/order', orderRouter);
 app.use('/products', productRouter);
@@ -67,8 +53,10 @@ app.use('/project', projectRouter);
 app.use('/admin', adminRouter);
 app.use('/payment', paymentRouter);
 
+// Static files
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
+// 404 handler
 app.use((req, res) => {
   res.status(404).json({ 
     error: 'Not Found', 
@@ -76,12 +64,13 @@ app.use((req, res) => {
   });
 });
 
+// Get port - ensure it's a NUMBER
 const PORT = parseInt(process.env.PORT || '5001', 10);
 const HOST = '0.0.0.0';
 
+// Start server
 app.listen(PORT, HOST, () => {
-  logger.info(`✅ Server running on ${HOST}:${PORT}`);
-  logger.info(`✅ CORS enabled for Codespaces`);
+  logger.info(`Server running on ${HOST}:${PORT}`);
 });
 
 export { app, prisma };
