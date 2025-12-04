@@ -35,11 +35,21 @@ export default function ResetPasswordPage() {
     setLoading(true)
 
     try {
-      // TODO: Implement reset password API call
-      await new Promise(resolve => setTimeout(resolve, 1000))
-      router.push('/login?reset=success')
+      const response = await fetch('http://localhost:5001/auth/reset-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token, newPassword: password })
+      })
+
+      const data = await response.json()
+
+      if (response.ok) {
+        router.push('/login?reset=success')
+      } else {
+        setError(data.error || 'Failed to reset password. Please try again.')
+      }
     } catch (err) {
-      setError('Failed to reset password. Please try again.')
+      setError('Failed to connect to server. Please try again.')
     } finally {
       setLoading(false)
     }
@@ -71,7 +81,7 @@ export default function ResetPasswordPage() {
               src="/logo.png" 
               alt="MiniGuru Logo" 
               width={100} 
-              height={100}
+              height={110}
               className="rounded-lg"
             />
           </div>

@@ -21,12 +21,22 @@ export default function ForgotPasswordPage() {
     setLoading(true)
 
     try {
-      // TODO: Implement forgot password API call
-      // For now, show a message
-      await new Promise(resolve => setTimeout(resolve, 1000))
-      setMessage('Password reset instructions have been sent to your email.')
+      const response = await fetch('http://localhost:5001/auth/request-password-reset', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email })
+      })
+
+      const data = await response.json()
+
+      if (response.ok) {
+        setMessage(data.message || 'Password reset instructions have been sent to your email.')
+        setEmail('')
+      } else {
+        setError(data.error || 'Failed to send reset email. Please try again.')
+      }
     } catch (err) {
-      setError('Failed to send reset email. Please try again.')
+      setError('Failed to connect to server. Please try again.')
     } finally {
       setLoading(false)
     }
@@ -41,7 +51,7 @@ export default function ForgotPasswordPage() {
               src="/logo.png" 
               alt="MiniGuru Logo" 
               width={100} 
-              height={100}
+              height={110}
               className="rounded-lg"
             />
           </div>
