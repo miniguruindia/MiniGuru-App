@@ -14,20 +14,32 @@ class Library extends StatefulWidget {
   State<Library> createState() => _LibraryState();
 }
 
-class _LibraryState extends State<Library> {
+class _LibraryState extends State<Library> with AutomaticKeepAliveClientMixin {
   List<Project> _projects = [];
-  final List<Project> _allProjects = []; // Store all projects for current page
+  final List<Project> _allProjects = [];
   List<ProjectCategory> _projectCategory = [];
   bool _loading = true;
-  bool _isLoadingMore = false; // Track if we're loading more projects
+  bool _isLoadingMore = false;
   final Set<String> _selectedCategories = {};
 
   int _currentPage = 1;
-  bool _hasMorePages = true; // Track if more pages are available
-  int _totalProjects = 0; // Store total number of projects
+  bool _hasMorePages = true;
+  int _totalProjects = 0;
 
-  late User user;
+  User? user;
   final ScrollController _scrollController = ScrollController();
+  final _searchController = TextEditingController();
+
+  static const _colors = [pastelBlue, pastelYellow, pastelGreen, pastelRed];
+  static const _fontColors = [
+    pastelBlueText,
+    pastelYellowText,
+    pastelGreenText,
+    pastelRedText
+  ];
+
+  @override
+  bool get wantKeepAlive => true;
 
   @override
   void initState() {
@@ -36,13 +48,22 @@ class _LibraryState extends State<Library> {
     _setupScrollController();
   }
 
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    _searchController.dispose();
+    super.dispose();
+  }
+
   void _setupScrollController() {
     _scrollController.addListener(() {
       if (_scrollController.position.pixels >=
               _scrollController.position.maxScrollExtent * 0.8 &&
           !_isLoadingMore &&
           _hasMorePages &&
-          !_loading) {
+          !_loading &&
+          _selectedCategories.isEmpty &&
+          _searchController.text.isEmpty) {
         _loadMoreProjects();
       }
     });
@@ -54,368 +75,389 @@ class _LibraryState extends State<Library> {
       _currentPage = 1;
       _projects.clear();
       _allProjects.clear();
+      _hasMorePages = true;
     });
 
-    await _loadUserData();
-    await _loadProjects();
-    await _loadCategories();
-
-    setState(() {
-      _loading = false;
-    });
+    try {
+      await Future.wait([
+        _loadUserData(),
+        _loadCategories(),
+      ]);
+      await _loadProjects();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+              content: Text('Error loading data: $e'),
+              backgroundColor: Colors.red),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
   }
 
   Future<void> _loadUserData() async {
-    UserRepository userRepository = UserRepository();
+    final userRepository = UserRepository();
     await userRepository.fetchAndStoreUserData();
-    user = (await userRepository.getUserDataFromLocalDb())!;
+    user = await userRepository.getUserDataFromLocalDb();
   }
 
   Future<void> _loadCategories() async {
-    ProjectRepository repo = ProjectRepository();
+    final repo = ProjectRepository();
     await repo.fetchAndStoreProjectCategory();
-    List<ProjectCategory> categories = await repo.getProjectCategories();
-
-    setState(() {
-      _projectCategory = categories;
-    });
+    final categories = await repo.getProjectCategories();
+    if (mounted) {
+      setState(() => _projectCategory = categories);
+    }
   }
 
   Future<void> _loadProjects() async {
     if (!_hasMorePages) return;
 
-    ProjectRepository repo = ProjectRepository();
-
+    final repo = ProjectRepository();
     try {
-      // Fetch total number of projects
-      int totalProjects = await repo.fetchAndStoreProjects(_currentPage, 20);
+      final totalProjects = await repo.fetchAndStoreProjects(_currentPage, 20);
 
-      // Update total projects count on first load
-      if (_currentPage == 1) {
-        _totalProjects = totalProjects;
-      }
+      if (_currentPage == 1) _totalProjects = totalProjects;
 
-      List<Project> newProjects = await repo.getProjects();
+      final newProjects = await repo.getProjects();
 
-      setState(() {
-        // Add new projects to both lists
-        _projects.addAll(newProjects);
-        _allProjects.addAll(newProjects);
-
-        // Check if we've reached the end
-        _hasMorePages = _allProjects.length < _totalProjects;
-      });
-
-      // Apply filters if any are selected
-      if (_selectedCategories.isNotEmpty) {
-        await _filterProjects();
+      if (mounted) {
+        setState(() {
+          _allProjects.addAll(newProjects);
+          _hasMorePages = _allProjects.length < _totalProjects;
+          _applyFilters();
+        });
       }
     } catch (e) {
       print('Error loading projects: $e');
-      // Handle error appropriately
     }
   }
 
   Future<void> _loadMoreProjects() async {
     if (_isLoadingMore || !_hasMorePages) return;
 
-    setState(() {
-      _isLoadingMore = true;
-    });
-
+    setState(() => _isLoadingMore = true);
     _currentPage++;
     await _loadProjects();
-
-    setState(() {
-      _isLoadingMore = false;
-    });
+    setState(() => _isLoadingMore = false);
   }
 
-  Future<void> _filterProjects() async {
+  void _applyFilters() {
+    final query = _searchController.text.toLowerCase();
     setState(() {
-      if (_selectedCategories.isEmpty) {
-        // Reset to all loaded projects if no categories are selected
-        _projects = List.from(_allProjects);
-      } else {
-        // Filter projects based on selected categories
-        _projects = _allProjects
-            .where((project) => _selectedCategories.contains(project.category))
-            .toList();
-      }
+      _projects = _allProjects.where((project) {
+        final matchesCategory = _selectedCategories.isEmpty ||
+            _selectedCategories.contains(project.category);
+        final matchesQuery =
+            query.isEmpty || project.title.toLowerCase().contains(query);
+        return matchesCategory && matchesQuery;
+      }).toList();
     });
-  }
-
-  Future<void> _refreshProjects() async {
-    setState(() {
-      _currentPage = 1;
-      _projects.clear();
-      _allProjects.clear();
-      _hasMorePages = true;
-    });
-    await _loadProjects();
-  }
-
-  void toggleCategory(String category) {
-    setState(() {
-      if (_selectedCategories.contains(category)) {
-        _selectedCategories.remove(category);
-      } else {
-        _selectedCategories.add(category);
-      }
-    });
-    _refreshProjects(); // Reload projects with new filter
-  }
-
-  @override
-  void dispose() {
-    _scrollController.dispose();
-    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
+
     return Scaffold(
+      backgroundColor: backgroundWhite,
+      appBar: AppBar(
+        title: Text('Discover', style: headingTextStyle.copyWith(fontSize: 24)),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh, color: Colors.black54),
+            onPressed: _loadInitialData,
+          ),
+        ],
+      ),
       body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : SafeArea(
-              child: Padding(
-                padding: const EdgeInsets.all(8.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.all(8.0),
-                      child: Text(
-                        "Categories",
-                        style: headingTextStyle,
+          ? const Center(
+              child: CircularProgressIndicator(color: pastelBlueText))
+          : RefreshIndicator(
+              onRefresh: _loadInitialData,
+              child: CustomScrollView(
+                controller: _scrollController,
+                slivers: [
+                  SliverToBoxAdapter(child: _buildCategorySection()),
+                  SliverToBoxAdapter(child: _buildSearchBar()),
+                  _buildProjectList(),
+                  if (_isLoadingMore)
+                    const SliverToBoxAdapter(
+                      child: Padding(
+                        padding: EdgeInsets.all(16),
+                        child: Center(
+                          child:
+                              CircularProgressIndicator(color: pastelBlueText),
+                        ),
                       ),
                     ),
-                    _buildFilterIcons(),
-                    Padding(
-                      padding: const EdgeInsets.all(8.0),
-                      child: Text(
-                        "Projects",
-                        style: headingTextStyle,
-                      ),
-                    ),
-                    _buildSearchBar(),
-                    Expanded(child: _buildProjectList())
-                  ],
-                ),
+                ],
               ),
             ),
     );
   }
 
-  Widget _buildFilterIcons() {
-    List<Color> colors = [pastelBlue, pastelYellow, pastelRed, pastelGreen];
-    List<Color> fontColors = [
-      pastelBlueText,
-      pastelYellowText,
-      pastelRedText,
-      pastelGreenText
-    ];
-    return SizedBox(
-      height: 120,
-      child: ListView.builder(
-        scrollDirection: Axis.horizontal,
-        itemCount: _projectCategory.length,
-        itemBuilder: (context, index) {
-          final category = _projectCategory[index];
-          final isSelected =
-              _selectedCategories.contains(category.name); // Check if selected
+  Widget _buildCategorySection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.all(16),
+          child: Text('Categories',
+              style: headingTextStyle.copyWith(fontSize: 16)),
+        ),
+        SizedBox(
+          height: 120,
+          child: ListView.builder(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            itemCount: _projectCategory.length,
+            itemBuilder: (context, index) {
+              final category = _projectCategory[index];
+              final isSelected = _selectedCategories.contains(category.name);
+              final color = _colors[index % _colors.length];
+              final fontColor = _fontColors[index % _fontColors.length];
 
-          return GestureDetector(
-            onTap: () {
-              setState(() {
-                if (isSelected) {
-                  _selectedCategories
-                      .remove(category.name); // Remove if already selected
-                } else {
-                  _selectedCategories
-                      .add(category.name); // Add to selected list
-                }
-                _filterProjects();
-              });
-            },
-            child: Padding(
-              padding: const EdgeInsets.all(8.0),
-              child: Column(
-                children: [
-                  Container(
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                        color: isSelected
-                            ? Colors.black
-                            : Colors.transparent, // Black border if selected
-                        width: 3.0,
+              return GestureDetector(
+                onTap: () {
+                  setState(() {
+                    if (isSelected) {
+                      _selectedCategories.remove(category.name);
+                    } else {
+                      _selectedCategories.add(category.name);
+                    }
+                    _applyFilters();
+                  });
+                },
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  child: Column(
+                    children: [
+                      Container(
+                        width: 70,
+                        height: 70,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: color,
+                          border: Border.all(
+                            color:
+                                isSelected ? Colors.black : Colors.transparent,
+                            width: 3,
+                          ),
+                          boxShadow: isSelected
+                              ? [
+                                  BoxShadow(
+                                    color: color.withOpacity(0.4),
+                                    spreadRadius: 2,
+                                    blurRadius: 8,
+                                  ),
+                                ]
+                              : null,
+                        ),
+                        child: Icon(category.icon,
+                            size: 32, color: Colors.black87),
                       ),
-                    ),
-                    child: CircleAvatar(
-                      backgroundColor: colors[index % colors.length],
-                      radius: 35,
-                      child: Icon(category.icon, size: 32),
-                    ),
+                      const SizedBox(height: 8),
+                      Text(
+                        category.name,
+                        style: bodyTextStyle.copyWith(
+                          fontSize: 11,
+                          color: isSelected ? fontColor : Colors.black54,
+                          fontWeight:
+                              isSelected ? FontWeight.w600 : FontWeight.normal,
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(
-                    height: 5,
-                  ),
-                  Text(
-                    category.name,
-                    style: bodyTextStyle.copyWith(
-                      color: fontColors[index % colors.length],
-                      fontSize: 11,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          );
-        },
-      ),
+                ),
+              );
+            },
+          ),
+        ),
+      ],
     );
   }
 
   Widget _buildSearchBar() {
     return Padding(
-      padding: const EdgeInsets.all(8.0),
+      padding: const EdgeInsets.all(16),
       child: TextField(
+        controller: _searchController,
         decoration: InputDecoration(
-          labelText: 'Search Projects',
-          labelStyle: bodyTextStyle,
-          border: const OutlineInputBorder(),
-          prefixIcon: const Icon(Icons.search),
+          hintText: 'Search projects...',
+          hintStyle: bodyTextStyle.copyWith(color: Colors.grey[400]),
+          prefixIcon: const Icon(Icons.search, color: Colors.grey),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide(color: Colors.grey[300]!),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide(color: Colors.grey[300]!),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: const BorderSide(color: pastelBlueText),
+          ),
+          filled: true,
+          fillColor: Colors.white,
         ),
-        onChanged: (query) {
-          setState(() {
-            if (query.isEmpty) {
-              _filterProjects(); // Reset to filtered projects if search is cleared
-            } else {
-              _projects = _allProjects
-                  .where((project) =>
-                      project.title.toLowerCase().contains(query.toLowerCase()))
-                  .toList();
-            }
-          });
-        },
+        onChanged: (_) => _applyFilters(),
       ),
     );
   }
 
   Widget _buildProjectList() {
-    List<Color> colors = [pastelBlue, pastelYellow, pastelGreen, pastelRed];
-    List<Color> fontColors = [
-      pastelBlueText,
-      pastelYellowText,
-      pastelGreenText,
-      pastelRedText
-    ];
+    if (_projects.isEmpty && !_loading) {
+      return SliverFillRemaining(
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.explore_outlined, size: 64, color: Colors.grey[400]),
+              const SizedBox(height: 16),
+              Text(
+                'No projects found',
+                style: headingTextStyle.copyWith(color: Colors.grey[600]),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Try adjusting your filters',
+                style: bodyTextStyle.copyWith(color: Colors.grey[500]),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
 
-    return ListView.builder(
-      controller: _scrollController,
-      itemCount: _projects.length + 1,
-      itemBuilder: (context, index) {
-        if (index == _projects.length) {
-          return const SizedBox.shrink();
-        }
+    return SliverPadding(
+      padding: const EdgeInsets.all(16),
+      sliver: SliverList(
+        delegate: SliverChildBuilderDelegate(
+          (context, index) {
+            final project = _projects[index];
+            final color = _colors[index % _colors.length];
+            final fontColor = _fontColors[index % _fontColors.length];
 
-        final project = _projects[index];
-        final color = colors[index % colors.length];
-        return GestureDetector(
-          onTap: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => ProjectDetailsScreen(
-                  project: project,
-                  backgroundColor: color,
-                  user: user,
+            return Card(
+              margin: const EdgeInsets.only(bottom: 12),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16)),
+              elevation: 2,
+              child: InkWell(
+                onTap: () {
+                  if (user != null) {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => ProjectDetailsScreen(
+                          project: project,
+                          backgroundColor: color,
+                          user: user!,
+                        ),
+                      ),
+                    );
+                  }
+                },
+                borderRadius: BorderRadius.circular(16),
+                child: Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: color,
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(12),
+                            child: Image.network(
+                              project.thumbnail.isEmpty
+                                  ? "https://picsum.photos/200"
+                                  : project.thumbnail,
+                              width: 80,
+                              height: 80,
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, __, ___) => Container(
+                                width: 80,
+                                height: 80,
+                                color: Colors.grey[300],
+                                child: const Icon(Icons.image, size: 40),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  project.title,
+                                  style:
+                                      headingTextStyle.copyWith(fontSize: 16),
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                const SizedBox(height: 6),
+                                Text(
+                                  project.description,
+                                  style: bodyTextStyle.copyWith(
+                                    fontSize: 13,
+                                    color: Colors.black54,
+                                  ),
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 12, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: fontColor.withOpacity(0.3),
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(color: fontColor),
+                            ),
+                            child: Text(
+                              project.category,
+                              style: bodyTextStyle.copyWith(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                          const Spacer(),
+                          Text(
+                            project.author,
+                            style: bodyTextStyle.copyWith(
+                              fontSize: 12,
+                              color: Colors.black54,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
               ),
             );
           },
-          child: Card(
-            color: color,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12.0),
-            ),
-            margin: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 16.0),
-            child: Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(8.0),
-                        child: Image.network(
-                          project.thumbnail == ''
-                              ? "https://picsum.photos/200"
-                              : project.thumbnail,
-                          width: 70.0,
-                          height: 70.0,
-                          fit: BoxFit.cover,
-                        ),
-                      ),
-                      const SizedBox(width: 16.0),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              project.title,
-                              style: headingTextStyle.copyWith(fontSize: 15),
-                            ),
-                            const SizedBox(height: 4.0),
-                            Text(
-                              project.description,
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                              style: bodyTextStyle.copyWith(fontSize: 14),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16.0),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 4.0),
-                        child: Container(
-                          decoration: BoxDecoration(
-                            color: fontColors[index % fontColors.length],
-                            borderRadius: BorderRadius.circular(30),
-                            border: Border.all(
-                                color: fontColors[index % fontColors.length]),
-                          ),
-                          child: Padding(
-                            padding: const EdgeInsets.all(8.0),
-                            child: Text(
-                              project.category,
-                              style: headingTextStyle.copyWith(fontSize: 11),
-                            ),
-                          ),
-                        ),
-                      ),
-                      Text(
-                        project.author,
-                        style: bodyTextStyle.copyWith(
-                            color: Colors.grey[600], fontSize: 12),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ),
-        );
-      },
+          childCount: _projects.length,
+        ),
+      ),
     );
   }
 }

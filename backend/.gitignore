@@ -1,7 +1,20 @@
-node_modules
-test/
-dist/
-uploads/
-logs/
-# Keep environment variables out of version control
+# Dependencies
+node_modules/
+
+# Environment
 .env
+.env.local
+
+# Build
+dist/
+
+# Logs
+logs/
+*.log
+
+# Test scripts (don't commit these)
+*.js
+!nodemon.json
+
+# Backups
+*.backup*

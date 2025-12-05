@@ -9,7 +9,7 @@ import 'package:path/path.dart';
 import 'package:http_parser/http_parser.dart';
 
 class MiniguruApi {
-  static const String _baseUrl = "http://203.18.51.39:5001";
+  static const String _baseUrl = "http://203.18.51.39:443";
   // static const String _baseUrl = "http://172.29.156.16:3000";
   DatabaseHelper? _db;
 

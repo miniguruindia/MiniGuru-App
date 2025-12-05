@@ -39,7 +39,7 @@ dependencies:
   sqflite: ^2.3.3+1
   path: ^1.9.0
   http: ^1.2.2
-  image_picker: ^1.1.2
+  image_picker: ^0.8.9
   file_picker: ^8.1.2
   dio: ^5.7.0
   permission_handler: ^11.3.1
@@ -74,7 +74,7 @@ flutter:
 
   # To add assets to your application, add an assets section, like this:
   assets:
-    - assets/
+    - assets/mg-logo.png
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

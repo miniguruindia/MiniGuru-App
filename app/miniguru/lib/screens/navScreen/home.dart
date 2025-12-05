@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:fl_chart/fl_chart.dart';
 import 'package:miniguru/constants.dart';
 import 'package:miniguru/models/User.dart';
 import 'package:miniguru/network/MiniguruApi.dart';
@@ -12,9 +11,13 @@ class Home extends StatefulWidget {
   State<Home> createState() => _HomeState();
 }
 
-class _HomeState extends State<Home> {
+class _HomeState extends State<Home> with AutomaticKeepAliveClientMixin {
   User? user;
   final _miniguruApi = MiniguruApi();
+  bool _isLoading = true;
+
+  @override
+  bool get wantKeepAlive => true; // Keep state alive when switching tabs
 
   @override
   void initState() {
@@ -23,17 +26,21 @@ class _HomeState extends State<Home> {
   }
 
   Future<void> _fetchUserData() async {
+    setState(() => _isLoading = true);
+
     final userData = await _miniguruApi.getUserData();
 
-    if (userData != null) {
+    if (mounted) {
       setState(() {
         user = userData;
+        _isLoading = false;
       });
-    } else {
-      if (mounted) {
+
+      if (userData == null) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text("Failed to load user data"),
+          SnackBar(
+            content: Text("Failed to load user data",
+                style: bodyTextStyle.copyWith(color: Colors.white)),
             backgroundColor: Colors.red,
           ),
         );
@@ -41,274 +48,266 @@ class _HomeState extends State<Home> {
     }
   }
 
-  List<FlSpot> getScoreHistorySpots() {
-    return user?.scoreHistory.asMap().entries.map((entry) {
-          final index = entry.key.toDouble();
-          final updatedScore = entry.value['updatedScore'].toDouble();
-          return FlSpot(index, updatedScore);
-        }).toList() ??
-        [];
-  }
-
   @override
   Widget build(BuildContext context) {
+    super.build(context); // Required for AutomaticKeepAliveClientMixin
+
     return Scaffold(
-      backgroundColor: Colors.grey[50],
+      backgroundColor: backgroundWhite,
       appBar: AppBar(
         elevation: 0,
         title: Text(
-          user != null ? 'Welcome, ${user!.name}!' : 'Loading...',
+          user != null ? 'Hi, ${user!.name.split(' ')[0]}! 👋' : 'MiniGuru',
           style: GoogleFonts.poppins(
             fontWeight: FontWeight.w600,
-            color: Colors.black,
+            fontSize: 22,
+            color: Colors.black87,
           ),
         ),
-        backgroundColor: pastelBlue,
+        backgroundColor: Colors.transparent,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh, color: Colors.black54),
+            onPressed: _fetchUserData,
+          ),
+        ],
       ),
-      body: user == null
+      body: _isLoading
           ? const Center(
               child: CircularProgressIndicator(
-                valueColor: AlwaysStoppedAnimation<Color>(pastelBlue),
+                valueColor: AlwaysStoppedAnimation<Color>(pastelBlueText),
               ),
             )
-          : SingleChildScrollView(
-              padding: const EdgeInsets.all(20.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Stats Cards Row
-                  Row(
-                    children: [
-                      _buildStatCard(
-                        'Current Score',
-                        user!.score.toString(),
-                        Icons.stars,
-                      ),
-                      const SizedBox(width: 16),
-                      _buildStatCard(
-                        'Projects',
-                        user!.totalProjects.toString(),
-                        Icons.work,
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  Row(
-                    children: [
-                      _buildStatCard(
-                        'Balance',
-                        '₹${user!.walletBalance}',
-                        Icons.account_balance_wallet,
-                      ),
-                      const SizedBox(width: 16),
-                      _buildStatCard(
-                        'Email',
-                        user!.email,
-                        Icons.email,
-                        isEmail: true,
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 24),
+          : RefreshIndicator(
+              onRefresh: _fetchUserData,
+              color: pastelBlueText,
+              child: SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.all(20.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Welcome Card
+                    _buildWelcomeCard(),
+                    const SizedBox(height: 20),
 
-                  // Score History Chart
-                  Text(
-                    'Performance History',
-                    style: GoogleFonts.poppins(
-                      fontSize: 24,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.black87,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Your score progression over time',
-                    style: GoogleFonts.poppins(
-                      fontSize: 14,
-                      color: Colors.grey[600],
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  Container(
-                    padding: const EdgeInsets.all(20.0),
-                    height: 350,
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(16),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.grey.withOpacity(0.1),
-                          spreadRadius: 2,
-                          blurRadius: 8,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
-                    ),
-                    child: LineChart(
-                      LineChartData(
-                        gridData: FlGridData(
-                          show: true,
-                          drawVerticalLine: true,
-                          horizontalInterval: 50,
-                          verticalInterval: 1,
-                          getDrawingHorizontalLine: (value) {
-                            return FlLine(
-                              color: Colors.grey[300],
-                              strokeWidth: 1,
-                            );
-                          },
-                          getDrawingVerticalLine: (value) {
-                            return FlLine(
-                              color: Colors.grey[300],
-                              strokeWidth: 1,
-                            );
-                          },
-                        ),
-                        titlesData: FlTitlesData(
-                          show: true,
-                          rightTitles: const AxisTitles(
-                            sideTitles: SideTitles(showTitles: false),
-                          ),
-                          topTitles: const AxisTitles(
-                            sideTitles: SideTitles(showTitles: false),
-                          ),
-                          bottomTitles: AxisTitles(
-                            sideTitles: SideTitles(
-                              showTitles: true,
-                              reservedSize: 30,
-                              interval: 1,
-                              getTitlesWidget: (value, meta) {
-                                return Text(
-                                  '${value.toInt() + 1}',
-                                  style: GoogleFonts.poppins(
-                                    color: Colors.grey[600],
-                                    fontSize: 12,
-                                  ),
-                                );
-                              },
-                            ),
-                          ),
-                          leftTitles: AxisTitles(
-                            sideTitles: SideTitles(
-                              showTitles: true,
-                              interval: 50,
-                              getTitlesWidget: (value, meta) {
-                                return Text(
-                                  value.toInt().toString(),
-                                  style: GoogleFonts.poppins(
-                                    color: Colors.grey[600],
-                                    fontSize: 12,
-                                  ),
-                                );
-                              },
-                              reservedSize: 42,
-                            ),
-                          ),
-                        ),
-                        borderData: FlBorderData(
-                          show: true,
-                          border: Border.all(color: Colors.grey[300]!),
-                        ),
-                        minX: 0,
-                        maxX: (getScoreHistorySpots().length - 1).toDouble(),
-                        minY: 0,
-                        maxY: (user?.scoreHistory
-                                    .map((s) => s['updatedScore'] as num)
-                                    .reduce((a, b) => a > b ? a : b)
-                                    .toDouble() ??
-                                0) +
-                            50,
-                        lineBarsData: [
-                          LineChartBarData(
-                            spots: getScoreHistorySpots(),
-                            isCurved: true,
-                            color: pastelBlue,
-                            barWidth: 3,
-                            isStrokeCapRound: true,
-                            dotData: FlDotData(
-                              show: true,
-                              getDotPainter: (spot, percent, barData, index) {
-                                return FlDotCirclePainter(
-                                  radius: 4,
-                                  color: Colors.white,
-                                  strokeWidth: 2,
-                                  strokeColor: pastelBlue,
-                                );
-                              },
-                            ),
-                            belowBarData: BarAreaData(
-                              show: true,
-                              color: pastelBlue.withOpacity(0.15),
-                            ),
-                          ),
-                        ],
-                        lineTouchData: LineTouchData(
-                          touchTooltipData: LineTouchTooltipData(
-                            getTooltipItems:
-                                (List<LineBarSpot> touchedBarSpots) {
-                              return touchedBarSpots.map((barSpot) {
-                                return LineTooltipItem(
-                                  'Score: ${barSpot.y.toInt()}',
-                                  GoogleFonts.poppins(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                );
-                              }).toList();
-                            },
-                          ),
+                    // Stats Grid
+                    _buildStatsGrid(),
+                    const SizedBox(height: 24),
+
+                    // Score History Section
+                    if (user?.scoreHistory.isNotEmpty ?? false) ...[
+                      Text(
+                        'Recent Activity',
+                        style: GoogleFonts.poppins(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.black87,
                         ),
                       ),
-                    ),
-                  ),
-                ],
+                      const SizedBox(height: 12),
+                      _buildScoreHistory(),
+                    ],
+                  ],
+                ),
               ),
             ),
     );
   }
 
-  Widget _buildStatCard(String title, String value, IconData icon,
-      {bool isEmail = false}) {
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.grey.withOpacity(0.1),
-              spreadRadius: 2,
-              blurRadius: 8,
-              offset: const Offset(0, 4),
-            ),
-          ],
+  Widget _buildWelcomeCard() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [pastelBlue, Color(0xFFE3F2FD)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Icon(icon, color: pastelBlue, size: 24),
-            const SizedBox(height: 12),
-            Text(
-              title,
-              style: GoogleFonts.poppins(
-                fontSize: 14,
-                color: Colors.grey[600],
-                fontWeight: FontWeight.w500,
-              ),
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: pastelBlue.withOpacity(0.3),
+            spreadRadius: 0,
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Keep Creating!',
+                  style: GoogleFonts.poppins(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.black87,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Share your amazing projects with the community',
+                  style: GoogleFonts.poppins(
+                    fontSize: 13,
+                    color: Colors.black54,
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(height: 4),
-            Text(
-              isEmail ? value.split('@')[0] : value,
-              style: GoogleFonts.poppins(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-                color: Colors.black87,
-              ),
-              overflow: TextOverflow.ellipsis,
+          ),
+          const Icon(Icons.rocket_launch, size: 50, color: pastelBlueText),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatsGrid() {
+    return GridView.count(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      crossAxisCount: 2,
+      mainAxisSpacing: 16,
+      crossAxisSpacing: 16,
+      childAspectRatio: 1.3,
+      children: [
+        _buildStatCard(
+            'Score', user?.score.toString() ?? '0', Icons.stars, pastelYellow),
+        _buildStatCard('Projects', user?.totalProjects.toString() ?? '0',
+            Icons.work, pastelGreen),
+        _buildStatCard('Wallet', '₹${user?.walletBalance ?? 0}',
+            Icons.account_balance_wallet, pastelRed),
+        _buildStatCard('Age', '${user?.age ?? 0} yrs', Icons.cake, pastelBlue),
+      ],
+    );
+  }
+
+  Widget _buildStatCard(
+      String title, String value, IconData icon, Color color) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.1),
+            spreadRadius: 0,
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.2),
+              borderRadius: BorderRadius.circular(10),
             ),
-          ],
-        ),
+            child: Icon(icon, color: color, size: 24),
+          ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: GoogleFonts.poppins(
+                  fontSize: 13,
+                  color: Colors.grey[600],
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                value,
+                style: GoogleFonts.poppins(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black87,
+                ),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildScoreHistory() {
+    final history = user?.scoreHistory ?? [];
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.1),
+            spreadRadius: 0,
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        children: history.take(5).map((entry) {
+          return Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: pastelGreen.withOpacity(0.2),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.trending_up,
+                      color: pastelGreenText, size: 20),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        entry['reason']?.toString() ?? 'Score Update',
+                        style: GoogleFonts.poppins(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                          color: Colors.black87,
+                        ),
+                      ),
+                      Text(
+                        '${entry['change']} points',
+                        style: GoogleFonts.poppins(
+                          fontSize: 12,
+                          color: Colors.grey[600],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Text(
+                  entry['updatedScore'].toString(),
+                  style: GoogleFonts.poppins(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: pastelBlueText,
+                  ),
+                ),
+              ],
+            ),
+          );
+        }).toList(),
       ),
     );
   }

@@ -1,5 +1,4 @@
 import 'dart:math';
-
 import 'package:flutter/material.dart';
 import 'package:miniguru/constants.dart';
 import 'package:miniguru/models/Draft.dart';
@@ -20,20 +19,24 @@ class ProjectScreen extends StatefulWidget {
   State<ProjectScreen> createState() => _ProjectScreenState();
 }
 
-class _ProjectScreenState extends State<ProjectScreen> {
+class _ProjectScreenState extends State<ProjectScreen>
+    with AutomaticKeepAliveClientMixin {
   List<Project> _projects = [];
+  List<Project> _allProjects = [];
   List<ProjectCategory> _projectCategory = [];
   List<Draft> _drafts = [];
+  List<Draft> _allDrafts = [];
 
   bool _loading = true;
-  bool _showCompleted = true; // Toggle between completed and drafts
+  bool _showCompleted = true;
   String _selectedCategory = '';
-  String _searchQuery = '';
 
   late User user;
 
-  final colors = [pastelBlue, pastelYellow, pastelRed, pastelGreen];
-  final fontColors = [
+  final _searchController = TextEditingController();
+
+  static const _colors = [pastelBlue, pastelYellow, pastelRed, pastelGreen];
+  static const _fontColors = [
     pastelBlueText,
     pastelYellowText,
     pastelRedText,
@@ -41,515 +44,572 @@ class _ProjectScreenState extends State<ProjectScreen> {
   ];
 
   @override
+  bool get wantKeepAlive => true;
+
+  @override
   void initState() {
     super.initState();
     _loadProjects();
   }
 
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
   Future<void> _loadProjects() async {
-    ProjectRepository repo = ProjectRepository();
-    UserRepository userRepository = UserRepository();
+    setState(() => _loading = true);
 
-    await repo.fetchAndStoreProjectsForUser();
-    await repo.fetchAndStoreProjectCategory();
-    await _loadDrafts();
+    try {
+      final repo = ProjectRepository();
+      final userRepository = UserRepository();
 
-    List<Project> projects = await repo.getProjects();
-    List<ProjectCategory> categories = await repo.getProjectCategories();
+      await Future.wait([
+        repo.fetchAndStoreProjectsForUser(),
+        repo.fetchAndStoreProjectCategory(),
+        _loadDrafts(),
+        userRepository.fetchAndStoreUserData(),
+      ]);
 
-    await userRepository.fetchAndStoreUserData();
-    user = (await userRepository.getUserDataFromLocalDb())!;
+      final projects = await repo.getProjects();
+      final categories = await repo.getProjectCategories();
+      final userData = await userRepository.getUserDataFromLocalDb();
 
-    setState(() {
-      _projectCategory = categories;
-      _projects = projects;
-      _loading = false;
-    });
+      if (mounted) {
+        setState(() {
+          _projectCategory = categories;
+          _projects = projects;
+          _allProjects = List.from(projects);
+          user = userData!;
+          _loading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _loading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+              content: Text('Error loading projects: $e'),
+              backgroundColor: Colors.red),
+        );
+      }
+    }
   }
 
   Future<void> _loadDrafts() async {
-    DraftRepository repository = DraftRepository();
-    List<Draft> drafts = await repository.getDrafts();
+    final repository = DraftRepository();
+    final drafts = await repository.getDrafts();
+    if (mounted) {
+      setState(() {
+        _drafts = drafts;
+        _allDrafts = List.from(drafts);
+      });
+    }
+  }
+
+  void _applyFilters(String query) {
     setState(() {
-      _drafts = drafts;
+      if (_showCompleted) {
+        _projects = _allProjects.where((project) {
+          final matchesCategory = _selectedCategory.isEmpty ||
+              project.category.toLowerCase() == _selectedCategory.toLowerCase();
+          final matchesQuery = query.isEmpty ||
+              project.title.toLowerCase().contains(query.toLowerCase());
+          return matchesCategory && matchesQuery;
+        }).toList();
+      } else {
+        _drafts = _allDrafts.where((draft) {
+          final matchesCategory = _selectedCategory.isEmpty ||
+              draft.category.toLowerCase() == _selectedCategory.toLowerCase();
+          final matchesQuery = query.isEmpty ||
+              draft.title.toLowerCase().contains(query.toLowerCase());
+          return matchesCategory && matchesQuery;
+        }).toList();
+      }
     });
+  }
+
+  Future<void> _deleteDraft(int draftId) async {
+    try {
+      await DraftRepository().deleteDraft(draftId);
+      setState(() {
+        _drafts.removeWhere((draft) => draft.id == draftId);
+        _allDrafts.removeWhere((draft) => draft.id == draftId);
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+              content: Text('Draft deleted'), backgroundColor: Colors.green),
+        );
+      }
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+              content: Text('Error deleting draft: $error'),
+              backgroundColor: Colors.red),
+        );
+      }
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    _loadDrafts();
+    super.build(context);
+
     return Scaffold(
-      floatingActionButton: FloatingActionButton(
-          isExtended: true,
-          child: const Icon(Icons.add),
-          onPressed: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => const AddDraftScreen(),
-              ),
-            );
-          }),
+      backgroundColor: backgroundWhite,
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () async {
+          await Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const AddDraftScreen()),
+          );
+          _loadDrafts();
+        },
+        icon: const Icon(Icons.add),
+        label: const Text('New Project'),
+        backgroundColor: pastelBlueText,
+      ),
       appBar: AppBar(
-        title: Text(
-          "Projects",
-          style: headingTextStyle.copyWith(
-            fontWeight: FontWeight.bold,
-            fontSize: 24,
-          ),
-        ),
+        title:
+            Text('My Projects', style: headingTextStyle.copyWith(fontSize: 24)),
         backgroundColor: Colors.transparent,
         elevation: 0,
-        iconTheme: const IconThemeData(color: Colors.black),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh, color: Colors.black54),
+            onPressed: _loadProjects,
+          ),
+        ],
       ),
       body: _loading
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(
+              child: CircularProgressIndicator(color: pastelBlueText))
           : SafeArea(
-              child: Padding(
-                padding: const EdgeInsets.all(8.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Chips for Completed and Drafts
-                    _buildProjectTypeChips(),
-                    Padding(
-                      padding: const EdgeInsets.all(8.0),
-                      child: Text(
-                        "Categories",
-                        style: headingTextStyle,
+              child: Column(
+                children: [
+                  _buildProjectTypeChips(),
+                  Expanded(
+                    child: RefreshIndicator(
+                      onRefresh: _loadProjects,
+                      child: CustomScrollView(
+                        slivers: [
+                          SliverToBoxAdapter(child: _buildCategorySection()),
+                          SliverToBoxAdapter(child: _buildSearchBar()),
+                          _showCompleted
+                              ? _buildProjectList()
+                              : _buildDraftProjectList(),
+                        ],
                       ),
                     ),
-                    _buildCategoryFilterChips(),
-                    const Padding(
-                      padding: EdgeInsets.all(8.0),
-                    ),
-                    _buildSearchBar(),
-                    Expanded(
-                      // Conditionally render based on _showCompleted
-                      child: _showCompleted
-                          ? _buildProjectList() // Show completed projects
-                          : _buildDraftProjectList(), // Show draft projects
-                    ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
     );
   }
 
-  // Toggle Chips for Completed and Drafts
   Widget _buildProjectTypeChips() {
-    return Row(
-      children: [
-        ChoiceChip(
-          label: Text(
-            'Completed',
-            style: bodyTextStyle,
-          ),
-          selected: _showCompleted,
-          onSelected: (selected) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      child: Row(
+        children: [
+          _buildChip('Completed', _showCompleted, () {
             setState(() {
               _showCompleted = true;
-              _searchQuery = '';
+              _selectedCategory = '';
+              _searchController.clear();
+              _applyFilters('');
             });
-          },
-        ),
-        const SizedBox(width: 8),
-        ChoiceChip(
-          label: Text(
-            'Drafts',
-            style: bodyTextStyle,
-          ),
-          selected: !_showCompleted,
-          onSelected: (selected) {
+          }),
+          const SizedBox(width: 8),
+          _buildChip('Drafts', !_showCompleted, () {
             setState(() {
               _showCompleted = false;
-              _searchQuery = '';
+              _selectedCategory = '';
+              _searchController.clear();
+              _applyFilters('');
             });
-          },
-        ),
-      ],
-    );
-  }
-
-  // Category Filter Chips
-  Widget _buildCategoryFilterChips() {
-    return Wrap(
-      spacing: 8.0,
-      children: _projectCategory.map((category) {
-        return ChoiceChip(
-          label: Text(
-            category.name,
-            style: bodyTextStyle,
-          ),
-          selected: _selectedCategory == category.name,
-          onSelected: (selected) {
-            setState(() {
-              _selectedCategory = selected ? category.name : '';
-            });
-          },
-        );
-      }).toList(),
-    );
-  }
-
-  // Search Bar to filter projects by title
-  Widget _buildSearchBar() {
-    return Padding(
-      padding: const EdgeInsets.all(8.0),
-      child: TextField(
-        decoration: InputDecoration(
-          labelText: 'Search Projects',
-          labelStyle: bodyTextStyle,
-          border: const OutlineInputBorder(),
-          prefixIcon: const Icon(Icons.search),
-        ),
-        onChanged: (query) async {
-          ProjectRepository repo = ProjectRepository();
-          var filteredProjects = await repo.getProjectsByQuery(query);
-          setState(() {
-            _projects = filteredProjects;
-            _searchQuery = query;
-          });
-        },
-      ),
-    );
-  }
-
-  // List of Completed Projects (Filtered by Category and Search Query)
-  Widget _buildProjectList() {
-    // Fetch all projects from the repository (no filtering by date)
-    List<Project> filteredProjects = _projects.where((project) {
-      // Filter by category
-      bool matchesCategory = _selectedCategory.isEmpty ||
-          project.category.toLowerCase() == _selectedCategory.toLowerCase();
-
-      // Filter by search query
-      bool matchesSearchQuery = _searchQuery.isEmpty ||
-          project.title.toLowerCase().contains(_searchQuery.toLowerCase());
-
-      return matchesCategory && matchesSearchQuery;
-    }).toList();
-
-    return (filteredProjects.isNotEmpty)
-        ? ListView.builder(
-            itemCount: filteredProjects.length,
-            itemBuilder: (context, index) {
-              final project = filteredProjects[index];
-              final color = colors[index % colors.length];
-
-              return GestureDetector(
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => ProjectDetailsScreen(
-                        project: project,
-                        backgroundColor: color,
-                        user: user,
-                      ),
-                    ),
-                  );
-                },
-                child: Card(
-                  color: color,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12.0),
-                  ),
-                  margin: const EdgeInsets.symmetric(
-                      vertical: 8.0, horizontal: 16.0),
-                  child: Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            ClipRRect(
-                              borderRadius: BorderRadius.circular(8.0),
-                              child: Image.network(
-                                project.thumbnail.isEmpty
-                                    ? "https://picsum.photos/200"
-                                    : project.thumbnail,
-                                width: 70.0,
-                                height: 70.0,
-                                fit: BoxFit.cover,
-                              ),
-                            ),
-                            const SizedBox(width: 16.0),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    project.title,
-                                    style:
-                                        headingTextStyle.copyWith(fontSize: 15),
-                                  ),
-                                  const SizedBox(height: 4.0),
-                                  Text(
-                                    project.description,
-                                    maxLines: 2,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: bodyTextStyle.copyWith(fontSize: 14),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 16.0),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Container(
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(30),
-                                border: Border.all(color: Colors.grey[600]!),
-                              ),
-                              child: Padding(
-                                padding: const EdgeInsets.all(8.0),
-                                child: Text(
-                                  project.category,
-                                  style:
-                                      headingTextStyle.copyWith(fontSize: 11),
-                                ),
-                              ),
-                            ),
-                            Text(
-                              project.author,
-                              style: bodyTextStyle.copyWith(
-                                  color: Colors.grey[600], fontSize: 12),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              );
-            },
-          )
-        : Center(
-            child: Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(
-                    Icons.add_chart,
-                    size: 32,
-                  ),
-                  Text(
-                    "No published projects found. Click the add button to get started",
-                    style: bodyTextStyle,
-                    textAlign: TextAlign.center,
-                  ),
-                ],
-              ),
-            ),
-          );
-  }
-
-  // List of Draft Projects (Filtered by Category and Search Query)
-  Widget _buildDraftProjectList() {
-    // Fetch drafts from the repository
-    List<Draft> draftProjects = _drafts;
-
-    // Apply filters (category and search query)
-    List<Draft> filteredDraftProjects = draftProjects.where((project) {
-      // Filter by category
-      bool matchesCategory = _selectedCategory.isEmpty ||
-          project.category.toLowerCase() == _selectedCategory.toLowerCase();
-
-      // Filter by search query
-      bool matchesSearchQuery = _searchQuery.isEmpty ||
-          project.title.toLowerCase().contains(_searchQuery.toLowerCase());
-
-      return matchesCategory && matchesSearchQuery;
-    }).toList();
-
-    return (filteredDraftProjects.isNotEmpty)
-        ? ListView.builder(
-            itemCount: filteredDraftProjects.length,
-            itemBuilder: (context, index) {
-              final project = filteredDraftProjects[index];
-
-              return GestureDetector(
-                onTap: () {
-                  Random random = Random();
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => EditDraftScreen(
-                        backgroundColor: colors[random.nextInt(colors.length)],
-                        draftId: project.id!,
-                      ),
-                    ),
-                  );
-                },
-                child: Card(
-                  color: Colors.white,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12.0),
-                  ),
-                  margin: const EdgeInsets.symmetric(
-                      vertical: 8.0, horizontal: 16.0),
-                  child: Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Stack(
-                      children: [
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                ClipRRect(
-                                  borderRadius: BorderRadius.circular(8.0),
-                                  child: Image.network(
-                                    "https://picsum.photos/200",
-                                    width: 70.0,
-                                    height: 70.0,
-                                    fit: BoxFit.cover,
-                                  ),
-                                ),
-                                const SizedBox(width: 16.0),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        project.title,
-                                        style: headingTextStyle.copyWith(
-                                            fontSize: 15),
-                                      ),
-                                      const SizedBox(height: 4.0),
-                                      Text(
-                                        project.description,
-                                        maxLines: 2,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: bodyTextStyle.copyWith(
-                                            fontSize: 14),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 16.0),
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Container(
-                                  decoration: BoxDecoration(
-                                    borderRadius: BorderRadius.circular(30),
-                                    border:
-                                        Border.all(color: Colors.grey[600]!),
-                                  ),
-                                  child: Padding(
-                                    padding: const EdgeInsets.all(8.0),
-                                    child: Text(
-                                      project.category,
-                                      style: headingTextStyle.copyWith(
-                                          fontSize: 11),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                        Positioned(
-                          right: 0,
-                          top: 0,
-                          child: IconButton(
-                            icon: const Icon(
-                              Icons.delete_outlined,
-                              color: Colors.red,
-                            ),
-                            onPressed: () {
-                              _showDeleteConfirmationDialog(
-                                  context, project.id!);
-                            },
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              );
-            },
-          )
-        : Center(
-            child: Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(
-                    Icons.add_chart,
-                    size: 32,
-                  ),
-                  Text(
-                    "No drafts saved. Click the add button to get started",
-                    style: bodyTextStyle,
-                    textAlign: TextAlign.center,
-                  ),
-                ],
-              ),
-            ),
-          );
-  }
-
-  void _showDeleteConfirmationDialog(BuildContext context, int draftId) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(
-          'Delete Draft',
-          style: headingTextStyle.copyWith(fontSize: 18),
-        ),
-        content: Text(
-          'Are you sure you want to delete this draft?',
-          style: bodyTextStyle,
-        ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.of(context).pop();
-            },
-            child: Text(
-              'Cancel',
-              style: bodyTextStyle.copyWith(fontWeight: FontWeight.bold),
-            ),
-          ),
-          TextButton(
-            onPressed: () {
-              _deleteDraft(draftId);
-              Navigator.of(context).pop();
-            },
-            child: Text(
-              'Delete',
-              style: bodyTextStyle.copyWith(fontWeight: FontWeight.bold),
-            ),
-          ),
+          }),
         ],
       ),
     );
   }
 
-  void _deleteDraft(int draftId) {
-    // Call your DraftRepository to delete the draft
-    DraftRepository().deleteDraft(draftId).then((_) {
-      setState(() {
-        _drafts.removeWhere((draft) => draft.id == draftId);
-      });
-    }).catchError((error) {
-      // Handle any errors that occur during the delete operation
-      print('Error deleting draft: $error');
-    });
+  Widget _buildChip(String label, bool selected, VoidCallback onTap) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(20),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+        decoration: BoxDecoration(
+          color: selected ? pastelBlueText : Colors.grey[200],
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Text(
+          label,
+          style: bodyTextStyle.copyWith(
+            color: selected ? Colors.white : Colors.black87,
+            fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCategorySection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.all(16),
+          child: Text('Categories',
+              style: headingTextStyle.copyWith(fontSize: 16)),
+        ),
+        SizedBox(
+          height: 60,
+          child: ListView.builder(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            itemCount: _projectCategory.length,
+            itemBuilder: (context, index) {
+              final category = _projectCategory[index];
+              final isSelected = _selectedCategory == category.name;
+              return Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                child: ChoiceChip(
+                  label: Text(category.name),
+                  selected: isSelected,
+                  onSelected: (selected) {
+                    setState(() {
+                      _selectedCategory = selected ? category.name : '';
+                      _applyFilters(_searchController.text);
+                    });
+                  },
+                  selectedColor: _colors[index % _colors.length],
+                  backgroundColor: Colors.grey[200],
+                  labelStyle: bodyTextStyle.copyWith(
+                    fontSize: 13,
+                    color: isSelected ? Colors.black87 : Colors.grey[700],
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSearchBar() {
+    return Padding(
+      padding: const EdgeInsets.all(16),
+      child: TextField(
+        controller: _searchController,
+        decoration: InputDecoration(
+          hintText: 'Search projects...',
+          hintStyle: bodyTextStyle.copyWith(color: Colors.grey[400]),
+          prefixIcon: const Icon(Icons.search, color: Colors.grey),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide(color: Colors.grey[300]!),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide(color: Colors.grey[300]!),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: const BorderSide(color: pastelBlueText),
+          ),
+          filled: true,
+          fillColor: Colors.white,
+        ),
+        onChanged: _applyFilters,
+      ),
+    );
+  }
+
+  Widget _buildProjectList() {
+    if (_projects.isEmpty) {
+      return SliverFillRemaining(
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.work_outline, size: 64, color: Colors.grey[400]),
+              const SizedBox(height: 16),
+              Text(
+                'No published projects yet',
+                style: headingTextStyle.copyWith(color: Colors.grey[600]),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Tap + to create your first project',
+                style: bodyTextStyle.copyWith(color: Colors.grey[500]),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return SliverPadding(
+      padding: const EdgeInsets.all(16),
+      sliver: SliverList(
+        delegate: SliverChildBuilderDelegate(
+          (context, index) => _buildProjectCard(_projects[index], index),
+          childCount: _projects.length,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDraftProjectList() {
+    if (_drafts.isEmpty) {
+      return SliverFillRemaining(
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.edit_note, size: 64, color: Colors.grey[400]),
+              const SizedBox(height: 16),
+              Text(
+                'No drafts saved',
+                style: headingTextStyle.copyWith(color: Colors.grey[600]),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Start creating to save drafts',
+                style: bodyTextStyle.copyWith(color: Colors.grey[500]),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return SliverPadding(
+      padding: const EdgeInsets.all(16),
+      sliver: SliverList(
+        delegate: SliverChildBuilderDelegate(
+          (context, index) => _buildDraftCard(_drafts[index], index),
+          childCount: _drafts.length,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildProjectCard(Project project, int index) {
+    final color = _colors[index % _colors.length];
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      elevation: 2,
+      child: InkWell(
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => ProjectDetailsScreen(
+                project: project,
+                backgroundColor: color,
+                user: user,
+              ),
+            ),
+          );
+        },
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: color,
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: Image.network(
+                      project.thumbnail.isEmpty
+                          ? "https://picsum.photos/200"
+                          : project.thumbnail,
+                      width: 80,
+                      height: 80,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => Container(
+                        width: 80,
+                        height: 80,
+                        color: Colors.grey[300],
+                        child: const Icon(Icons.image, size: 40),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          project.title,
+                          style: headingTextStyle.copyWith(fontSize: 16),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          project.description,
+                          style: bodyTextStyle.copyWith(
+                              fontSize: 13, color: Colors.black54),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      project.category,
+                      style: bodyTextStyle.copyWith(
+                          fontSize: 11, fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                  const Spacer(),
+                  Text(
+                    project.author,
+                    style: bodyTextStyle.copyWith(
+                        fontSize: 12, color: Colors.black54),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDraftCard(Draft draft, int index) {
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      elevation: 2,
+      child: InkWell(
+        onTap: () async {
+          await Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => EditDraftScreen(
+                backgroundColor: _colors[Random().nextInt(_colors.length)],
+                draftId: draft.id!,
+              ),
+            ),
+          );
+          _loadDrafts();
+        },
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: Image.network(
+                  "https://picsum.photos/200",
+                  width: 80,
+                  height: 80,
+                  fit: BoxFit.cover,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      draft.title,
+                      style: headingTextStyle.copyWith(fontSize: 16),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      draft.description,
+                      style: bodyTextStyle.copyWith(
+                          fontSize: 13, color: Colors.black54),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: pastelYellow,
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Text(
+                        draft.category,
+                        style: bodyTextStyle.copyWith(
+                            fontSize: 11, fontWeight: FontWeight.w600),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              IconButton(
+                icon: const Icon(Icons.delete_outline, color: Colors.red),
+                onPressed: () {
+                  showDialog(
+                    context: context,
+                    builder: (context) => AlertDialog(
+                      title: Text('Delete Draft',
+                          style: headingTextStyle.copyWith(fontSize: 18)),
+                      content: Text(
+                          'Are you sure you want to delete this draft?',
+                          style: bodyTextStyle),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(context),
+                          child: Text('Cancel',
+                              style:
+                                  bodyTextStyle.copyWith(color: Colors.grey)),
+                        ),
+                        TextButton(
+                          onPressed: () {
+                            Navigator.pop(context);
+                            _deleteDraft(draft.id!);
+                          },
+                          child: Text('Delete',
+                              style: bodyTextStyle.copyWith(
+                                  color: Colors.red,
+                                  fontWeight: FontWeight.bold)),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }

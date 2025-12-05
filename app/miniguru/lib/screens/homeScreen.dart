@@ -17,50 +17,91 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   int _currentIndex = 0;
 
-  void _onNavBarTap(int index) {
-    setState(() {
-      _currentIndex = index;
-    });
+  // Lazy loading - create widgets only when needed
+  final Map<int, Widget> _cachedScreens = {};
+
+  Widget _getScreen(int index) {
+    // Return cached screen if exists, otherwise create new one
+    if (!_cachedScreens.containsKey(index)) {
+      switch (index) {
+        case 0:
+          _cachedScreens[index] = const Home();
+          break;
+        case 1:
+          _cachedScreens[index] = const Library();
+          break;
+        case 2:
+          _cachedScreens[index] = const Shop();
+          break;
+        case 3:
+          _cachedScreens[index] = const ProjectScreen();
+          break;
+        case 4:
+          _cachedScreens[index] = const Profile();
+          break;
+      }
+    }
+    return _cachedScreens[index]!;
   }
 
-  final List<Widget> _screens = [
-    const Home(),
-    const Library(),
-    const Shop(),
-    const ProjectScreen(),
-    const Profile(),
-  ];
+  void _onNavBarTap(int index) {
+    if (_currentIndex != index) {
+      setState(() {
+        _currentIndex = index;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: _screens[_currentIndex], // Show the selected screen
+      // Use IndexedStack to preserve state and avoid rebuilds
+      body: IndexedStack(
+        index: _currentIndex,
+        children: [
+          _getScreen(0), // Home
+          _getScreen(1), // Library
+          _getScreen(2), // Shop
+          _getScreen(3), // Projects
+          _getScreen(4), // Profile
+        ],
+      ),
       bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _currentIndex, // Current selected tab
-        onTap: _onNavBarTap, // Call function when a tab is tapped
-        type: BottomNavigationBarType.shifting,
-        selectedItemColor: Theme.of(context).primaryColor,
+        currentIndex: _currentIndex,
+        onTap: _onNavBarTap,
+        type: BottomNavigationBarType
+            .fixed, // Changed from shifting for better performance
+        selectedItemColor: pastelBlueText,
         unselectedItemColor: Colors.grey,
-        selectedLabelStyle: bodyTextStyle,
+        selectedLabelStyle:
+            bodyTextStyle.copyWith(fontSize: 12, fontWeight: FontWeight.w600),
+        unselectedLabelStyle: bodyTextStyle.copyWith(fontSize: 11),
+        backgroundColor: Colors.white,
+        elevation: 8,
         items: const [
           BottomNavigationBarItem(
-            icon: Icon(Icons.home),
+            icon: Icon(Icons.home_outlined),
+            activeIcon: Icon(Icons.home),
             label: 'Home',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.library_books),
+            icon: Icon(Icons.library_books_outlined),
+            activeIcon: Icon(Icons.library_books),
             label: 'Library',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.shopping_cart),
+            icon: Icon(Icons.shopping_bag_outlined),
+            activeIcon: Icon(Icons.shopping_bag),
             label: 'Shop',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.work),
+            icon: Icon(Icons.work_outline),
+            activeIcon: Icon(Icons.work),
             label: 'Projects',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.person),
+            icon: Icon(Icons.person_outline),
+            activeIcon: Icon(Icons.person),
             label: 'Profile',
           ),
         ],
