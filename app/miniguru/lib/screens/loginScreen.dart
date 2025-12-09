@@ -10,7 +10,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
-  static String id = "LoginScreen";
+  static const String id = "LoginScreen";
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();
@@ -47,30 +47,90 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() => _isLoading = true);
 
     try {
+      print('━' * 50);
+      print('🔐 LOGIN ATTEMPT');
+      print('━' * 50);
+      print('📧 Email: ${_emailController.text.trim()}');
+      print('🔗 API URL: ${await _api.checkConnection() ? "Connected" : "Not Connected"}');
+      
       final response = await _api.login(
         _emailController.text.trim(),
         _passwordController.text.trim(),
       );
 
+      print('📦 Response Status: ${response.statusCode}');
+      print('📦 Response Body: ${response.body}');
+
       if (!mounted) return;
 
       if (response.statusCode == 200) {
         final body = jsonDecode(response.body);
+        print('✅ Login successful!');
+        print('🎫 Access Token: ${body['accessToken']?.substring(0, 20)}...');
+        print('🎫 Refresh Token: ${body['refreshToken']?.substring(0, 20)}...');
+        
+        // Save tokens to database
         await _db.insertAuthToken(body['accessToken'], body['refreshToken']);
+        print('💾 Tokens saved to database');
+
+        // Verify tokens were saved
+        final savedToken = await _db.getAuthToken();
+        print('✅ Token verification: ${savedToken != null ? "Success" : "Failed"}');
 
         if (mounted) {
-          Navigator.of(context).pushNamedAndRemoveUntil(
-            HomeScreen.id,
-            (route) => false,
-          );
+          print('🔄 Navigating to HomeScreen...');
+          _showSnackBar("Login successful! Welcome back.", Colors.green);
+          
+          // Small delay to let user see success message
+          await Future.delayed(const Duration(milliseconds: 500));
+          
+          if (mounted) {
+            Navigator.of(context).pushNamedAndRemoveUntil(
+              HomeScreen.id,
+              (route) => false,
+            );
+          }
         }
       } else {
-        final error = jsonDecode(response.body)['error'] ?? 'Login failed';
-        if (mounted) _showSnackBar(error, Colors.red);
+        print('❌ Login failed with status: ${response.statusCode}');
+        final errorBody = jsonDecode(response.body);
+        print('❌ Error body: $errorBody');
+        
+        // Handle different error messages
+        String errorMessage = 'Login failed';
+        if (errorBody['message'] != null) {
+          errorMessage = errorBody['message'];
+        } else if (errorBody['error'] != null) {
+          errorMessage = errorBody['error'];
+        }
+        
+        // User-friendly error messages
+        if (response.statusCode == 401) {
+          errorMessage = 'Invalid email or password';
+        } else if (response.statusCode == 404) {
+          errorMessage = 'Account not found. Please sign up first.';
+        } else if (response.statusCode == 500) {
+          errorMessage = 'Server error. Please try again later.';
+        }
+        
+        if (mounted) _showSnackBar(errorMessage, Colors.red);
       }
-    } catch (e) {
+    } catch (e, stackTrace) {
+      print('━' * 50);
+      print('❌ LOGIN EXCEPTION');
+      print('━' * 50);
+      print('Error: $e');
+      print('Stack trace: $stackTrace');
+      print('━' * 50);
+      
       if (mounted) {
-        _showSnackBar("Connection error. Please try again.", Colors.red);
+        String errorMsg = "Connection error. Please check your internet.";
+        if (e.toString().contains('SocketException')) {
+          errorMsg = "Cannot reach server. Check your connection.";
+        } else if (e.toString().contains('TimeoutException')) {
+          errorMsg = "Request timed out. Please try again.";
+        }
+        _showSnackBar(errorMsg, Colors.red);
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -84,6 +144,7 @@ class _LoginScreenState extends State<LoginScreen> {
         backgroundColor: color,
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        duration: const Duration(seconds: 3),
       ),
     );
   }

@@ -7,10 +7,16 @@ import 'package:miniguru/models/AuthToken.dart';
 import 'package:miniguru/models/User.dart';
 import 'package:path/path.dart';
 import 'package:http_parser/http_parser.dart';
+import 'package:miniguru/secrets.dart'; // Import secrets for base URL
 
 class MiniguruApi {
-  static const String _baseUrl = "http://203.18.51.39:5001";
+  // UPDATED: Use base URL from secrets.dart
+  static const String _baseUrl = apiBaseUrl;
+  
+  // Old hardcoded URLs (kept as comments for reference)
+  // static const String _baseUrl = "http://203.18.51.39:5001";
   // static const String _baseUrl = "http://172.29.156.16:3000";
+  
   DatabaseHelper? _db;
 
   MiniguruApi() {
@@ -20,6 +26,8 @@ class MiniguruApi {
   // Login API
   Future<http.Response> login(String email, String password) async {
     final url = Uri.parse('$_baseUrl/auth/login');
+    print('🔵 Login Request: $url'); // Added debug log
+    
     final response = await http.post(
       url,
       headers: _buildHeaders(),
@@ -37,6 +45,9 @@ class MiniguruApi {
   Future<http.Response> register(String name, String email, String password,
       int age, String phoneNumber) async {
     final url = Uri.parse('$_baseUrl/auth/register');
+    print('🔵 Register Request: $url'); // Added debug log
+    print('📦 Data: name=$name, email=$email, age=$age, phone=$phoneNumber');
+    
     final response = await http.post(
       url,
       headers: _buildHeaders(),
@@ -364,6 +375,24 @@ class MiniguruApi {
     }
   }
 
+  // NEW: Health check method for testing backend connection
+  Future<bool> checkConnection() async {
+    try {
+      final url = Uri.parse('$_baseUrl/health');
+      print('🔍 Checking connection: $url');
+      
+      final response = await http.get(url).timeout(
+        const Duration(seconds: 5),
+      );
+      
+      print('🟢 Connection status: ${response.statusCode}');
+      return response.statusCode == 200;
+    } catch (e) {
+      print('❌ Connection check failed: $e');
+      return false;
+    }
+  }
+
   // Helper method to build headers (including Authorization)
   Map<String, String> _buildHeaders([String? accessToken]) {
     return {
@@ -375,10 +404,10 @@ class MiniguruApi {
   // Handle the response, including logging and error checking
   void _handleResponse(http.Response response) {
     if (response.statusCode >= 400) {
-      print('Error: ${response.statusCode} - ${response.reasonPhrase}');
-      print(response.body);
+      print('❌ Error: ${response.statusCode} - ${response.reasonPhrase}');
+      print('📦 Response Body: ${response.body}');
     } else {
-      print('Success: ${response.statusCode}');
+      print('✅ Success: ${response.statusCode}');
     }
   }
 }

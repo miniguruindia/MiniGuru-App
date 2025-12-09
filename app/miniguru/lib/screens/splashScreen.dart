@@ -9,7 +9,7 @@ import 'package:miniguru/screens/loginScreen.dart';
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
 
-  static String id = "SplashScreen";
+  static const String id = "SplashScreen";
 
   @override
   State<SplashScreen> createState() => _SplashScreenState();

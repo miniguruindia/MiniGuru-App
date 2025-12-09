@@ -7,6 +7,10 @@ import 'package:miniguru/screens/splashScreen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  
+  // Initialize any web-specific setup here if needed
+  print('🚀 MiniGuru starting...');
+  
   runApp(const MyApp());
 }
 
@@ -17,19 +21,40 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
+      title: 'MiniGuru',
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: pastelBlue),
         useMaterial3: true,
       ),
 
-      // Change this line to start with Login Screen
-      initialRoute: LoginScreen.id,
-
-      routes: {
-        SplashScreen.id: (context) => const SplashScreen(),
-        LoginScreen.id: (context) => const LoginScreen(),
-        RegisterScreen.id: (context) => const RegisterScreen(),
-        HomeScreen.id: (context) => const HomeScreen(),
+      // Use onGenerateRoute for better control
+      onGenerateRoute: (settings) {
+        print('📍 Navigating to: ${settings.name}');
+        
+        // Handle root path
+        if (settings.name == '/') {
+          return MaterialPageRoute(builder: (_) => const HomeScreen());
+        }
+        
+        // Handle named routes
+        switch (settings.name) {
+          case SplashScreen.id:
+            return MaterialPageRoute(builder: (_) => const SplashScreen());
+          case LoginScreen.id:
+            return MaterialPageRoute(builder: (_) => const LoginScreen());
+          case RegisterScreen.id:
+            return MaterialPageRoute(builder: (_) => const RegisterScreen());
+          case HomeScreen.id:
+            return MaterialPageRoute(builder: (_) => const HomeScreen());
+          default:
+            return MaterialPageRoute(builder: (_) => const HomeScreen());
+        }
+      },
+      
+      // Fallback for unknown routes
+      onUnknownRoute: (settings) {
+        print('⚠️  Unknown route: ${settings.name}, redirecting to home');
+        return MaterialPageRoute(builder: (_) => const HomeScreen());
       },
     );
   }

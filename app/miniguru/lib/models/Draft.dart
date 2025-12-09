@@ -1,5 +1,5 @@
 class Draft {
-  final int? id;
+  int? id; // 👈 removed 'final' so it can be updated
   final String title;
   final String description;
   final DateTime? startDate;
@@ -17,7 +17,6 @@ class Draft {
     required this.materials,
   });
 
-  // Convert a Draft into a Map. The keys must correspond to the column names in the database.
   Map<String, dynamic> toMap() {
     return {
       'id': id,
@@ -30,7 +29,6 @@ class Draft {
     };
   }
 
-  // Convert a Map into a Draft. The keys must correspond to the column names in the database.
   factory Draft.fromMap(Map<String, dynamic> map) {
     return Draft(
       id: map['id'],
@@ -46,12 +44,10 @@ class Draft {
     );
   }
 
-  // Convert materials map to a string for storage
   static String _serializeMaterials(Map<String, int> materials) {
     return materials.entries.map((e) => '${e.key}:${e.value}').join(',');
   }
 
-  // Convert a string back to a materials map
   static Map<String, int> _deserializeMaterials(String materials) {
     return Map.fromEntries(
       materials.split(',').map(

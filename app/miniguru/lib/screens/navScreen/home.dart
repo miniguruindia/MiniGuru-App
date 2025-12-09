@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:miniguru/constants.dart';
 import 'package:miniguru/models/User.dart';
 import 'package:miniguru/network/MiniguruApi.dart';
+import 'package:miniguru/screens/loginScreen.dart';
+import 'package:miniguru/screens/registerScreen.dart';
+import 'package:miniguru/screens/videoPlayerScreen.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 class Home extends StatefulWidget {
@@ -15,299 +18,540 @@ class _HomeState extends State<Home> with AutomaticKeepAliveClientMixin {
   User? user;
   final _miniguruApi = MiniguruApi();
   bool _isLoading = true;
+  bool _isAuthenticated = false;
+  
+  final TextEditingController _searchController = TextEditingController();
+  String _selectedCategory = 'All';
+  
+  final List<String> _categories = [
+    'All',
+    'Show Piece',
+    'Working Mechanical Model',
+    'Science Experiment',
+    'Magic Science',
+    'Life Hack',
+    'Electronics Project',
+  ];
+
+  // Mock video data - Replace with API call
+  final List<Map<String, dynamic>> _videos = [
+    {
+      'title': 'Amazing Robot Project',
+      'creator': 'Tech Kids',
+      'views': '1.2K',
+      'duration': '5:30',
+      'category': 'Working Mechanical Model',
+    },
+    {
+      'title': 'Volcano Science Experiment',
+      'creator': 'Science Fun',
+      'views': '890',
+      'duration': '3:15',
+      'category': 'Science Experiment',
+    },
+    {
+      'title': 'LED Cube Display',
+      'creator': 'Electronics Pro',
+      'views': '2.1K',
+      'duration': '8:20',
+      'category': 'Electronics Project',
+    },
+  ];
 
   @override
-  bool get wantKeepAlive => true; // Keep state alive when switching tabs
+  bool get wantKeepAlive => true;
 
   @override
   void initState() {
     super.initState();
-    _fetchUserData();
+    _checkAuthAndLoadData();
   }
 
-  Future<void> _fetchUserData() async {
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _checkAuthAndLoadData() async {
     setState(() => _isLoading = true);
 
-    final userData = await _miniguruApi.getUserData();
+    try {
+      final userData = await _miniguruApi.getUserData();
 
-    if (mounted) {
-      setState(() {
-        user = userData;
-        _isLoading = false;
-      });
-
-      if (userData == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text("Failed to load user data",
-                style: bodyTextStyle.copyWith(color: Colors.white)),
-            backgroundColor: Colors.red,
-          ),
-        );
+      if (mounted) {
+        setState(() {
+          user = userData;
+          _isAuthenticated = userData != null;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      print('ℹ️  User not authenticated: $e');
+      if (mounted) {
+        setState(() {
+          user = null;
+          _isAuthenticated = false;
+          _isLoading = false;
+        });
       }
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    super.build(context); // Required for AutomaticKeepAliveClientMixin
+    super.build(context);
 
     return Scaffold(
       backgroundColor: backgroundWhite,
-      appBar: AppBar(
-        elevation: 0,
-        title: Text(
-          user != null ? 'Hi, ${user!.name.split(' ')[0]}! 👋' : 'MiniGuru',
-          style: GoogleFonts.poppins(
-            fontWeight: FontWeight.w600,
-            fontSize: 22,
-            color: Colors.black87,
-          ),
-        ),
-        backgroundColor: Colors.transparent,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh, color: Colors.black54),
-            onPressed: _fetchUserData,
-          ),
-        ],
-      ),
-      body: _isLoading
-          ? const Center(
-              child: CircularProgressIndicator(
-                valueColor: AlwaysStoppedAnimation<Color>(pastelBlueText),
-              ),
-            )
-          : RefreshIndicator(
-              onRefresh: _fetchUserData,
-              color: pastelBlueText,
-              child: SingleChildScrollView(
-                physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.all(20.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Welcome Card
-                    _buildWelcomeCard(),
-                    const SizedBox(height: 20),
-
-                    // Stats Grid
-                    _buildStatsGrid(),
-                    const SizedBox(height: 24),
-
-                    // Score History Section
-                    if (user?.scoreHistory.isNotEmpty ?? false) ...[
-                      Text(
-                        'Recent Activity',
-                        style: GoogleFonts.poppins(
-                          fontSize: 20,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.black87,
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      _buildScoreHistory(),
-                    ],
-                  ],
-                ),
-              ),
+      body: SafeArea(
+        child: Column(
+          children: [
+            // Header with Logo and Auth Buttons
+            _buildHeader(),
+            
+            // Search Bar
+            _buildSearchBar(),
+            
+            // Authenticated User Stats (only shown when logged in)
+            if (_isAuthenticated && user != null) ...[
+              _buildUserStats(),
+            ],
+            
+            // Category Filter
+            _buildCategoryFilter(),
+            
+            // Video Feed
+            Expanded(
+              child: _buildVideoFeed(),
             ),
+          ],
+        ),
+      ),
     );
   }
 
-  Widget _buildWelcomeCard() {
+  Widget _buildHeader() {
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          // Logo
+          Row(
+            children: [
+              Image.asset(
+                'assets/mg-logo.png',
+                width: 40,
+                height: 40,
+                errorBuilder: (context, error, stackTrace) {
+                  return Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: pastelBlue,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Icon(Icons.science, color: Colors.white),
+                  );
+                },
+              ),
+              const SizedBox(width: 12),
+              Text(
+                'MiniGuru',
+                style: GoogleFonts.poppins(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  color: pastelBlueText,
+                ),
+              ),
+            ],
+          ),
+          
+          // Auth Buttons or User Profile
+          _isAuthenticated ? _buildUserMenu() : _buildAuthButtons(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAuthButtons() {
+    return Row(
+      children: [
+        OutlinedButton(
+          onPressed: () {
+            Navigator.pushNamed(context, LoginScreen.id);
+          },
+          style: OutlinedButton.styleFrom(
+            foregroundColor: pastelBlueText,
+            side: const BorderSide(color: pastelBlueText),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+            ),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          ),
+          child: const Text('Login'),
+        ),
+        const SizedBox(width: 8),
+        ElevatedButton(
+          onPressed: () {
+            Navigator.pushNamed(context, RegisterScreen.id);
+          },
+          style: ElevatedButton.styleFrom(
+            backgroundColor: pastelBlueText,
+            foregroundColor: Colors.white,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+            ),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          ),
+          child: const Text('Sign Up'),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildUserMenu() {
+    return PopupMenuButton<String>(
+      child: Row(
+        children: [
+          CircleAvatar(
+            radius: 18,
+            backgroundColor: pastelBlue,
+            child: Text(
+              user?.name[0].toUpperCase() ?? 'U',
+              style: GoogleFonts.poppins(
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          const Icon(Icons.arrow_drop_down, color: Colors.black54),
+        ],
+      ),
+      onSelected: (value) {
+        if (value == 'profile') {
+          // Navigate to profile - you can implement this
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Navigate to Profile')),
+          );
+        } else if (value == 'projects') {
+          // Navigate to projects list
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Navigate to My Projects')),
+          );
+        }
+      },
+      itemBuilder: (context) => [
+        PopupMenuItem(
+          value: 'profile',
+          child: Row(
+            children: [
+              const Icon(Icons.person, size: 20),
+              const SizedBox(width: 12),
+              Text('Update Profile', style: GoogleFonts.poppins()),
+            ],
+          ),
+        ),
+        PopupMenuItem(
+          value: 'projects',
+          child: Row(
+            children: [
+              const Icon(Icons.folder, size: 20),
+              const SizedBox(width: 12),
+              Text('My Projects', style: GoogleFonts.poppins()),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSearchBar() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      color: Colors.white,
+      child: TextField(
+        controller: _searchController,
+        decoration: InputDecoration(
+          hintText: 'Search projects and videos...',
+          hintStyle: GoogleFonts.poppins(color: Colors.grey),
+          prefixIcon: const Icon(Icons.search, color: pastelBlueText),
+          suffixIcon: _searchController.text.isNotEmpty
+              ? IconButton(
+                  icon: const Icon(Icons.clear),
+                  onPressed: () {
+                    setState(() {
+                      _searchController.clear();
+                    });
+                  },
+                )
+              : null,
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide.none,
+          ),
+          filled: true,
+          fillColor: Colors.grey.shade100,
+          contentPadding: const EdgeInsets.symmetric(vertical: 12),
+        ),
+        onChanged: (value) {
+          setState(() {}); // Rebuild to show/hide clear button
+        },
+      ),
+    );
+  }
+
+  Widget _buildUserStats() {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
           colors: [pastelBlue, Color(0xFFE3F2FD)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
             color: pastelBlue.withOpacity(0.3),
-            spreadRadius: 0,
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
         ],
       ),
       child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Keep Creating!',
-                  style: GoogleFonts.poppins(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.black87,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Share your amazing projects with the community',
-                  style: GoogleFonts.poppins(
-                    fontSize: 13,
-                    color: Colors.black54,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const Icon(Icons.rocket_launch, size: 50, color: pastelBlueText),
+          _buildQuickStat('Score', user?.score.toString() ?? '0', Icons.stars),
+          _buildQuickStat('Projects', user?.totalProjects.toString() ?? '0', Icons.work),
+          _buildQuickStat('Wallet', '₹${user?.walletBalance.toInt() ?? 0}', Icons.account_balance_wallet),
         ],
       ),
     );
   }
 
-  Widget _buildStatsGrid() {
-    return GridView.count(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      crossAxisCount: 2,
-      mainAxisSpacing: 16,
-      crossAxisSpacing: 16,
-      childAspectRatio: 1.3,
+  Widget _buildQuickStat(String label, String value, IconData icon) {
+    return Column(
       children: [
-        _buildStatCard(
-            'Score', user?.score.toString() ?? '0', Icons.stars, pastelYellow),
-        _buildStatCard('Projects', user?.totalProjects.toString() ?? '0',
-            Icons.work, pastelGreen),
-        _buildStatCard('Wallet', '₹${user?.walletBalance ?? 0}',
-            Icons.account_balance_wallet, pastelRed),
-        _buildStatCard('Age', '${user?.age ?? 0} yrs', Icons.cake, pastelBlue),
+        Icon(icon, color: pastelBlueText, size: 28),
+        const SizedBox(height: 4),
+        Text(
+          value,
+          style: GoogleFonts.poppins(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+            color: Colors.black87,
+          ),
+        ),
+        Text(
+          label,
+          style: GoogleFonts.poppins(
+            fontSize: 12,
+            color: Colors.black54,
+          ),
+        ),
       ],
     );
   }
 
-  Widget _buildStatCard(
-      String title, String value, IconData icon, Color color) {
+  Widget _buildCategoryFilter() {
     return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
-            spreadRadius: 0,
-            blurRadius: 10,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: color.withOpacity(0.2),
-              borderRadius: BorderRadius.circular(10),
+      height: 50,
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: ListView.builder(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        itemCount: _categories.length,
+        itemBuilder: (context, index) {
+          final category = _categories[index];
+          final isSelected = category == _selectedCategory;
+          
+          return Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: FilterChip(
+              label: Text(
+                category,
+                style: GoogleFonts.poppins(fontSize: 13),
+              ),
+              selected: isSelected,
+              onSelected: (selected) {
+                setState(() {
+                  _selectedCategory = category;
+                });
+              },
+              backgroundColor: Colors.white,
+              selectedColor: pastelBlue,
+              checkmarkColor: pastelBlueText,
+              labelStyle: TextStyle(
+                color: isSelected ? pastelBlueText : Colors.grey.shade700,
+                fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+              ),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
+                side: BorderSide(
+                  color: isSelected ? pastelBlueText : Colors.grey.shade300,
+                ),
+              ),
             ),
-            child: Icon(icon, color: color, size: 24),
-          ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                style: GoogleFonts.poppins(
-                  fontSize: 13,
-                  color: Colors.grey[600],
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                value,
-                style: GoogleFonts.poppins(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black87,
-                ),
-                overflow: TextOverflow.ellipsis,
-              ),
-            ],
-          ),
-        ],
+          );
+        },
       ),
     );
   }
 
-  Widget _buildScoreHistory() {
-    final history = user?.scoreHistory ?? [];
-
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
-            spreadRadius: 0,
-            blurRadius: 10,
-            offset: const Offset(0, 2),
-          ),
-        ],
+  Widget _buildVideoFeed() {
+    return RefreshIndicator(
+      onRefresh: _checkAuthAndLoadData,
+      color: pastelBlueText,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          // Responsive grid - more columns on wider screens
+          int crossAxisCount = constraints.maxWidth > 600 ? 3 : 2;
+          
+          return GridView.builder(
+            padding: const EdgeInsets.all(16),
+            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: crossAxisCount,
+              childAspectRatio: 0.75,
+              crossAxisSpacing: 16,
+              mainAxisSpacing: 16,
+            ),
+            itemCount: _videos.length * 3, // Repeat for demo
+            itemBuilder: (context, index) {
+              final video = _videos[index % _videos.length];
+              return _buildVideoCard(video);
+            },
+          );
+        },
       ),
-      child: Column(
-        children: history.take(5).map((entry) {
-          return Padding(
-            padding: const EdgeInsets.symmetric(vertical: 8),
-            child: Row(
+    );
+  }
+
+  Widget _buildVideoCard(Map<String, dynamic> video) {
+    return GestureDetector(
+      onTap: () {
+        // Navigate to Video Player Screen
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => VideoPlayerScreen(
+              projectId: 'demo_${video['title']}', // TODO: Use actual project ID
+              title: video['title'],
+              description: 'Sample description for ${video['title']}',
+              creatorName: video['creator'],
+              views: video['views'],
+              category: video['category'],
+            ),
+          ),
+        );
+      },
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.08),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Thumbnail with Duration Badge
+            Stack(
               children: [
                 Container(
-                  padding: const EdgeInsets.all(8),
+                  height: 120,
                   decoration: BoxDecoration(
-                    color: pastelGreen.withOpacity(0.2),
-                    shape: BoxShape.circle,
+                    color: pastelBlue.withOpacity(0.3),
+                    borderRadius: const BorderRadius.only(
+                      topLeft: Radius.circular(12),
+                      topRight: Radius.circular(12),
+                    ),
                   ),
-                  child: const Icon(Icons.trending_up,
-                      color: pastelGreenText, size: 20),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        entry['reason']?.toString() ?? 'Score Update',
-                        style: GoogleFonts.poppins(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500,
-                          color: Colors.black87,
-                        ),
-                      ),
-                      Text(
-                        '${entry['change']} points',
-                        style: GoogleFonts.poppins(
-                          fontSize: 12,
-                          color: Colors.grey[600],
-                        ),
-                      ),
-                    ],
+                  child: Center(
+                    child: Icon(
+                      Icons.play_circle_outline,
+                      size: 48,
+                      color: pastelBlueText.withOpacity(0.7),
+                    ),
                   ),
                 ),
-                Text(
-                  entry['updatedScore'].toString(),
-                  style: GoogleFonts.poppins(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: pastelBlueText,
+                Positioned(
+                  bottom: 8,
+                  right: 8,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withOpacity(0.7),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Text(
+                      video['duration'],
+                      style: GoogleFonts.poppins(
+                        color: Colors.white,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
                   ),
                 ),
               ],
             ),
-          );
-        }).toList(),
+            
+            // Video Info
+            Padding(
+              padding: const EdgeInsets.all(12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    video['title'],
+                    style: GoogleFonts.poppins(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.black87,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    video['creator'],
+                    style: GoogleFonts.poppins(
+                      fontSize: 12,
+                      color: Colors.grey.shade600,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    '${video['views']} views',
+                    style: GoogleFonts.poppins(
+                      fontSize: 11,
+                      color: Colors.grey.shade500,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

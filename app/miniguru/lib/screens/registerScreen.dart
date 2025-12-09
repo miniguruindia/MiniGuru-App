@@ -8,7 +8,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
-  static String id = "RegisterScreen";
+  static const String id = "RegisterScreen";
 
   @override
   State<RegisterScreen> createState() => _RegisterScreenState();

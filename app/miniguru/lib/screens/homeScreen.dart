@@ -8,7 +8,7 @@ import 'package:miniguru/screens/navScreen/shop.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
-  static String id = "HomeScreen";
+  static const String id = "HomeScreen";
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
