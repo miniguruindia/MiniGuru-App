@@ -4,7 +4,8 @@ import 'package:miniguru/models/User.dart';
 import 'package:miniguru/network/MiniguruApi.dart';
 import 'package:miniguru/screens/loginScreen.dart';
 import 'package:miniguru/screens/registerScreen.dart';
-import 'package:miniguru/screens/videoPlayerScreen.dart';
+import 'package:miniguru/services/youtube_service.dart';
+import 'package:miniguru/screens/youtubePlayerScreen.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 class Home extends StatefulWidget {
@@ -19,6 +20,7 @@ class _HomeState extends State<Home> with AutomaticKeepAliveClientMixin {
   final _miniguruApi = MiniguruApi();
   bool _isLoading = true;
   bool _isAuthenticated = false;
+  bool _isLoadingVideos = true;
   
   final TextEditingController _searchController = TextEditingController();
   String _selectedCategory = 'All';
@@ -26,37 +28,15 @@ class _HomeState extends State<Home> with AutomaticKeepAliveClientMixin {
   final List<String> _categories = [
     'All',
     'Show Piece',
-    'Working Mechanical Model',
+    'Working Model',
     'Science Experiment',
     'Magic Science',
     'Life Hack',
-    'Electronics Project',
+    'Electronics',
   ];
 
-  // Mock video data - Replace with API call
-  final List<Map<String, dynamic>> _videos = [
-    {
-      'title': 'Amazing Robot Project',
-      'creator': 'Tech Kids',
-      'views': '1.2K',
-      'duration': '5:30',
-      'category': 'Working Mechanical Model',
-    },
-    {
-      'title': 'Volcano Science Experiment',
-      'creator': 'Science Fun',
-      'views': '890',
-      'duration': '3:15',
-      'category': 'Science Experiment',
-    },
-    {
-      'title': 'LED Cube Display',
-      'creator': 'Electronics Pro',
-      'views': '2.1K',
-      'duration': '8:20',
-      'category': 'Electronics Project',
-    },
-  ];
+  List<Map<String, dynamic>> _allVideos = [];
+  List<Map<String, dynamic>> _filteredVideos = [];
 
   @override
   bool get wantKeepAlive => true;
@@ -65,6 +45,7 @@ class _HomeState extends State<Home> with AutomaticKeepAliveClientMixin {
   void initState() {
     super.initState();
     _checkAuthAndLoadData();
+    _loadYouTubeVideos();
   }
 
   @override
@@ -98,6 +79,57 @@ class _HomeState extends State<Home> with AutomaticKeepAliveClientMixin {
     }
   }
 
+  Future<void> _loadYouTubeVideos() async {
+    setState(() => _isLoadingVideos = true);
+
+    try {
+      print('📺 Fetching videos from MiniGuru YouTube channel...');
+      final videos = await YouTubeService.getChannelVideos(maxResults: 50);
+      
+      if (mounted) {
+        setState(() {
+          _allVideos = videos;
+          _filteredVideos = videos;
+          _isLoadingVideos = false;
+        });
+        print('✅ Loaded ${videos.length} videos from YouTube');
+      }
+    } catch (e) {
+      print('❌ Error loading YouTube videos: $e');
+      if (mounted) {
+        setState(() {
+          _isLoadingVideos = false;
+        });
+      }
+    }
+  }
+
+  void _filterVideos() {
+    setState(() {
+      _filteredVideos = YouTubeService.filterByCategory(
+        _allVideos,
+        _selectedCategory,
+      );
+
+      // Apply search filter
+      if (_searchController.text.isNotEmpty) {
+        final query = _searchController.text.toLowerCase();
+        _filteredVideos = _filteredVideos.where((video) {
+          final title = video['title'].toString().toLowerCase();
+          final description = video['description'].toString().toLowerCase();
+          return title.contains(query) || description.contains(query);
+        }).toList();
+      }
+    });
+  }
+
+  Future<void> _refreshAll() async {
+    await Future.wait([
+      _checkAuthAndLoadData(),
+      _loadYouTubeVideos(),
+    ]);
+  }
+
   @override
   Widget build(BuildContext context) {
     super.build(context);
@@ -113,13 +145,16 @@ class _HomeState extends State<Home> with AutomaticKeepAliveClientMixin {
             // Search Bar
             _buildSearchBar(),
             
-            // Authenticated User Stats (only shown when logged in)
+            // Authenticated User Stats
             if (_isAuthenticated && user != null) ...[
               _buildUserStats(),
             ],
             
             // Category Filter
             _buildCategoryFilter(),
+            
+            // Powered by YouTube Banner
+            _buildYouTubeBanner(),
             
             // Video Feed
             Expanded(
@@ -242,12 +277,10 @@ class _HomeState extends State<Home> with AutomaticKeepAliveClientMixin {
       ),
       onSelected: (value) {
         if (value == 'profile') {
-          // Navigate to profile - you can implement this
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Navigate to Profile')),
           );
         } else if (value == 'projects') {
-          // Navigate to projects list
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Navigate to My Projects')),
           );
@@ -285,7 +318,7 @@ class _HomeState extends State<Home> with AutomaticKeepAliveClientMixin {
       child: TextField(
         controller: _searchController,
         decoration: InputDecoration(
-          hintText: 'Search projects and videos...',
+          hintText: 'Search videos...',
           hintStyle: GoogleFonts.poppins(color: Colors.grey),
           prefixIcon: const Icon(Icons.search, color: pastelBlueText),
           suffixIcon: _searchController.text.isNotEmpty
@@ -294,6 +327,7 @@ class _HomeState extends State<Home> with AutomaticKeepAliveClientMixin {
                   onPressed: () {
                     setState(() {
                       _searchController.clear();
+                      _filterVideos();
                     });
                   },
                 )
@@ -307,7 +341,7 @@ class _HomeState extends State<Home> with AutomaticKeepAliveClientMixin {
           contentPadding: const EdgeInsets.symmetric(vertical: 12),
         ),
         onChanged: (value) {
-          setState(() {}); // Rebuild to show/hide clear button
+          _filterVideos();
         },
       ),
     );
@@ -390,6 +424,7 @@ class _HomeState extends State<Home> with AutomaticKeepAliveClientMixin {
               onSelected: (selected) {
                 setState(() {
                   _selectedCategory = category;
+                  _filterVideos();
                 });
               },
               backgroundColor: Colors.white,
@@ -412,13 +447,77 @@ class _HomeState extends State<Home> with AutomaticKeepAliveClientMixin {
     );
   }
 
+  Widget _buildYouTubeBanner() {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.red.shade50,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.red.shade200),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.play_circle_outline, color: Colors.red.shade700, size: 20),
+          const SizedBox(width: 8),
+          Text(
+            'Powered by YouTube',
+            style: GoogleFonts.poppins(
+              fontSize: 12,
+              color: Colors.red.shade700,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const Spacer(),
+          Text(
+            '${_filteredVideos.length} videos',
+            style: GoogleFonts.poppins(
+              fontSize: 11,
+              color: Colors.grey.shade600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildVideoFeed() {
+    if (_isLoadingVideos) {
+      return const Center(
+        child: CircularProgressIndicator(color: pastelBlueText),
+      );
+    }
+
+    if (_filteredVideos.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.video_library_outlined, size: 64, color: Colors.grey.shade400),
+            const SizedBox(height: 16),
+            Text(
+              'No videos found',
+              style: GoogleFonts.poppins(
+                fontSize: 16,
+                color: Colors.grey.shade600,
+              ),
+            ),
+            const SizedBox(height: 8),
+            TextButton(
+              onPressed: _loadYouTubeVideos,
+              child: Text('Retry', style: GoogleFonts.poppins()),
+            ),
+          ],
+        ),
+      );
+    }
+
     return RefreshIndicator(
-      onRefresh: _checkAuthAndLoadData,
+      onRefresh: _refreshAll,
       color: pastelBlueText,
       child: LayoutBuilder(
         builder: (context, constraints) {
-          // Responsive grid - more columns on wider screens
           int crossAxisCount = constraints.maxWidth > 600 ? 3 : 2;
           
           return GridView.builder(
@@ -429,10 +528,10 @@ class _HomeState extends State<Home> with AutomaticKeepAliveClientMixin {
               crossAxisSpacing: 16,
               mainAxisSpacing: 16,
             ),
-            itemCount: _videos.length * 3, // Repeat for demo
+            itemCount: _filteredVideos.length,
             itemBuilder: (context, index) {
-              final video = _videos[index % _videos.length];
-              return _buildVideoCard(video);
+              final video = _filteredVideos[index];
+              return _buildYouTubeVideoCard(video);
             },
           );
         },
@@ -440,20 +539,17 @@ class _HomeState extends State<Home> with AutomaticKeepAliveClientMixin {
     );
   }
 
-  Widget _buildVideoCard(Map<String, dynamic> video) {
+  Widget _buildYouTubeVideoCard(Map<String, dynamic> video) {
     return GestureDetector(
       onTap: () {
-        // Navigate to Video Player Screen
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) => VideoPlayerScreen(
-              projectId: 'demo_${video['title']}', // TODO: Use actual project ID
+            builder: (context) => YouTubePlayerScreen(
+              videoId: video['videoId'],
               title: video['title'],
-              description: 'Sample description for ${video['title']}',
-              creatorName: video['creator'],
-              views: video['views'],
-              category: video['category'],
+              description: video['description'],
+              channelTitle: video['channelTitle'],
             ),
           ),
         );
@@ -473,24 +569,26 @@ class _HomeState extends State<Home> with AutomaticKeepAliveClientMixin {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Thumbnail with Duration Badge
+            // YouTube Thumbnail
             Stack(
               children: [
-                Container(
-                  height: 120,
-                  decoration: BoxDecoration(
-                    color: pastelBlue.withOpacity(0.3),
-                    borderRadius: const BorderRadius.only(
-                      topLeft: Radius.circular(12),
-                      topRight: Radius.circular(12),
-                    ),
+                ClipRRect(
+                  borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(12),
+                    topRight: Radius.circular(12),
                   ),
-                  child: Center(
-                    child: Icon(
-                      Icons.play_circle_outline,
-                      size: 48,
-                      color: pastelBlueText.withOpacity(0.7),
-                    ),
+                  child: Image.network(
+                    video['thumbnail'],
+                    height: 120,
+                    width: double.infinity,
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) {
+                      return Container(
+                        height: 120,
+                        color: pastelBlue.withOpacity(0.3),
+                        child: const Icon(Icons.play_circle_outline, size: 48),
+                      );
+                    },
                   ),
                 ),
                 Positioned(
@@ -499,16 +597,23 @@ class _HomeState extends State<Home> with AutomaticKeepAliveClientMixin {
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                     decoration: BoxDecoration(
-                      color: Colors.black.withOpacity(0.7),
+                      color: Colors.red,
                       borderRadius: BorderRadius.circular(4),
                     ),
-                    child: Text(
-                      video['duration'],
-                      style: GoogleFonts.poppins(
-                        color: Colors.white,
-                        fontSize: 10,
-                        fontWeight: FontWeight.w600,
-                      ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.play_arrow, color: Colors.white, size: 12),
+                        const SizedBox(width: 2),
+                        Text(
+                          'YouTube',
+                          style: GoogleFonts.poppins(
+                            color: Colors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
@@ -533,18 +638,10 @@ class _HomeState extends State<Home> with AutomaticKeepAliveClientMixin {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    video['creator'],
+                    video['channelTitle'],
                     style: GoogleFonts.poppins(
                       fontSize: 12,
                       color: Colors.grey.shade600,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    '${video['views']} views',
-                    style: GoogleFonts.poppins(
-                      fontSize: 11,
-                      color: Colors.grey.shade500,
                     ),
                   ),
                 ],
