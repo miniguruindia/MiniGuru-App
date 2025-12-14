@@ -6,7 +6,7 @@ import { usePathname, useRouter } from 'next/navigation'
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
-import { Menu, LogOut } from 'lucide-react'
+import { Menu, LogOut, Video } from 'lucide-react'
 
 interface AdminLayoutProps {
   children: React.ReactNode;
@@ -23,32 +23,37 @@ export function AdminLayout({ children }: AdminLayoutProps) {
   }
 
   const navItems = [
-    { href: '/', label: 'Dashboard' },
-    { href: '/users', label: 'Users' },
-    { href: '/projects', label: 'Projects' },
-    { href: '/orders', label: 'Orders' },
-    { href: '/products', label: 'Products' },
-    { href: '/categories', label: 'Categories' },
+    { href: '/', label: 'Dashboard', icon: null },
+    { href: '/users', label: 'Users', icon: null },
+    { href: '/projects', label: 'Projects', icon: null },
+    { href: '/videos', label: 'Video Approvals', icon: Video }, // 🎬 NEW
+    { href: '/orders', label: 'Orders', icon: null },
+    { href: '/products', label: 'Products', icon: null },
+    { href: '/categories', label: 'Categories', icon: null },
   ]
 
   const NavLinks = () => (
     <>
-      {navItems.map((item) => (
-        <li key={item.href}>
-          <Link 
-            href={item.href}
-            className={cn(
-              "px-3 py-2 rounded-md text-sm font-medium transition-colors",
-              pathname === item.href
-                ? "bg-blue-600 text-white"
-                : "text-gray-300 hover:bg-gray-700 hover:text-white"
-            )}
-            onClick={() => setIsMobileMenuOpen(false)}
-          >
-            {item.label}
-          </Link>
-        </li>
-      ))}
+      {navItems.map((item) => {
+        const Icon = item.icon
+        return (
+          <li key={item.href}>
+            <Link 
+              href={item.href}
+              className={cn(
+                "px-3 py-2 rounded-md text-sm font-medium transition-colors flex items-center gap-2",
+                pathname === item.href
+                  ? "bg-blue-600 text-white"
+                  : "text-gray-300 hover:bg-gray-700 hover:text-white"
+              )}
+              onClick={() => setIsMobileMenuOpen(false)}
+            >
+              {Icon && <Icon className="h-4 w-4" />}
+              {item.label}
+            </Link>
+          </li>
+        )
+      })}
     </>
   )
 
