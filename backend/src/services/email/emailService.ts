@@ -3,30 +3,51 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
-// Create transporter
-const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST,
-  port: parseInt(process.env.SMTP_PORT || '587'),
-  secure: false, // true for 465, false for other ports
-  auth: {
-    user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASSWORD,
-  },
-});
+// Create transporter only if email is enabled
+let transporter: nodemailer.Transporter | null = null;
 
-// Verify connection
-transporter.verify((error, success) => {
-  if (error) {
-    console.log('❌ Email service error:', error);
-  } else {
-    console.log('✅ Email service ready');
+// Check if email should be enabled
+const EMAIL_ENABLED = process.env.EMAIL_ENABLED !== 'false';
+
+if (EMAIL_ENABLED) {
+  try {
+    transporter = nodemailer.createTransport({
+      host: process.env.SMTP_HOST,
+      port: parseInt(process.env.SMTP_PORT || '587'),
+      secure: false, // true for 465, false for other ports
+      auth: {
+        user: process.env.SMTP_USER,
+        pass: process.env.SMTP_PASSWORD,
+      },
+    });
+
+    // Verify connection asynchronously without blocking
+    transporter.verify((error, success) => {
+      if (error) {
+        console.log('⚠️  Email service error:', error.message);
+        console.log('⚠️  Email service will be disabled. Server continues running.');
+      } else {
+        console.log('✅ Email service ready');
+      }
+    });
+  } catch (error) {
+    console.log('⚠️  Email service initialization failed:', error);
+    transporter = null;
   }
-});
+} else {
+  console.log('ℹ️  Email service disabled (EMAIL_ENABLED=false)');
+}
 
 export const sendPasswordResetEmail = async (
   to: string,
   resetToken: string
 ) => {
+  // Check if email service is available
+  if (!transporter) {
+    console.log('⚠️  Email service not available, skipping password reset email');
+    return false;
+  }
+
   const resetUrl = `${process.env.FRONTEND_URL}/reset-password?token=${resetToken}`;
   
   const mailOptions = {
@@ -80,7 +101,8 @@ export const sendPasswordResetEmail = async (
     return true;
   } catch (error) {
     console.error('❌ Error sending email:', error);
-    throw new Error('Failed to send email');
+    // Don't throw - just log and return false
+    return false;
   }
 };
 

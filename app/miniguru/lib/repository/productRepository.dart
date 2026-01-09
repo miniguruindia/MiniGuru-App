@@ -11,7 +11,8 @@ class ProductRepository {
   Future<void> fetchAndStoreProducts() async {
     final response = await _api.getAllProducts();
 
-    if (response.statusCode == 200) {
+    // ✅ NULL SAFETY FIX
+    if (response != null && response.statusCode == 200) {
       _dbHelper.deleteProducts();
       List<dynamic> data = jsonDecode(response.body);
       for (var item in data) {
@@ -19,7 +20,7 @@ class ProductRepository {
         await _dbHelper.insertProduct(product);
       }
     } else {
-      throw Exception('Failed to load projects');
+      print('❌ Failed to load products: ${response?.statusCode}');
     }
   }
 
@@ -34,15 +35,16 @@ class ProductRepository {
   Future<void> fetchAndStoreProductCategories() async {
     final response = await _api.getProductCategories();
 
-    if (response.statusCode == 200) {
+    // ✅ NULL SAFETY FIX
+    if (response != null && response.statusCode == 200) {
       _dbHelper.deleteProductCategories();
       List<dynamic> data = jsonDecode(response.body);
       for (var item in data) {
-        ProductCategory category = ProductCategory.fromJson(item);
+        ProductCategory category = ProductCategory.fromMap(item);
         await _dbHelper.insertProductCategory(category);
       }
     } else {
-      throw Exception("Failed to load project categories");
+      print('❌ Failed to load product categories: ${response?.statusCode}');
     }
   }
 

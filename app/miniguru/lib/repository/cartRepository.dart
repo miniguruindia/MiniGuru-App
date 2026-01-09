@@ -35,11 +35,13 @@ class CartRepository {
       List<Map<String, dynamic>> data, String address) async {
     final response = await _api.placeOrder(data, address);
 
-    if (response.statusCode == 201) {
+    // ✅ NULL SAFETY FIX
+    if (response != null && response.statusCode == 201) {
       await _db.clearCart();
       var data = jsonDecode(response.body);
       return data['id'] as String;
     } else {
+      print('❌ Failed to place order: ${response?.statusCode}');
       return null;
     }
   }

@@ -1,3 +1,5 @@
+// /workspaces/MiniGuru-App/backend/src/controllers/auth/userController.ts
+
 import { Request, Response } from 'express';
 import prisma from '../../utils/prismaClient';
 import { handlePrismaError } from '../../utils/error';
@@ -13,25 +15,47 @@ const userSelectAttributes = {
     updatedAt: true,
     score: true,
     wallet: true,
-    scoreHistory:true,
-    phoneNumber:true,
+    scoreHistory: true,
+    phoneNumber: true,
 };
 
+// FIXED: Get user details with proper wallet structure
 const getUserDetails = async (req: Request, res: Response) => {
     try {
+        // ✅ FIXED: Changed from req.user?.userId to req.user?.id
+        if (!req.user?.id) {
+            return res.status(401).json({ error: 'User not authenticated' });
+        }
+
         const user = await prisma.user.findUniqueOrThrow({
-            where: { id: req.user?.userId }, // Ensure userId exists in the token
+            where: { id: req.user.id },  // ✅ Changed here
             select: {
                 ...userSelectAttributes,
-                projects: { select: { id: true } }, // Only select project IDs for counting
+                projects: { select: { id: true } },
             },
         });
 
         const totalProjects = user.projects.length;
+        
+        // Extract wallet balance safely
+        const walletBalance = user.wallet?.balance ?? 0;
+
         res.json({
             user: {
-                ...user,
-                totalProjects, 
+                id: user.id,
+                email: user.email,
+                name: user.name,
+                age: user.age,
+                role: user.role,
+                createdAt: user.createdAt,
+                updatedAt: user.updatedAt,
+                score: user.score ?? 0,
+                scoreHistory: user.scoreHistory ?? [],
+                phoneNumber: user.phoneNumber,
+                wallet: {
+                    balance: walletBalance
+                },
+                totalProjects,
             },
         });
     } catch (error) {
@@ -40,14 +64,20 @@ const getUserDetails = async (req: Request, res: Response) => {
         res.status(handledError.code).json({ error: handledError.message });
     }
 };
+
 // Update user details
 const updateUserDetails = async (req: Request, res: Response) => {
-    const { email, name, age , role , phoneNumber , score , wallet } = req.body;
+    const { email, name, age, role, phoneNumber, score, wallet } = req.body;
     try {
+        // ✅ FIXED: Changed from req.user?.userId to req.user?.id
+        if (!req.user?.id) {
+            return res.status(401).json({ error: 'User not authenticated' });
+        }
+
         const updatedUser = await prisma.user.update({
-            where: { id: req.user?.userId },
+            where: { id: req.user.id },  // ✅ Changed here
             data: {
-                email: email || undefined, // Only update if new data is provided
+                email: email || undefined,
                 name: name || undefined,
                 age: age ? parseInt(age, 10) : undefined,
                 role: role || undefined,
@@ -66,7 +96,7 @@ const updateUserDetails = async (req: Request, res: Response) => {
     }
 };
 
-// List all users with pagination (only showing specific fields)
+// List all users with pagination
 const listUsers = async (req: Request, res: Response) => {
     const page = parseInt(req.query.page as string, 10) || 1;
     const limit = parseInt(req.query.limit as string, 10) || 10;
@@ -104,35 +134,51 @@ const listUsers = async (req: Request, res: Response) => {
     }
 };
 
+// Get user by ID
 const getUserById = async (req: Request, res: Response) => {
-    const { userId } = req.params; 
-    
+    const { userId } = req.params;
 
     try {
         const user = await prisma.user.findUniqueOrThrow({
             where: { id: userId },
             select: {
                 ...userSelectAttributes,
-                projects: { select: { id: true, title:true } }, // Only select project IDs for counting
+                projects: { select: { id: true, title: true } },
             },
         });
 
         const totalProjects = user.projects.length;
+        
+        // Extract wallet balance safely
+        const walletBalance = user.wallet?.balance ?? 0;
+
         res.json({
             user: {
-                ...user,
-                totalProjects, 
+                id: user.id,
+                email: user.email,
+                name: user.name,
+                age: user.age,
+                role: user.role,
+                createdAt: user.createdAt,
+                updatedAt: user.updatedAt,
+                score: user.score ?? 0,
+                scoreHistory: user.scoreHistory ?? [],
+                phoneNumber: user.phoneNumber,
+                wallet: {
+                    balance: walletBalance
+                },
+                totalProjects,
+                projects: user.projects,
             },
         });
-    }
-    catch (error) {
+    } catch (error) {
         logger.error({ error: (error as Error).message }, `Failed to retrieve user with ID ${userId}`);
         const handledError = handlePrismaError(error);
         res.status(handledError.code).json({ error: handledError.message });
     }
 };
 
-// function to delete a user by id
+// Delete user by ID
 const deleteUserById = async (req: Request, res: Response) => {
     const { userId } = req.params;
     try {
@@ -148,5 +194,4 @@ const deleteUserById = async (req: Request, res: Response) => {
     }
 };
 
-
-export { getUserDetails, updateUserDetails, listUsers, getUserById , deleteUserById};
+export { getUserDetails, updateUserDetails, listUsers, getUserById, deleteUserById };

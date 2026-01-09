@@ -51,7 +51,19 @@ class _LoginScreenState extends State<LoginScreen> {
       print('🔐 LOGIN ATTEMPT');
       print('━' * 50);
       print('📧 Email: ${_emailController.text.trim()}');
-      print('🔗 API URL: ${await _api.checkConnection() ? "Connected" : "Not Connected"}');
+      
+      // Check backend connection first
+      print('🔗 Checking backend connection...');
+      final isConnected = await _api.checkConnection();
+      print('🔗 Backend: ${isConnected ? "✅ Connected" : "❌ Not Connected"}');
+      
+      if (!isConnected) {
+        if (mounted) {
+          _showSnackBar('Cannot connect to server. Please check backend.', Colors.red);
+          setState(() => _isLoading = false);
+        }
+        return;
+      }
       
       final response = await _api.login(
         _emailController.text.trim(),
@@ -67,7 +79,6 @@ class _LoginScreenState extends State<LoginScreen> {
         final body = jsonDecode(response.body);
         print('✅ Login successful!');
         print('🎫 Access Token: ${body['accessToken']?.substring(0, 20)}...');
-        print('🎫 Refresh Token: ${body['refreshToken']?.substring(0, 20)}...');
         
         // Save tokens to database
         await _db.insertAuthToken(body['accessToken'], body['refreshToken']);
@@ -79,9 +90,8 @@ class _LoginScreenState extends State<LoginScreen> {
 
         if (mounted) {
           print('🔄 Navigating to HomeScreen...');
-          _showSnackBar("Login successful! Welcome back.", Colors.green);
+          _showSnackBar("Login successful! Welcome back. 🎉", Colors.green);
           
-          // Small delay to let user see success message
           await Future.delayed(const Duration(milliseconds: 500));
           
           if (mounted) {
@@ -92,49 +102,179 @@ class _LoginScreenState extends State<LoginScreen> {
           }
         }
       } else {
-        print('❌ Login failed with status: ${response.statusCode}');
-        final errorBody = jsonDecode(response.body);
-        print('❌ Error body: $errorBody');
+        print('❌ Login failed: ${response.statusCode}');
         
-        // Handle different error messages
         String errorMessage = 'Login failed';
-        if (errorBody['message'] != null) {
-          errorMessage = errorBody['message'];
-        } else if (errorBody['error'] != null) {
-          errorMessage = errorBody['error'];
+        try {
+          final errorBody = jsonDecode(response.body);
+          errorMessage = errorBody['message'] ?? errorBody['error'] ?? errorMessage;
+        } catch (e) {
+          print('Could not parse error: $e');
         }
         
-        // User-friendly error messages
+        // User-friendly messages
         if (response.statusCode == 401) {
           errorMessage = 'Invalid email or password';
         } else if (response.statusCode == 404) {
           errorMessage = 'Account not found. Please sign up first.';
-        } else if (response.statusCode == 500) {
-          errorMessage = 'Server error. Please try again later.';
         }
         
         if (mounted) _showSnackBar(errorMessage, Colors.red);
       }
-    } catch (e, stackTrace) {
-      print('━' * 50);
-      print('❌ LOGIN EXCEPTION');
-      print('━' * 50);
-      print('Error: $e');
-      print('Stack trace: $stackTrace');
-      print('━' * 50);
+    } catch (e) {
+      print('❌ LOGIN EXCEPTION: $e');
       
       if (mounted) {
-        String errorMsg = "Connection error. Please check your internet.";
+        String errorMsg = "Connection error.";
         if (e.toString().contains('SocketException')) {
-          errorMsg = "Cannot reach server. Check your connection.";
+          errorMsg = "Cannot reach server. Is backend running?";
         } else if (e.toString().contains('TimeoutException')) {
-          errorMsg = "Request timed out. Please try again.";
+          errorMsg = "Request timed out.";
         }
         _showSnackBar(errorMsg, Colors.red);
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
+  }
+
+  // ✨ NEW: Password Reset Dialog
+  Future<void> _showPasswordResetDialog() async {
+    final TextEditingController resetEmailController = TextEditingController();
+    final GlobalKey<FormState> resetFormKey = GlobalKey<FormState>();
+    bool isSending = false;
+
+    await showDialog(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Row(
+            children: [
+              const Icon(Icons.lock_reset, color: pastelBlueText),
+              const SizedBox(width: 8),
+              Text(
+                'Reset Password',
+                style: GoogleFonts.poppins(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+          content: Form(
+            key: resetFormKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Enter your email address and we\'ll send you a password reset link.',
+                  style: GoogleFonts.poppins(
+                    fontSize: 13,
+                    color: Colors.grey[600],
+                  ),
+                ),
+                const SizedBox(height: 20),
+                TextFormField(
+                  controller: resetEmailController,
+                  keyboardType: TextInputType.emailAddress,
+                  style: GoogleFonts.poppins(fontSize: 14),
+                  decoration: InputDecoration(
+                    labelText: 'Email',
+                    labelStyle: GoogleFonts.poppins(color: Colors.grey[600]),
+                    prefixIcon: Icon(Icons.email_outlined, color: Colors.grey[600]),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(color: pastelBlueText, width: 2),
+                    ),
+                  ),
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Please enter your email';
+                    }
+                    if (!value.contains('@')) {
+                      return 'Please enter a valid email';
+                    }
+                    return null;
+                  },
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: isSending ? null : () => Navigator.of(dialogContext).pop(),
+              child: Text(
+                'Cancel',
+                style: GoogleFonts.poppins(color: Colors.grey[600]),
+              ),
+            ),
+            ElevatedButton(
+              onPressed: isSending
+                  ? null
+                  : () async {
+                      if (resetFormKey.currentState!.validate()) {
+                        setDialogState(() => isSending = true);
+                        
+                        try {
+                          // Call password reset API
+                          final response = await _api.requestPasswordReset(
+                            resetEmailController.text.trim(),
+                          );
+                          
+                          if (dialogContext.mounted) Navigator.of(dialogContext).pop();
+                          
+                          if (response.statusCode == 200) {
+                            _showSnackBar(
+                              'Password reset link sent to your email! ✉️',
+                              Colors.green,
+                            );
+                          } else {
+                            final errorBody = jsonDecode(response.body);
+                            _showSnackBar(
+                              errorBody['message'] ?? 'Failed to send reset link',
+                              Colors.orange,
+                            );
+                          }
+                        } catch (e) {
+                          if (dialogContext.mounted) Navigator.of(dialogContext).pop();
+                          _showSnackBar(
+                            'Error sending reset link. Please try again.',
+                            Colors.red,
+                          );
+                        }
+                      }
+                    },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: pastelBlueText,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              child: isSending
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(
+                        color: Colors.white,
+                        strokeWidth: 2,
+                      ),
+                    )
+                  : Text(
+                      'Send Reset Link',
+                      style: GoogleFonts.poppins(color: Colors.white),
+                    ),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    resetEmailController.dispose();
   }
 
   void _showSnackBar(String msg, Color color) {
@@ -254,7 +394,27 @@ class _LoginScreenState extends State<LoginScreen> {
                       return null;
                     },
                   ),
-                  const SizedBox(height: 32),
+                  
+                  // ✨ NEW: Forgot Password Link
+                  const SizedBox(height: 8),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: TextButton(
+                      onPressed: _showPasswordResetDialog,
+                      style: TextButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(horizontal: 4),
+                      ),
+                      child: Text(
+                        'Forgot Password?',
+                        style: GoogleFonts.poppins(
+                          fontSize: 13,
+                          color: pastelBlueText,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
 
                   // Login Button
                   SizedBox(

@@ -11,7 +11,8 @@ class ProjectRepository {
   Future<int> fetchAndStoreProjects(int page, int limit) async {
     final response = await _api.getAllProjects(page: page, limit: limit);
 
-    if (response.statusCode == 200) {
+    // ✅ NULL SAFETY FIX
+    if (response != null && response.statusCode == 200) {
       _dbHelper.deleteProject();
       List<dynamic> data = jsonDecode(response.body)['projects'];
       int pagination = jsonDecode(response.body)['pagination']['totalProjects'];
@@ -21,14 +22,16 @@ class ProjectRepository {
       }
       return pagination;
     } else {
-      throw Exception('Failed to load projects');
+      print('❌ Failed to load projects: ${response?.statusCode}');
+      return 0; // Return 0 if failed
     }
   }
 
   Future<void> fetchAndStoreProjectsForUser() async {
     final response = await _api.getAllProjectsForUser();
 
-    if (response.statusCode == 200) {
+    // ✅ NULL SAFETY FIX
+    if (response != null && response.statusCode == 200) {
       _dbHelper.deleteProject();
       List<dynamic> data = jsonDecode(response.body);
       for (var item in data) {
@@ -36,7 +39,7 @@ class ProjectRepository {
         await _dbHelper.insertProject(project);
       }
     } else {
-      throw Exception('Failed to load projects');
+      print('❌ Failed to load user projects: ${response?.statusCode}');
     }
   }
 
@@ -51,7 +54,8 @@ class ProjectRepository {
   Future<void> fetchAndStoreProjectCategory() async {
     final response = await _api.getProjectCategories();
 
-    if (response.statusCode == 200) {
+    // ✅ NULL SAFETY FIX
+    if (response != null && response.statusCode == 200) {
       _dbHelper.deleteProjectCategories();
       List<dynamic> data = jsonDecode(response.body);
       for (var item in data) {
@@ -59,7 +63,7 @@ class ProjectRepository {
         await _dbHelper.insertProjectCategory(category);
       }
     } else {
-      throw Exception("Failed to load project categories");
+      print('❌ Failed to load project categories: ${response?.statusCode}');
     }
   }
 

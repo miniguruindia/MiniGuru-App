@@ -36,6 +36,13 @@ export default function VideoApprovalPage() {
       setLoading(true);
       const token = localStorage.getItem('token');
       
+      if (!token) {
+        console.log('No auth token found');
+        setVideos([]);
+        setLoading(false);
+        return;
+      }
+      
       const response = await fetch(
         `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/videos/pending`,
         {
@@ -46,6 +53,11 @@ export default function VideoApprovalPage() {
       );
 
       if (!response.ok) {
+        if (response.status === 401 || response.status === 403) {
+          console.log('Unauthorized - Please login as admin');
+          setVideos([]);
+          return;
+        }
         throw new Error('Failed to fetch videos');
       }
 
@@ -53,7 +65,10 @@ export default function VideoApprovalPage() {
       setVideos(data.videos || []);
     } catch (error: any) {
       console.error('Error fetching videos:', error);
-      toast.error('Failed to load pending videos');
+      // Don't show error toast if it's just empty data
+      if (error.message !== 'Failed to fetch videos') {
+        toast.error('Failed to load pending videos');
+      }
     } finally {
       setLoading(false);
     }

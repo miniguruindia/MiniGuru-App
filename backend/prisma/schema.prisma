@@ -1,3 +1,4 @@
+// backend/prisma/schema.prisma
 generator client {
   provider = "prisma-client-js"
 }
@@ -13,40 +14,75 @@ enum Role {
   SUPERADMIN
 }
 
-model User {
-  id           String    @id @default(auto()) @map("_id") @db.ObjectId
-  email        String    @unique
-  passwordHash String
-  name         String     
-  age          Int
-  role         Role    @default(USER)
-  phoneNumber  String   @unique
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
-  refreshToken String?
-  comments     Comment[]
-  orders       Order[]
-  likes        Like[]
-  score        Int       @default(0)
-  projects     Project[]
-  wallet                  Wallet?      
-  walletId                String?     @db.ObjectId  @unique
-  scoreHistory    ScoreHistory[]
-
-}
-
-type ScoreHistory{
-  time DateTime
+type ScoreHistory {
+  time         DateTime
   updatedScore Int
 }
 
-//Projects
+// ========================= USER MODEL =========================
+model User {
+  id            String    @id @default(auto()) @map("_id") @db.ObjectId
+  email         String    @unique
+  passwordHash  String
+  name          String
+  age           Int
+  role          Role      @default(USER)
+  phoneNumber   String    @unique
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  refreshToken  String?
+  score         Int       @default(0)
+  scoreHistory  ScoreHistory[]
 
+  // Relations
+  comments      Comment[]
+  orders        Order[]
+  likes         Like[]
+  projects      Project[]
+  wallet        Wallet?
+  walletId      String?   @db.ObjectId @unique
+  videoViews    VideoView[]
+  videoComments VideoComment[]
+
+  @@map("users")
+}
+
+// ========================= VIDEO TRACKING =========================
+model VideoView {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  videoId   String
+  userId    String   @db.ObjectId
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  viewedAt  DateTime @default(now())
+
+  @@index([videoId])
+  @@index([userId])
+  @@map("videoviews")
+}
+
+model VideoComment {
+  id               String   @id @default(auto()) @map("_id") @db.ObjectId
+  videoId          String
+  userId           String   @db.ObjectId
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  comment          String
+  postedAt         DateTime @default(now())
+  postedToYouTube  Boolean  @default(false)
+  youtubeCommentId String?
+
+  @@index([videoId])
+  @@index([userId])
+  @@map("videocomments")
+}
+
+// ========================= PROJECTS =========================
 model ProjectCategory {
   id       String    @id @default(auto()) @map("_id") @db.ObjectId
   name     String    @unique
   icon     String
   projects Project[]
+
+  @@map("projectcategories")
 }
 
 model Project {
@@ -56,66 +92,73 @@ model Project {
   startDate   DateTime
   endDate     DateTime
   thumbnail   String
+  video       Video
+  materials   ProjectMaterial[]
+  userId      String            @db.ObjectId
+  user        User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  categoryId  String            @db.ObjectId
+  category    ProjectCategory   @relation(fields: [categoryId], references: [id])
   likes       Like[]
   comments    Comment[]
-  video       Video             
-  materials   ProjectMaterial[]
-  userId      String            @db.ObjectId @unique
-  user        User              @relation(fields: [userId], references: [id],onDelete: Cascade)
-  categoryId  String            @db.ObjectId  @unique
-  category    ProjectCategory   @relation(fields: [categoryId], references: [id])
   createdAt   DateTime          @default(now())
   updatedAt   DateTime          @updatedAt
+
+  @@index([userId])
+  @@index([categoryId])
+  @@map("projects")
 }
 
-type Video{
-  url String
+type Video {
+  url        String
   uploadedAt String?
 }
 
-
-
 type ProjectMaterial {
-  productId String  @db.ObjectId
+  productId String @db.ObjectId
   name      String?
   quantity  Int
 }
 
-
+// ========================= COMMENTS & LIKES =========================
 model Comment {
   id            String   @id @default(auto()) @map("_id") @db.ObjectId
-  commentedBy   User     @relation(fields: [commentedById], references: [id],onDelete: Cascade)
-  commentedById String   @db.ObjectId @unique
+  commentedBy   User     @relation(fields: [commentedById], references: [id], onDelete: Cascade)
+  commentedById String   @db.ObjectId
   content       String
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
-  project       Project  @relation(fields: [projectId], references: [id],onDelete: Cascade)
-  projectId     String   @db.ObjectId @unique
+  project       Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  projectId     String   @db.ObjectId
+
   @@unique([projectId, commentedById])
+  @@index([commentedById])
+  @@index([projectId])
+  @@map("comments")
 }
 
 model Like {
   id        String   @id @default(auto()) @map("_id") @db.ObjectId
-  likedBy      User     @relation(fields: [likedById], references: [id],onDelete: Cascade)
-  likedById    String   @db.ObjectId 
+  likedBy   User     @relation(fields: [likedById], references: [id], onDelete: Cascade)
+  likedById String   @db.ObjectId
   createdAt DateTime @default(now())
-  project   Project  @relation(fields: [projectId], references: [id],onDelete: Cascade)
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
   projectId String   @db.ObjectId
 
   @@unique([projectId, likedById])
+  @@index([likedById])
+  @@index([projectId])
+  @@map("likes")
 }
 
-
-
-//ecom 
-
+// ========================= E-COMMERCE =========================
 model ProductCategory {
   id       String    @id @default(auto()) @map("_id") @db.ObjectId
   name     String    @unique
   icon     String
   products Product[]
-}
 
+  @@map("productcategories")
+}
 
 model Product {
   id               String            @id @default(auto()) @map("_id") @db.ObjectId
@@ -123,28 +166,32 @@ model Product {
   description      String
   price            Float
   inventory        Int
-  categoryId       String           @db.ObjectId
-  category         ProductCategory  @relation(fields: [categoryId], references: [id],onDelete: Cascade)
+  categoryId       String            @db.ObjectId
+  category         ProductCategory   @relation(fields: [categoryId], references: [id], onDelete: Cascade)
   images           String[]
   createdAt        DateTime          @default(now())
   updatedAt        DateTime          @updatedAt
   projectMaterials ProjectMaterial[]
+
+  @@index([categoryId])
+  @@map("products")
 }
 
 model Order {
-  id            String         @id @default(auto()) @map("_id") @db.ObjectId
-  userId        String         @db.ObjectId @unique
-  products      OrderProduct[]
-  totalAmount   Float
-  paymentStatus PaymentStatus   @default(PENDING)
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
-  transaction    Transaction    @relation(fields: [transactionId], references: [id])
-  transactionId  String         @db.ObjectId  @unique
+  id              String         @id @default(auto()) @map("_id") @db.ObjectId
+  userId          String         @db.ObjectId
+  user            User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  products        OrderProduct[]
+  totalAmount     Float
+  paymentStatus   PaymentStatus  @default(PENDING)
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  transaction     Transaction    @relation(fields: [transactionId], references: [id])
+  transactionId   String         @db.ObjectId @unique
   deliveryAddress String?
 
-
-  user User @relation(fields: [userId], references: [id],onDelete: Cascade)
+  @@index([userId])
+  @@map("orders")
 }
 
 type OrderProduct {
@@ -152,32 +199,35 @@ type OrderProduct {
   quantity  Int
 }
 
-
 enum PaymentStatus {
   PENDING
   COMPLETED
   FAILED
 }
 
+// ========================= WALLET & TRANSACTIONS =========================
 model Wallet {
   id           String        @id @default(auto()) @map("_id") @db.ObjectId
-  userId      String            @db.ObjectId @unique
-  user        User              @relation(fields: [userId],references: [id],onDelete: Cascade)
+  userId       String        @db.ObjectId @unique
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   balance      Float         @default(0.0)
   transactions Transaction[]
 
+  @@map("wallets")
 }
 
 model Transaction {
-  id        String   @id @default(auto()) @map("_id") @db.ObjectId
-  walletId  String   @db.ObjectId @unique
-  order      Order?   
+  id        String          @id @default(auto()) @map("_id") @db.ObjectId
+  walletId  String          @db.ObjectId
+  wallet    Wallet          @relation(fields: [walletId], references: [id], onDelete: Cascade)
+  order     Order?
   amount    Float
   type      TransactionType
-  status      PaymentStatus?
-  createdAt DateTime @default(now())
+  status    PaymentStatus?
+  createdAt DateTime        @default(now())
 
-  wallet Wallet @relation(fields: [walletId], references: [id],onDelete: Cascade)
+  @@index([walletId])
+  @@map("transactions")
 }
 
 enum TransactionType {

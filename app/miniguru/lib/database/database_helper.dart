@@ -1,3 +1,6 @@
+// /workspaces/MiniGuru-App/app/miniguru/lib/database/database_helper.dart
+// COMPLETE FILE - Replace entire file with this
+
 import 'dart:convert';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:miniguru/models/AuthToken.dart';
@@ -198,6 +201,23 @@ class DatabaseHelper {
     return null;
   }
 
+  // ==================== DELETE AUTH TOKEN (LOGOUT) ====================
+  // ✅ NEW METHOD ADDED
+
+  /// Delete auth token from database (logout)
+  /// Works on both web and mobile platforms
+  Future<void> deleteAuthToken() async {
+    if (kIsWeb) {
+      _webStorage['authToken'] = null;
+      print('🗑️ [WEB] Auth token deleted from memory');
+      return;
+    }
+
+    final db = await database;
+    await db?.delete('authToken');
+    print('🗑️ Auth token deleted from database');
+  }
+
   // ==================== USER DATA ====================
 
   Future<void> insertUserData(User user) async {
@@ -287,7 +307,7 @@ class DatabaseHelper {
   Future<List<Project>> getProjectsByQuery(String query) async {
     if (kIsWeb) {
       final projects = _webStorage['projects'] as List<Project>;
-      return projects.where((p) => 
+      return projects.where((p) =>
         p.title.toLowerCase().contains(query.toLowerCase()) ||
         p.description.toLowerCase().contains(query.toLowerCase())
       ).toList();
