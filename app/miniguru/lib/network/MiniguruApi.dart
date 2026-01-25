@@ -9,6 +9,7 @@ import 'package:path/path.dart';
 import 'package:http_parser/http_parser.dart';
 import 'package:miniguru/secrets.dart';
 
+
 class MiniguruApi {
   static const String _baseUrl = apiBaseUrl;
   DatabaseHelper? _db;
@@ -100,6 +101,31 @@ class MiniguruApi {
     
     print('📦 Reset Response Status: ${response.statusCode}');
     print('📦 Reset Response: ${response.body}');
+    
+    return response;
+  }
+
+  // ✨ NEW: Change Password API (for logged-in users)
+  Future<http.Response> changePassword(String currentPassword, String newPassword) async {
+    final authToken = await _getValidToken();
+    if (authToken == null) {
+      throw Exception('User not logged in');
+    }
+
+    final url = Uri.parse('$_baseUrl/auth/change-password');
+    print('🔐 Change Password Request: $url');
+    
+    final response = await http.post(
+      url,
+      headers: _buildHeaders(authToken.accessToken),
+      body: jsonEncode({
+        'currentPassword': currentPassword,
+        'newPassword': newPassword,
+      }),
+    );
+    
+    print('📦 Change Password Status: ${response.statusCode}');
+    print('📦 Change Password Response: ${response.body}');
     
     return response;
   }

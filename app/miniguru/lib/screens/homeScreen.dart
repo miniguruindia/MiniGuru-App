@@ -4,7 +4,7 @@ import 'package:miniguru/screens/navScreen/library.dart';
 import 'package:miniguru/screens/navScreen/profile.dart';
 import 'package:miniguru/screens/navScreen/projects.dart';
 import 'package:miniguru/screens/navScreen/shop.dart';
-import 'package:miniguru/screens/about.dart'; // ✅ This imports AboutScreen
+import 'package:miniguru/screens/about.dart';
 import 'package:miniguru/network/MiniguruApi.dart';
 import 'package:miniguru/models/User.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -23,7 +23,6 @@ class _HomeScreenState extends State<HomeScreen> {
   User? _user;
   bool _isAuthenticated = false;
 
-  // Cache for screens except Home (index 0)
   final Map<int, Widget> _cachedScreens = {};
 
   @override
@@ -47,12 +46,10 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _getScreen(int index) {
-    // NEVER cache Home screen - always create fresh so auth updates
     if (index == 0) {
       return const Home();
     }
     
-    // For Profile/About - show About if not authenticated, Profile if authenticated
     if (index == 4) {
       if (_isAuthenticated && _user != null) {
         if (!_cachedScreens.containsKey(index)) {
@@ -60,12 +57,10 @@ class _HomeScreenState extends State<HomeScreen> {
         }
         return _cachedScreens[index]!;
       } else {
-        // Return AboutScreen for guest users
-        return const AboutScreen(); // ✅ FIXED: Changed from About() to AboutScreen()
+        return const AboutScreen();
       }
     }
     
-    // Cache other screens
     if (!_cachedScreens.containsKey(index)) {
       switch (index) {
         case 1:
@@ -96,11 +91,11 @@ class _HomeScreenState extends State<HomeScreen> {
       body: IndexedStack(
         index: _currentIndex,
         children: [
-          _getScreen(0), // Home - always fresh
-          _getScreen(1), // Library
-          _getScreen(2), // Shop
-          _getScreen(3), // Projects
-          _getScreen(4), // Profile or About
+          _getScreen(0),
+          _getScreen(1),
+          _getScreen(2),
+          _getScreen(3),
+          _getScreen(4),
         ],
       ),
       bottomNavigationBar: Container(
@@ -149,7 +144,6 @@ class _HomeScreenState extends State<HomeScreen> {
               activeIcon: Icon(Icons.work),
               label: 'Projects',
             ),
-            // Show "About" for guests, "Profile" for authenticated users
             BottomNavigationBarItem(
               icon: _isAuthenticated 
                   ? const Icon(Icons.person_outline)

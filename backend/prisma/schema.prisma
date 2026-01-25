@@ -1,4 +1,6 @@
 // backend/prisma/schema.prisma
+// COMPLETE FILE - Replace entire file
+
 generator client {
   provider = "prisma-client-js"
 }
@@ -40,7 +42,9 @@ model User {
   likes         Like[]
   projects      Project[]
   wallet        Wallet?
-  walletId      String?   @db.ObjectId @unique
+  walletId      String?   @db.ObjectId
+  // ✅ REMOVED @unique - This was causing the registration error
+  // The wallet relation already ensures one-to-one via Wallet.userId @unique
   videoViews    VideoView[]
   videoComments VideoComment[]
 

@@ -1,9 +1,11 @@
 // /workspaces/MiniGuru-App/backend/src/routes/authRoutes.ts
+// COMPLETE FILE - Replace entire file with this
 
 import express from 'express';
-import { login, refreshToken, logout, register } from '../controllers/auth/authController';
+import { login, refreshToken, logout, register, changePassword } from '../controllers/auth/authController';
 import { requestPasswordReset, resetPassword } from '../controllers/auth/passwordResetController';
 import { registerValidationRules } from '../middleware/validationMiddleware';
+import { authenticateToken } from '../middleware/authMiddleware'; // ✅ CHANGED: Use authenticateToken instead of authenticateUser
 
 const authRouter = express.Router();
 
@@ -37,13 +39,12 @@ authRouter.post('/refresh-token', refreshToken);
  */
 authRouter.post('/logout', logout);
 
-// ========================= PASSWORD RESET ROUTES =========================
+// ========================= PASSWORD MANAGEMENT =========================
 
 /**
  * @route   POST /auth/forgot-password
  * @desc    Request password reset (generates temp password or reset token)
  * @access  Public
- * @note    Changed from /request-password-reset to /forgot-password to match Flutter API calls
  */
 authRouter.post('/forgot-password', requestPasswordReset);
 
@@ -53,5 +54,13 @@ authRouter.post('/forgot-password', requestPasswordReset);
  * @access  Public
  */
 authRouter.post('/reset-password', resetPassword);
+
+/**
+ * @route   POST /auth/change-password
+ * @desc    Change password for authenticated user
+ * @access  Private (requires authentication)
+ * ✅ FIXED: Use authenticateToken to verify JWT and populate req.user
+ */
+authRouter.post('/change-password', authenticateToken, changePassword);
 
 export default authRouter;

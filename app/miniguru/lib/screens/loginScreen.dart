@@ -1,6 +1,10 @@
+// /workspaces/MiniGuru-App/app/miniguru/lib/screens/loginScreen.dart
+// COMPLETE FILE - Replace entire file with this
+
 import 'dart:convert';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:miniguru/constants.dart';
 import 'package:miniguru/database/database_helper.dart';
 import 'package:miniguru/network/MiniguruApi.dart';
@@ -138,7 +142,7 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
-  // ✨ NEW: Password Reset Dialog
+  // ✅ FIXED: Password Reset Dialog with Temp Password Display
   Future<void> _showPasswordResetDialog() async {
     final TextEditingController resetEmailController = TextEditingController();
     final GlobalKey<FormState> resetFormKey = GlobalKey<FormState>();
@@ -169,7 +173,7 @@ class _LoginScreenState extends State<LoginScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Enter your email address and we\'ll send you a password reset link.',
+                  'Enter your email address to reset your password.',
                   style: GoogleFonts.poppins(
                     fontSize: 13,
                     color: Colors.grey[600],
@@ -221,29 +225,45 @@ class _LoginScreenState extends State<LoginScreen> {
                         setDialogState(() => isSending = true);
                         
                         try {
-                          // Call password reset API
+                          print('🔐 Requesting password reset for: ${resetEmailController.text.trim()}');
+                          
                           final response = await _api.requestPasswordReset(
                             resetEmailController.text.trim(),
                           );
                           
+                          print('📦 Response status: ${response.statusCode}');
+                          print('📦 Response body: ${response.body}');
+                          
                           if (dialogContext.mounted) Navigator.of(dialogContext).pop();
                           
                           if (response.statusCode == 200) {
-                            _showSnackBar(
-                              'Password reset link sent to your email! ✉️',
-                              Colors.green,
-                            );
+                            final body = jsonDecode(response.body);
+                            
+                            // ✅ CHECK FOR TEMP PASSWORD (DEV MODE)
+                            if (body['tempPassword'] != null) {
+                              print('✅ Temp password received: ${body['tempPassword']}');
+                              _showTempPasswordDialog(
+                                resetEmailController.text.trim(),
+                                body['tempPassword'],
+                              );
+                            } else {
+                              _showSnackBar(
+                                '✉️ Password reset instructions sent to your email!',
+                                Colors.green,
+                              );
+                            }
                           } else {
                             final errorBody = jsonDecode(response.body);
                             _showSnackBar(
-                              errorBody['message'] ?? 'Failed to send reset link',
+                              errorBody['error'] ?? 'Failed to send reset request',
                               Colors.orange,
                             );
                           }
                         } catch (e) {
+                          print('❌ Password reset error: $e');
                           if (dialogContext.mounted) Navigator.of(dialogContext).pop();
                           _showSnackBar(
-                            'Error sending reset link. Please try again.',
+                            'Error sending reset request. Please try again.',
                             Colors.red,
                           );
                         }
@@ -265,7 +285,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                     )
                   : Text(
-                      'Send Reset Link',
+                      'Reset Password',
                       style: GoogleFonts.poppins(color: Colors.white),
                     ),
             ),
@@ -275,6 +295,181 @@ class _LoginScreenState extends State<LoginScreen> {
     );
 
     resetEmailController.dispose();
+  }
+
+  // ✅ NEW: Show Temp Password Dialog
+  Future<void> _showTempPasswordDialog(String email, String tempPassword) async {
+    await showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: [
+            const Icon(Icons.check_circle, color: Colors.green, size: 28),
+            const SizedBox(width: 8),
+            Text(
+              'Password Reset',
+              style: GoogleFonts.poppins(
+                fontSize: 20,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Your password has been reset!',
+              style: GoogleFonts.poppins(
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.blue.shade50,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.blue.shade200, width: 2),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(Icons.email, size: 16, color: Colors.grey[600]),
+                      const SizedBox(width: 6),
+                      Text(
+                        'Email:',
+                        style: GoogleFonts.poppins(
+                          fontSize: 12,
+                          color: Colors.grey[600],
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    email,
+                    style: GoogleFonts.poppins(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Icon(Icons.vpn_key, size: 16, color: Colors.grey[600]),
+                      const SizedBox(width: 6),
+                      Text(
+                        'Temporary Password:',
+                        style: GoogleFonts.poppins(
+                          fontSize: 12,
+                          color: Colors.grey[600],
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: Colors.blue.shade300),
+                          ),
+                          child: SelectableText(
+                            tempPassword,
+                            style: GoogleFonts.robotoMono(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.blue.shade700,
+                              letterSpacing: 2,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      IconButton(
+                        icon: const Icon(Icons.copy, color: pastelBlueText),
+                        onPressed: () {
+                          Clipboard.setData(ClipboardData(text: tempPassword));
+                          _showSnackBar('Password copied! 📋', Colors.green);
+                        },
+                        tooltip: 'Copy password',
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.orange.shade50,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.orange.shade200),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.warning_amber_rounded, 
+                    size: 24, 
+                    color: Colors.orange.shade700
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      'Please change this password after logging in!',
+                      style: GoogleFonts.poppins(
+                        fontSize: 12,
+                        color: Colors.orange.shade900,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          ElevatedButton.icon(
+            onPressed: () {
+              Navigator.of(context).pop();
+              // Pre-fill login form
+              _emailController.text = email;
+              _passwordController.text = tempPassword;
+              _showSnackBar('Login details filled! Click Login to continue.', Colors.blue);
+            },
+            icon: const Icon(Icons.login, color: Colors.white),
+            label: Text(
+              'Login Now',
+              style: GoogleFonts.poppins(
+                color: Colors.white,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: pastelBlueText,
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   void _showSnackBar(String msg, Color color) {
@@ -395,7 +590,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     },
                   ),
                   
-                  // ✨ NEW: Forgot Password Link
+                  // Forgot Password Link
                   const SizedBox(height: 8),
                   Align(
                     alignment: Alignment.centerRight,
