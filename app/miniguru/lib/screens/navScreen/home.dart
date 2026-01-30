@@ -4,7 +4,7 @@ import 'package:miniguru/network/MiniguruApi.dart';
 import 'package:miniguru/screens/loginScreen.dart';
 import 'package:miniguru/screens/registerScreen.dart';
 import 'package:miniguru/services/youtube_service.dart';
-import 'package:miniguru/screens/youtubePlayerScreen.dart';
+import 'package:miniguru/screens/unifiedVideoPlayer.dart'; // ✅ FIXED: Correct import
 import 'package:google_fonts/google_fonts.dart';
 
 class Home extends StatefulWidget {
@@ -97,7 +97,11 @@ class _HomeState extends State<Home> {
   void _filterVideos(String category) {
     setState(() {
       _selectedCategory = category;
-      _filteredVideos = YouTubeService.filterByCategory(_allVideos, category);
+      if (category == 'All') {
+        _filteredVideos = _allVideos;
+      } else {
+        _filteredVideos = YouTubeService.filterByCategory(_allVideos, category);
+      }
     });
   }
 
@@ -158,7 +162,6 @@ class _HomeState extends State<Home> {
       elevation: 0,
       title: Row(
         children: [
-          // ✅ FIXED: Logo with Container fallback
           Container(
             width: 32,
             height: 32,
@@ -270,7 +273,7 @@ class _HomeState extends State<Home> {
     );
   }
 
-  // ==================== AUTHENTICATED CONTENT (same as before) ====================
+  // ==================== AUTHENTICATED CONTENT ====================
   Widget _buildAuthenticatedContent() {
     return SliverList(
       delegate: SliverChildListDelegate([
@@ -294,7 +297,6 @@ class _HomeState extends State<Home> {
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: LayoutBuilder(
         builder: (context, constraints) {
-          // ✅ RESPONSIVE: Stack on mobile, row on web
           if (constraints.maxWidth < 600) {
             return Column(
               children: [
@@ -510,11 +512,35 @@ class _HomeState extends State<Home> {
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: TextField(
         controller: _searchController,
+        onChanged: (query) {
+          setState(() {
+            if (query.isEmpty) {
+              _filteredVideos = _allVideos;
+            } else {
+              _filteredVideos = _allVideos.where((video) {
+                final title = video['title']?.toLowerCase() ?? '';
+                final channel = video['channelTitle']?.toLowerCase() ?? '';
+                final searchQuery = query.toLowerCase();
+                return title.contains(searchQuery) || channel.contains(searchQuery);
+              }).toList();
+            }
+          });
+        },
         decoration: InputDecoration(
           hintText: 'Search projects, makers...',
           hintStyle: GoogleFonts.poppins(fontSize: 14, color: Colors.black38),
           prefixIcon: Icon(Icons.search, color: Colors.black38, size: 20),
-          suffixIcon: Icon(Icons.tune, color: Colors.black38, size: 20),
+          suffixIcon: _searchController.text.isNotEmpty
+              ? IconButton(
+                  icon: Icon(Icons.clear, color: Colors.black38, size: 20),
+                  onPressed: () {
+                    _searchController.clear();
+                    setState(() {
+                      _filteredVideos = _allVideos;
+                    });
+                  },
+                )
+              : Icon(Icons.tune, color: Colors.black38, size: 20),
           filled: true,
           fillColor: Color(0xFFF3F4F6),
           border: OutlineInputBorder(
@@ -547,10 +573,11 @@ class _HomeState extends State<Home> {
           padding: const EdgeInsets.symmetric(horizontal: 16),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: _categories.map((cat) {
-              return Expanded(
+            children: [
+              // "All" category button
+              Expanded(
                 child: GestureDetector(
-                  onTap: () => _filterVideos(cat['name']),
+                  onTap: () => _filterVideos('All'),
                   child: Container(
                     margin: EdgeInsets.only(right: 8),
                     child: Column(
@@ -559,17 +586,33 @@ class _HomeState extends State<Home> {
                           width: 60,
                           height: 60,
                           decoration: BoxDecoration(
-                            color: cat['color'],
+                            color: _selectedCategory == 'All' 
+                                ? Color(0xFF3B82F6) 
+                                : Color(0xFFE5E7EB),
                             borderRadius: BorderRadius.circular(16),
+                            border: _selectedCategory == 'All'
+                                ? Border.all(color: Color(0xFF3B82F6), width: 2)
+                                : null,
                           ),
-                          child: Icon(cat['icon'], color: Colors.white, size: 28),
+                          child: Icon(
+                            Icons.apps, 
+                            color: _selectedCategory == 'All' 
+                                ? Colors.white 
+                                : Colors.black54, 
+                            size: 28,
+                          ),
                         ),
                         SizedBox(height: 8),
                         Text(
-                          cat['name'],
+                          'All',
                           style: GoogleFonts.poppins(
                             fontSize: 11,
-                            color: Colors.black87,
+                            fontWeight: _selectedCategory == 'All' 
+                                ? FontWeight.w600 
+                                : FontWeight.normal,
+                            color: _selectedCategory == 'All' 
+                                ? Color(0xFF3B82F6) 
+                                : Colors.black87,
                           ),
                           textAlign: TextAlign.center,
                         ),
@@ -577,8 +620,50 @@ class _HomeState extends State<Home> {
                     ),
                   ),
                 ),
-              );
-            }).toList(),
+              ),
+              // Other categories
+              ..._categories.map((cat) {
+                final isSelected = _selectedCategory == cat['name'];
+                return Expanded(
+                  child: GestureDetector(
+                    onTap: () => _filterVideos(cat['name']),
+                    child: Container(
+                      margin: EdgeInsets.only(right: 8),
+                      child: Column(
+                        children: [
+                          Container(
+                            width: 60,
+                            height: 60,
+                            decoration: BoxDecoration(
+                              color: isSelected ? cat['color'] : Color(0xFFF3F4F6),
+                              borderRadius: BorderRadius.circular(16),
+                              border: isSelected 
+                                  ? Border.all(color: cat['color'], width: 2)
+                                  : null,
+                            ),
+                            child: Icon(
+                              cat['icon'], 
+                              color: isSelected ? Colors.white : Colors.black54, 
+                              size: 28,
+                            ),
+                          ),
+                          SizedBox(height: 8),
+                          Text(
+                            cat['name'],
+                            style: GoogleFonts.poppins(
+                              fontSize: 11,
+                              fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                              color: isSelected ? cat['color'] : Colors.black87,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                );
+              }).toList(),
+            ],
           ),
         ),
       ],
@@ -607,7 +692,9 @@ class _HomeState extends State<Home> {
                 ),
               ),
               TextButton(
-                onPressed: () {},
+                onPressed: () {
+                  // Could implement see all featured videos
+                },
                 child: Text(
                   'See All →',
                   style: GoogleFonts.poppins(
@@ -627,7 +714,6 @@ class _HomeState extends State<Home> {
             height: 180,
             child: Stack(
               children: [
-                // ✅ FIXED: Proper ClipRRect for rounded corners
                 ClipRRect(
                   borderRadius: BorderRadius.circular(16),
                   child: Container(
@@ -726,23 +812,64 @@ class _HomeState extends State<Home> {
 
   Widget _buildAllProjects() {
     if (_isLoadingVideos) {
-      return Center(child: CircularProgressIndicator());
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: CircularProgressIndicator(color: Color(0xFF3B82F6)),
+        ),
+      );
     }
 
-    if (_filteredVideos.length < 2) return SizedBox.shrink();
+    if (_filteredVideos.length < 2) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: Column(
+            children: [
+              Icon(Icons.video_library_outlined, size: 64, color: Colors.grey),
+              SizedBox(height: 16),
+              Text(
+                _searchController.text.isEmpty 
+                    ? 'No videos available' 
+                    : 'No videos found for "${_searchController.text}"',
+                style: GoogleFonts.poppins(
+                  fontSize: 14,
+                  color: Colors.grey,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
     
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Text(
-            'All Projects',
-            style: GoogleFonts.poppins(
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-              color: Colors.black87,
-            ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                _selectedCategory == 'All' 
+                    ? 'All Projects' 
+                    : '$_selectedCategory Projects',
+                style: GoogleFonts.poppins(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.black87,
+                ),
+              ),
+              if (_filteredVideos.length > 13)
+                Text(
+                  '${_filteredVideos.length - 1} videos',
+                  style: GoogleFonts.poppins(
+                    fontSize: 12,
+                    color: Colors.black54,
+                  ),
+                ),
+            ],
           ),
         ),
         SizedBox(height: 12),
@@ -781,254 +908,267 @@ class _HomeState extends State<Home> {
     );
   }
 
-  // ==================== VIDEO CARDS ====================
-  Widget _buildVideoCard(Map<String, dynamic> video, {double width = 280}) {
-    return GestureDetector(
-      onTap: () => _openVideo(video),
-      child: Container(
-        width: width,
-        margin: EdgeInsets.only(right: 12),
-        child: Stack(
-          children: [
-            // ✅ FIXED: Proper sizing with ClipRRect
-            ClipRRect(
-              borderRadius: BorderRadius.circular(16),
-              child: Container(
-                width: width,
-                height: 180,
-                color: Color(0xFF64748B),
-                child: video['thumbnail'] != null
-                    ? Image.network(
-                        video['thumbnail'],
-                        width: width,
-                        height: 180,
-                        fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) {
-                          return Center(
-                            child: Icon(Icons.video_library, size: 40, color: Colors.white54),
-                          );
-                        },
-                      )
-                    : Center(
-                        child: Icon(Icons.video_library, size: 40, color: Colors.white54),
-                      ),
-              ),
+// ==================== VIDEO CARDS ====================
+Widget _buildVideoCard(Map<String, dynamic> video, {double width = 280}) {
+  return GestureDetector(
+    onTap: () {
+      print('🎬 VIDEO CARD CLICKED: ${video['videoId']}');
+      print('📹 Video Data: ${video.toString()}');
+      _openVideo(video);
+    },
+    child: Container(
+      width: width,
+      margin: EdgeInsets.only(right: 12),
+      child: Stack(
+        children: [
+          ClipRRect(
+            borderRadius: BorderRadius.circular(16),
+            child: Container(
+              width: width,
+              height: 180,
+              color: Color(0xFF64748B),
+              child: video['thumbnail'] != null
+                  ? Image.network(
+                      video['thumbnail'],
+                      width: width,
+                      height: 180,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) {
+                        return Center(
+                          child: Icon(Icons.video_library, size: 40, color: Colors.white54),
+                        );
+                      },
+                    )
+                  : Center(
+                      child: Icon(Icons.video_library, size: 40, color: Colors.white54),
+                    ),
             ),
-            Center(
-              child: Container(
-                width: 50,
-                height: 50,
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  shape: BoxShape.circle,
+          ),
+          Center(
+            child: Container(
+              width: 50,
+              height: 50,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(Icons.play_arrow, size: 30, color: Color(0xFF3B82F6)),
+            ),
+          ),
+          Positioned(
+            bottom: 0,
+            left: 0,
+            right: 0,
+            child: Container(
+              padding: EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.bottomCenter,
+                  end: Alignment.topCenter,
+                  colors: [Colors.black87, Colors.transparent],
                 ),
-                child: Icon(Icons.play_arrow, size: 30, color: Color(0xFF3B82F6)),
+                borderRadius: BorderRadius.only(
+                  bottomLeft: Radius.circular(16),
+                  bottomRight: Radius.circular(16),
+                ),
               ),
-            ),
-            Positioned(
-              bottom: 0,
-              left: 0,
-              right: 0,
-              child: Container(
-                padding: EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.bottomCenter,
-                    end: Alignment.topCenter,
-                    colors: [Colors.black87, Colors.transparent],
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    video['title'] ?? '',
+                    style: GoogleFonts.poppins(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                   ),
-                  borderRadius: BorderRadius.only(
-                    bottomLeft: Radius.circular(16),
-                    bottomRight: Radius.circular(16),
+                  SizedBox(height: 4),
+                  Text(
+                    '@${video['channelTitle'] ?? 'miniguru'}',
+                    style: GoogleFonts.poppins(
+                      fontSize: 10,
+                      color: Colors.white70,
+                    ),
                   ),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      video['title'] ?? '',
-                      style: GoogleFonts.poppins(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.white,
-                      ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    SizedBox(height: 4),
-                    Text(
-                      '@${video['channelTitle'] ?? 'miniguru'}',
-                      style: GoogleFonts.poppins(
-                        fontSize: 10,
-                        color: Colors.white70,
-                      ),
-                    ),
-                  ],
-                ),
+                ],
               ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
-    );
-  }
-
-  Widget _buildSmallVideoCard(Map<String, dynamic> video) {
-    return GestureDetector(
-      onTap: () => _openVideo(video),
-      child: Container(
-        width: 120,
-        margin: EdgeInsets.only(right: 12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            ClipRRect(
-              borderRadius: BorderRadius.circular(12),
-              child: Container(
-                width: 120,
-                height: 90,
-                color: Color(0xFFD1D5DB),
-                child: Stack(
-                  children: [
-                    if (video['thumbnail'] != null)
-                      Image.network(
-                        video['thumbnail'],
-                        width: 120,
-                        height: 90,
-                        fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) {
-                          return Center(
-                            child: Icon(Icons.video_library, size: 30, color: Colors.grey),
-                          );
-                        },
-                      ),
-                    Center(
-                      child: Container(
-                        width: 36,
-                        height: 36,
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          shape: BoxShape.circle,
-                        ),
-                        child: Icon(Icons.play_arrow, size: 20, color: Color(0xFF3B82F6)),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            SizedBox(height: 6),
-            Text(
-              video['title'] ?? '',
-              style: GoogleFonts.poppins(
-                fontSize: 11,
-                fontWeight: FontWeight.w500,
-                color: Colors.black87,
-              ),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildProjectCard(Map<String, dynamic> video) {
-    return GestureDetector(
-      onTap: () => _openVideo(video),
-      child: Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Color(0xFFE5E7EB)),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // ✅ FIXED: Proper ClipRRect for image
-            ClipRRect(
-              borderRadius: BorderRadius.only(
-                topLeft: Radius.circular(12),
-                topRight: Radius.circular(12),
-              ),
-              child: Container(
-                height: 120,
-                color: Color(0xFFFDE68A),
-                child: Stack(
-                  children: [
-                    if (video['thumbnail'] != null)
-                      Image.network(
-                        video['thumbnail'],
-                        width: double.infinity,
-                        height: 120,
-                        fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) {
-                          return Center(
-                            child: Icon(Icons.video_library, size: 40, color: Colors.grey),
-                          );
-                        },
-                      ),
-                    Center(
-                      child: Container(
-                        width: 40,
-                        height: 40,
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          shape: BoxShape.circle,
-                        ),
-                        child: Icon(Icons.play_arrow, size: 24, color: Color(0xFF3B82F6)),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.all(8),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      video['title'] ?? '',
-                      style: GoogleFonts.poppins(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.black87,
-                      ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    Spacer(),
-                    Text(
-                      '@${video['channelTitle'] ?? 'maker'}',
-                      style: GoogleFonts.poppins(
-                        fontSize: 9,
-                        color: Colors.black54,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _openVideo(Map<String, dynamic> video) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => YouTubePlayerScreen(
-          videoId: video['videoId'] ?? '',
-          title: video['title'] ?? '',
-          description: video['description'] ?? '',
-          channelTitle: video['channelTitle'] ?? '',
-        ),
-      ),
-    );
-  }
+    ),
+  );
 }
+
+Widget _buildSmallVideoCard(Map<String, dynamic> video) {
+  return GestureDetector(
+    onTap: () {
+      print('🎬 SMALL VIDEO CLICKED: ${video['videoId']}');
+      _openVideo(video);
+    },
+    child: Container(
+      width: 120,
+      margin: EdgeInsets.only(right: 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          ClipRRect(
+            borderRadius: BorderRadius.circular(12),
+            child: Container(
+              width: 120,
+              height: 90,
+              color: Color(0xFFD1D5DB),
+              child: Stack(
+                children: [
+                  if (video['thumbnail'] != null)
+                    Image.network(
+                      video['thumbnail'],
+                      width: 120,
+                      height: 90,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) {
+                        return Center(
+                          child: Icon(Icons.video_library, size: 30, color: Colors.grey),
+                        );
+                      },
+                    ),
+                  Center(
+                    child: Container(
+                      width: 36,
+                      height: 36,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(Icons.play_arrow, size: 20, color: Color(0xFF3B82F6)),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          SizedBox(height: 6),
+          Text(
+            video['title'] ?? '',
+            style: GoogleFonts.poppins(
+              fontSize: 11,
+              fontWeight: FontWeight.w500,
+              color: Colors.black87,
+            ),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
+Widget _buildProjectCard(Map<String, dynamic> video) {
+  return GestureDetector(
+    onTap: () {
+      print('🎬 PROJECT CARD CLICKED: ${video['videoId']}');
+      _openVideo(video);
+    },
+    child: Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Color(0xFFE5E7EB)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          ClipRRect(
+            borderRadius: BorderRadius.only(
+              topLeft: Radius.circular(12),
+              topRight: Radius.circular(12),
+            ),
+            child: Container(
+              height: 120,
+              color: Color(0xFFFDE68A),
+              child: Stack(
+                children: [
+                  if (video['thumbnail'] != null)
+                    Image.network(
+                      video['thumbnail'],
+                      width: double.infinity,
+                      height: 120,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) {
+                        return Center(
+                          child: Icon(Icons.video_library, size: 40, color: Colors.grey),
+                        );
+                      },
+                    ),
+                  Center(
+                    child: Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(Icons.play_arrow, size: 24, color: Color(0xFF3B82F6)),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.all(8),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    video['title'] ?? '',
+                    style: GoogleFonts.poppins(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.black87,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  Spacer(),
+                  Text(
+                    '@${video['channelTitle'] ?? 'maker'}',
+                    style: GoogleFonts.poppins(
+                      fontSize: 9,
+                      color: Colors.black54,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
+void _openVideo(Map<String, dynamic> video) {
+  print('🚀 OPENING VIDEO PLAYER');
+  print('📹 Video ID: ${video['videoId']}');
+  print('📝 Title: ${video['title']}');
+  
+  Navigator.push(
+    context,
+    MaterialPageRoute(
+      builder: (context) => UnifiedVideoPlayer(
+        videoId: video['videoId'] ?? '',
+        title: video['title'] ?? '',
+        description: video['description'] ?? '',
+        channelTitle: video['channelTitle'] ?? '',
+        views: video['viewCount'],
+      ),
+    ),
+  );
+}
+}  // ✅ Class closing brace - DO NOT REMOVE!

@@ -1,15 +1,32 @@
 // backend/src/routes/videoRoutes.ts
+// COMPLETE UNIFIED FILE - Handles uploads AND interactions
+
 import express, { Request, Response } from 'express';
 import fs from 'fs';
 import { authenticateToken, authorizeAdmin } from '../middleware/authMiddleware';
 
+// Video interaction controllers
+import {
+  trackVideoView,
+  getVideoViews,
+  likeVideo,
+  getUserVideoLikes,
+  getVideoLikesStats,
+  getVideoComments,
+  postVideoComment,
+  deleteVideoComment,
+} from '../controllers/video/videoController';
+
 const router = express.Router();
 
-// Import using require for JS modules (until we convert them to TS)
+// Import upload service (JS module)
 const { upload, uploadToYouTube } = require('../services/youtubeUploadService');
 const PendingVideo = require('../models/PendingVideo');
 
-// User uploads video for approval
+// ========================================================================
+// SECTION 1: VIDEO UPLOAD ROUTES (Admin workflow)
+// ========================================================================
+
 router.post('/upload', authenticateToken, upload.single('video'), async (req: Request, res: Response) => {
   try {
     const { title, description, category, tags } = req.body;
@@ -19,7 +36,6 @@ router.post('/upload', authenticateToken, upload.single('video'), async (req: Re
       return res.status(400).json({ error: 'No video file uploaded' });
     }
 
-    // Save to pending approval queue
     const pendingVideo = await PendingVideo.create({
       title,
       description,
@@ -34,8 +50,6 @@ router.post('/upload', authenticateToken, upload.single('video'), async (req: Re
       submittedAt: new Date(),
     });
 
-    // TODO: Send notification to admin
-
     res.json({
       success: true,
       message: 'Video submitted for approval',
@@ -48,7 +62,6 @@ router.post('/upload', authenticateToken, upload.single('video'), async (req: Re
   }
 });
 
-// Admin: Get pending videos
 router.get('/pending', authenticateToken, authorizeAdmin, async (req: Request, res: Response) => {
   try {
     const pendingVideos = await PendingVideo.find({ status: 'pending' })
@@ -66,11 +79,10 @@ router.get('/pending', authenticateToken, authorizeAdmin, async (req: Request, r
   }
 });
 
-// Admin: Approve and upload to YouTube
 router.post('/approve/:id', authenticateToken, authorizeAdmin, async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const { privacyStatus = 'public' } = req.body; // 'public', 'unlisted', or 'private'
+    const { privacyStatus = 'public' } = req.body;
 
     const video = await PendingVideo.findById(id);
     
@@ -82,7 +94,6 @@ router.post('/approve/:id', authenticateToken, authorizeAdmin, async (req: Reque
       return res.status(400).json({ error: 'Video is not pending approval' });
     }
 
-    // Upload to YouTube
     const youtubeResult = await uploadToYouTube(video.localPath, {
       title: video.title,
       description: video.description,
@@ -90,15 +101,12 @@ router.post('/approve/:id', authenticateToken, authorizeAdmin, async (req: Reque
       privacyStatus,
     });
 
-    // Update video status
     video.status = 'approved';
     video.youtubeVideoId = youtubeResult.videoId;
     video.youtubeUrl = youtubeResult.url;
     video.approvedAt = new Date();
     video.approvedBy = req.user!.id;
     await video.save();
-
-    // TODO: Notify user that their video is live
 
     res.json({
       success: true,
@@ -112,7 +120,6 @@ router.post('/approve/:id', authenticateToken, authorizeAdmin, async (req: Reque
   }
 });
 
-// Admin: Reject video
 router.post('/reject/:id', authenticateToken, authorizeAdmin, async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
@@ -124,7 +131,6 @@ router.post('/reject/:id', authenticateToken, authorizeAdmin, async (req: Reques
       return res.status(404).json({ error: 'Video not found' });
     }
 
-    // Delete temporary file
     if (fs.existsSync(video.localPath)) {
       fs.unlinkSync(video.localPath);
     }
@@ -134,8 +140,6 @@ router.post('/reject/:id', authenticateToken, authorizeAdmin, async (req: Reques
     video.rejectedAt = new Date();
     video.rejectedBy = req.user!.id;
     await video.save();
-
-    // TODO: Notify user of rejection
 
     res.json({
       success: true,
@@ -147,7 +151,6 @@ router.post('/reject/:id', authenticateToken, authorizeAdmin, async (req: Reques
   }
 });
 
-// User: Check their video status
 router.get('/my-submissions', authenticateToken, async (req: Request, res: Response) => {
   try {
     const videos = await PendingVideo.find({ uploadedBy: req.user!.id })
@@ -169,5 +172,23 @@ router.get('/my-submissions', authenticateToken, async (req: Request, res: Respo
     res.status(500).json({ error: 'Failed to fetch submissions' });
   }
 });
+
+// ========================================================================
+// SECTION 2: VIDEO INTERACTION ROUTES (Views, Likes, Comments)
+// ========================================================================
+
+// Video views
+router.post('/:videoId/view', authenticateToken, trackVideoView);
+router.get('/:videoId/views', getVideoViews);
+
+// Video likes (5 categories)
+router.post('/:videoId/like', authenticateToken, likeVideo);
+router.get('/:videoId/likes/user', authenticateToken, getUserVideoLikes);
+router.get('/:videoId/likes/stats', getVideoLikesStats);
+
+// Video comments
+router.get('/:videoId/comments', getVideoComments);
+router.post('/:videoId/comments', authenticateToken, postVideoComment);
+router.delete('/comments/:commentId', authenticateToken, deleteVideoComment);
 
 export default router;

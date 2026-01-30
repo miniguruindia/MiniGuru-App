@@ -1,24 +1,10 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <!--
-    If you are serving your web app in a path other than the root, change the
-    href value below to reflect the base path you are serving from.
-
-    The path provided below has to start and end with a slash "/" in order for
-    it to work correctly.
-
-    For more details:
-    * https://developer.mozilla.org/en-US/docs/Web/HTML/Element/base
-
-    This is a placeholder for base href that will be replaced by the value of
-    the `--base-href` argument provided to `flutter build`.
-  -->
   <base href="$FLUTTER_BASE_HREF">
-
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
-  <meta name="description" content="A new Flutter project.">
+  <meta name="description" content="MiniGuru - Learn robotics, electronics, arts, and science">
 
   <!-- iOS meta tags & icons -->
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -31,8 +17,27 @@
 
   <title>miniguru</title>
   <link rel="manifest" href="manifest.json">
+
+  <!-- Final CSP with i3.ytimg.com for thumbnails -->
+  <meta http-equiv="Content-Security-Policy" 
+        content="default-src 'self' https://www.gstatic.com https://fonts.gstatic.com https://ssl.gstatic.com https://github.dev; 
+                 script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.youtube.com https://www.gstatic.com; 
+                 script-src-elem 'self' 'unsafe-inline' https://www.youtube.com https://www.gstatic.com;
+                 style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; 
+                 font-src 'self' https://fonts.gstatic.com data:;
+                 connect-src 'self' https://www.gstatic.com https://fonts.gstatic.com https://www.youtube.com https://www.googleapis.com https://i.ytimg.com https://i3.ytimg.com http://localhost:5001 https://*.app.github.dev wss://*.app.github.dev https://github.dev;
+                 frame-src https://www.youtube.com https://youtube.com https://github.dev; 
+                 media-src * blob: data:; 
+                 img-src * data: blob: https:;
+                 manifest-src 'self' https://github.dev;">
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 </head>
 <body>
+  <!-- YouTube API -->
+  <script src="https://www.youtube.com/iframe_api"></script>
+  
+  <!-- Flutter bootstrap -->
   <script src="flutter_bootstrap.js" async></script>
 </body>
 </html>

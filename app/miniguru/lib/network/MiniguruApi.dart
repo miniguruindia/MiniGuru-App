@@ -513,127 +513,195 @@ class MiniguruApi {
     }
   }
 
-  // ========================= YOUTUBE INTEGRATION =========================
+// ========================= VIDEO INTERACTION =========================
 
-  // Track video view
-  Future<void> trackVideoView(String videoId) async {
-    try {
-      final authToken = await _getValidToken();
-      if (authToken == null) {
-        print('⚠️  Cannot track view - user not logged in');
-        return;
-      }
+// Track video view
+Future<void> trackVideoView(String videoId) async {
+  try {
+    final authToken = await _getValidToken();
+    if (authToken == null) {
+      print('⚠️  Cannot track view - user not logged in');
+      return;
+    }
 
-      await http.post(
-        Uri.parse('$_baseUrl/youtube/track-view'),
-        headers: _buildHeaders(authToken.accessToken),
-        body: jsonEncode({'videoId': videoId}),
-      );
+    final response = await http.post(
+      Uri.parse('$_baseUrl/api/videos/$videoId/view'),
+      headers: _buildHeaders(authToken.accessToken),
+    );
+
+    if (response.statusCode == 200) {
       print('✅ View tracked for video: $videoId');
-    } catch (e) {
-      print('❌ Failed to track view: $e');
     }
+  } catch (e) {
+    print('❌ Failed to track view: $e');
   }
+}
 
-  // Get video view count
-  Future<Map<String, dynamic>> getVideoViews(String videoId) async {
-    try {
-      final response = await http.get(
-        Uri.parse('$_baseUrl/youtube/views/$videoId'),
-      );
-      
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        return {
-          'appViews': data['appViews'] ?? 0,
-          'youtubeViews': data['youtubeViews'] ?? 0,
-          'totalViews': data['totalViews'] ?? 0,
-        };
-      }
+// Get video view count
+Future<Map<String, dynamic>> getVideoViews(String videoId) async {
+  try {
+    final response = await http.get(
+      Uri.parse('$_baseUrl/api/videos/$videoId/views'),
+    );
+    
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
       return {
-        'appViews': 0,
-        'youtubeViews': 0,
-        'totalViews': 0,
-      };
-    } catch (e) {
-      print('❌ Failed to get views: $e');
-      return {
-        'appViews': 0,
-        'youtubeViews': 0,
-        'totalViews': 0,
+        'totalViews': data['totalViews'] ?? 0,
+        'uniqueViewers': data['uniqueViewers'] ?? 0,
+        'appViews': data['appViews'] ?? 0,
+        'youtubeViews': data['youtubeViews'] ?? 0,
       };
     }
+    return {
+      'totalViews': 0,
+      'uniqueViewers': 0,
+      'appViews': 0,
+      'youtubeViews': 0,
+    };
+  } catch (e) {
+    print('❌ Failed to get views: $e');
+    return {
+      'totalViews': 0,
+      'uniqueViewers': 0,
+      'appViews': 0,
+      'youtubeViews': 0,
+    };
   }
+}
 
-  // Post comment to video
-  Future<Map<String, dynamic>?> postVideoComment(String videoId, String comment) async {
-    try {
-      final authToken = await _getValidToken();
-      if (authToken == null) return null;
-
-      final response = await http.post(
-        Uri.parse('$_baseUrl/youtube/comments'),
-        headers: _buildHeaders(authToken.accessToken),
-        body: jsonEncode({
-          'videoId': videoId,
-          'comment': comment,
-        }),
-      );
-
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        if (data['success']) {
-          return data['comment'];
-        }
-      }
-      return null;
-    } catch (e) {
-      print('❌ Failed to post comment: $e');
-      throw Exception('Failed to post comment');
+// ✅ NEW: Like video (5 categories)
+Future<void> likeVideo(String videoId, String category, bool liked) async {
+  try {
+    final authToken = await _getValidToken();
+    if (authToken == null) {
+      throw Exception('User not logged in');
     }
-  }
 
-  // Get video comments
-  Future<List<Map<String, dynamic>>> getVideoComments(String videoId, {int limit = 20}) async {
-    try {
-      final response = await http.get(
-        Uri.parse('$_baseUrl/youtube/comments/$videoId?limit=$limit'),
-      );
+    final response = await http.post(
+      Uri.parse('$_baseUrl/api/videos/$videoId/like'),
+      headers: _buildHeaders(authToken.accessToken),
+      body: jsonEncode({
+        'category': category,
+        'liked': liked,
+      }),
+    );
 
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        if (data['success']) {
-          return List<Map<String, dynamic>>.from(data['comments']);
-        }
-      }
-      return [];
-    } catch (e) {
-      print('❌ Failed to get comments: $e');
-      return [];
+    if (response.statusCode != 200) {
+      throw Exception('Failed to update like');
     }
+  } catch (e) {
+    print('❌ Like video error: $e');
+    rethrow;
   }
+}
 
-  // Delete comment
-  Future<bool> deleteVideoComment(String commentId) async {
-    try {
-      final authToken = await _getValidToken();
-      if (authToken == null) return false;
-
-      final response = await http.delete(
-        Uri.parse('$_baseUrl/youtube/comments/$commentId'),
-        headers: _buildHeaders(authToken.accessToken),
-      );
-
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        return data['success'] == true;
-      }
-      return false;
-    } catch (e) {
-      print('❌ Failed to delete comment: $e');
-      return false;
+// ✅ NEW: Get user's likes for a video
+Future<Map<String, bool>> getUserVideoLikes(String videoId) async {
+  try {
+    final authToken = await _getValidToken();
+    if (authToken == null) {
+      return {
+        'aesthetic': false,
+        'functional': false,
+        'sturdy': false,
+        'creative': false,
+        'educational': false,
+      };
     }
+
+    final response = await http.get(
+      Uri.parse('$_baseUrl/api/videos/$videoId/likes/user'),
+      headers: _buildHeaders(authToken.accessToken),
+    );
+
+    if (response.statusCode == 200) {
+      final Map<String, dynamic> data = jsonDecode(response.body);
+      return {
+        'aesthetic': data['aesthetic'] ?? false,
+        'functional': data['functional'] ?? false,
+        'sturdy': data['sturdy'] ?? false,
+        'creative': data['creative'] ?? false,
+        'educational': data['educational'] ?? false,
+      };
+    }
+    
+    return {
+      'aesthetic': false,
+      'functional': false,
+      'sturdy': false,
+      'creative': false,
+      'educational': false,
+    };
+  } catch (e) {
+    print('❌ Get user likes error: $e');
+    return {
+      'aesthetic': false,
+      'functional': false,
+      'sturdy': false,
+      'creative': false,
+      'educational': false,
+    };
   }
+}
+
+// Post comment to video
+Future<Map<String, dynamic>?> postVideoComment(String videoId, String comment) async {
+  try {
+    final authToken = await _getValidToken();
+    if (authToken == null) return null;
+
+    final response = await http.post(
+      Uri.parse('$_baseUrl/api/videos/$videoId/comments'),
+      headers: _buildHeaders(authToken.accessToken),
+      body: jsonEncode({'comment': comment}),
+    );
+
+    if (response.statusCode == 201) {
+      return jsonDecode(response.body);
+    }
+    return null;
+  } catch (e) {
+    print('❌ Failed to post comment: $e');
+    throw Exception('Failed to post comment');
+  }
+}
+
+// Get video comments
+Future<List<Map<String, dynamic>>> getVideoComments(String videoId, {int limit = 50}) async {
+  try {
+    final response = await http.get(
+      Uri.parse('$_baseUrl/api/videos/$videoId/comments?limit=$limit'),
+    );
+
+    if (response.statusCode == 200) {
+      final List<dynamic> data = jsonDecode(response.body);
+      return data.cast<Map<String, dynamic>>();
+    }
+    return [];
+  } catch (e) {
+    print('❌ Failed to get comments: $e');
+    return [];
+  }
+}
+
+// Delete comment
+Future<bool> deleteVideoComment(String commentId) async {
+  try {
+    final authToken = await _getValidToken();
+    if (authToken == null) return false;
+
+    final response = await http.delete(
+      Uri.parse('$_baseUrl/api/videos/comments/$commentId'),
+      headers: _buildHeaders(authToken.accessToken),
+    );
+
+    return response.statusCode == 200;
+  } catch (e) {
+    print('❌ Failed to delete comment: $e');
+    return false;
+  }
+}
 
   // ========================= UTILITIES =========================
 

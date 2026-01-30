@@ -43,9 +43,10 @@ model User {
   projects      Project[]
   wallet        Wallet?
   walletId      String?   @db.ObjectId
-  // ✅ REMOVED @unique - This was causing the registration error
-  // The wallet relation already ensures one-to-one via Wallet.userId @unique
+  
+  // ✅ Video tracking relations
   videoViews    VideoView[]
+  videoLikes    VideoLike[]      // ✅ ADDED - For 5 like categories
   videoComments VideoComment[]
 
   @@map("users")
@@ -57,11 +58,27 @@ model VideoView {
   videoId   String
   userId    String   @db.ObjectId
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  viewedAt  DateTime @default(now())
+  createdAt DateTime @default(now())  // ✅ FIXED: Changed from viewedAt to createdAt
 
+  @@unique([videoId, userId])  // ✅ ADDED - One view per user per video
   @@index([videoId])
   @@index([userId])
-  @@map("videoviews")
+  @@map("video_views")  // ✅ FIXED: Changed to match controller
+}
+
+// ✅ NEW MODEL - For the 5 like categories (aesthetic, functional, etc.)
+model VideoLike {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  videoId   String
+  userId    String   @db.ObjectId
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category  String   // aesthetic, functional, sturdy, creative, educational
+  createdAt DateTime @default(now())
+
+  @@unique([videoId, userId, category])  // ✅ One like per category per user per video
+  @@index([videoId])
+  @@index([userId])
+  @@map("video_likes")
 }
 
 model VideoComment {
@@ -70,13 +87,13 @@ model VideoComment {
   userId           String   @db.ObjectId
   user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   comment          String
-  postedAt         DateTime @default(now())
+  createdAt        DateTime @default(now())  // ✅ FIXED: Changed from postedAt to createdAt
   postedToYouTube  Boolean  @default(false)
   youtubeCommentId String?
 
   @@index([videoId])
   @@index([userId])
-  @@map("videocomments")
+  @@map("video_comments")  // ✅ FIXED: Changed to match controller
 }
 
 // ========================= PROJECTS =========================

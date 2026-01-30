@@ -19,7 +19,6 @@ import projectRouter from './routes/projectRoutes';
 import adminRouter from './routes/adminRoutes';
 import { paymentRouter } from './routes/paymentRoutes';
 import videoRoutes from './routes/videoRoutes';
-import youtubeInteractionsRoutes from './routes/youtubeInteractions';
 
 // YouTube Upload Setup
 const { getAuthUrl, handleCallback } = require('./services/youtubeUploadService');
@@ -277,7 +276,6 @@ try {
   app.use('/admin', adminRouter);
   app.use('/payment', paymentRouter);
   app.use('/api/videos', videoRoutes);
-  app.use('/youtube', youtubeInteractionsRoutes);
   
   logger.info('✅ All routes registered successfully');
 } catch (error) {
