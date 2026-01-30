@@ -1,0 +1,52 @@
+name: Build MiniGuru APK
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+    
+    - name: Setup Java 17
+      uses: actions/setup-java@v4
+      with:
+        distribution: 'zulu'
+        java-version: '17'
+    
+    - name: Setup Flutter
+      uses: subosito/flutter-action@v2
+      with:
+        flutter-version: '3.24.0'
+        channel: 'stable'
+        cache: true
+    
+    - name: Get dependencies
+      working-directory: ./app/miniguru
+      run: flutter pub get
+    
+    - name: Build APK
+      working-directory: ./app/miniguru
+      run: flutter build apk --release --split-per-abi
+    
+    - name: Upload ARM64 APK
+      uses: actions/upload-artifact@v4
+      with:
+        name: miniguru-arm64-v8a
+        path: app/miniguru/build/app/outputs/flutter-apk/app-arm64-v8a-release.apk
+        
+    - name: Upload ARMv7 APK
+      uses: actions/upload-artifact@v4
+      with:
+        name: miniguru-armeabi-v7a
+        path: app/miniguru/build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk
+        
+    - name: Upload x64 APK (for emulators)
+      uses: actions/upload-artifact@v4
+      with:
+        name: miniguru-x86-64
+        path: app/miniguru/build/app/outputs/flutter-apk/app-x86_64-release.apk
