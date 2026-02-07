@@ -9,34 +9,32 @@ jobs:
     timeout-minutes: 30
     
     steps:
-    - name: 📥 Checkout repository
+    - name: Checkout
       uses: actions/checkout@v4
     
-    - name: ☕ Setup Java 17
+    - name: Setup Java
       uses: actions/setup-java@v4
       with:
         distribution: 'zulu'
         java-version: '17'
     
-    - name: 🐦 Setup Flutter (Latest Stable)
+    - name: Setup Flutter 3.24.3
       uses: subosito/flutter-action@v2
       with:
+        flutter-version: '3.24.3'
         channel: 'stable'
         cache: true
     
-    - name: 📦 Get dependencies
+    - name: Get dependencies
       working-directory: ./app/miniguru
-      run: |
-        flutter --version
-        flutter pub get
+      run: flutter pub get
     
-    - name: 🏗️ Build APK
+    - name: Build APK
       working-directory: ./app/miniguru
-      run: flutter build apk --release
+      run: flutter build apk --release --no-tree-shake-icons
     
-    - name: 📤 Upload APK
+    - name: Upload APK
       uses: actions/upload-artifact@v4
       with:
-        name: miniguru-release-apk
+        name: miniguru-apk
         path: app/miniguru/build/app/outputs/flutter-apk/app-release.apk
-        retention-days: 30
