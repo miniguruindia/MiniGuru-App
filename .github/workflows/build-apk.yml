@@ -18,18 +18,26 @@ jobs:
         distribution: 'zulu'
         java-version: '17'
     
+    - name: Setup Android SDK
+      run: |
+        export ANDROID_SDK_ROOT=/usr/local/lib/android/sdk
+        export ANDROID_HOME=/usr/local/lib/android/sdk
+        export PATH=$PATH:$ANDROID_SDK_ROOT/cmdline-tools/latest/bin
+        export PATH=$PATH:$ANDROID_SDK_ROOT/platform-tools
+        
+        yes | $ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager --licenses || true
+        $ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager "platforms;android-34"
+        $ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager "build-tools;34.0.0"
+        
+        echo "Installed SDK packages:"
+        $ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager --list_installed
+    
     - name: Setup Flutter 3.24.3
       uses: subosito/flutter-action@v2
       with:
         flutter-version: '3.24.3'
         channel: 'stable'
         cache: true
-    
-    - name: Install Android SDK Platform 34
-      run: |
-        echo "y" | sdkmanager "platforms;android-34"
-        echo "y" | sdkmanager "build-tools;34.0.0"
-        sdkmanager --list_installed
     
     - name: Clean build directories
       working-directory: ./app/miniguru
@@ -45,6 +53,9 @@ jobs:
     
     - name: Build APK
       working-directory: ./app/miniguru
+      env:
+        ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
+        ANDROID_HOME: /usr/local/lib/android/sdk
       run: flutter build apk --release --no-tree-shake-icons
     
     - name: Upload APK
