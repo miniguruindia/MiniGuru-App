@@ -18,45 +18,64 @@ jobs:
         distribution: 'zulu'
         java-version: '17'
     
-    - name: Setup Android SDK
+    - name: Aggressively setup ONLY SDK 34
       run: |
         export ANDROID_SDK_ROOT=/usr/local/lib/android/sdk
         export ANDROID_HOME=/usr/local/lib/android/sdk
         export PATH=$PATH:$ANDROID_SDK_ROOT/cmdline-tools/latest/bin
-        export PATH=$PATH:$ANDROID_SDK_ROOT/platform-tools
         
+        echo "=== REMOVING SDK 35 IF EXISTS ==="
+        sudo rm -rf $ANDROID_SDK_ROOT/platforms/android-35 || true
+        sudo rm -rf $ANDROID_SDK_ROOT/build-tools/35.* || true
+        
+        echo "=== ACCEPTING LICENSES ==="
         yes | $ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager --licenses || true
-        $ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager "platforms;android-33"
-        $ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager "build-tools;33.0.0"
         
-        echo "Installed SDK packages:"
+        echo "=== INSTALLING SDK 34 ==="
+        $ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager "platforms;android-34"
+        $ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager "build-tools;34.0.0"
+        
+        echo "=== VERIFYING SDK 34 ==="
+        if [ -f "$ANDROID_SDK_ROOT/platforms/android-34/android.jar" ]; then
+          echo "✓ SDK 34 android.jar verified"
+          ls -lh $ANDROID_SDK_ROOT/platforms/android-34/android.jar
+        else
+          echo "✗ SDK 34 verification FAILED"
+          exit 1
+        fi
+        
+        echo "=== INSTALLED SDKS ==="
+        ls -la $ANDROID_SDK_ROOT/platforms/
+        
+        echo "=== INSTALLED PACKAGES ==="
         $ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager --list_installed
     
-    - name: Setup Flutter 3.24.3
+    - name: Setup Flutter
       uses: subosito/flutter-action@v2
       with:
         flutter-version: '3.24.3'
         channel: 'stable'
-        cache: true
+        cache: false
     
-    - name: Clean build directories
+    - name: Clean everything
       working-directory: ./app/miniguru
       run: |
         flutter clean
         rm -rf android/.gradle
         rm -rf android/app/build
         rm -rf build
+        rm -rf ~/.gradle/caches
     
     - name: Get dependencies
       working-directory: ./app/miniguru
       run: flutter pub get
     
-    - name: Build APK
+    - name: Build APK with SDK 34
       working-directory: ./app/miniguru
       env:
         ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
         ANDROID_HOME: /usr/local/lib/android/sdk
-      run: flutter build apk --release --no-shrink --no-tree-shake-icons
+      run: flutter build apk --release --no-shrink --verbose
     
     - name: Upload APK
       uses: actions/upload-artifact@v4
