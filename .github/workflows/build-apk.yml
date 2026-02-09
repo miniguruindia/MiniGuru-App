@@ -18,6 +18,13 @@ jobs:
         distribution: 'zulu'
         java-version: '17'
     
+    - name: Setup Android SDK
+      uses: android-actions/setup-android@v3
+      with:
+        api-level: 34
+        build-tools: 34.0.0
+        cmake-version: 3.22.1
+    
     - name: Setup Flutter 3.24.3
       uses: subosito/flutter-action@v2
       with:
@@ -25,13 +32,25 @@ jobs:
         channel: 'stable'
         cache: true
     
+    - name: Clean build directories
+      working-directory: ./app/miniguru
+      run: |
+        flutter clean
+        rm -rf android/.gradle
+        rm -rf android/app/build
+        rm -rf build
+    
     - name: Get dependencies
       working-directory: ./app/miniguru
       run: flutter pub get
     
-    - name: Build APK
+    - name: Build APK with explicit SDK
       working-directory: ./app/miniguru
-      run: flutter build apk --release --no-tree-shake-icons
+      env:
+        ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
+        ANDROID_HOME: /usr/local/lib/android/sdk
+      run: |
+        flutter build apk --release --no-tree-shake-icons
     
     - name: Upload APK
       uses: actions/upload-artifact@v4
