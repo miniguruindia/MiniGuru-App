@@ -44,9 +44,6 @@ jobs:
           exit 1
         fi
         
-        echo "=== INSTALLED SDKS ==="
-        ls -la $ANDROID_SDK_ROOT/platforms/
-        
         echo "=== INSTALLED PACKAGES ==="
         $ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager --list_installed
     
@@ -70,12 +67,36 @@ jobs:
       working-directory: ./app/miniguru
       run: flutter pub get
     
+    - name: Fix flutter_inappwebview namespace issue
+      working-directory: ./app/miniguru
+      run: |
+        PLUGIN_PATH="$HOME/.pub-cache/hosted/pub.dev/flutter_inappwebview-5.8.0/android/build.gradle"
+        
+        if [ -f "$PLUGIN_PATH" ]; then
+          echo "Found flutter_inappwebview plugin, patching..."
+          
+          # Check if namespace already exists
+          if grep -q "namespace" "$PLUGIN_PATH"; then
+            echo "Namespace already exists, skipping patch"
+          else
+            # Add namespace after the android { line
+            sed -i '/^android {/a \    namespace "com.pichillilorenzo.flutter_inappwebview"' "$PLUGIN_PATH"
+            echo "✓ Added namespace to flutter_inappwebview"
+          fi
+          
+          # Show the result
+          echo "Patched build.gradle:"
+          head -20 "$PLUGIN_PATH"
+        else
+          echo "flutter_inappwebview not found at expected path, continuing..."
+        fi
+    
     - name: Build APK with SDK 34
       working-directory: ./app/miniguru
       env:
         ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
         ANDROID_HOME: /usr/local/lib/android/sdk
-      run: flutter build apk --release --no-shrink --verbose
+      run: flutter build apk --release --no-shrink
     
     - name: Upload APK
       uses: actions/upload-artifact@v4
