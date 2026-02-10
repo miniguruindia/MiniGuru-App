@@ -18,26 +18,14 @@ jobs:
         distribution: 'zulu'
         java-version: '17'
     
-    - name: Setup Android SDK 34 ONLY
+    - name: Setup Android SDK 34
       run: |
         export ANDROID_SDK_ROOT=/usr/local/lib/android/sdk
-        export ANDROID_HOME=/usr/local/lib/android/sdk
         export PATH=$PATH:$ANDROID_SDK_ROOT/cmdline-tools/latest/bin
         
-        echo "=== ACCEPTING LICENSES ==="
         yes | $ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager --licenses || true
-        
-        echo "=== INSTALLING SDK 34 ==="
         $ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager "platforms;android-34"
         $ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager "build-tools;34.0.0"
-        
-        echo "=== VERIFYING SDK 34 ==="
-        if [ -f "$ANDROID_SDK_ROOT/platforms/android-34/android.jar" ]; then
-          echo "✓ SDK 34 verified"
-        else
-          echo "✗ SDK 34 verification FAILED"
-          exit 1
-        fi
     
     - name: Setup Flutter
       uses: subosito/flutter-action@v2
@@ -56,24 +44,49 @@ jobs:
       working-directory: ./app/miniguru
       run: flutter pub get
     
-    - name: Fix flutter_inappwebview namespace
-      working-directory: ./app/miniguru
+    - name: Patch flutter_inappwebview plugin
       run: |
-        PLUGIN_PATH="$HOME/.pub-cache/hosted/pub.dev/flutter_inappwebview-5.8.0/android/build.gradle"
-        if [ -f "$PLUGIN_PATH" ]; then
-          if ! grep -q "namespace" "$PLUGIN_PATH"; then
-            sed -i '/^android {/a \    namespace "com.pichillilorenzo.flutter_inappwebview"' "$PLUGIN_PATH"
-            echo "✓ Patched flutter_inappwebview"
+        PLUGIN_PATH="$HOME/.pub-cache/hosted/pub.dev/flutter_inappwebview-5.8.0/android"
+        
+        if [ -d "$PLUGIN_PATH" ]; then
+          echo "=== PATCHING flutter_inappwebview ==="
+          
+          # 1. Add namespace
+          if ! grep -q "namespace" "$PLUGIN_PATH/build.gradle"; then
+            sed -i '/^android {/a \    namespace "com.pichillilorenzo.flutter_inappwebview"' "$PLUGIN_PATH/build.gradle"
+            echo "✓ Added namespace"
           fi
+          
+          # 2. Disable minification
+          if grep -q "minifyEnabled true" "$PLUGIN_PATH/build.gradle"; then
+            sed -i 's/minifyEnabled true/minifyEnabled false/g' "$PLUGIN_PATH/build.gradle"
+            echo "✓ Disabled minifyEnabled"
+          fi
+          
+          if grep -q "shrinkResources true" "$PLUGIN_PATH/build.gradle"; then
+            sed -i 's/shrinkResources true/shrinkResources false/g' "$PLUGIN_PATH/build.gradle"
+            echo "✓ Disabled shrinkResources"
+          fi
+          
+          # 3. Show result
+          echo "=== PATCHED build.gradle ==="
+          grep -A 10 "android {" "$PLUGIN_PATH/build.gradle" | head -20
+        else
+          echo "WARNING: flutter_inappwebview not found"
         fi
     
-    - name: Delete SDK 35 right before build
+    - name: Nuclear option - Delete SDK 35
       run: |
         export ANDROID_SDK_ROOT=/usr/local/lib/android/sdk
-        echo "=== REMOVING SDK 35 ==="
         sudo rm -rf $ANDROID_SDK_ROOT/platforms/android-35 || true
         sudo rm -rf $ANDROID_SDK_ROOT/build-tools/35.* || true
-        echo "=== REMAINING PLATFORMS ==="
+        sudo rm -rf $ANDROID_SDK_ROOT/build-tools/33.0.1 || true
+        
+        # Prevent re-installation
+        sudo touch $ANDROID_SDK_ROOT/platforms/android-35
+        sudo chmod 000 $ANDROID_SDK_ROOT/platforms/android-35 || true
+        
+        echo "Remaining platforms:"
         ls -la $ANDROID_SDK_ROOT/platforms/ || true
     
     - name: Build APK
