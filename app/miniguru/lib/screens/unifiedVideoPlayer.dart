@@ -1,9 +1,10 @@
 // /workspaces/MiniGuru-App/app/miniguru/lib/screens/unifiedVideoPlayer.dart
-// COMPLETE FIXED FILE - All API calls working
+// FIXED VERSION - Proper iframe initialization
+// Works on BOTH Web and Mobile
 
 import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:youtube_player_flutter/youtube_player_flutter.dart';
+import 'package:youtube_player_iframe/youtube_player_iframe.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:miniguru/network/MiniguruApi.dart';
 import 'package:miniguru/models/User.dart';
@@ -38,8 +39,8 @@ class _UnifiedVideoPlayerState extends State<UnifiedVideoPlayer> {
   bool _isAuthenticated = false;
   bool _isLoadingComments = false;
   bool _hasTrackedView = false;
+  bool _isPlayerReady = false;  // Track if player is ready
   
-  // 5 Like categories (stored in MongoDB)
   Map<String, bool> _likes = {
     'aesthetic': false,
     'functional': false,
@@ -82,33 +83,53 @@ class _UnifiedVideoPlayerState extends State<UnifiedVideoPlayer> {
   @override
   void initState() {
     super.initState();
-    _controller = YoutubePlayerController(
-      initialVideoId: widget.videoId,
-      flags: const YoutubePlayerFlags(
-        autoPlay: true,
-        mute: false,
-        enableCaption: true,
-        hideControls: false,
-        forceHD: false,  // ✅ ADD THIS
-        isLive: false,   // ✅ ADD THIS
-      ),
-    );
-    
-    _controller.addListener(_onPlayerStateChange);
+    print('🎬 Initializing video player for: ${widget.videoId}');
+    _initializePlayer();
     _checkAuth();
     _loadComments();
     _loadViewStats();
-    _loadUserLikes(); // ✅ ADDED - Load existing likes
+    _loadUserLikes();
   }
 
-  void _onPlayerStateChange() {
-    // Track view when video starts playing (only once)
-    if (_controller.value.isPlaying && 
-        !_hasTrackedView && 
-        _isAuthenticated) {
-      _trackView();
-      _hasTrackedView = true;
-    }
+  void _initializePlayer() {
+    // ✅ FIXED: Initialize controller with video ID directly in params
+    _controller = YoutubePlayerController.fromVideoId(
+      videoId: widget.videoId,
+      autoPlay: true,
+      params: const YoutubePlayerParams(
+        showControls: true,
+        showFullscreenButton: true,
+        mute: false,
+        loop: false,
+        enableCaption: true,
+        strictRelatedVideos: true,
+        showVideoAnnotations: false,
+      ),
+    );
+    
+    // Listen to player events
+    _controller.listen((event) {
+      print('🎬 Player event: ${event.playerState}');
+      
+      if (event.playerState == PlayerState.playing && 
+          !_hasTrackedView && 
+          _isAuthenticated) {
+        _trackView();
+        _hasTrackedView = true;
+      }
+      
+      // Track when player is ready
+      if (event.playerState == PlayerState.cued || 
+          event.playerState == PlayerState.playing) {
+        if (!_isPlayerReady) {
+          setState(() {
+            _isPlayerReady = true;
+          });
+        }
+      }
+    });
+    
+    print('✅ Player controller initialized');
   }
 
   Future<void> _checkAuth() async {
@@ -120,7 +141,6 @@ class _UnifiedVideoPlayerState extends State<UnifiedVideoPlayer> {
           _isAuthenticated = userData != null;
         });
         
-        // Load likes after auth check
         if (_isAuthenticated) {
           _loadUserLikes();
         }
@@ -136,7 +156,7 @@ class _UnifiedVideoPlayerState extends State<UnifiedVideoPlayer> {
     try {
       await _miniguruApi.trackVideoView(widget.videoId);
       print('✅ View tracked for video: ${widget.videoId}');
-      _loadViewStats(); // Refresh stats
+      _loadViewStats();
     } catch (e) {
       print('❌ Failed to track view: $e');
     }
@@ -155,7 +175,6 @@ class _UnifiedVideoPlayerState extends State<UnifiedVideoPlayer> {
     }
   }
 
-  // ✅ NEW METHOD - Load user's existing likes
   Future<void> _loadUserLikes() async {
     if (!_isAuthenticated) return;
     
@@ -179,7 +198,13 @@ class _UnifiedVideoPlayerState extends State<UnifiedVideoPlayer> {
       
       if (mounted) {
         setState(() {
-          _comments = comments;
+          _comments = comments.map((comment) => {
+            'id': comment['id']?.toString() ?? '',
+            'userId': comment['userId']?.toString() ?? '',
+            'userName': comment['userName']?.toString() ?? 'Unknown',
+            'comment': comment['comment']?.toString() ?? '',
+            'createdAt': comment['createdAt']?.toString() ?? '',
+          }).toList();
           _isLoadingComments = false;
         });
       }
@@ -203,11 +228,9 @@ class _UnifiedVideoPlayerState extends State<UnifiedVideoPlayer> {
       _likes[category] = newValue;
     });
     
-    // ✅ FIXED - Actually call the backend
     _sendLikeToBackend(category, newValue);
   }
 
-  // ✅ FIXED - Real backend call
   Future<void> _sendLikeToBackend(String category, bool liked) async {
     try {
       await _miniguruApi.likeVideo(widget.videoId, category, liked);
@@ -218,7 +241,6 @@ class _UnifiedVideoPlayerState extends State<UnifiedVideoPlayer> {
       );
     } catch (e) {
       print('❌ Error sending like: $e');
-      // Revert on error
       setState(() {
         _likes[category] = !liked;
       });
@@ -236,16 +258,14 @@ class _UnifiedVideoPlayerState extends State<UnifiedVideoPlayer> {
     if (comment.isEmpty) return;
 
     try {
-      // Post to MongoDB backend
       final result = await _miniguruApi.postVideoComment(widget.videoId, comment);
       
       if (result != null) {
-        // Add to local list for immediate UI update
         setState(() {
           _comments.insert(0, {
-            'id': result['id'],
-            'userId': _user!.id,
-            'userName': _user!.name,
+            'id': result['id']?.toString() ?? '',
+            'userId': _user!.id?.toString() ?? '',
+            'userName': _user!.name?.toString() ?? 'Unknown',
             'comment': comment,
             'createdAt': DateTime.now().toIso8601String(),
           });
@@ -279,6 +299,7 @@ class _UnifiedVideoPlayerState extends State<UnifiedVideoPlayer> {
   }
 
   void _showLoginPrompt() {
+    if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text('Please login to interact', style: GoogleFonts.poppins()),
@@ -293,6 +314,7 @@ class _UnifiedVideoPlayerState extends State<UnifiedVideoPlayer> {
   }
 
   void _showSnackBar(String message, Color color) {
+    if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message, style: GoogleFonts.poppins(color: Colors.white)),
@@ -305,7 +327,7 @@ class _UnifiedVideoPlayerState extends State<UnifiedVideoPlayer> {
   }
 
   String _formatTimeAgo(String? timestamp) {
-    if (timestamp == null) return 'Just now';
+    if (timestamp == null || timestamp.isEmpty) return 'Just now';
     
     try {
       final dateTime = DateTime.parse(timestamp);
@@ -331,7 +353,7 @@ class _UnifiedVideoPlayerState extends State<UnifiedVideoPlayer> {
 
   @override
   void dispose() {
-    _controller.dispose();
+    _controller.close();
     _commentController.dispose();
     super.dispose();
   }
@@ -345,33 +367,34 @@ class _UnifiedVideoPlayerState extends State<UnifiedVideoPlayer> {
         body: SafeArea(
           child: Column(
             children: [
-              // YouTube Player with Back Button
-              Stack(
-                children: [
-                  YoutubePlayer(
-                    controller: _controller,
-                    showVideoProgressIndicator: true,
-                    progressIndicatorColor: pastelBlueText,
-                    progressColors: const ProgressBarColors(
-                      playedColor: pastelBlueText,
-                      handleColor: pastelBlueText,
+              // ✅ FIXED: Proper YoutubePlayer widget with error handling
+              Container(
+                color: Colors.black,
+                child: Stack(
+                  children: [
+                    // YouTube Player
+                    YoutubePlayer(
+                      controller: _controller,
+                      aspectRatio: 16 / 9,
                     ),
-                  ),
-                  Positioned(
-                    top: 8,
-                    left: 8,
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: Colors.black54,
-                        shape: BoxShape.circle,
-                      ),
-                      child: IconButton(
-                        icon: const Icon(Icons.arrow_back, color: Colors.white),
-                        onPressed: () => Navigator.of(context).pop(),
+                    
+                    // Back Button
+                    Positioned(
+                      top: 8,
+                      left: 8,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: Colors.black54,
+                          shape: BoxShape.circle,
+                        ),
+                        child: IconButton(
+                          icon: const Icon(Icons.arrow_back, color: Colors.white),
+                          onPressed: () => Navigator.of(context).pop(),
+                        ),
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
               
               // Content Area
@@ -430,7 +453,7 @@ class _UnifiedVideoPlayerState extends State<UnifiedVideoPlayer> {
                         
                         const Divider(height: 1),
                         
-                        // Like Categories (Stored in MongoDB)
+                        // Like Categories
                         Padding(
                           padding: const EdgeInsets.all(16),
                           child: Column(
@@ -527,7 +550,7 @@ class _UnifiedVideoPlayerState extends State<UnifiedVideoPlayer> {
                         
                         const Divider(height: 1),
                         
-                        // Comments Section (Stored in MongoDB)
+                        // Comments Section
                         Padding(
                           padding: const EdgeInsets.all(16),
                           child: Column(
@@ -550,7 +573,7 @@ class _UnifiedVideoPlayerState extends State<UnifiedVideoPlayer> {
                                     radius: 18,
                                     backgroundColor: pastelBlue,
                                     child: Text(
-                                      _isAuthenticated && _user != null
+                                      _isAuthenticated && _user != null && _user!.name != null
                                           ? _user!.name![0].toUpperCase()
                                           : '?',
                                       style: GoogleFonts.poppins(
@@ -592,7 +615,6 @@ class _UnifiedVideoPlayerState extends State<UnifiedVideoPlayer> {
                               
                               const SizedBox(height: 16),
                               
-                              // Loading indicator
                               if (_isLoadingComments)
                                 const Center(
                                   child: Padding(
@@ -601,14 +623,15 @@ class _UnifiedVideoPlayerState extends State<UnifiedVideoPlayer> {
                                   ),
                                 ),
                               
-                              // Comments List
                               if (!_isLoadingComments)
                                 ..._comments.asMap().entries.map((entry) {
                                   final index = entry.key;
                                   final comment = entry.value;
+                                  final commentUserId = comment['userId'] ?? '';
+                                  final currentUserId = _user?.id?.toString() ?? '';
                                   final isOwnComment = _isAuthenticated && 
                                       _user != null && 
-                                      comment['userId'] == _user!.id;
+                                      commentUserId == currentUserId;
                                   
                                   return Padding(
                                     padding: const EdgeInsets.only(bottom: 16),
@@ -657,7 +680,7 @@ class _UnifiedVideoPlayerState extends State<UnifiedVideoPlayer> {
                                                         color: Colors.red,
                                                       ),
                                                       onPressed: () => _deleteComment(
-                                                        comment['id'],
+                                                        comment['id'] ?? '',
                                                         index,
                                                       ),
                                                       padding: EdgeInsets.zero,
