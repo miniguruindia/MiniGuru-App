@@ -1162,11 +1162,13 @@ void _openVideo(Map<String, dynamic> video) {
     context,
     MaterialPageRoute(
       builder: (context) => UnifiedVideoPlayer(
-        videoId: video['videoId'] ?? '',
-        title: video['title'] ?? '',
-        description: video['description'] ?? '',
-        channelTitle: video['channelTitle'] ?? '',
-        views: video['viewCount'],
+        videoId: video['videoId']?.toString() ?? '',
+        title: video['title']?.toString() ?? '',
+        description: video['description']?.toString() ?? '',
+        channelTitle: video['channelTitle']?.toString() ?? '',
+        views: video['viewCount'] is String 
+            ? int.tryParse(video['viewCount']) 
+            : video['viewCount'] as int?,
       ),
     ),
   );
