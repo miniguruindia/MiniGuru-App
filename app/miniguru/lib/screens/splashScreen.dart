@@ -4,8 +4,9 @@ import 'package:miniguru/constants.dart';
 import 'package:miniguru/database/database_helper.dart';
 import 'package:miniguru/network/MiniguruApi.dart';
 import 'package:miniguru/screens/homeScreen.dart';
-import 'package:miniguru/screens/loginScreen.dart';
+import 'package:miniguru/screens/getStartedScreen.dart'; // ✅ NEW
 import 'package:google_fonts/google_fonts.dart';
+import 'package:shared_preferences/shared_preferences.dart'; // ✅ NEW
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -15,7 +16,8 @@ class SplashScreen extends StatefulWidget {
   State<SplashScreen> createState() => _SplashScreenState();
 }
 
-class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderStateMixin {
+class _SplashScreenState extends State<SplashScreen>
+    with SingleTickerProviderStateMixin {
   late MiniguruApi _api;
   late AnimationController _controller;
   late Animation<double> _fadeAnimation;
@@ -26,24 +28,21 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
   void initState() {
     super.initState();
     _api = MiniguruApi();
-    
-    // Setup animations
+
     _controller = AnimationController(
       duration: const Duration(milliseconds: 1200),
       vsync: this,
     );
-    
+
     _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(parent: _controller, curve: Curves.easeIn),
     );
-    
+
     _scaleAnimation = Tween<double>(begin: 0.5, end: 1.0).animate(
       CurvedAnimation(parent: _controller, curve: Curves.easeOutBack),
     );
-    
+
     _controller.forward();
-    
-    // Check authentication
     _checkAuthToken();
   }
 
@@ -56,15 +55,17 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
   Future<void> _checkAuthToken() async {
     try {
       setState(() => _statusText = 'Loading amazing projects...');
-      
-      // Minimum splash display time: 2.5 seconds
+
       final splashStart = DateTime.now();
-      
+
+      // ✅ Check if first time launching the app
+      final prefs = await SharedPreferences.getInstance();
+      final hasSeenOnboarding = prefs.getBool('hasSeenOnboarding') ?? false;
+
       var dbHelper = DatabaseHelper();
       var authToken = await dbHelper.getAuthToken();
       var hasTokenExpired = await dbHelper.hasTokenExpired();
 
-      // Check if user is authenticated (but don't navigate to login)
       if (authToken != null) {
         if (hasTokenExpired) {
           setState(() => _statusText = 'Refreshing session...');
@@ -79,30 +80,31 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
           setState(() => _statusText = 'Welcome back!');
         }
       } else {
-        setState(() => _statusText = 'Discover STEM projects!');
+        setState(() => _statusText = hasSeenOnboarding
+            ? 'Discover STEM projects!'
+            : 'Welcome to MiniGuru! 🚀');
       }
-      
-      // Ensure minimum 2.5 seconds splash time
+
+      // Minimum 2.5 seconds splash
       final elapsed = DateTime.now().difference(splashStart);
       final remaining = const Duration(milliseconds: 2500) - elapsed;
-      
       if (remaining.inMilliseconds > 0) {
         await Future.delayed(remaining);
       }
-      
-      // ALWAYS navigate to HomeScreen (not LoginScreen)
-      // User can login from the home page if needed
-      if (mounted) {
+
+      if (!mounted) return;
+
+      // ✅ First launch → Get Started, returning users → Home directly
+      if (!hasSeenOnboarding) {
+        await prefs.setBool('hasSeenOnboarding', true);
+        Navigator.pushReplacementNamed(context, GetStartedScreen.id);
+      } else {
         Navigator.pushReplacementNamed(context, HomeScreen.id);
       }
     } catch (e) {
       print('❌ Splash screen error: $e');
       setState(() => _statusText = 'Loading...');
-      
-      // Still show splash for minimum 2 seconds
       await Future.delayed(const Duration(milliseconds: 2000));
-      
-      // Always go to home
       if (mounted) {
         Navigator.pushReplacementNamed(context, HomeScreen.id);
       }
@@ -113,13 +115,13 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
   Widget build(BuildContext context) {
     return Scaffold(
       body: Container(
-        decoration: BoxDecoration(
+        decoration: const BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: [
-              const Color(0xFF667eea), // Purple
-              const Color(0xFF764ba2), // Deep purple
+              Color(0xFF667eea),
+              Color(0xFF764ba2),
               pastelBlue,
             ],
           ),
@@ -127,7 +129,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
         child: SafeArea(
           child: Stack(
             children: [
-              // Animated background circles
+              // Background circles
               Positioned(
                 top: -50,
                 right: -50,
@@ -158,7 +160,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                   ),
                 ),
               ),
-              
+
               // Main content
               Center(
                 child: FadeTransition(
@@ -168,7 +170,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        // Logo Container with glow effect
+                        // Logo
                         Container(
                           width: 150,
                           height: 150,
@@ -207,16 +209,12 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                             },
                           ),
                         ),
-                        
+
                         const SizedBox(height: 50),
-                        
-                        // App Name with gradient
+
                         ShaderMask(
                           shaderCallback: (bounds) => const LinearGradient(
-                            colors: [
-                              Colors.white,
-                              Color(0xFFE3F2FD),
-                            ],
+                            colors: [Colors.white, Color(0xFFE3F2FD)],
                           ).createShader(bounds),
                           child: Text(
                             'MiniGuru',
@@ -229,10 +227,9 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                             ),
                           ),
                         ),
-                        
+
                         const SizedBox(height: 12),
-                        
-                        // Tagline with subtle animation
+
                         Text(
                           'Where Young Minds Innovate',
                           style: GoogleFonts.poppins(
@@ -242,10 +239,9 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                             letterSpacing: 0.5,
                           ),
                         ),
-                        
+
                         const SizedBox(height: 70),
-                        
-                        // Animated loading dots
+
                         Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
@@ -256,10 +252,9 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                             _buildLoadingDot(2),
                           ],
                         ),
-                        
+
                         const SizedBox(height: 25),
-                        
-                        // Status Text with fade animation
+
                         AnimatedSwitcher(
                           duration: const Duration(milliseconds: 400),
                           child: Text(
@@ -277,7 +272,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                   ),
                 ),
               ),
-              
+
               // Footer
               Positioned(
                 bottom: 40,
@@ -291,7 +286,6 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                     style: GoogleFonts.poppins(
                       fontSize: 12,
                       color: Colors.white.withOpacity(0.7),
-                      fontWeight: FontWeight.w400,
                     ),
                   ),
                 ),

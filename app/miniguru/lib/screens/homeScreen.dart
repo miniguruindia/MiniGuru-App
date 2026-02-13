@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:miniguru/screens/navScreen/home.dart';
 import 'package:miniguru/screens/navScreen/library.dart';
+import 'package:miniguru/screens/navScreen/consultancy.dart';
 import 'package:miniguru/screens/navScreen/profile.dart';
 import 'package:miniguru/screens/navScreen/projects.dart';
 import 'package:miniguru/screens/navScreen/shop.dart';
@@ -11,7 +12,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
-  static const String id = "HomeScreen";
+  static const String id = 'HomeScreen';
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -22,6 +23,7 @@ class _HomeScreenState extends State<HomeScreen> {
   final _miniguruApi = MiniguruApi();
   User? _user;
   bool _isAuthenticated = false;
+  bool _authChecked = false;
 
   final Map<int, Widget> _cachedScreens = {};
 
@@ -38,33 +40,42 @@ class _HomeScreenState extends State<HomeScreen> {
         setState(() {
           _user = userData;
           _isAuthenticated = userData != null;
+          _authChecked = true;
+          _cachedScreens.remove(1);
+          _cachedScreens.remove(4);
         });
       }
     } catch (e) {
-      print('Auth check error: $e');
+      if (mounted) {
+        setState(() {
+          _user = null;
+          _isAuthenticated = false;
+          _authChecked = true;
+        });
+      }
     }
   }
 
   Widget _getScreen(int index) {
-    if (index == 0) {
-      return const Home();
-    }
-    
+    if (index == 0) return const Home();
+
     if (index == 4) {
       if (_isAuthenticated && _user != null) {
         if (!_cachedScreens.containsKey(index)) {
           _cachedScreens[index] = const Profile();
         }
         return _cachedScreens[index]!;
-      } else {
-        return const AboutScreen();
       }
+      return const AboutScreen();
     }
-    
+
     if (!_cachedScreens.containsKey(index)) {
       switch (index) {
         case 1:
-          _cachedScreens[index] = const Library();
+          // Consultancy for guests, Library for logged-in users
+          _cachedScreens[index] = _isAuthenticated
+              ? const Library()
+              : const ConsultancyPage();
           break;
         case 2:
           _cachedScreens[index] = const Shop();
@@ -79,14 +90,22 @@ class _HomeScreenState extends State<HomeScreen> {
 
   void _onNavBarTap(int index) {
     if (_currentIndex != index) {
-      setState(() {
-        _currentIndex = index;
-      });
+      setState(() => _currentIndex = index);
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    // Brief loading while checking auth
+    if (!_authChecked) {
+      return const Scaffold(
+        backgroundColor: Colors.white,
+        body: Center(
+          child: CircularProgressIndicator(color: Color(0xFF3B82F6)),
+        ),
+      );
+    }
+
     return Scaffold(
       body: IndexedStack(
         index: _currentIndex,
@@ -102,7 +121,7 @@ class _HomeScreenState extends State<HomeScreen> {
         decoration: BoxDecoration(
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.1),
+              color: Colors.black.withOpacity(0.08),
               blurRadius: 10,
               offset: const Offset(0, -2),
             ),
@@ -113,14 +132,10 @@ class _HomeScreenState extends State<HomeScreen> {
           onTap: _onNavBarTap,
           type: BottomNavigationBarType.fixed,
           selectedItemColor: const Color(0xFF3B82F6),
-          unselectedItemColor: Colors.grey.shade600,
+          unselectedItemColor: Colors.grey.shade500,
           selectedLabelStyle: GoogleFonts.poppins(
-            fontSize: 12,
-            fontWeight: FontWeight.w600,
-          ),
-          unselectedLabelStyle: GoogleFonts.poppins(
-            fontSize: 11,
-          ),
+              fontSize: 11, fontWeight: FontWeight.w600),
+          unselectedLabelStyle: GoogleFonts.poppins(fontSize: 10),
           backgroundColor: Colors.white,
           elevation: 0,
           items: [
@@ -129,10 +144,14 @@ class _HomeScreenState extends State<HomeScreen> {
               activeIcon: Icon(Icons.home),
               label: 'Home',
             ),
-            const BottomNavigationBarItem(
-              icon: Icon(Icons.library_books_outlined),
-              activeIcon: Icon(Icons.library_books),
-              label: 'Library',
+            BottomNavigationBarItem(
+              icon: Icon(_isAuthenticated
+                  ? Icons.library_books_outlined
+                  : Icons.support_agent_outlined),
+              activeIcon: Icon(_isAuthenticated
+                  ? Icons.library_books
+                  : Icons.support_agent),
+              label: _isAuthenticated ? 'Library' : 'Consult',
             ),
             const BottomNavigationBarItem(
               icon: Icon(Icons.shopping_bag_outlined),
@@ -145,12 +164,12 @@ class _HomeScreenState extends State<HomeScreen> {
               label: 'Projects',
             ),
             BottomNavigationBarItem(
-              icon: _isAuthenticated 
-                  ? const Icon(Icons.person_outline)
-                  : const Icon(Icons.info_outline),
-              activeIcon: _isAuthenticated 
-                  ? const Icon(Icons.person)
-                  : const Icon(Icons.info),
+              icon: Icon(_isAuthenticated
+                  ? Icons.person_outline
+                  : Icons.info_outline),
+              activeIcon: Icon(_isAuthenticated
+                  ? Icons.person
+                  : Icons.info),
               label: _isAuthenticated ? 'Profile' : 'About',
             ),
           ],

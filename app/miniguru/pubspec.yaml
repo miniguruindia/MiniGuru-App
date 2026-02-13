@@ -18,7 +18,8 @@ dependencies:
   # Database & Storage
   sqflite: ^2.3.3+1  
   path: ^1.9.0
-  
+  shared_preferences: ^2.3.2   # ✅ NEW - first launch detection
+
   # Network & API
   http: ^1.2.2
   dio: ^5.7.0
@@ -37,6 +38,7 @@ dependencies:
   permission_handler: ^11.3.1       
   sticky_headers: ^0.3.0+2
   fl_chart: ^0.69.0
+  url_launcher: ^6.3.0            # ✅ NEW - consultancy contact buttons
 
 dev_dependencies:
   flutter_test:

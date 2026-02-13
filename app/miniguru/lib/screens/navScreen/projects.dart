@@ -11,6 +11,8 @@ import 'package:miniguru/repository/projectRepository.dart';
 import 'package:miniguru/repository/userDataRepository.dart';
 import 'package:miniguru/screens/addDraftScreen.dart';
 import 'package:miniguru/screens/projectDetailsScreen.dart';
+import 'package:miniguru/screens/loginScreen.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class ProjectScreen extends StatefulWidget {
   const ProjectScreen({super.key});
@@ -30,8 +32,9 @@ class _ProjectScreenState extends State<ProjectScreen>
   bool _loading = true;
   bool _showCompleted = true;
   String _selectedCategory = '';
+  bool _isAuthenticated = false;   // ✅ Track auth state
 
-  late User user;
+  User? user;                       // ✅ FIXED: nullable User
 
   final _searchController = TextEditingController();
 
@@ -65,34 +68,58 @@ class _ProjectScreenState extends State<ProjectScreen>
       final repo = ProjectRepository();
       final userRepository = UserRepository();
 
+      // Fetch user data first to check auth
+      await userRepository.fetchAndStoreUserData();
+      final userData = await userRepository.getUserDataFromLocalDb();
+
+      // ✅ If not logged in, stop here silently
+      if (userData == null) {
+        if (mounted) {
+          setState(() {
+            user = null;
+            _isAuthenticated = false;
+            _loading = false;
+          });
+        }
+        return;
+      }
+
+      // User is logged in - load all project data
       await Future.wait([
         repo.fetchAndStoreProjectsForUser(),
         repo.fetchAndStoreProjectCategory(),
         _loadDrafts(),
-        userRepository.fetchAndStoreUserData(),
       ]);
 
       final projects = await repo.getProjects();
       final categories = await repo.getProjectCategories();
-      final userData = await userRepository.getUserDataFromLocalDb();
 
       if (mounted) {
         setState(() {
+          user = userData;            // ✅ FIXED: no ! operator
+          _isAuthenticated = true;
           _projectCategory = categories;
           _projects = projects;
           _allProjects = List.from(projects);
-          user = userData!;
           _loading = false;
         });
       }
     } catch (e) {
       if (mounted) {
         setState(() => _loading = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
+        // ✅ Only show error for real failures, not auth issues
+        final isAuthIssue = e.toString().contains('null') ||
+            e.toString().contains('token') ||
+            e.toString().contains('Null check') ||
+            e.toString().contains('Unauthorized');
+        if (!isAuthIssue) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
               content: Text('Error loading projects: $e'),
-              backgroundColor: Colors.red),
-        );
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
       }
     }
   }
@@ -158,23 +185,31 @@ class _ProjectScreenState extends State<ProjectScreen>
   Widget build(BuildContext context) {
     super.build(context);
 
+    // ✅ Show login prompt for non-authenticated users
+    if (!_loading && !_isAuthenticated) {
+      return _buildLoginPrompt();
+    }
+
     return Scaffold(
       backgroundColor: backgroundWhite,
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () async {
-          await Navigator.push(
-            context,
-            MaterialPageRoute(builder: (context) => const AddDraftScreen()),
-          );
-          _loadDrafts();
-        },
-        icon: const Icon(Icons.add),
-        label: const Text('New Project'),
-        backgroundColor: pastelBlueText,
-      ),
+      floatingActionButton: _isAuthenticated
+          ? FloatingActionButton.extended(
+              onPressed: () async {
+                await Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (context) => const AddDraftScreen()),
+                );
+                _loadDrafts();
+              },
+              icon: const Icon(Icons.add),
+              label: const Text('New Project'),
+              backgroundColor: pastelBlueText,
+            )
+          : null,
       appBar: AppBar(
-        title:
-            Text('My Projects', style: headingTextStyle.copyWith(fontSize: 24)),
+        title: Text('My Projects',
+            style: headingTextStyle.copyWith(fontSize: 24)),
         backgroundColor: Colors.transparent,
         elevation: 0,
         actions: [
@@ -208,6 +243,97 @@ class _ProjectScreenState extends State<ProjectScreen>
                 ],
               ),
             ),
+    );
+  }
+
+  // ✅ NEW: Clean login prompt for non-authenticated users
+  Widget _buildLoginPrompt() {
+    return Scaffold(
+      backgroundColor: backgroundWhite,
+      body: SafeArea(
+        child: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(32),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Container(
+                  width: 100,
+                  height: 100,
+                  decoration: BoxDecoration(
+                    color: pastelBlue,
+                    borderRadius: BorderRadius.circular(28),
+                  ),
+                  child: const Icon(Icons.work_outline,
+                      size: 52, color: pastelBlueText),
+                ),
+                const SizedBox(height: 24),
+                Text(
+                  'Your Projects',
+                  style: GoogleFonts.poppins(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black87,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  'Login to create, manage, and share\nyour tinkering projects with the world!',
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.poppins(
+                    fontSize: 14,
+                    color: Colors.black54,
+                    height: 1.5,
+                  ),
+                ),
+                const SizedBox(height: 32),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: () =>
+                        Navigator.pushNamed(context, LoginScreen.id),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: pastelBlueText,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12)),
+                    ),
+                    child: Text(
+                      'Login to Continue',
+                      style: GoogleFonts.poppins(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text("Don't have an account? ",
+                        style: GoogleFonts.poppins(
+                            fontSize: 13, color: Colors.black54)),
+                    GestureDetector(
+                      onTap: () => Navigator.pushNamed(
+                          context, LoginScreen.id),
+                      child: Text(
+                        'Sign Up Free',
+                        style: GoogleFonts.poppins(
+                          fontSize: 13,
+                          color: pastelBlueText,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 
@@ -410,13 +536,14 @@ class _ProjectScreenState extends State<ProjectScreen>
       elevation: 2,
       child: InkWell(
         onTap: () {
+          if (user == null) return;
           Navigator.push(
             context,
             MaterialPageRoute(
               builder: (context) => ProjectDetailsScreen(
                 project: project,
                 backgroundColor: color,
-                user: user,
+                user: user!,   // ✅ safe because we check user != null above
               ),
             ),
           );
@@ -478,8 +605,8 @@ class _ProjectScreenState extends State<ProjectScreen>
               Row(
                 children: [
                   Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 12, vertical: 6),
                     decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(20),
@@ -588,8 +715,8 @@ class _ProjectScreenState extends State<ProjectScreen>
                         TextButton(
                           onPressed: () => Navigator.pop(context),
                           child: Text('Cancel',
-                              style:
-                                  bodyTextStyle.copyWith(color: Colors.grey)),
+                              style: bodyTextStyle.copyWith(
+                                  color: Colors.grey)),
                         ),
                         TextButton(
                           onPressed: () {
