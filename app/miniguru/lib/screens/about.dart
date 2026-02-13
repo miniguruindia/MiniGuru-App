@@ -353,9 +353,9 @@ class AboutScreen extends StatelessWidget {
           ),
           const SizedBox(height: 20),
           _buildOfferingItem(
-            '🏫 T-LAB Centers',
-            'We run T-LAB centers in communities and villages for non-school hours. Started as after-school centers, now also offered in schools.',
-            'For NGOs/CSR/Village Panchayat/Gated Communities',
+            '🏫 T-LAB centers',
+            'We design and set up T-LAB tinkering spaces in schools and community locations, enabling hands-on learning during school hours and beyond through structured and open project time.',
+            'For Schools, NGOs, CSR Programs & Communities',
           ),
           const SizedBox(height: 16),
           _buildOfferingItem(
@@ -365,9 +365,9 @@ class AboutScreen extends StatelessWidget {
           ),
           const SizedBox(height: 16),
           _buildOfferingItem(
-            '💭 Educational Talks',
-            'We share our journey and Natural Learning Model with educators through talks and orientations.',
-            'For Educators & Institutions',
+            '🛠️ Home Tinkering Corner',
+            'We help families set up simple, hands-on tinkering spaces that encourage curiosity, problem solving, and real project building at home.',
+            'For Young Learners & Parents',
           ),
         ],
       ),
