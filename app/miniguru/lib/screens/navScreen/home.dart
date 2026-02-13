@@ -25,8 +25,8 @@ class _HomeState extends State<Home> {
   
   final List<Map<String, dynamic>> _categories = [
     {'name': 'Robotics', 'icon': Icons.precision_manufacturing, 'color': Color(0xFF93C5FD)},
-    {'name': 'Electronics', 'icon': Icons.flash_on, 'color': Color(0xFFFDE68A)},
-    {'name': 'Arts', 'icon': Icons.palette, 'color': Color(0xFFFCA5A5)},
+    {'name': 'Mechanics', 'icon': Icons.handyman, 'color': Color(0xFFFDE68A)},
+    {'name': 'ArtCraft', 'icon': Icons.palette, 'color': Color(0xFFFCA5A5)},
     {'name': 'Science', 'icon': Icons.science, 'color': Color(0xFF86EFAC)},
   ];
 
