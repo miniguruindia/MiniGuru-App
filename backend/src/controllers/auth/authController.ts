@@ -179,7 +179,7 @@ const register = async (req: Request, res: Response<ErrorResponse | { accessToke
                score: 0,
                wallet: {
                    create: {
-                       balance: 0.0,
+                       balance: 100,
                    },
                },
            },

@@ -18,7 +18,8 @@ import {
   Menu,
   X,
   IndianRupee,
-  ChevronDown
+  Tag,
+  Coins
 } from 'lucide-react'
 import Image from 'next/image'
 
@@ -55,7 +56,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
       href: '/videos', 
       icon: Video,
       current: pathname.startsWith('/videos'),
-      badge: 0 // Will be dynamic later
+      badge: 0
     },
     { 
       name: 'Orders', 
@@ -87,6 +88,26 @@ export function AdminLayout({ children }: AdminLayoutProps) {
       icon: BarChart3,
       current: pathname.startsWith('/analytics')
     },
+    // ── New additions ──────────────────────────────────────
+    { 
+      name: 'Categories', 
+      href: '/categories', 
+      icon: Tag,
+      current: pathname.startsWith('/categories')
+    },
+    { 
+      name: 'Goines', 
+      href: '/goins', 
+      icon: Coins,
+      current: pathname.startsWith('/goins')
+    },
+    { 
+      name: 'Materials', 
+      href: '/materials', 
+      icon: Package,
+      current: pathname.startsWith('/materials')
+    },
+    // ───────────────────────────────────────────────────────
     { 
       name: 'Settings', 
       href: '/settings', 
@@ -202,7 +223,6 @@ export function AdminLayout({ children }: AdminLayoutProps) {
       <div className="lg:pl-64">
         {/* Top bar */}
         <div className="sticky top-0 z-40 flex h-16 shrink-0 items-center gap-x-4 border-b border-gray-200 bg-white px-4 shadow-sm sm:gap-x-6 sm:px-6 lg:px-8">
-          {/* Mobile menu button */}
           <button
             type="button"
             className="-m-2.5 p-2.5 text-gray-700 lg:hidden"
@@ -211,7 +231,6 @@ export function AdminLayout({ children }: AdminLayoutProps) {
             <Menu className="h-6 w-6" />
           </button>
 
-          {/* Separator */}
           <div className="h-6 w-px bg-gray-200 lg:hidden" />
 
           <div className="flex flex-1 gap-x-4 self-stretch lg:gap-x-6">
@@ -221,11 +240,8 @@ export function AdminLayout({ children }: AdminLayoutProps) {
               </h2>
             </div>
 
-            {/* Profile dropdown */}
             <div className="flex items-center gap-x-4 lg:gap-x-6">
               <div className="hidden lg:block lg:h-6 lg:w-px lg:bg-gray-200" />
-              
-              {/* Admin Profile */}
               <div className="flex items-center gap-3">
                 <div className="text-right hidden sm:block">
                   <p className="text-sm font-medium text-gray-900">Admin User</p>

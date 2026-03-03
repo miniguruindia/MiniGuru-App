@@ -44,7 +44,7 @@ const authenticateUser = async (req: Request, res: Response, next: NextFunction)
       return res.status(401).json({ error: 'Unauthorized - User not found' });
     }
 
-    req.user = user;
+    req.user = { ...user, userId: user.id };
     next();
   } catch (error: any) {
     console.error('Auth error:', error);
@@ -88,7 +88,7 @@ const authenticateAdmin = async (req: Request, res: Response, next: NextFunction
       return res.status(403).json({ error: 'Forbidden - Admin access required' });
     }
 
-    req.user = user;
+    req.user = { ...user, userId: user.id };
     next();
   } catch (error: any) {
     console.error('Auth error:', error);

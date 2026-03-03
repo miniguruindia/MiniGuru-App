@@ -28,21 +28,29 @@ import {
   Area
 } from 'recharts'
 
+// ── Safe default so the page never crashes while loading ──────
+const DEFAULT_STATS = {
+  total: { users: 0, projects: 0, orders: 0, products: 0 },
+  new:   { users: 0, projects: 0, orders: 0 },
+}
+
 export default function DashboardPage() {
   const router = useRouter()
-  const [stats, setStats] = useState({
-    total: { users: 0, projects: 0, orders: 0, products: 0 },
-    new: { users: 0, projects: 0, orders: 0 }
-  })
+  const [stats, setStats] = useState(DEFAULT_STATS)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     async function fetchStats() {
       try {
         const data = await getStats()
-        setStats(data)
+        // Deep-merge API response with defaults so missing fields don't crash
+        setStats({
+          total: { ...DEFAULT_STATS.total, ...(data?.total ?? {}) },
+          new:   { ...DEFAULT_STATS.new,   ...(data?.new   ?? {}) },
+        })
       } catch (err) {
-        console.error('Failed to fetch stats')
+        console.error('Failed to fetch stats:', err)
+        // Keep the default zeros — don't crash
       } finally {
         setLoading(false)
       }
@@ -50,17 +58,16 @@ export default function DashboardPage() {
     fetchStats()
   }, [])
 
-  // Mock data for user growth chart
+  // Chart data — uses optional chaining everywhere so null API never crashes
   const userGrowthData = [
     { month: 'Jan', users: 120 },
     { month: 'Feb', users: 180 },
     { month: 'Mar', users: 250 },
     { month: 'Apr', users: 320 },
     { month: 'May', users: 450 },
-    { month: 'Jun', users: stats.total.users || 520 },
+    { month: 'Jun', users: stats?.total?.users || 520 },
   ]
 
-  // Mock data for revenue chart
   const revenueData = [
     { month: 'Jan', revenue: 45000 },
     { month: 'Feb', revenue: 52000 },
@@ -73,8 +80,8 @@ export default function DashboardPage() {
   const mainStats = [
     {
       title: 'Total Users',
-      value: stats.total.users,
-      newCount: stats.new.users,
+      value: stats?.total?.users ?? 0,
+      newCount: stats?.new?.users ?? 0,
       icon: Users,
       gradient: 'from-blue-500 to-cyan-500',
       href: '/users',
@@ -82,9 +89,9 @@ export default function DashboardPage() {
     },
     {
       title: 'Videos',
-      value: stats.total.projects,
-      newCount: stats.new.projects,
-      pendingCount: 0, // Will be dynamic
+      value: stats?.total?.projects ?? 0,
+      newCount: stats?.new?.projects ?? 0,
+      pendingCount: 0,
       icon: Video,
       gradient: 'from-purple-500 to-pink-500',
       href: '/videos',
@@ -92,9 +99,9 @@ export default function DashboardPage() {
     },
     {
       title: 'Orders',
-      value: stats.total.orders,
-      completedCount: stats.total.orders - stats.new.orders,
-      pendingCount: stats.new.orders,
+      value: stats?.total?.orders ?? 0,
+      completedCount: (stats?.total?.orders ?? 0) - (stats?.new?.orders ?? 0),
+      pendingCount: stats?.new?.orders ?? 0,
       icon: ShoppingCart,
       gradient: 'from-emerald-500 to-teal-500',
       href: '/orders',
@@ -134,11 +141,9 @@ export default function DashboardPage() {
                 onClick={() => router.push(stat.href)}
                 className="relative overflow-hidden cursor-pointer hover:shadow-lg transition-all duration-300 hover:-translate-y-1 border-0"
               >
-                {/* Gradient background */}
                 <div className={`absolute inset-0 bg-gradient-to-br ${stat.gradient} opacity-5`} />
                 
                 <div className="relative p-6">
-                  {/* Header */}
                   <div className="flex items-center justify-between mb-4">
                     <div className={`p-3 rounded-xl bg-gradient-to-br ${stat.gradient} bg-opacity-10`}>
                       <Icon className="h-6 w-6 text-gray-700" />
@@ -149,22 +154,19 @@ export default function DashboardPage() {
                     </div>
                   </div>
 
-                  {/* Title */}
                   <h3 className="text-sm font-medium text-gray-600 mb-1">
                     {stat.title}
                   </h3>
 
-                  {/* Main Value */}
                   <div className="flex items-baseline gap-2 mb-3">
                     <p className="text-3xl font-bold text-gray-900">{stat.value}</p>
-                    {stat.newCount > 0 && (
+                    {(stat.newCount ?? 0) > 0 && (
                       <span className="text-sm font-medium text-green-600">
                         +{stat.newCount} new
                       </span>
                     )}
                   </div>
 
-                  {/* Sub Stats */}
                   <div className="flex gap-4 text-sm">
                     {stat.completedCount !== undefined && (
                       <div className="flex items-center gap-1 text-green-600">
@@ -183,7 +185,6 @@ export default function DashboardPage() {
                     )}
                   </div>
 
-                  {/* Click indicator */}
                   <ArrowUpRight className="absolute bottom-4 right-4 h-5 w-5 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" />
                 </div>
               </Card>
@@ -193,7 +194,6 @@ export default function DashboardPage() {
 
         {/* Charts Row */}
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-          {/* User Growth Chart */}
           <Card className="p-6 border-0 shadow-md">
             <div className="flex items-center justify-between mb-6">
               <div>
@@ -216,36 +216,14 @@ export default function DashboardPage() {
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                <XAxis 
-                  dataKey="month" 
-                  stroke="#9ca3af"
-                  style={{ fontSize: '12px' }}
-                />
-                <YAxis 
-                  stroke="#9ca3af"
-                  style={{ fontSize: '12px' }}
-                />
-                <Tooltip 
-                  contentStyle={{ 
-                    backgroundColor: '#fff',
-                    border: '1px solid #e5e7eb',
-                    borderRadius: '8px',
-                    fontSize: '14px'
-                  }}
-                />
-                <Area 
-                  type="monotone" 
-                  dataKey="users" 
-                  stroke="#3b82f6" 
-                  strokeWidth={2}
-                  fillOpacity={1} 
-                  fill="url(#colorUsers)" 
-                />
+                <XAxis dataKey="month" stroke="#9ca3af" style={{ fontSize: '12px' }} />
+                <YAxis stroke="#9ca3af" style={{ fontSize: '12px' }} />
+                <Tooltip contentStyle={{ backgroundColor: '#fff', border: '1px solid #e5e7eb', borderRadius: '8px', fontSize: '14px' }} />
+                <Area type="monotone" dataKey="users" stroke="#3b82f6" strokeWidth={2} fillOpacity={1} fill="url(#colorUsers)" />
               </AreaChart>
             </ResponsiveContainer>
           </Card>
 
-          {/* Revenue Chart */}
           <Card className="p-6 border-0 shadow-md">
             <div className="flex items-center justify-between mb-6">
               <div>
@@ -262,33 +240,10 @@ export default function DashboardPage() {
             <ResponsiveContainer width="100%" height={280}>
               <LineChart data={revenueData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                <XAxis 
-                  dataKey="month" 
-                  stroke="#9ca3af"
-                  style={{ fontSize: '12px' }}
-                />
-                <YAxis 
-                  stroke="#9ca3af"
-                  style={{ fontSize: '12px' }}
-                  tickFormatter={(value) => `₹${value/1000}k`}
-                />
-                <Tooltip 
-                  contentStyle={{ 
-                    backgroundColor: '#fff',
-                    border: '1px solid #e5e7eb',
-                    borderRadius: '8px',
-                    fontSize: '14px'
-                  }}
-                  formatter={(value: number) => [`₹${value.toLocaleString()}`, 'Revenue']}
-                />
-                <Line 
-                  type="monotone" 
-                  dataKey="revenue" 
-                  stroke="#f59e0b" 
-                  strokeWidth={3}
-                  dot={{ fill: '#f59e0b', strokeWidth: 2, r: 4 }}
-                  activeDot={{ r: 6 }}
-                />
+                <XAxis dataKey="month" stroke="#9ca3af" style={{ fontSize: '12px' }} />
+                <YAxis stroke="#9ca3af" style={{ fontSize: '12px' }} tickFormatter={(value) => `₹${value/1000}k`} />
+                <Tooltip contentStyle={{ backgroundColor: '#fff', border: '1px solid #e5e7eb', borderRadius: '8px', fontSize: '14px' }} formatter={(value: number) => [`₹${value.toLocaleString()}`, 'Revenue']} />
+                <Line type="monotone" dataKey="revenue" stroke="#f59e0b" strokeWidth={3} dot={{ fill: '#f59e0b', strokeWidth: 2, r: 4 }} activeDot={{ r: 6 }} />
               </LineChart>
             </ResponsiveContainer>
           </Card>
@@ -312,7 +267,7 @@ export default function DashboardPage() {
             >
               <Clock className="h-5 w-5 text-blue-600 mb-2" />
               <p className="font-medium text-gray-900">Pending Orders</p>
-              <p className="text-sm text-gray-500">{stats.new.orders} to process</p>
+              <p className="text-sm text-gray-500">{stats?.new?.orders ?? 0} to process</p>
             </button>
             <button
               onClick={() => router.push('/users')}
@@ -320,7 +275,7 @@ export default function DashboardPage() {
             >
               <Users className="h-5 w-5 text-purple-600 mb-2" />
               <p className="font-medium text-gray-900">New Users</p>
-              <p className="text-sm text-gray-500">{stats.new.users} this month</p>
+              <p className="text-sm text-gray-500">{stats?.new?.users ?? 0} this month</p>
             </button>
             <button
               onClick={() => router.push('/analytics')}

@@ -19,6 +19,8 @@ import projectRouter from './routes/projectRoutes';
 import adminRouter from './routes/adminRoutes';
 import { paymentRouter } from './routes/paymentRoutes';
 import videoRoutes from './routes/videoRoutes';
+import materialsRouter from './routes/materialsRoutes';   // ← NEW
+import goinsRouter from './routes/goinsRoutes';           // ← NEW
 
 // YouTube Upload Setup
 const { getAuthUrl, handleCallback } = require('./services/youtubeUploadService');
@@ -29,10 +31,8 @@ const app = express();
 // GLOBAL ERROR HANDLERS (MUST BE FIRST!)
 // ============================================
 
-// Prevent process from crashing
 process.on('uncaughtException', (error) => {
   logger.error({ error: error.message, stack: error.stack }, '❌ Uncaught exception');
-  // Don't exit - just log
 });
 
 process.on('unhandledRejection', (reason: any, promise) => {
@@ -40,7 +40,6 @@ process.on('unhandledRejection', (reason: any, promise) => {
     reason: reason?.message || reason,
     stack: reason?.stack
   }, '❌ Unhandled promise rejection');
-  // Don't exit - just log
 });
 
 // ============================================
@@ -59,7 +58,6 @@ app.use((req, res, next) => {
   res.setHeader('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization, Cookie, Set-Cookie');
   res.setHeader('Access-Control-Expose-Headers', 'Content-Range, X-Content-Range, Set-Cookie');
   res.setHeader('Access-Control-Max-Age', '86400');
-  
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
   }
@@ -128,14 +126,8 @@ app.get('/setup-youtube', (req, res) => {
             border-radius: 16px;
             box-shadow: 0 20px 60px rgba(0,0,0,0.3);
           }
-          h1 {
-            color: #4285f4;
-            margin-bottom: 10px;
-          }
-          p {
-            color: #666;
-            line-height: 1.6;
-          }
+          h1 { color: #4285f4; margin-bottom: 10px; }
+          p { color: #666; line-height: 1.6; }
           .warning {
             background: #fff3cd;
             border-left: 4px solid #ffc107;
@@ -165,13 +157,10 @@ app.get('/setup-youtube', (req, res) => {
         <div class="container">
           <h1>🎬 YouTube OAuth Setup</h1>
           <p>Click the button below to authorize MiniGuru to upload videos to your YouTube channel.</p>
-         
           <div class="warning">
             <strong>⚠️ Important:</strong> Sign in with the Google account that owns your YouTube channel.
           </div>
-         
           <a href="${url}" class="btn">🔐 Authorize YouTube Upload</a>
-         
           <p style="margin-top: 30px; font-size: 14px; color: #999;">
             After authorization, you'll receive tokens to add to your .env file.
           </p>
@@ -187,19 +176,13 @@ app.get('/setup-youtube', (req, res) => {
 
 app.get('/auth/youtube/callback', async (req, res) => {
   const { code } = req.query;
-  
   if (!code) {
-    return res.status(400).send(`
-      <h1>❌ Error</h1>
-      <p>No authorization code received. Please try again.</p>
-    `);
+    return res.status(400).send(`<h1>❌ Error</h1><p>No authorization code received. Please try again.</p>`);
   }
-  
   try {
     logger.info('Processing YouTube OAuth callback...');
     const tokens = await handleCallback(code as string);
     logger.info('YouTube OAuth tokens received successfully');
-   
     res.send(`
       <!DOCTYPE html>
       <html>
@@ -254,11 +237,7 @@ app.get('/auth/youtube/callback', async (req, res) => {
     `);
   } catch (error: any) {
     logger.error({ error: error.message }, 'YouTube OAuth error');
-    res.status(500).send(`
-      <h1>❌ Error</h1>
-      <p>Failed to complete YouTube authorization.</p>
-      <pre>${error.message}</pre>
-    `);
+    res.status(500).send(`<h1>❌ Error</h1><p>Failed to complete YouTube authorization.</p><pre>${error.message}</pre>`);
   }
 });
 
@@ -266,7 +245,6 @@ app.get('/auth/youtube/callback', async (req, res) => {
 // API ROUTES
 // ============================================
 
-// Wrap routes in try-catch to prevent crashes
 try {
   app.use('/auth', authRouter);
   app.use('/order', orderRouter);
@@ -276,11 +254,12 @@ try {
   app.use('/admin', adminRouter);
   app.use('/payment', paymentRouter);
   app.use('/api/videos', videoRoutes);
-  
+  app.use('/materials', materialsRouter);   // ← NEW: STEM materials for Goins exchange
+  app.use('/goins', goinsRouter);           // ← NEW: Goins balance, deduct, award
+
   logger.info('✅ All routes registered successfully');
 } catch (error) {
   logger.error({ error }, '❌ Failed to register routes');
-  // Don't exit - continue running
 }
 
 // Static files
@@ -308,15 +287,11 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
     url: req.url,
     method: req.method
   }, '❌ Request error');
-  
+
   const isDevelopment = process.env.NODE_ENV === 'development';
-  
   res.status(err.status || 500).json({
     error: err.message || 'Internal Server Error',
-    ...(isDevelopment && {
-      stack: err.stack,
-      details: err
-    })
+    ...(isDevelopment && { stack: err.stack, details: err })
   });
 });
 
@@ -332,24 +307,22 @@ const server = app.listen(PORT, HOST, () => {
   logger.info(`🌐 CORS enabled for all origins (development mode)`);
   logger.info(`📡 Ready to accept requests`);
   logger.info(`📺 YouTube OAuth setup available at: /setup-youtube`);
+  logger.info(`🧰 Materials API: /materials`);
+  logger.info(`🪙 Goins API: /goins`);
 });
 
-// Keep server alive on errors
 server.on('error', (error) => {
   logger.error({ error }, '❌ Server error');
-  // Don't exit - just log
 });
 
 // ============================================
-// GRACEFUL SHUTDOWN (Only on intentional signals)
+// GRACEFUL SHUTDOWN
 // ============================================
 
 const gracefulShutdown = async (signal: string) => {
   logger.info(`${signal} received. Starting graceful shutdown...`);
-  
   server.close(async () => {
     logger.info('HTTP server closed');
-    
     try {
       await prisma.$disconnect();
       logger.info('Database connection closed');
@@ -359,15 +332,13 @@ const gracefulShutdown = async (signal: string) => {
       process.exit(1);
     }
   });
-  
   setTimeout(() => {
     logger.error('Forced shutdown after timeout');
     process.exit(1);
   }, 10000);
 };
 
-// Handle shutdown signals ONLY (not errors)
 process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
-process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+process.on('SIGINT',  () => gracefulShutdown('SIGINT'));
 
 export { app, prisma };

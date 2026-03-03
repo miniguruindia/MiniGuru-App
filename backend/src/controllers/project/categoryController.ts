@@ -22,10 +22,10 @@ export const createProjectCategory = async (req: Request, res: Response) => {
     return res.status(403).json({ error: "Forbidden: Only admins can create categories." });
   }
 
-  const { name, icon } = req.body;
+  const { name, icon, imageUrl } = req.body;
 
   try {
-    const category = await projectCategoryService.create({ name, icon });
+    const category = await projectCategoryService.create({ name, icon, imageUrl });
     res.status(201).json(category);
   } catch (error) {
     handleErrorResponse(res, error);
@@ -58,10 +58,10 @@ export const updateProjectCategory = async (req: Request, res: Response) => {
   }
 
   const { id } = req.params;
-  const { name, icon } = req.body;
+  const { name, icon, imageUrl } = req.body;
 
   try {
-    const updatedCategory = await projectCategoryService.update(id, { name, icon });
+    const updatedCategory = await projectCategoryService.update(id, { name, icon, imageUrl });
     res.status(200).json(updatedCategory);
   } catch (error) {
     handleErrorResponse(res, error);

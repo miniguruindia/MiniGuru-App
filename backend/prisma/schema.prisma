@@ -1,6 +1,3 @@
-// backend/prisma/schema.prisma
-// COMPLETE FILE - Replace entire file
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -21,61 +18,54 @@ type ScoreHistory {
   updatedScore Int
 }
 
-// ========================= USER MODEL =========================
 model User {
-  id            String    @id @default(auto()) @map("_id") @db.ObjectId
-  email         String    @unique
+  id            String         @id @default(auto()) @map("_id") @db.ObjectId
+  email         String         @unique
   passwordHash  String
   name          String
   age           Int
-  role          Role      @default(USER)
-  phoneNumber   String    @unique
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  role          Role           @default(USER)
+  phoneNumber   String         @unique
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
   refreshToken  String?
-  score         Int       @default(0)
+  score         Int            @default(0)
   scoreHistory  ScoreHistory[]
-
-  // Relations
   comments      Comment[]
   orders        Order[]
   likes         Like[]
   projects      Project[]
   wallet        Wallet?
-  walletId      String?   @db.ObjectId
-  
-  // ✅ Video tracking relations
+  walletId      String?        @db.ObjectId
   videoViews    VideoView[]
-  videoLikes    VideoLike[]      // ✅ ADDED - For 5 like categories
+  videoLikes    VideoLike[]
   videoComments VideoComment[]
 
   @@map("users")
 }
 
-// ========================= VIDEO TRACKING =========================
 model VideoView {
   id        String   @id @default(auto()) @map("_id") @db.ObjectId
   videoId   String
   userId    String   @db.ObjectId
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  createdAt DateTime @default(now())  // ✅ FIXED: Changed from viewedAt to createdAt
+  createdAt DateTime @default(now())
 
-  @@unique([videoId, userId])  // ✅ ADDED - One view per user per video
+  @@unique([videoId, userId])
   @@index([videoId])
   @@index([userId])
-  @@map("video_views")  // ✅ FIXED: Changed to match controller
+  @@map("video_views")
 }
 
-// ✅ NEW MODEL - For the 5 like categories (aesthetic, functional, etc.)
 model VideoLike {
   id        String   @id @default(auto()) @map("_id") @db.ObjectId
   videoId   String
   userId    String   @db.ObjectId
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  category  String   // aesthetic, functional, sturdy, creative, educational
+  category  String
   createdAt DateTime @default(now())
 
-  @@unique([videoId, userId, category])  // ✅ One like per category per user per video
+  @@unique([videoId, userId, category])
   @@index([videoId])
   @@index([userId])
   @@map("video_likes")
@@ -87,20 +77,20 @@ model VideoComment {
   userId           String   @db.ObjectId
   user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   comment          String
-  createdAt        DateTime @default(now())  // ✅ FIXED: Changed from postedAt to createdAt
+  createdAt        DateTime @default(now())
   postedToYouTube  Boolean  @default(false)
   youtubeCommentId String?
 
   @@index([videoId])
   @@index([userId])
-  @@map("video_comments")  // ✅ FIXED: Changed to match controller
+  @@map("video_comments")
 }
 
-// ========================= PROJECTS =========================
 model ProjectCategory {
   id       String    @id @default(auto()) @map("_id") @db.ObjectId
   name     String    @unique
   icon     String
+  imageUrl String?
   projects Project[]
 
   @@map("projectcategories")
@@ -121,11 +111,13 @@ model Project {
   category    ProjectCategory   @relation(fields: [categoryId], references: [id])
   likes       Like[]
   comments    Comment[]
+  status      String            @default("pending")
   createdAt   DateTime          @default(now())
   updatedAt   DateTime          @updatedAt
 
   @@index([userId])
   @@index([categoryId])
+  @@index([status])
   @@map("projects")
 }
 
@@ -135,12 +127,11 @@ type Video {
 }
 
 type ProjectMaterial {
-  productId String @db.ObjectId
+  productId String  @db.ObjectId
   name      String?
   quantity  Int
 }
 
-// ========================= COMMENTS & LIKES =========================
 model Comment {
   id            String   @id @default(auto()) @map("_id") @db.ObjectId
   commentedBy   User     @relation(fields: [commentedById], references: [id], onDelete: Cascade)
@@ -171,11 +162,11 @@ model Like {
   @@map("likes")
 }
 
-// ========================= E-COMMERCE =========================
 model ProductCategory {
   id       String    @id @default(auto()) @map("_id") @db.ObjectId
   name     String    @unique
   icon     String
+  imageUrl String?
   products Product[]
 
   @@map("productcategories")
@@ -199,16 +190,16 @@ model Product {
 }
 
 model Order {
-  id              String         @id @default(auto()) @map("_id") @db.ObjectId
-  userId          String         @db.ObjectId
-  user            User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id              String        @id @default(auto()) @map("_id") @db.ObjectId
+  userId          String        @db.ObjectId
+  user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   products        OrderProduct[]
   totalAmount     Float
-  paymentStatus   PaymentStatus  @default(PENDING)
-  createdAt       DateTime       @default(now())
-  updatedAt       DateTime       @updatedAt
-  transaction     Transaction    @relation(fields: [transactionId], references: [id])
-  transactionId   String         @db.ObjectId @unique
+  paymentStatus   PaymentStatus @default(PENDING)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  transaction     Transaction   @relation(fields: [transactionId], references: [id])
+  transactionId   String        @db.ObjectId @unique
   deliveryAddress String?
 
   @@index([userId])
@@ -226,7 +217,6 @@ enum PaymentStatus {
   FAILED
 }
 
-// ========================= WALLET & TRANSACTIONS =========================
 model Wallet {
   id           String        @id @default(auto()) @map("_id") @db.ObjectId
   userId       String        @db.ObjectId @unique

@@ -18,10 +18,11 @@ dependencies:
   # Database & Storage
   sqflite: ^2.3.3+1  
   path: ^1.9.0
-  shared_preferences: ^2.3.2   # ✅ NEW - first launch detection
+  shared_preferences: ^2.3.2
 
   # Network & API
   http: ^1.2.2
+  http_parser: ^4.0.0        # ← added (used in MiniguruApi.dart for multipart upload)
   dio: ^5.7.0
   
   # Media 
@@ -38,7 +39,7 @@ dependencies:
   permission_handler: ^11.3.1       
   sticky_headers: ^0.3.0+2
   fl_chart: ^0.69.0
-  url_launcher: ^6.3.0            # ✅ NEW - consultancy contact buttons
+  url_launcher: ^6.3.0
 
 dev_dependencies:
   flutter_test:
@@ -54,6 +55,7 @@ flutter:
     - assets/bag.png
     - assets/ic_logo.png
     - assets/shopping-cart.png
+    - assets/Goine.png          # ← added
 
 flutter_launcher_icons:
   android: "launcher_icon"

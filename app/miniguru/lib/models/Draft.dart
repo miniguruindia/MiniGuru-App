@@ -44,6 +44,10 @@ class Draft {
     );
   }
 
+  // JSON methods for SharedPreferences web storage
+  Map<String, dynamic> toJson() => toMap();
+  factory Draft.fromJson(Map<String, dynamic> json) => Draft.fromMap(json);
+
   static String _serializeMaterials(Map<String, int> materials) {
     return materials.entries.map((e) => '${e.key}:${e.value}').join(',');
   }

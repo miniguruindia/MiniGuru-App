@@ -1,9 +1,12 @@
 import { Request, Response } from "express";
 import ProjectService from "../../services/project/project";
 import { NotFoundError } from "../../utils/error";
-import { uploadVideo, uploadThumbnail } from "../../middleware/upload";
+import { uploadThumbnail } from "../../middleware/upload";
 import { increaseScoreByProjectId } from "../../services/project/score";
 import logger from "../../logger";
+
+// ✅ Import YouTube upload service
+const { uploadToYouTube } = require("../../services/youtubeUploadService");
 
 const projectService = new ProjectService();
 
@@ -32,26 +35,62 @@ export const createProject = async (req: Request, res: Response) => {
       return res.status(400).json({ error: "Invalid materials format" });
     }
   } catch (error) {
+    logger.error(error as Error);
     return res.status(400).json({ error: "Invalid materials format" });
-    console.log(error as Error)
   }
+
   interface MulterFileMap {
     thumbnail?: Express.Multer.File[];
     video?: Express.Multer.File[];
   }
   const files = req.files as MulterFileMap;
 
-  const thumbnailFile = files?.thumbnail?.[0]; // Access the uploaded thumbnail
-  const videoFile = files?.video?.[0]; // Access the uploaded video
-  
+  const thumbnailFile = files?.thumbnail?.[0];
+  const videoFile = files?.video?.[0];
+
+  if (!videoFile) {
+    return res.status(400).json({ error: "Video file is required" });
+  }
+
+  // ✅ Upload thumbnail as before (local storage)
   const thumbnailPath = thumbnailFile ? await uploadThumbnail(thumbnailFile) : "";
-  const videoUrl = videoFile ? await uploadVideo(videoFile) : "";
+
+  // ✅ Upload video to YouTube as UNLISTED (replaces local URL approach)
+  let videoUrl = "";
+  try {
+    logger.info(`📤 Uploading video to YouTube for project: "${title}"`);
+
+    const result = await uploadToYouTube(
+      videoFile.path, // multer diskStorage sets file.path to the full local path
+      {
+        title: title,
+        description: description || "",
+        tags: ["MiniGuru", "STEM", "Education", "India"],
+      }
+    );
+
+    videoUrl = result.url; // e.g. https://www.youtube.com/watch?v=ABC123
+    logger.info(`✅ YouTube upload successful. Video ID: ${result.videoId}`);
+  } catch (error) {
+    logger.error(`❌ YouTube upload failed: ${(error as Error).message}`);
+    return res.status(500).json({
+      error: "Failed to upload video to YouTube. Please try again.",
+    });
+  }
 
   try {
     const project = await projectService.create(userId, {
-      title, description, startDate, endDate, materials: parsedMaterials, categoryName, thumbnailPath ,videoUrl
+      title,
+      description,
+      startDate,
+      endDate,
+      materials: parsedMaterials,
+      categoryName,
+      thumbnailPath,
+      videoUrl, // ✅ Now a YouTube URL, stored in project.video.url
     });
-    await increaseScoreByProjectId(project.id,100)
+
+    await increaseScoreByProjectId(project.id, 100);
     res.status(201).json(project);
   } catch (error) {
     if (error instanceof NotFoundError) {
@@ -77,7 +116,10 @@ export const updateProject = async (req: Request, res: Response) => {
   } = req.body;
 
   const thumbnailPath = req.file ? await uploadThumbnail(req.file) : "";
-  const videoUrl = req.file ? await uploadVideo(req.file) : "";
+
+  // NOTE: updateProject doesn't re-upload to YouTube (keep existing video URL)
+  // If you need video replacement, add YouTube upload logic here similarly
+  const videoUrl = "";
 
   try {
     const project = await projectService.update(userId, id, {
@@ -88,7 +130,7 @@ export const updateProject = async (req: Request, res: Response) => {
       materials,
       categoryName,
       thumbnailPath,
-      videoUrl
+      videoUrl,
     });
 
     res.json(project);
@@ -96,7 +138,7 @@ export const updateProject = async (req: Request, res: Response) => {
     if (error instanceof NotFoundError) {
       return res.status(404).json({ error: error.message });
     }
-    logger.error(`Error ${error}`)
+    logger.error(`Error ${error}`);
     res.status(500).json({ error: (error as Error).message });
   }
 };
@@ -156,7 +198,7 @@ export const getAllProjects = async (req: Request, res: Response) => {
 
 export const deleteProjectByID = async (req: Request, res: Response) => {
   const userId = req.user?.userId;
-  if (!userId && req.user?.role!=="ADMIN") return res.status(401).json({ error: "Unauthorized" });
+  if (!userId && req.user?.role !== "ADMIN") return res.status(401).json({ error: "Unauthorized" });
 
   const { projectId } = req.params;
 

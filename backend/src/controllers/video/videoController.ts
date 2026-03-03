@@ -39,7 +39,7 @@ const youtubeAuth = google.youtube({
 export const trackVideoView = async (req: Request, res: Response) => {
   try {
     const { videoId } = req.params;
-    const userId = req.user?.id;
+    const userId = req.user?.userId; // ✅ FIXED: was req.user?.id
 
     if (!userId) {
       return res.status(401).json({ message: 'User not authenticated' });
@@ -97,7 +97,6 @@ export const getVideoViews = async (req: Request, res: Response) => {
   try {
     const { videoId } = req.params;
 
-    // Get views from our database
     const appViews = await prisma.videoView.count({
       where: { videoId },
     });
@@ -142,7 +141,7 @@ export const likeVideo = async (req: Request, res: Response) => {
   try {
     const { videoId } = req.params;
     const { category, liked } = req.body;
-    const userId = req.user?.id;
+    const userId = req.user?.userId; // ✅ FIXED: was req.user?.id
 
     if (!userId) {
       return res.status(401).json({ message: 'User not authenticated' });
@@ -196,7 +195,7 @@ export const likeVideo = async (req: Request, res: Response) => {
 export const getUserVideoLikes = async (req: Request, res: Response) => {
   try {
     const { videoId } = req.params;
-    const userId = req.user?.id;
+    const userId = req.user?.userId; // ✅ FIXED: was req.user?.id
 
     if (!userId) {
       return res.status(401).json({ message: 'User not authenticated' });
@@ -266,7 +265,6 @@ export const getVideoComments = async (req: Request, res: Response) => {
     const { videoId } = req.params;
     const limit = parseInt(req.query.limit as string) || 50;
 
-    // Get comments from our database
     const appComments = await prisma.videoComment.findMany({
       where: { videoId },
       include: {
@@ -301,7 +299,6 @@ export const getVideoComments = async (req: Request, res: Response) => {
       logger.warn('Could not fetch YouTube comments');
     }
 
-    // Format app comments
     const formattedAppComments = appComments.map((c) => ({
       id: c.id,
       userId: c.userId,
@@ -312,7 +309,6 @@ export const getVideoComments = async (req: Request, res: Response) => {
       postedToYouTube: c.postedToYouTube,
     }));
 
-    // Combine and sort
     const allComments = [...formattedAppComments, ...youtubeComments].sort(
       (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
     );
@@ -328,7 +324,7 @@ export const postVideoComment = async (req: Request, res: Response) => {
   try {
     const { videoId } = req.params;
     const { comment } = req.body;
-    const userId = req.user?.id;
+    const userId = req.user?.userId; // ✅ FIXED: was req.user?.id
 
     if (!userId) {
       return res.status(401).json({ message: 'User not authenticated' });
@@ -342,7 +338,6 @@ export const postVideoComment = async (req: Request, res: Response) => {
       return res.status(400).json({ message: 'Comment too long (max 500 characters)' });
     }
 
-    // Get user info
     const user = await prisma.user.findUnique({
       where: { id: userId },
       select: { name: true },
@@ -352,7 +347,6 @@ export const postVideoComment = async (req: Request, res: Response) => {
       return res.status(404).json({ message: 'User not found' });
     }
 
-    // Save to database
     const newComment = await prisma.videoComment.create({
       data: {
         videoId,
@@ -366,7 +360,7 @@ export const postVideoComment = async (req: Request, res: Response) => {
       },
     });
 
-    // Try to post to YouTube (optional)
+    // Try to post to YouTube (optional, non-blocking)
     let youtubeCommentId: string | null = null;
     try {
       const response = await youtubeAuth.commentThreads.insert({
@@ -415,7 +409,7 @@ export const postVideoComment = async (req: Request, res: Response) => {
 export const deleteVideoComment = async (req: Request, res: Response) => {
   try {
     const { commentId } = req.params;
-    const userId = req.user?.id;
+    const userId = req.user?.userId; // ✅ FIXED: was req.user?.id
 
     if (!userId) {
       return res.status(401).json({ message: 'User not authenticated' });

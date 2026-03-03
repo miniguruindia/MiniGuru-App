@@ -68,6 +68,7 @@ export const login = async (email: string, password: string): Promise<void> => {
     accessToken = response.data.accessToken;
     refreshToken = response.data.refreshToken;
     await setAuthCookie(accessToken);
+    localStorage.setItem('adminToken', accessToken);
     
   } catch (error: any) {
     console.error('❌ Login error:', error);
@@ -111,6 +112,7 @@ export const refreshAccessToken = async (): Promise<void> => {
     
     accessToken = response.data.accessToken;
     await setAuthCookie(accessToken);
+    localStorage.setItem('adminToken', accessToken);
     
   } catch (error: any) {
     console.error('❌ Token refresh error:', error);
