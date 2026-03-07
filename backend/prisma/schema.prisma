@@ -31,6 +31,7 @@ model User {
   refreshToken  String?
   score         Int            @default(0)
   scoreHistory  ScoreHistory[]
+  profilePhoto  String?
   comments      Comment[]
   orders        Order[]
   likes         Like[]

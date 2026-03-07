@@ -704,4 +704,76 @@ class MiniguruApi {
       print('✅ Success: ${response.statusCode}');
     }
   }
+
+  Future<Map<String, dynamic>?> getAnalytics() async {
+    try {
+      final authToken = await _db!.getAuthToken();
+      if (authToken == null) return null;
+      final response = await http.get(
+        Uri.parse('$_baseUrl/users/me/analytics'),
+        headers: _buildHeaders(authToken.accessToken),
+      );
+      if (response.statusCode == 200) return jsonDecode(response.body) as Map<String, dynamic>;
+    } catch (e) { print('❌ getAnalytics: $e'); }
+    return null;
+  }
+
+  Future<List<dynamic>?> getBadges() async {
+    try {
+      final authToken = await _db!.getAuthToken();
+      if (authToken == null) return null;
+      final response = await http.get(
+        Uri.parse('$_baseUrl/users/me/badges'),
+        headers: _buildHeaders(authToken.accessToken),
+      );
+      if (response.statusCode == 200) {
+        return (jsonDecode(response.body))['badges'] as List<dynamic>;
+      }
+    } catch (e) { print('❌ getBadges: $e'); }
+    return null;
+  }
+
+  Future<List<dynamic>?> getNotifications() async {
+    try {
+      final authToken = await _db!.getAuthToken();
+      if (authToken == null) return null;
+      final response = await http.get(
+        Uri.parse('$_baseUrl/users/me/notifications'),
+        headers: _buildHeaders(authToken.accessToken),
+      );
+      if (response.statusCode == 200) {
+        return (jsonDecode(response.body))['notifications'] as List<dynamic>;
+      }
+    } catch (e) { print('❌ getNotifications: $e'); }
+    return null;
+  }
+
+  Future<bool> uploadProfilePhoto(String base64Photo) async {
+    try {
+      final authToken = await _db!.getAuthToken();
+      if (authToken == null) return false;
+      final response = await http.post(
+        Uri.parse('$_baseUrl/users/me/photo'),
+        headers: _buildHeaders(authToken.accessToken),
+        body: jsonEncode({'photo': base64Photo}),
+      );
+      return response.statusCode == 200;
+    } catch (e) { print('❌ uploadProfilePhoto: $e'); }
+    return false;
+  }
+
+  Future<String?> getProfilePhoto() async {
+    try {
+      final authToken = await _db!.getAuthToken();
+      if (authToken == null) return null;
+      final response = await http.get(
+        Uri.parse('$_baseUrl/users/me/photo'),
+        headers: _buildHeaders(authToken.accessToken),
+      );
+      if (response.statusCode == 200) {
+        return (jsonDecode(response.body))['photo'] as String?;
+      }
+    } catch (e) { print('❌ getProfilePhoto: $e'); }
+    return null;
+  }
 }

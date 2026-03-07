@@ -19,7 +19,8 @@ import projectRouter from './routes/projectRoutes';
 import adminRouter from './routes/adminRoutes';
 import { paymentRouter } from './routes/paymentRoutes';
 import videoRoutes from './routes/videoRoutes';
-import materialsRouter from './routes/materialsRoutes';   // ← NEW
+import materialsRouter from './routes/materialsRoutes';
+import userAnalyticsRouter from './routes/userAnalyticsRoutes';   // ← NEW
 import goinsRouter from './routes/goinsRoutes';           // ← NEW
 
 // YouTube Upload Setup
@@ -255,7 +256,8 @@ try {
   app.use('/payment', paymentRouter);
   app.use('/api/videos', videoRoutes);
   app.use('/materials', materialsRouter);   // ← NEW: STEM materials for Goins exchange
-  app.use('/goins', goinsRouter);           // ← NEW: Goins balance, deduct, award
+  app.use('/goins', goinsRouter);
+  app.use('/users', userAnalyticsRouter);           // ← NEW: Goins balance, deduct, award
 
   logger.info('✅ All routes registered successfully');
 } catch (error) {
