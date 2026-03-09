@@ -188,17 +188,6 @@ export default function CategoriesPage() {
           </div>
         )}
 
-        {/* Backend status hint */}
-        <Card className="p-4 border-0 shadow-sm bg-amber-50 border-amber-200">
-          <p className="text-sm text-amber-800">
-            <strong>Backend endpoints needed:</strong>{' '}
-            <code className="bg-amber-100 px-1 rounded">GET /project/categories</code>{' '}
-            <code className="bg-amber-100 px-1 rounded">POST /project/categories</code>{' '}
-            <code className="bg-amber-100 px-1 rounded">PUT /project/categories/:id</code>{' '}
-            <code className="bg-amber-100 px-1 rounded">DELETE /project/categories/:id</code>
-          </p>
-        </Card>
-
         {/* Add form */}
         {adding && (
           <Card className="p-5 border-0 shadow-md">

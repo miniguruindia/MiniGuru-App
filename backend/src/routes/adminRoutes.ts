@@ -49,32 +49,37 @@ adminRouter.post('/projects/:id/reject', authenticateToken, authorizeAdmin, reje
 adminRouter.get('/drafts', authenticateToken, authorizeAdmin, getAllDrafts);
 
 // ==================== ADMIN GOINS ====================
+// NOTE: Goins = user.score. ScoreHistory is an embedded array on User.
+
 adminRouter.get('/goins/users', authenticateToken, authorizeAdmin, async (req: any, res) => {
   try {
-    const wallets = await prisma.wallet.findMany({
-      include: { user: { select: { id: true, name: true, email: true } }, transactions: true }
+    const users = await prisma.user.findMany({
+      select: { id: true, name: true, email: true, score: true, scoreHistory: true }
     });
-    const users = wallets.map((w: any) => ({
-      id: w.user.id, name: w.user.name, email: w.user.email,
-      goinsBalance: w.balance,
-      totalEarned: w.transactions.filter((t: any) => t.type === 'CREDIT').reduce((s: number, t: any) => s + t.amount, 0),
-      totalSpent:  w.transactions.filter((t: any) => t.type === 'DEBIT').reduce((s: number, t: any) => s + t.amount, 0),
-    }));
-    res.json(users);
+    res.json(users.map((u: any) => ({
+      id: u.id, name: u.name, email: u.email,
+      goinsBalance: u.score,
+      totalEarned: u.scoreHistory.filter((h: any) => h.updatedScore > 0).reduce((s: number, h: any) => s + h.updatedScore, 0),
+      totalSpent:  Math.abs(u.scoreHistory.filter((h: any) => h.updatedScore < 0).reduce((s: number, h: any) => s + h.updatedScore, 0)),
+    })));
   } catch (e) { res.status(500).json({ message: 'Failed to fetch goins data' }); }
 });
 
 adminRouter.get('/goins/history/:userId', authenticateToken, authorizeAdmin, async (req: any, res) => {
   try {
-    const wallet = await prisma.wallet.findUnique({ where: { userId: req.params.userId } });
-    if (!wallet) return res.json([]);
-    const txns = await prisma.transaction.findMany({
-      where: { walletId: wallet.id }, orderBy: { createdAt: 'desc' }, take: 50
+    const user = await prisma.user.findUnique({
+      where: { id: req.params.userId },
+      select: { scoreHistory: true }
     });
-    res.json(txns.map((t: any) => ({
-      id: t.id, type: t.type,
-      amount: t.type === 'DEBIT' ? -t.amount : t.amount,
-      description: t.status, timestamp: t.createdAt, balanceAfter: 0,
+    if (!user) return res.json([]);
+    const history = [...(user.scoreHistory || [])].reverse().slice(0, 50);
+    res.json(history.map((h: any, i: number) => ({
+      id: i.toString(),
+      type: h.updatedScore >= 0 ? 'CREDIT' : 'DEBIT',
+      amount: h.updatedScore,
+      description: 'Goins transaction',
+      timestamp: h.time,
+      balanceAfter: 0,
     })));
   } catch (e) { res.status(500).json({ message: 'Failed to fetch history' }); }
 });
@@ -83,20 +88,18 @@ adminRouter.post('/goins/adjust', authenticateToken, authorizeAdmin, async (req:
   try {
     const { userId, amount, reason } = req.body;
     if (!userId || !amount || amount === 0) return res.status(400).json({ message: 'Invalid input' });
-    const wallet = await prisma.wallet.findUnique({ where: { userId } });
-    if (!wallet) return res.status(404).json({ message: 'Wallet not found' });
-    const [updated] = await prisma.$transaction([
-      prisma.wallet.update({ where: { userId }, data: { balance: { increment: amount } } }),
-      prisma.transaction.create({
-        data: {
-          walletId: wallet.id,
-          amount: Math.abs(amount),
-          type: amount > 0 ? 'CREDIT' : 'DEBIT',
-          status: reason || 'Admin adjustment'
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user) return res.status(404).json({ message: 'User not found' });
+    const updated = await prisma.user.update({
+      where: { id: userId },
+      data: {
+        score: { increment: amount },
+        scoreHistory: {
+          push: { time: new Date(), updatedScore: amount }
         }
-      }),
-    ]);
-    res.json({ success: true, newBalance: updated.balance });
+      }
+    });
+    res.json({ success: true, newBalance: updated.score });
   } catch (e) { res.status(500).json({ message: 'Failed to adjust goins' }); }
 });
 

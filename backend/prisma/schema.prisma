@@ -246,3 +246,27 @@ enum TransactionType {
   DEBIT
   CREDIT
 }
+
+model SiteContent {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  key       String   @unique
+  value     Json
+  updatedAt DateTime @updatedAt
+  updatedBy String?
+
+  @@map("site_content")
+}
+
+model ContactMessage {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  name        String
+  email       String
+  subject     String
+  message     String
+  source      String   @default("app")   // app | website | admin
+  status      String   @default("unread") // unread | read | replied
+  repliedAt   DateTime?
+  repliedBy   String?
+  createdAt   DateTime @default(now())
+  @@map("contact_messages")
+}

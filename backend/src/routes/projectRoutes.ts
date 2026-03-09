@@ -1,7 +1,7 @@
 import express from 'express';
 import { createProject, updateProject, getProjectById, getAllProjectsForUser , getAllProjects} from '../controllers/project/projectController';
 import { uploadThumbnailAndVideoMiddleware } from '../middleware/upload';
-import {  getProjectsByCategory, getAllProjectCategories, } from '../controllers/project/categoryController';
+import { getProjectsByCategory, getAllProjectCategories, createProjectCategory, updateProjectCategory, deleteProjectCategory } from '../controllers/project/categoryController';
 import { authenticateToken } from '../middleware/authMiddleware';
 import { validateProject } from '../middleware/validationMiddleware';
 import { likeProject } from '../controllers/project/likeController';
@@ -16,9 +16,10 @@ const projectRouter = express.Router();
 // Create a project
 projectRouter.post('/', authenticateToken, validateProject, uploadThumbnailAndVideoMiddleware, createProject);
 
-// projectRouter.post('/categories', authenticateToken, authorizeAdmin, createProjectCategory);
-// projectRouter.delete('/categories/:id',authenticateToken,authorizeAdmin,deleteProjectCategory)
 projectRouter.get('/categories', getAllProjectCategories);
+projectRouter.post('/categories', authenticateToken, createProjectCategory);
+projectRouter.put('/categories/:id', authenticateToken, updateProjectCategory);
+projectRouter.delete('/categories/:id', authenticateToken, deleteProjectCategory);
 
 // List projects by category
 projectRouter.get('/categories/:categoryName/', getProjectsByCategory);
