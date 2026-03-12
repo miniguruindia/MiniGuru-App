@@ -7,7 +7,7 @@ import { Card } from '@/components/ui/card'
 import {
   Save, RefreshCw, CheckCircle, AlertCircle, Globe, Users,
   BookOpen, Shield, FileText, Baby, ChevronDown, ChevronUp,
-  Plus, Trash2, Edit3
+  Plus, Trash2, Edit3, HelpCircle
 } from 'lucide-react'
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || ''
@@ -33,13 +33,14 @@ async function saveContent(key: string, value: any) {
   return res.json()
 }
 
-type Tab = 'community' | 'about' | 'consultancy' | 'legal'
+type Tab = 'community' | 'about' | 'consultancy' | 'legal' | 'faq'
 
 const TABS: { id: Tab; label: string; icon: React.ReactNode; color: string }[] = [
-  { id: 'community',   label: 'Community',   icon: <Globe className="h-4 w-4" />,    color: 'blue'   },
-  { id: 'about',       label: 'About',       icon: <Users className="h-4 w-4" />,    color: 'purple' },
-  { id: 'consultancy', label: 'Consultancy', icon: <BookOpen className="h-4 w-4" />, color: 'green'  },
-  { id: 'legal',       label: 'Legal',       icon: <Shield className="h-4 w-4" />,   color: 'red'    },
+  { id: 'community',   label: 'Community',   icon: <Globe       className="h-4 w-4" />, color: 'blue'   },
+  { id: 'about',       label: 'About',       icon: <Users       className="h-4 w-4" />, color: 'purple' },
+  { id: 'consultancy', label: 'Consultancy', icon: <BookOpen    className="h-4 w-4" />, color: 'green'  },
+  { id: 'legal',       label: 'Legal',       icon: <Shield      className="h-4 w-4" />, color: 'red'    },
+  { id: 'faq',         label: 'FAQ & Help',  icon: <HelpCircle  className="h-4 w-4" />, color: 'indigo' },
 ]
 
 const inp = "w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -281,11 +282,13 @@ function ConsultancyEditor({ data, onChange }: { data: any; onChange: (d: any) =
 }
 
 // ── LEGAL ─────────────────────────────────────────────────────────────────────
-function LegalEditor({ privacy, terms, childSafety, onChangePrivacy, onChangeTerms, onChangeChildSafety }: {
-  privacy: string; terms: string; childSafety: string
-  onChangePrivacy: (v: string) => void; onChangeTerms: (v: string) => void; onChangeChildSafety: (v: string) => void
+// NOTE: now includes Cookie tab (was 3 sub-tabs, now 4)
+function LegalEditor({ privacy, terms, childSafety, cookie, onChangePrivacy, onChangeTerms, onChangeChildSafety, onChangeCookie }: {
+  privacy: string; terms: string; childSafety: string; cookie: string
+  onChangePrivacy: (v: string) => void; onChangeTerms: (v: string) => void
+  onChangeChildSafety: (v: string) => void; onChangeCookie: (v: string) => void
 }) {
-  const [legalTab, setLegalTab] = useState<'privacy' | 'terms' | 'child'>('privacy')
+  const [legalTab, setLegalTab] = useState<'privacy' | 'terms' | 'child' | 'cookie'>('privacy')
   return (
     <div className="space-y-4">
       <div className="flex gap-2 flex-wrap">
@@ -293,6 +296,7 @@ function LegalEditor({ privacy, terms, childSafety, onChangePrivacy, onChangeTer
           { id: 'privacy' as const, label: '🔒 Privacy Policy' },
           { id: 'terms'   as const, label: '📄 Terms & Conditions' },
           { id: 'child'   as const, label: '👶 Child Safety' },
+          { id: 'cookie'  as const, label: '🍪 Cookie Policy' },
         ].map(t => (
           <button key={t.id} onClick={() => setLegalTab(t.id)}
             className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
@@ -302,12 +306,98 @@ function LegalEditor({ privacy, terms, childSafety, onChangePrivacy, onChangeTer
       </div>
       <Card className="border-0 shadow-sm p-5">
         <p className="text-xs text-gray-400 mb-3 flex items-center gap-1">
-          <Edit3 className="h-3 w-3" /> Markdown supported — # headings, **bold**, | tables
+          <Edit3 className="h-3 w-3" /> Markdown supported — # headings, **bold**, - bullet points
         </p>
-        {legalTab === 'privacy'  && <textarea className={`${ta} font-mono text-xs`} rows={32} value={privacy}     onChange={e => onChangePrivacy(e.target.value)} />}
-        {legalTab === 'terms'    && <textarea className={`${ta} font-mono text-xs`} rows={32} value={terms}       onChange={e => onChangeTerms(e.target.value)} />}
-        {legalTab === 'child'    && <textarea className={`${ta} font-mono text-xs`} rows={32} value={childSafety} onChange={e => onChangeChildSafety(e.target.value)} />}
+        {legalTab === 'privacy' && <textarea className={`${ta} font-mono text-xs`} rows={32} value={privacy}     onChange={e => onChangePrivacy(e.target.value)} />}
+        {legalTab === 'terms'   && <textarea className={`${ta} font-mono text-xs`} rows={32} value={terms}       onChange={e => onChangeTerms(e.target.value)} />}
+        {legalTab === 'child'   && <textarea className={`${ta} font-mono text-xs`} rows={32} value={childSafety} onChange={e => onChangeChildSafety(e.target.value)} />}
+        {legalTab === 'cookie'  && <textarea className={`${ta} font-mono text-xs`} rows={32} value={cookie}      onChange={e => onChangeCookie(e.target.value)} />}
       </Card>
+    </div>
+  )
+}
+
+// ── FAQ & HELP ────────────────────────────────────────────────────────────────
+function FaqEditor({ data, onChange }: {
+  data: { id: string; question: string; answer: string }[]
+  onChange: (d: { id: string; question: string; answer: string }[]) => void
+}) {
+  const update = (id: string, field: string, val: string) =>
+    onChange(data.map(f => f.id === id ? { ...f, [field]: val } : f))
+  const remove = (id: string) =>
+    onChange(data.filter(f => f.id !== id))
+  const add = () =>
+    onChange([...data, { id: Date.now().toString(), question: '', answer: '' }])
+
+  return (
+    <div className="space-y-4">
+      {/* Help contact info banner */}
+      <Card className="border-0 shadow-sm overflow-hidden">
+        <div className="px-5 py-4 bg-indigo-50 border-b border-indigo-100">
+          <p className="font-semibold text-indigo-800 text-sm">📞 Help Contact Info</p>
+          <p className="text-xs text-indigo-500 mt-1">Shown on the Help tab in the app — update phone/email in the About tab</p>
+        </div>
+        <div className="p-5 grid grid-cols-3 gap-4 text-sm">
+          <div>
+            <p className="font-medium text-gray-700">Support Email</p>
+            <p className="font-mono text-xs text-gray-500 mt-1">hello@miniguru.in</p>
+          </div>
+          <div>
+            <p className="font-medium text-gray-700">WhatsApp</p>
+            <p className="font-mono text-xs text-gray-500 mt-1">+91 93997 56846</p>
+          </div>
+          <div>
+            <p className="font-medium text-gray-700">Response Time</p>
+            <p className="font-mono text-xs text-gray-500 mt-1">1 business day</p>
+          </div>
+        </div>
+      </Card>
+
+      {/* FAQ list */}
+      <Card className="border-0 shadow-sm overflow-hidden">
+        <div className="px-5 py-4 bg-gray-50 border-b border-gray-100 flex items-center justify-between">
+          <span className="font-semibold text-gray-800 text-sm">❓ Frequently Asked Questions</span>
+          <span className="text-xs text-gray-400">{data.length} questions</span>
+        </div>
+        <div className="p-5 space-y-4">
+          {data.map((faq, i) => (
+            <div key={faq.id} className="border border-gray-100 rounded-xl p-4 space-y-3 bg-gray-50">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="w-6 h-6 rounded-full bg-indigo-100 flex items-center justify-center">
+                    <span className="text-xs font-bold text-indigo-600">{i + 1}</span>
+                  </div>
+                  <span className="text-xs font-semibold text-gray-500 uppercase">Question {i + 1}</span>
+                </div>
+                <button onClick={() => remove(faq.id)} className="text-red-400 hover:text-red-600 transition-colors">
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              </div>
+              <Field label="Question">
+                <input className={inp} value={faq.question} placeholder="e.g. What are Goins?"
+                  onChange={e => update(faq.id, 'question', e.target.value)} />
+              </Field>
+              <Field label="Answer">
+                <textarea className={ta} rows={3} value={faq.answer}
+                  placeholder="Write a clear, friendly answer..."
+                  onChange={e => update(faq.id, 'answer', e.target.value)} />
+              </Field>
+            </div>
+          ))}
+          <button onClick={add}
+            className="flex items-center gap-2 text-sm text-indigo-600 hover:text-indigo-800 font-semibold transition-colors">
+            <Plus className="h-4 w-4" /> Add Question
+          </button>
+        </div>
+      </Card>
+
+      {/* Tips */}
+      <div className="p-4 bg-amber-50 border border-amber-100 rounded-xl text-sm text-amber-700 space-y-1">
+        <p className="font-semibold">💡 Tips for great FAQs</p>
+        <p>• Write questions the way a parent or child would actually ask them</p>
+        <p>• Keep answers under 3 sentences — clear and friendly</p>
+        <p>• Make sure you cover: Goins, wallet top-up, ordering, data safety, account deletion</p>
+      </div>
     </div>
   )
 }
@@ -326,6 +416,8 @@ export default function ContentPage() {
   const [privacy,     setPrivacy]     = useState('')
   const [terms,       setTerms]       = useState('')
   const [childSafety, setChildSafety] = useState('')
+  const [cookie,      setCookie]      = useState('')
+  const [faqs,        setFaqs]        = useState<{id:string; question:string; answer:string}[]>([])
 
   const flash = (msg: string, isError = false) => {
     if (isError) { setError(msg); setTimeout(() => setError(''), 5000) }
@@ -335,14 +427,17 @@ export default function ContentPage() {
   const loadAll = useCallback(async () => {
     setLoading(true); setError('')
     try {
-      const [c, a, co, p, t, cs] = await Promise.all([
+      const [c, a, co, p, t, cs, ck, faqData] = await Promise.all([
         fetchContent('community'), fetchContent('about'), fetchContent('consultancy'),
         fetchContent('legal_privacy'), fetchContent('legal_terms'), fetchContent('legal_child_safety'),
+        fetchContent('legal_cookie'), fetchContent('faq'),
       ])
       setCommunity(c); setAbout(a); setConsultancy(co)
       setPrivacy(typeof p === 'string' ? p : JSON.stringify(p, null, 2))
       setTerms(typeof t === 'string' ? t : JSON.stringify(t, null, 2))
       setChildSafety(typeof cs === 'string' ? cs : JSON.stringify(cs, null, 2))
+      setCookie(typeof ck === 'string' ? ck : JSON.stringify(ck, null, 2))
+      setFaqs(faqData?.items || [])
     } catch { flash('Could not load from backend — showing defaults', true) }
     finally { setLoading(false) }
   }, [])
@@ -360,8 +455,10 @@ export default function ContentPage() {
           saveContent('legal_privacy',      privacy),
           saveContent('legal_terms',        terms),
           saveContent('legal_child_safety', childSafety),
+          saveContent('legal_cookie',       cookie),
         ])
       }
+      if (activeTab === 'faq') await saveContent('faq', { items: faqs })
       setLastSaved(prev => ({ ...prev, [activeTab]: new Date().toLocaleTimeString('en-IN') }))
       flash(`${activeTab.charAt(0).toUpperCase() + activeTab.slice(1)} saved ✅`)
     } catch { flash('Save failed — check backend connection', true) }
@@ -369,13 +466,18 @@ export default function ContentPage() {
   }
 
   const btnColor: Record<Tab, string> = {
-    community: 'bg-blue-600', about: 'bg-purple-600', consultancy: 'bg-green-600', legal: 'bg-red-600'
+    community:   'bg-blue-600',
+    about:       'bg-purple-600',
+    consultancy: 'bg-green-600',
+    legal:       'bg-red-600',
+    faq:         'bg-indigo-600',
   }
   const tabActive: Record<Tab, string> = {
-    community: 'bg-blue-600 text-white border-transparent',
-    about:     'bg-purple-600 text-white border-transparent',
-    consultancy:'bg-green-600 text-white border-transparent',
-    legal:     'bg-red-600 text-white border-transparent',
+    community:   'bg-blue-600 text-white border-transparent',
+    about:       'bg-purple-600 text-white border-transparent',
+    consultancy: 'bg-green-600 text-white border-transparent',
+    legal:       'bg-red-600 text-white border-transparent',
+    faq:         'bg-indigo-600 text-white border-transparent',
   }
 
   return (
@@ -420,8 +522,11 @@ export default function ContentPage() {
             {activeTab === 'community'   && <CommunityEditor   data={community}   onChange={setCommunity} />}
             {activeTab === 'about'       && <AboutEditor       data={about}       onChange={setAbout} />}
             {activeTab === 'consultancy' && <ConsultancyEditor data={consultancy} onChange={setConsultancy} />}
-            {activeTab === 'legal' && <LegalEditor privacy={privacy} terms={terms} childSafety={childSafety}
-              onChangePrivacy={setPrivacy} onChangeTerms={setTerms} onChangeChildSafety={setChildSafety} />}
+            {activeTab === 'legal'       && <LegalEditor
+              privacy={privacy} terms={terms} childSafety={childSafety} cookie={cookie}
+              onChangePrivacy={setPrivacy} onChangeTerms={setTerms}
+              onChangeChildSafety={setChildSafety} onChangeCookie={setCookie} />}
+            {activeTab === 'faq'         && <FaqEditor data={faqs} onChange={setFaqs} />}
           </>
         )}
 

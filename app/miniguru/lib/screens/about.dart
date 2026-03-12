@@ -1,9 +1,70 @@
+// lib/screens/about.dart
+import 'package:miniguru/screens/legalScreen.dart';
+// CMS-wired: mission text + hero description fetched from GET /cms/about
+
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:miniguru/network/MiniguruApi.dart';
 import 'package:miniguru/screens/loginScreen.dart';
 
-class AboutScreen extends StatelessWidget {
+class AboutScreen extends StatefulWidget {
   const AboutScreen({super.key});
+
+  @override
+  State<AboutScreen> createState() => _AboutScreenState();
+}
+
+class _AboutScreenState extends State<AboutScreen> {
+  // ── CMS-driven fields (with hardcoded fallbacks) ───────────────────────
+  final _api = MiniguruApi();
+
+  String _heroTagline =
+      'A dedicated video sharing online platform for children';
+  String _heroDescription =
+      'Every child acts as a guru to their peer children, facilitating '
+      'constructive offline engagements. Children are naturally curious '
+      'and creative.';
+  String _missionText =
+      'MiniGuru is a hub of children\'s dreams and ideas, encouraging children '
+      'to work on their ideas at their own pace and interest. Their uploaded '
+      'project videos and communications among themselves are learning '
+      'opportunities for each other.';
+  String _missionQuote =
+      '"Children learn from anything and everything they see. They learn '
+      'wherever they are, not just in special learning places." - John Holt';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadCms();
+  }
+
+  Future<void> _loadCms() async {
+    try {
+      final data = await _api.getCmsContent('about');
+      if (data == null || !mounted) return;
+
+      setState(() {
+        // Hero section
+        if (data['heroTagline'] != null) {
+          _heroTagline = data['heroTagline'].toString();
+        }
+        if (data['heroDescription'] != null) {
+          _heroDescription = data['heroDescription'].toString();
+        }
+
+        // Mission section
+        if (data['mission'] != null) {
+          _missionText = data['mission'].toString();
+        }
+        if (data['missionQuote'] != null) {
+          _missionQuote = data['missionQuote'].toString();
+        }
+      });
+    } catch (e) {
+      debugPrint('❌ About CMS load error: $e');
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -135,8 +196,9 @@ class AboutScreen extends StatelessWidget {
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 12),
+          // CMS-driven tagline
           Text(
-            'A dedicated video sharing online platform for children',
+            _heroTagline,
             style: GoogleFonts.poppins(
               fontSize: 18,
               fontWeight: FontWeight.w600,
@@ -145,8 +207,9 @@ class AboutScreen extends StatelessWidget {
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 16),
+          // CMS-driven description
           Text(
-            'Every child acts as a guru to their peer children, facilitating constructive offline engagements. Children are naturally curious and creative.',
+            _heroDescription,
             style: GoogleFonts.poppins(
               fontSize: 14,
               color: Colors.white.withOpacity(0.9),
@@ -200,8 +263,9 @@ class AboutScreen extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 16),
+          // CMS-driven mission text
           Text(
-            'MiniGuru is a hub of children\'s dreams and ideas, encouraging children to work on their ideas at their own pace and interest. Their uploaded project videos and communications among themselves are learning opportunities for each other.',
+            _missionText,
             style: GoogleFonts.poppins(
               fontSize: 14,
               color: Colors.grey.shade700,
@@ -209,8 +273,9 @@ class AboutScreen extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 12),
+          // CMS-driven quote
           Text(
-            '"Children learn from anything and everything they see. They learn wherever they are, not just in special learning places." - John Holt',
+            _missionQuote,
             style: GoogleFonts.poppins(
               fontSize: 13,
               color: const Color(0xFF6C63FF),
@@ -254,8 +319,8 @@ class AboutScreen extends StatelessWidget {
           const SizedBox(height: 12),
           _buildFeatureCard(
             Icons.stars,
-            'Gamification with Goine',
-            'Virtual currency "Goine" and constructive peer review process keep children motivated. Video uploads give them double the score they spend on materials.',
+            'Gamification with Goins',
+            'Virtual currency "Goins" and constructive peer review process keep children motivated. Video uploads give them double the score they spend on materials.',
             const Color(0xFFFFA502),
           ),
           const SizedBox(height: 12),
@@ -461,7 +526,10 @@ class AboutScreen extends StatelessWidget {
           ),
           const SizedBox(height: 16),
           Text(
-            'Part of a larger network focused on Science, Technology, Engineering, Arts, and Mathematics education. We collaborate with schools, makerspaces, and educational institutions to bring innovative learning experiences to students.',
+            'Part of a larger network focused on Science, Technology, Engineering, '
+            'Arts, and Mathematics education. We collaborate with schools, '
+            'makerspaces, and educational institutions to bring innovative learning '
+            'experiences to students.',
             style: GoogleFonts.poppins(
               fontSize: 14,
               color: Colors.white.withOpacity(0.95),
@@ -634,7 +702,7 @@ class AboutScreen extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 16),
-          _buildContactItem(Icons.location_on, 'Address', 
+          _buildContactItem(Icons.location_on, 'Address',
             'MiniGuru Innovation Pvt Ltd\nUjjain, Madhya Pradesh, 456010, India'),
           const SizedBox(height: 12),
           _buildContactItem(Icons.email, 'Email', 'miniguru.in@gmail.com'),
@@ -689,7 +757,6 @@ class AboutScreen extends StatelessWidget {
       ),
       child: Column(
         children: [
-          // Social Icons
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
@@ -708,10 +775,10 @@ class AboutScreen extends StatelessWidget {
             spacing: 20,
             runSpacing: 12,
             children: [
-              _buildFooterLink('Terms & Conditions'),
-              _buildFooterLink('Privacy Policy'),
-              _buildFooterLink('Cookie Policy'),
-              _buildFooterLink('Help & Support'),
+              _buildFooterLink('Terms & Conditions', legalTab: 1),
+              _buildFooterLink('Privacy Policy', legalTab: 0),
+              _buildFooterLink('Cookie Policy', legalTab: 2),
+              _buildFooterLink('Help & Support', legalTab: 3),
             ],
           ),
           const SizedBox(height: 20),
@@ -736,7 +803,7 @@ class AboutScreen extends StatelessWidget {
   }
 
   Widget _buildSocialButton(IconData icon, Color color) {
-    return InkWell(
+    return GestureDetector(
       onTap: () {},
       child: Container(
         padding: const EdgeInsets.all(12),
@@ -750,9 +817,9 @@ class AboutScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildFooterLink(String text) {
-    return InkWell(
-      onTap: () {},
+  Widget _buildFooterLink(String text, {int legalTab = 3}) {
+    return GestureDetector(
+      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => LegalScreen(initialTab: legalTab))),
       child: Text(
         text,
         style: GoogleFonts.poppins(

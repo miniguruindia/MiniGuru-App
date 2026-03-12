@@ -1,8 +1,10 @@
 // lib/screens/navScreen/consultancy.dart
+// CMS-wired: header stats + tagline fetched from GET /cms/consultancy
 
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:miniguru/network/MiniguruApi.dart';
 import 'package:miniguru/screens/loginScreen.dart';
 
 class ConsultancyPage extends StatefulWidget {
@@ -21,11 +23,82 @@ class _ConsultancyPageState extends State<ConsultancyPage> {
   static const String _email    = 'miniguru.in@gmail.com';
   static const String _website  = 'https://www.miniguru.in';
 
+  // ── CMS-driven header values (with hardcoded fallbacks) ────────────────
+  final _api = MiniguruApi();
+  String _tagline  = 'We design, set up, and support creative STEAM learning spaces '
+                     '— from home tinkering corners to full school T-LABs.';
+  String _statTlabs      = '23+';
+  String _statStudents   = '8000+';
+  String _statWorkshops  = '200+';
+  String _statExperience = '5 yrs';
+
+  // T-LAB banner stats (reused in _buildSchoolTLab)
+  String _tlabBannerTlabs    = '23+';
+  String _tlabBannerStudents = '8000+';
+  String _tlabBannerRunning  = '5 yrs';
+
+  // Workshop banner stats
+  String _wsBannerDone         = '200+';
+  String _wsBannerParticipants = '800+';
+  String _wsBannerProjects     = '1500+';
+
   final List<Map<String, dynamic>> _services = [
     {'label': 'School T-LAB',  'icon': Icons.school},
     {'label': 'Workshops',     'icon': Icons.handyman},
     {'label': 'Home Corner',   'icon': Icons.home_repair_service},
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadCms();
+  }
+
+  Future<void> _loadCms() async {
+    try {
+      final data = await _api.getCmsContent('consultancy');
+      if (data == null || !mounted) return;
+
+      setState(() {
+        // Tagline / description
+        if (data['tagline'] != null) {
+          _tagline = data['tagline'].toString();
+        }
+
+        // Header stats
+        final stats = data['stats'] as Map<String, dynamic>?;
+        if (stats != null) {
+          _statTlabs      = stats['tlabs']?.toString()      ?? _statTlabs;
+          _statStudents   = stats['students']?.toString()   ?? _statStudents;
+          _statWorkshops  = stats['workshops']?.toString()  ?? _statWorkshops;
+          _statExperience = stats['experience']?.toString() ?? _statExperience;
+        }
+
+        // T-LAB section banner stats
+        final tlabStats = data['tlabStats'] as Map<String, dynamic>?;
+        if (tlabStats != null) {
+          _tlabBannerTlabs    = tlabStats['tlabs']?.toString()    ?? _statTlabs;
+          _tlabBannerStudents = tlabStats['students']?.toString() ?? _statStudents;
+          _tlabBannerRunning  = tlabStats['running']?.toString()  ?? _statExperience;
+        } else {
+          // Fall back to header stats
+          _tlabBannerTlabs    = _statTlabs;
+          _tlabBannerStudents = _statStudents;
+          _tlabBannerRunning  = _statExperience;
+        }
+
+        // Workshop banner stats
+        final wsStats = data['workshopStats'] as Map<String, dynamic>?;
+        if (wsStats != null) {
+          _wsBannerDone         = wsStats['done']?.toString()         ?? _wsBannerDone;
+          _wsBannerParticipants = wsStats['participants']?.toString() ?? _wsBannerParticipants;
+          _wsBannerProjects     = wsStats['projects']?.toString()     ?? _wsBannerProjects;
+        }
+      });
+    } catch (e) {
+      debugPrint('❌ Consultancy CMS load error: $e');
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -88,24 +161,25 @@ class _ConsultancyPageState extends State<ConsultancyPage> {
                   color: Colors.white,
                   height: 1.2)),
           const SizedBox(height: 8),
+          // CMS-driven tagline
           Text(
-            'We design, set up, and support creative STEM learning spaces '
-            '— from home tinkering corners to full school T-LABs.',
+            _tagline,
             style: GoogleFonts.poppins(
                 fontSize: 13,
                 color: Colors.white.withOpacity(0.85),
                 height: 1.5),
           ),
           const SizedBox(height: 20),
+          // CMS-driven stats
           Row(
             children: [
-              _headerStat('23+',   'T-LABs'),
+              _headerStat(_statTlabs,      'T-LABs'),
               const SizedBox(width: 20),
-              _headerStat('8000+', 'Students'),
+              _headerStat(_statStudents,   'Students'),
               const SizedBox(width: 20),
-              _headerStat('200+',  'Workshops'),
+              _headerStat(_statWorkshops,  'Workshops'),
               const SizedBox(width: 20),
-              _headerStat('5 yrs', 'Experience'),
+              _headerStat(_statExperience, 'Experience'),
             ],
           ),
         ],
@@ -189,7 +263,6 @@ class _ConsultancyPageState extends State<ConsultancyPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Hero banner
         Container(
           margin: const EdgeInsets.fromLTRB(16, 20, 16, 0),
           padding: const EdgeInsets.all(20),
@@ -215,7 +288,7 @@ class _ConsultancyPageState extends State<ConsultancyPage> {
                         const SizedBox(height: 6),
                         Text(
                           'End-to-end design, installation, and support '
-                          'for a world-class Tinkering Laboratory in your school.',
+                          'for an innovative Tinkering Laboratory in your school.',
                           style: GoogleFonts.poppins(
                               fontSize: 12,
                               color: Colors.white.withOpacity(0.85),
@@ -232,9 +305,9 @@ class _ConsultancyPageState extends State<ConsultancyPage> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceAround,
                 children: [
-                  _bannerStat('23+',   'T-LABs Setup'),
-                  _bannerStat('8000+', 'Students'),
-                  _bannerStat('5 yrs', 'Running Strong'),
+                  _bannerStat(_tlabBannerTlabs,    'T-LABs Setup'),
+                  _bannerStat(_tlabBannerStudents, 'Students'),
+                  _bannerStat(_tlabBannerRunning,  'Running Strong'),
                 ],
               ),
             ],
@@ -248,13 +321,13 @@ class _ConsultancyPageState extends State<ConsultancyPage> {
         _stepCard('01', 'Site Assessment',
             'We visit your school, assess the space, and understand your goals and budget.'),
         _stepCard('02', 'T-LAB Design',
-            'Custom lab layout, equipment list, and curriculum plan tailored to your school.'),
+            'Custom lab layout, equipment list, and schedule for students tailored to your school.'),
         _stepCard('03', 'Installation',
             'Full setup of furniture, tools, safety infrastructure, and signage.'),
-        _stepCard('04', 'Teacher Training',
-            'Hands-on certified training for teachers to run engaging STEM sessions.'),
-        _stepCard('05', 'Curriculum & Support',
-            'Monthly project packs, student activity guides, and 1-year ongoing support.'),
+        _stepCard('04', 'Teacher Training & Execution Manual',
+            'Hands-on certified training for teachers to run engaging STEAM sessions.'),
+        _stepCard('05', 'Kick start the activity & Hand holding',
+            'Monthly or bi-monthly visits schedule, Review and reflection with facilitator, and 1-year ongoing support commitment.'),
 
         const SizedBox(height: 8),
       ],
@@ -275,12 +348,12 @@ class _ConsultancyPageState extends State<ConsultancyPage> {
 
   Widget _offeringsGrid() {
     final items = [
-      {'icon': Icons.design_services_outlined,  'title': 'Space Design',      'desc': 'Ergonomic lab design aligned to ATL & NEP guidelines.'},
-      {'icon': Icons.construction_outlined,      'title': 'Equipment & Kits',  'desc': 'Robotics, electronics, arts, and science toolkits.'},
-      {'icon': Icons.menu_book_outlined,         'title': 'Curriculum',        'desc': 'Project-based learning modules mapped to school syllabus.'},
-      {'icon': Icons.people_outlined,            'title': 'Teacher Training',  'desc': 'Certified STEM facilitator training programme.'},
-      {'icon': Icons.headset_mic_outlined,       'title': '1-Year Support',    'desc': 'On-call support, material refills, and programme reviews.'},
-      {'icon': Icons.groups_outlined,            'title': 'Student Community', 'desc': 'Students get MiniGuru app access to post and share projects.'},
+      {'icon': Icons.design_services_outlined,  'title': 'Design & Image',                  'desc': 'Branded lab design, inspiring visuals and signage — aligned to NEP & ATL guidelines.'},
+      {'icon': Icons.construction_outlined,      'title': 'Equipment & Kit',                 'desc': 'Robotics, electronics, upcycling, science and arts toolkits — sourced and installed.'},
+      {'icon': Icons.menu_book_outlined,         'title': 'Execution Method & Manual',       'desc': 'Structured manuals with session plans, student activity sheets and assessment rubrics.'},
+      {'icon': Icons.people_outlined,            'title': 'Teacher Education & Handholding', 'desc': 'Certified STEAM facilitator training with real ongoing handholding — not just a one-day event.'},
+      {'icon': Icons.headset_mic_outlined,       'title': '1-Year Support & Visit Plan',     'desc': 'Quarterly on-site visits, material refills, programme reviews and priority helpline.'},
+      {'icon': Icons.groups_outlined,            'title': 'Student Community',               'desc': 'Every student gets MiniGuru app access — post projects, earn Goins and join challenges.'},
     ];
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -334,7 +407,6 @@ class _ConsultancyPageState extends State<ConsultancyPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Hero banner
         Container(
           margin: const EdgeInsets.fromLTRB(16, 20, 16, 0),
           padding: const EdgeInsets.all(20),
@@ -377,9 +449,9 @@ class _ConsultancyPageState extends State<ConsultancyPage> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceAround,
                 children: [
-                  _bannerStat('200+',  'Workshops Done'),
-                  _bannerStat('800+',  'Participants'),
-                  _bannerStat('1500+', 'Projects Built'),
+                  _bannerStat(_wsBannerDone,         'Workshops Done'),
+                  _bannerStat(_wsBannerParticipants, 'Participants'),
+                  _bannerStat(_wsBannerProjects,     'Projects Built'),
                 ],
               ),
             ],
@@ -398,8 +470,8 @@ class _ConsultancyPageState extends State<ConsultancyPage> {
                 duration: '1–3 Days',
                 darkBg: false,
                 points: [
-                  'Introductory STEM sessions',
-                  'Single project completion',
+                  'Introductory Open ended STEAM sessions',
+                  'project completion and sharing by participants',
                   'Perfect for school events & fests',
                   'For students or teachers',
                 ],
@@ -415,7 +487,7 @@ class _ConsultancyPageState extends State<ConsultancyPage> {
                   'Multiple projects built',
                   'Design thinking & prototyping',
                   'Ideal for summer / winter camps',
-                  'Teacher certification programmes',
+                  'Teacher Orientation & Enriching programmes',
                 ],
               ),
             ],
@@ -467,12 +539,12 @@ class _ConsultancyPageState extends State<ConsultancyPage> {
             children: [
               Expanded(
                   child: _audienceCard('👧', 'Students',
-                      'Ages 8–18\nSchool & college level',
+                      'Ages 8–14\nSchool level',
                       const Color(0xFFEFF6FF), const Color(0xFF3B82F6))),
               const SizedBox(width: 12),
               Expanded(
                   child: _audienceCard('👩‍🏫', 'Teachers',
-                      'STEM facilitator\ncertification focus',
+                      'STEAM facilitator\nenrichment focus',
                       const Color(0xFFF0FDF4), const Color(0xFF10B981))),
             ],
           ),
@@ -589,7 +661,6 @@ class _ConsultancyPageState extends State<ConsultancyPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Hero banner
         Container(
           margin: const EdgeInsets.fromLTRB(16, 20, 16, 0),
           padding: const EdgeInsets.all(20),
@@ -650,7 +721,7 @@ class _ConsultancyPageState extends State<ConsultancyPage> {
         _stepCard('03', 'Kit & Guidance',
             'Tools, materials, and project guides delivered with a full setup walkthrough.'),
         _stepCard('04', 'Ongoing Support',
-            'Monthly project packs and live guidance sessions to keep the spark alive.'),
+            'Frequent and live guidance sessions to keep the spark alive.'),
 
         _sectionTitle('Choose Your Plan', Icons.inventory_2_outlined),
 
@@ -669,7 +740,7 @@ class _ConsultancyPageState extends State<ConsultancyPage> {
                   'Video discovery call',
                   'Custom space design',
                   'Curated kit recommendation',
-                  'Project guide pack',
+                  'Project handholding',
                   'Online support sessions',
                 ],
               )),
@@ -727,7 +798,6 @@ class _ConsultancyPageState extends State<ConsultancyPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Tag
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
             decoration: BoxDecoration(
@@ -738,7 +808,7 @@ class _ConsultancyPageState extends State<ConsultancyPage> {
                 style: GoogleFonts.poppins(
                     fontSize: 9,
                     fontWeight: FontWeight.bold,
-                    color: highlight ? tagColor : tagColor)),
+                    color: tagColor)),
           ),
           const SizedBox(height: 10),
           Text(icon, style: const TextStyle(fontSize: 28)),
@@ -820,7 +890,6 @@ class _ConsultancyPageState extends State<ConsultancyPage> {
                   fontSize: 12, color: Colors.white70)),
           const SizedBox(height: 18),
 
-          // Call + WhatsApp
           Row(children: [
             Expanded(
               child: _contactBtn(
@@ -846,7 +915,6 @@ class _ConsultancyPageState extends State<ConsultancyPage> {
 
           const SizedBox(height: 12),
 
-          // Email
           GestureDetector(
             onTap: () => _launchUrl('mailto:$_email'),
             child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
@@ -860,7 +928,6 @@ class _ConsultancyPageState extends State<ConsultancyPage> {
 
           const SizedBox(height: 6),
 
-          // Website
           GestureDetector(
             onTap: () => _launchUrl(_website),
             child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
@@ -879,7 +946,6 @@ class _ConsultancyPageState extends State<ConsultancyPage> {
           const Divider(color: Colors.white24, height: 1),
           const SizedBox(height: 12),
 
-          // Address
           Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
             const Icon(Icons.location_on_outlined,
                 color: Colors.white60, size: 14),
@@ -946,7 +1012,7 @@ class _ConsultancyPageState extends State<ConsultancyPage> {
                       fontSize: 13,
                       fontWeight: FontWeight.w600,
                       color: Colors.black87)),
-              Text('Login to access your personalised library',
+              Text('Login to access your personalised project library',
                   style: GoogleFonts.poppins(
                       fontSize: 11, color: Colors.black54)),
             ],

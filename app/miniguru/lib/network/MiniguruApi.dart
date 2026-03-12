@@ -260,9 +260,6 @@ class MiniguruApi {
 
     request.headers.addAll(_buildHeaders(authToken.accessToken));
 
-    // ── Web-safe file attachment ──────────────────────────────────────────
-    // video.openRead() and video.length() crash on Flutter Web.
-    // Use readAsBytes() on web, stream on mobile.
     if (kIsWeb) {
       final videoBytes = await video.readAsBytes();
       request.files.add(http.MultipartFile.fromBytes(
@@ -774,6 +771,27 @@ class MiniguruApi {
         return (jsonDecode(response.body))['photo'] as String?;
       }
     } catch (e) { print('❌ getProfilePhoto: $e'); }
+    return null;
+  }
+
+  // ========================= CMS (PUBLIC — no auth needed) =========================
+
+  /// Fetches CMS content for a given key from GET /cms/:key.
+  /// Keys: community | about | consultancy | legal_privacy | legal_terms | legal_child_safety
+  Future<Map<String, dynamic>?> getCmsContent(String key) async {
+    try {
+      final response = await http.get(
+        Uri.parse('$_baseUrl/cms/$key'),
+        headers: {'Content-Type': 'application/json'},
+      );
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body) as Map<String, dynamic>;
+        return data['value'] as Map<String, dynamic>?;
+      }
+      print('⚠️  getCmsContent($key): ${response.statusCode}');
+    } catch (e) {
+      print('❌ getCmsContent($key): $e');
+    }
     return null;
   }
 }

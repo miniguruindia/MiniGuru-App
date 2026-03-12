@@ -1,10 +1,12 @@
 // lib/screens/navScreen/community_screen.dart
 // MiniGuru Community — live ecosystem hub
 // Sections: T-LAB Happenings · Challenges · Ladder & Badges · Resources
+// CMS-wired: stats strip + happenings fetched from GET /cms/community
 
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:miniguru/constants.dart';
+import 'package:miniguru/network/MiniguruApi.dart';
 import 'package:miniguru/screens/loginScreen.dart';
 import 'package:miniguru/screens/registerScreen.dart';
 
@@ -21,11 +23,68 @@ class _CommunityScreenState extends State<CommunityScreen>
   late TabController _tabController;
   int _activeTab = 0;
 
+  // ── CMS state ────────────────────────────────────────────────────────────
+  final _api = MiniguruApi();
+  bool _cmsLoaded = false;
+
+  // Stats strip values (overridden by CMS if available)
+  String _statMakers = '2,400+';
+  String _statVideos = '890';
+  String _statLabs   = '34';
+
+  // Happenings list (overridden by CMS if available)
+  List<_Happening> _happenings = _defaultHappenings;
+
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 4, vsync: this)
       ..addListener(() => setState(() => _activeTab = _tabController.index));
+    _loadCms();
+  }
+
+  Future<void> _loadCms() async {
+    try {
+      final data = await _api.getCmsContent('community');
+      if (data == null || !mounted) return;
+
+      setState(() {
+        // ── Stats strip ──────────────────────────────────────────────────
+        final stats = data['stats'] as Map<String, dynamic>?;
+        if (stats != null) {
+          _statMakers = stats['makers']?.toString() ?? _statMakers;
+          _statVideos = stats['videos']?.toString() ?? _statVideos;
+          _statLabs   = stats['labs']?.toString()   ?? _statLabs;
+        }
+
+        // ── Happenings list ──────────────────────────────────────────────
+        final happeningsList = data['happenings'] as List<dynamic>?;
+        if (happeningsList != null && happeningsList.isNotEmpty) {
+          _happenings = happeningsList.map((h) {
+            final map = h as Map<String, dynamic>;
+            // Parse hex colour string like '#FFD60A' → Color
+            Color tagColor = const Color(0xFFFFD60A);
+            try {
+              final hex = (map['tagColor'] as String?)?.replaceFirst('#', '') ?? 'FFD60A';
+              tagColor = Color(int.parse('FF$hex', radix: 16));
+            } catch (_) {}
+            return _Happening(
+              emoji:    map['emoji']?.toString()  ?? '🏫',
+              lab:      map['title']?.toString()    ?? '',
+              city:     map['city']?.toString()   ?? '',
+              update:   map['description']?.toString() ?? '',
+              tag:      map['tag']?.toString()    ?? 'Update',
+              tagColor: tagColor,
+              date:     map['date']?.toString()   ?? '',
+            );
+          }).toList();
+        }
+
+        _cmsLoaded = true;
+      });
+    } catch (e) {
+      debugPrint('❌ Community CMS load error: $e');
+    }
   }
 
   @override
@@ -49,11 +108,11 @@ class _CommunityScreenState extends State<CommunityScreen>
         headerSliverBuilder: (_, __) => [_buildHeader()],
         body: TabBarView(
           controller: _tabController,
-          children: const [
-            _TLabTab(),
-            _ChallengesTab(),
-            _LadderTab(),
-            _ResourcesTab(),
+          children: [
+            _TLabTab(happenings: _happenings),
+            const _ChallengesTab(),
+            const _LadderTab(),
+            const _ResourcesTab(),
           ],
         ),
       ),
@@ -100,13 +159,13 @@ class _CommunityScreenState extends State<CommunityScreen>
                     ]),
                   ]),
                   const SizedBox(height: 12),
-                  // Live stats strip
+                  // Live stats strip — driven by CMS
                   Row(children: [
-                    _statPill('🔧', '2,400+ makers'),
+                    _statPill('🔧', '$_statMakers makers'),
                     const SizedBox(width: 8),
-                    _statPill('🎬', '890 videos'),
+                    _statPill('🎬', '$_statVideos videos'),
                     const SizedBox(width: 8),
-                    _statPill('🏫', '34 T-LABs'),
+                    _statPill('🏫', '$_statLabs T-LABs'),
                   ]),
                 ],
               ),
@@ -158,63 +217,69 @@ class _CommunityScreenState extends State<CommunityScreen>
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+//  DEFAULT (FALLBACK) HAPPENINGS — used when CMS is unavailable
+// ─────────────────────────────────────────────────────────────────────────────
+
+const _defaultHappenings = [
+  _Happening(
+    emoji: '🏫',
+    lab: 'Sunrise School T-LAB',
+    city: 'Pune',
+    update: 'Students built a solar-powered water purifier in just 3 days!',
+    tag: 'Featured',
+    tagColor: Color(0xFFFFD60A),
+    date: 'Mar 2, 2026',
+  ),
+  _Happening(
+    emoji: '🏠',
+    lab: 'Rohan\'s Home Corner',
+    city: 'Mumbai',
+    update: 'Completed 12 projects this month — youngest maker to hit Level 3!',
+    tag: 'Milestone',
+    tagColor: Color(0xFF10B981),
+    date: 'Mar 1, 2026',
+  ),
+  _Happening(
+    emoji: '🏢',
+    lab: 'Maker Hub Bengaluru',
+    city: 'Bengaluru',
+    update: 'Opened doors to 40 new young makers from government schools.',
+    tag: 'New Lab',
+    tagColor: Color(0xFF3B82F6),
+    date: 'Feb 28, 2026',
+  ),
+  _Happening(
+    emoji: '🏫',
+    lab: 'DPS Innovation Lab',
+    city: 'Delhi',
+    update: 'Won regional STEAM fair with their MiniGuru robotics project.',
+    tag: 'Award',
+    tagColor: Color(0xFFEC4899),
+    date: 'Feb 25, 2026',
+  ),
+];
+
+// ─────────────────────────────────────────────────────────────────────────────
 //  TAB 1 — T-LAB HAPPENINGS
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _TLabTab extends StatelessWidget {
-  const _TLabTab();
-
-  static const _happenings = [
-    _Happening(
-      emoji: '🏫',
-      lab: 'Sunrise School T-LAB',
-      city: 'Pune',
-      update: 'Students built a solar-powered water purifier in just 3 days!',
-      tag: 'Featured',
-      tagColor: Color(0xFFFFD60A),
-      date: 'Mar 2, 2026',
-    ),
-    _Happening(
-      emoji: '🏠',
-      lab: 'Rohan\'s Home Corner',
-      city: 'Mumbai',
-      update: 'Completed 12 projects this month — youngest maker to hit Level 3!',
-      tag: 'Milestone',
-      tagColor: Color(0xFF10B981),
-      date: 'Mar 1, 2026',
-    ),
-    _Happening(
-      emoji: '🏢',
-      lab: 'Maker Hub Bengaluru',
-      city: 'Bengaluru',
-      update: 'Opened doors to 40 new young makers from government schools.',
-      tag: 'New Lab',
-      tagColor: Color(0xFF3B82F6),
-      date: 'Feb 28, 2026',
-    ),
-    _Happening(
-      emoji: '🏫',
-      lab: 'DPS Innovation Lab',
-      city: 'Delhi',
-      update: 'Won regional STEAM fair with their MiniGuru robotics project.',
-      tag: 'Award',
-      tagColor: Color(0xFFEC4899),
-      date: 'Feb 25, 2026',
-    ),
-  ];
+  /// Happenings list — injected from CMS or falls back to defaults.
+  final List<_Happening> happenings;
+  const _TLabTab({required this.happenings});
 
   @override
   Widget build(BuildContext context) {
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
       children: [
-        _SectionHeader(
+        const _SectionHeader(
           title: 'Live from T-LABs',
           subtitle: 'What makers are building right now',
           emoji: '🔴',
         ),
         const SizedBox(height: 12),
-        ..._happenings.map((h) => Padding(
+        ...happenings.map((h) => Padding(
               padding: const EdgeInsets.only(bottom: 12),
               child: _HappeningCard(h: h),
             )),
@@ -409,13 +474,12 @@ class _ChallengesTabState extends State<_ChallengesTab> {
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
       children: [
-        _SectionHeader(
+        const _SectionHeader(
           title: 'STEAM Challenges',
           subtitle: 'Compete, build, earn Goins',
           emoji: '🎯',
         ),
         const SizedBox(height: 12),
-        // Filter chips
         Row(children: [
           _filterChip('Ongoing', 0, const Color(0xFF10B981)),
           const SizedBox(width: 8),
@@ -491,7 +555,6 @@ class _ChallengeCard extends StatelessWidget {
         ],
       ),
       child: Column(children: [
-        // Top accent bar
         Container(
           height: 4,
           decoration: BoxDecoration(
@@ -625,14 +688,13 @@ class _LadderTab extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
       children: [
-        _SectionHeader(
+        const _SectionHeader(
           title: 'Maker Ladder',
           subtitle: 'Earn Goins → level up → earn badges',
           emoji: '🏆',
         ),
         const SizedBox(height: 16),
 
-        // Levels
         Text('Progression Levels',
             style: GoogleFonts.nunito(
                 fontSize: 14,
@@ -646,7 +708,6 @@ class _LadderTab extends StatelessWidget {
 
         const SizedBox(height: 24),
 
-        // Badges
         Text('Badge Collection',
             style: GoogleFonts.nunito(
                 fontSize: 14,
@@ -665,7 +726,6 @@ class _LadderTab extends StatelessWidget {
 
         const SizedBox(height: 24),
 
-        // Leaderboard
         Text('Top Makers This Month',
             style: GoogleFonts.nunito(
                 fontSize: 14,
@@ -691,7 +751,7 @@ class _LadderTab extends StatelessWidget {
         ),
 
         const SizedBox(height: 16),
-        _JoinCTA(
+        const _JoinCTA(
           title: 'Climb the ladder!',
           subtitle: 'Join free and start earning Goins today.',
         ),
@@ -916,7 +976,7 @@ class _ResourcesTab extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
       children: [
-        _SectionHeader(
+        const _SectionHeader(
           title: 'Resource Library',
           subtitle: 'Free downloads for makers, schools & mentors',
           emoji: '📦',
@@ -927,7 +987,7 @@ class _ResourcesTab extends StatelessWidget {
               child: _ResourceCard(r: r),
             )),
         const SizedBox(height: 8),
-        _JoinCTA(
+        const _JoinCTA(
           title: 'Want exclusive resources?',
           subtitle: 'Join free to unlock member-only toolkits and guides.',
         ),
@@ -1131,7 +1191,7 @@ class _JoinCTA extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  DATA MODELS (replace with API data later)
+//  DATA MODELS
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _Tab {
