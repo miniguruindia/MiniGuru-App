@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+content = '''import 'package:flutter/material.dart';
 import 'package:miniguru/constants.dart';
 import 'package:miniguru/models/User.dart';
 import 'package:miniguru/network/MiniguruApi.dart';
@@ -271,3 +271,8 @@ class _RechargePageState extends State<RechargePage> {
     );
   }
 }
+'''
+
+with open('/workspaces/MiniGuru-App/app/miniguru/lib/screens/rechargePage.dart', 'w') as f:
+    f.write(content)
+print("rechargePage.dart written successfully")

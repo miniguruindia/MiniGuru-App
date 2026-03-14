@@ -17,7 +17,7 @@ import orderRouter from './routes/orderRoutes';
 import userRouter from './routes/userRoutes';
 import projectRouter from './routes/projectRoutes';
 import adminRouter from './routes/adminRoutes';
-import { paymentRouter } from './routes/paymentRoutes';
+import paymentRouter from './routes/paymentRoutes';
 import videoRoutes from './routes/videoRoutes';
 import materialsRouter from './routes/materialsRoutes';
 import userAnalyticsRouter from './routes/userAnalyticsRoutes';

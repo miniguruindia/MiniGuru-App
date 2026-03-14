@@ -21,17 +21,24 @@
   <!-- Final CSP with i3.ytimg.com for thumbnails -->
   <meta http-equiv="Content-Security-Policy" 
         content="default-src 'self' https://www.gstatic.com https://fonts.gstatic.com https://ssl.gstatic.com https://github.dev; 
-                 script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.youtube.com https://www.gstatic.com; 
-                 script-src-elem 'self' 'unsafe-inline' https://www.youtube.com https://www.gstatic.com;
+                 script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.youtube.com https://www.gstatic.com https://checkout.razorpay.com https://api.razorpay.com; 
+                 script-src-elem 'self' 'unsafe-inline' https://www.youtube.com https://www.gstatic.com https://checkout.razorpay.com https://api.razorpay.com;
                  style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; 
                  font-src 'self' https://fonts.gstatic.com data:;
-                 connect-src 'self' blob: https://www.gstatic.com https://fonts.gstatic.com https://www.youtube.com https://www.googleapis.com https://i.ytimg.com https://i3.ytimg.com http://localhost:5001 https://*.app.github.dev wss://*.app.github.dev https://github.dev;
-                 frame-src https://www.youtube.com https://youtube.com https://github.dev; 
+                 connect-src 'self' blob: https://api.razorpay.com https://checkout.razorpay.com https://lumberjack.razorpay.com https://www.gstatic.com https://fonts.gstatic.com https://www.youtube.com https://www.googleapis.com https://i.ytimg.com https://i3.ytimg.com http://localhost:5001 https://*.app.github.dev wss://*.app.github.dev https://github.dev;
+                 frame-src https://www.youtube.com https://api.razorpay.com https://checkout.razorpay.com https://youtube.com https://github.dev; 
                  media-src * blob: data:; 
                  img-src * data: blob: https:;
                  manifest-src 'self' https://github.dev;">
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+  <script>
+    function openRazorpay(options) {
+      var rzp = new Razorpay(options);
+      rzp.open();
+    }
+  </script>
 </head>
 <body>
   <!-- YouTube API -->

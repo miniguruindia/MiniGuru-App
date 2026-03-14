@@ -1,4 +1,4 @@
-import express, { Request, Response } from 'express';
+content = '''import express, { Request, Response } from 'express';
 import Razorpay from 'razorpay';
 import crypto from 'crypto';
 import { authenticateToken } from '../middleware/authMiddleware';
@@ -109,3 +109,8 @@ router.post('/verify-order', authenticateToken, async (req: Request, res: Respon
 });
 
 export default router;
+'''
+
+with open('/workspaces/MiniGuru-App/backend/src/routes/paymentRoutes.ts', 'w') as f:
+    f.write(content)
+print("paymentRoutes.ts written successfully")

@@ -5,10 +5,10 @@
 const String apiBaseUrl = 'https://bug-free-fiesta-69xwgg4jwj6r34gpv-5001.app.github.dev';
 
 // Razorpay
-const String razorpay_key_test = '';
+const String razorpay_key_test = 'rzp_test_SR98ZSepMjs0oL';
 const String razorpay_key_live = '';
 const String razorpay_key = razorpay_key_test;
-const bool razorpayEnabled = false;
+const bool razorpayEnabled = true;
 
 // YouTube Configuration
 const String youtubeApiKey = 'AIzaSyA4g4K8qFygT1owDi91l2FyDkVcdTuBIOE';
