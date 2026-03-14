@@ -1,4 +1,88 @@
-"use client";
+types_content = '''export interface OrderProduct {
+  productId: string;
+  quantity: number;
+}
+
+export interface User {
+  name: string;
+  email: string;
+}
+
+export interface Transaction {
+  id: string;
+  walletId: string;
+  amount: number;
+  type: 'DEBIT' | 'CREDIT';
+  status: string | null;
+  createdAt: string;
+}
+
+export type FulfillmentStatus = 'PENDING_DISPATCH' | 'DISPATCHED' | 'DELIVERED';
+
+export interface Order {
+  id: string;
+  userId: string;
+  totalAmount: number;
+  paymentStatus: 'COMPLETED' | 'PENDING' | 'FAILED';
+  fulfillmentStatus: FulfillmentStatus;
+  courierName: string | null;
+  trackingNumber: string | null;
+  estimatedDelivery: string | null;
+  dispatchedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  transactionId: string;
+  deliveryAddress: string | null;
+  products: OrderProduct[];
+  user: User;
+  transaction: Transaction;
+}
+'''
+
+api_content = '''"use server"
+import { Order } from "@/types/order";
+import { apiClient } from "@/utils/api/apiClient";
+import { NotFoundError, ForbiddenError, ServiceError } from './error';
+
+export const getAllOrders = async (): Promise<Order[]> => {
+  try {
+    const response = await apiClient.get('/admin/orders');
+    return response.data;
+  } catch (error) {
+    handleError(error);
+  }
+}
+
+export const updateDispatch = async (
+  orderId: string,
+  data: {
+    fulfillmentStatus: string;
+    courierName: string;
+    trackingNumber: string;
+    estimatedDelivery?: string;
+  }
+): Promise<Order> => {
+  try {
+    const response = await apiClient.patch(`/admin/orders/${orderId}/dispatch`, data);
+    return response.data;
+  } catch (error) {
+    handleError(error);
+  }
+}
+
+const handleError = (error): never => {
+  if (error.response) {
+    switch (error.response.status) {
+      case 404: throw new NotFoundError('Order not found');
+      case 403: throw new ForbiddenError('Access is forbidden');
+      default: throw new ServiceError('An unexpected error occurred');
+    }
+  }
+  throw new ServiceError('An error occurred while processing the request');
+};
+'''
+
+details_content = '''"use client";
 import { useState, useEffect } from 'react';
 import { Order, FulfillmentStatus } from '@/types/order';
 import { Product } from '@/types/product';
@@ -185,3 +269,145 @@ export function OrderDetails({ order, onUpdated }: OrderDetailsProps) {
     </Card>
   );
 }
+'''
+
+list_content = '''"use client";
+import { useState } from 'react';
+import { Order, FulfillmentStatus } from '@/types/order';
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { OrderDetails } from '@/components/order/OrderDetails';
+
+interface OrderListProps {
+  orders: Order[];
+}
+
+const STATUS_COLORS: Record<FulfillmentStatus, string> = {
+  PENDING_DISPATCH: 'bg-yellow-100 text-yellow-800',
+  DISPATCHED: 'bg-blue-100 text-blue-800',
+  DELIVERED: 'bg-green-100 text-green-800',
+};
+
+const STATUS_LABELS: Record<FulfillmentStatus, string> = {
+  PENDING_DISPATCH: 'Pending Dispatch',
+  DISPATCHED: 'Dispatched',
+  DELIVERED: 'Delivered',
+};
+
+export function OrderList({ orders: initialOrders }: OrderListProps) {
+  const [orders, setOrders] = useState<Order[]>(initialOrders);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+  const [statusFilter, setStatusFilter] = useState<string>('ALL');
+
+  const handleOrderUpdated = (updated: Order) => {
+    setOrders(prev => prev.map(o => o.id === updated.id ? updated : o));
+    setSelectedOrder(updated);
+  };
+
+  const filtered = orders.filter(order => {
+    const matchesSearch =
+      order.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      order.user.name.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesStatus = statusFilter === 'ALL' || order.fulfillmentStatus === statusFilter;
+    return matchesSearch && matchesStatus;
+  });
+
+  return (
+    <div className="space-y-4">
+      <div className="flex gap-3 flex-wrap">
+        <Input
+          type="text"
+          placeholder="Search by order ID or customer name"
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="max-w-sm"
+        />
+        <select
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value)}
+          className="border rounded px-3 py-2 text-sm bg-white"
+        >
+          <option value="ALL">All Statuses</option>
+          <option value="PENDING_DISPATCH">Pending Dispatch</option>
+          <option value="DISPATCHED">Dispatched</option>
+          <option value="DELIVERED">Delivered</option>
+        </select>
+      </div>
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Order ID</TableHead>
+            <TableHead>Customer</TableHead>
+            <TableHead>Total</TableHead>
+            <TableHead>Payment</TableHead>
+            <TableHead>Fulfillment</TableHead>
+            <TableHead>Date</TableHead>
+            <TableHead>Actions</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {filtered.map((order) => {
+            const fs = order.fulfillmentStatus ?? 'PENDING_DISPATCH';
+            return (
+              <TableRow key={order.id}>
+                <TableCell className="font-mono text-xs">{order.id.slice(-8).toUpperCase()}</TableCell>
+                <TableCell>{order.user.name}</TableCell>
+                <TableCell>Rs.{order.totalAmount.toFixed(2)}</TableCell>
+                <TableCell>
+                  <span className={`text-xs px-2 py-1 rounded-full ${
+                    order.paymentStatus === 'COMPLETED' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                  }`}>{order.paymentStatus}</span>
+                </TableCell>
+                <TableCell>
+                  <span className={`text-xs px-2 py-1 rounded-full font-medium ${STATUS_COLORS[fs]}`}>
+                    {STATUS_LABELS[fs]}
+                  </span>
+                </TableCell>
+                <TableCell className="text-sm text-gray-500">
+                  {new Date(order.createdAt).toLocaleDateString('en-IN')}
+                </TableCell>
+                <TableCell>
+                  <Button variant="outline" size="sm" onClick={() => setSelectedOrder(order)}>
+                    {fs === 'PENDING_DISPATCH' ? 'Dispatch' : 'View'}
+                  </Button>
+                </TableCell>
+              </TableRow>
+            );
+          })}
+          {filtered.length === 0 && (
+            <TableRow>
+              <TableCell colSpan={7} className="text-center text-gray-400 py-8">No orders found.</TableCell>
+            </TableRow>
+          )}
+        </TableBody>
+      </Table>
+      {selectedOrder && (
+        <div className="mt-6 p-4 border rounded shadow-md bg-white">
+          <OrderDetails order={selectedOrder} onUpdated={handleOrderUpdated} />
+          <Button variant="outline" size="sm" onClick={() => setSelectedOrder(null)} className="mt-4">Close</Button>
+        </div>
+      )}
+    </div>
+  );
+}
+'''
+
+with open('/workspaces/MiniGuru-App/admin/types/order.ts', 'w') as f:
+    f.write(types_content)
+print("types/order.ts written")
+
+with open('/workspaces/MiniGuru-App/admin/utils/api/orderApi.ts', 'w') as f:
+    f.write(api_content)
+print("utils/api/orderApi.ts written")
+
+with open('/workspaces/MiniGuru-App/admin/components/order/OrderDetails.tsx', 'w') as f:
+    f.write(details_content)
+print("components/order/OrderDetails.tsx written")
+
+with open('/workspaces/MiniGuru-App/admin/components/order/OrderList.tsx', 'w') as f:
+    f.write(list_content)
+print("components/order/OrderList.tsx written")
+
+print("\nAll files written successfully!")

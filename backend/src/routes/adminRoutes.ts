@@ -39,6 +39,36 @@ adminRouter.delete('/project/:id', authenticateToken, authorizeAdmin, deleteProj
 // ==================== ORDERS ====================
 adminRouter.get('/orders', authenticateToken, authorizeAdmin, getAllOrdersController);
 
+// Admin — update order dispatch details
+adminRouter.patch('/orders/:id/dispatch', authenticateToken, authorizeAdmin, async (req, res) => {
+  const { id } = req.params;
+  const { courierName, trackingNumber, estimatedDelivery, fulfillmentStatus } = req.body;
+  if (!courierName || !trackingNumber || !fulfillmentStatus) {
+    return res.status(400).json({ error: 'courierName, trackingNumber and fulfillmentStatus are required' });
+  }
+  const validStatuses = ['PENDING_DISPATCH', 'DISPATCHED', 'DELIVERED'];
+  if (!validStatuses.includes(fulfillmentStatus)) {
+    return res.status(400).json({ error: 'Invalid fulfillmentStatus' });
+  }
+  try {
+    const order = await prisma.order.update({
+      where: { id },
+      data: {
+        fulfillmentStatus,
+        courierName,
+        trackingNumber,
+        estimatedDelivery: estimatedDelivery ? new Date(estimatedDelivery) : null,
+        dispatchedAt: fulfillmentStatus === 'DISPATCHED' ? new Date() : undefined,
+      },
+      include: { user: { select: { name: true, email: true } }, transaction: true },
+    });
+    return res.status(200).json(order);
+  } catch (err) {
+    console.error('Dispatch update error:', err);
+    return res.status(500).json({ error: 'Failed to update dispatch details' });
+  }
+});
+
 // ==================== STATS ====================
 adminRouter.get('/stats', authenticateToken, authorizeAdmin, fetchStats);
 

@@ -204,7 +204,12 @@ model Order {
   updatedAt       DateTime      @updatedAt
   transaction     Transaction   @relation(fields: [transactionId], references: [id])
   transactionId   String        @db.ObjectId @unique
-  deliveryAddress String?
+  deliveryAddress   String?
+  fulfillmentStatus FulfillmentStatus @default(PENDING_DISPATCH)
+  courierName       String?
+  trackingNumber    String?
+  estimatedDelivery DateTime?
+  dispatchedAt      DateTime?
 
   @@index([userId])
   @@map("orders")
@@ -213,6 +218,12 @@ model Order {
 type OrderProduct {
   productId String @db.ObjectId
   quantity  Int
+}
+
+enum FulfillmentStatus {
+  PENDING_DISPATCH
+  DISPATCHED
+  DELIVERED
 }
 
 enum PaymentStatus {

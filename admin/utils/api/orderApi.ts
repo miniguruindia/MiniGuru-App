@@ -1,7 +1,7 @@
 "use server"
 import { Order } from "@/types/order";
 import { apiClient } from "@/utils/api/apiClient";
-import { NotFoundError, ForbiddenError, ServiceError } from './error'; 
+import { NotFoundError, ForbiddenError, ServiceError } from './error';
 
 export const getAllOrders = async (): Promise<Order[]> => {
   try {
@@ -12,17 +12,30 @@ export const getAllOrders = async (): Promise<Order[]> => {
   }
 }
 
+export const updateDispatch = async (
+  orderId: string,
+  data: {
+    fulfillmentStatus: string;
+    courierName: string;
+    trackingNumber: string;
+    estimatedDelivery?: string;
+  }
+): Promise<Order> => {
+  try {
+    const response = await apiClient.patch(`/admin/orders/${orderId}/dispatch`, data);
+    return response.data;
+  } catch (error) {
+    handleError(error);
+  }
+}
+
 const handleError = (error): never => {
-    if (error.response) {
-      switch (error.response.status) {
-        case 404:
-          throw new NotFoundError('Project not found');
-        case 403:
-          throw new ForbiddenError('Access is forbidden');
-        default:
-          throw new ServiceError('An unexpected error occurred');
-      }
+  if (error.response) {
+    switch (error.response.status) {
+      case 404: throw new NotFoundError('Order not found');
+      case 403: throw new ForbiddenError('Access is forbidden');
+      default: throw new ServiceError('An unexpected error occurred');
     }
-    throw new ServiceError('An error occurred while processing the request');
-  };
-  
+  }
+  throw new ServiceError('An error occurred while processing the request');
+};
