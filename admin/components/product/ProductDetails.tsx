@@ -44,7 +44,7 @@ export function ProductDetails({ product }: ProductDetailsProps) {
               {product.images && product.images.length > 0 ? (
                 <div className="space-y-2">
                   {product.images.map((image, index) => (
-                    <Image key={index} src={typeof image === 'string' ? image : URL.createObjectURL(image)} alt={`Product image ${index + 1}`} className="max-w-xs" width={200} height={200} />
+                    <Image key={index} src={typeof image === 'string' ? (image.startsWith('http') ? image : `${process.env.NEXT_PUBLIC_API_URL}/${image}`) : URL.createObjectURL(image)} alt={`Product image ${index + 1}`} className="max-w-xs" width={200} height={200} />
                   ))}
                 </div>
               ) : (

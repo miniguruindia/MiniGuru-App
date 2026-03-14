@@ -5,7 +5,7 @@ import { handlePrismaKnownError } from '../../utils/error';
 import logger from '../../logger';
 
 // Service to create a product
-export const createProductService = async ({ name, description, price, inventory, categoryName, images }) => {
+export const createProductService = async ({ name, description, brand, size, howToUse, price, inventory, categoryName, images }) => {
     try {
         const category = await findCategoryByName(categoryName);
 
@@ -13,6 +13,9 @@ export const createProductService = async ({ name, description, price, inventory
             data: {
                 name,
                 description,
+                ...(brand && { brand }),
+                ...(size && { size }),
+                ...(howToUse && { howToUse }),
                 price,
                 inventory,
                 categoryId: category.id,
@@ -30,7 +33,7 @@ export const createProductService = async ({ name, description, price, inventory
     }
 };
 
-export const updateProductService = async (id,{  name, description, price, inventory, categoryName, images }) => {
+export const updateProductService = async (id, { name, description, brand, size, howToUse, price, inventory, categoryName, images }) => {
     try {
         // Find the existing product
         const existingProduct = await prisma.product.findUnique({

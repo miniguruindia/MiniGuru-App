@@ -15,13 +15,13 @@ export const createProduct = async (req: Request, res: Response) => {
 
     if (userRole !== 'ADMIN') return res.status(403).json({ error: 'Forbidden' });
 
-    const { name, description, price, inventory, categoryName } = req.body;
+    const { name, description, brand, size, howToUse, price, inventory, categoryName } = req.body;
     const formattedPrice = parseFloat(price);
     const formattedInventory = parseInt(inventory, 10);
 
     try {
         const images = await uploadImages(req.files as Express.Multer.File[]); // Process image uploads
-        const product = await createProductService({ name, description, price:formattedPrice, inventory:formattedInventory, categoryName, images });
+        const product = await createProductService({ name, description, brand, size, howToUse, price:formattedPrice, inventory:formattedInventory, categoryName, images });
         res.status(201).json(product);
     } catch (error) {
         res.status(500).json({ error: (error as Error).message });
@@ -59,7 +59,7 @@ export const updateProduct = async (req: Request, res: Response) => {
     if (userRole !== 'ADMIN') return res.status(403).json({ error: 'Forbidden' });
 
     const { id } = req.params;
-    const { name, description, price, inventory, categoryName } = req.body;
+    const { name, description, brand, size, howToUse, price, inventory, categoryName } = req.body;
     let formattedPrice:number|undefined;
     let formattedInventory:number|undefined;
     if(price){
@@ -71,7 +71,7 @@ export const updateProduct = async (req: Request, res: Response) => {
     }
     try {
         const images = await uploadImages(req.files as Express.Multer.File[]); // Process image uploads
-        const product = await updateProductService(id, { name, description, price:formattedPrice, inventory:formattedInventory, categoryName, images });
+        const product = await updateProductService(id, { name, description, brand, size, howToUse, price:formattedPrice, inventory:formattedInventory, categoryName, images });
         res.status(200).json(product);
     } catch (error) {
         res.status(500).json({ error: (error as Error).message });

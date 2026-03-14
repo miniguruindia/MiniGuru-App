@@ -63,7 +63,7 @@ export const uploadVideoMiddleware = multer({
 
 // Function to handle image paths after upload
 export const uploadImages = async (files: Express.Multer.File[] | undefined) => {
-  const imagePaths = files?.map(file => `${process.env.BASE_URL}uploads/product-images/${file.filename}`);
+  const imagePaths = files?.map(file => `uploads/product-images/${file.filename}`);
   return imagePaths; // Return image paths for storing in the database
 };
 
@@ -73,7 +73,7 @@ export const uploadThumbnail = async (file: Express.Multer.File | undefined) => 
     throw new ServiceError('No thumbnail uploaded.');
   }
 
-  const thumbnailPath = `${process.env.BASE_URL}uploads/thumbnails/${file.filename}`;
+  const thumbnailPath = `uploads/thumbnails/${file.filename}`;
   return thumbnailPath; // Return thumbnail path for storing in the database
 };
 
@@ -120,6 +120,6 @@ export const uploadVideo = async (file: Express.Multer.File | undefined) => {
     throw new ServiceError('No video uploaded.');
   }
 
-  const videoPath = `${process.env.BASE_URL}uploads/videos/${file.filename}`;
+  const videoPath = `uploads/videos/${file.filename}`;
   return videoPath; // Return video path for storing in the database
 };
