@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:miniguru/screens/legalScreen.dart';
 import 'package:miniguru/network/MiniguruApi.dart';
 import 'package:miniguru/screens/loginScreen.dart';
 import 'package:miniguru/constants.dart';
@@ -297,7 +298,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                 ),
                                 recognizer: TapGestureRecognizer()
                                   ..onTap = () {
-                                    // TODO: Open terms
+                                    Navigator.push(context, MaterialPageRoute(builder: (_) => const LegalScreen(initialTab: 1)));
                                   },
                               ),
                             ],

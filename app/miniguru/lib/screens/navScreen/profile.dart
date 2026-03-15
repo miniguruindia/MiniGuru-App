@@ -4,6 +4,7 @@
 import 'dart:convert';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import 'package:miniguru/screens/legalScreen.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:miniguru/database/database_helper.dart';
@@ -432,11 +433,11 @@ class _ProfileState extends State<Profile>
                         const SizedBox(height: 8),
                         _tile(Icons.privacy_tip_outlined, 'Privacy Policy',
                             const Color(0xFF60A5FA),
-                            () => _snack('Coming soon!', const Color(0xFF60A5FA))),
+                            () => Navigator.push(context, MaterialPageRoute(builder: (_) => const LegalScreen(initialTab: 0)))),
                         const SizedBox(height: 8),
                         _tile(Icons.description_outlined, 'Terms & Conditions',
                             const Color(0xFF60A5FA),
-                            () => _snack('Coming soon!', const Color(0xFF60A5FA))),
+                            () => Navigator.push(context, MaterialPageRoute(builder: (_) => const LegalScreen(initialTab: 1)))),
 
                         const SizedBox(height: 24),
                         _buildLogoutBtn(),

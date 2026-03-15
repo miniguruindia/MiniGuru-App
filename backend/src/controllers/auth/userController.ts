@@ -17,6 +17,7 @@ const userSelectAttributes = {
     wallet: true,
     scoreHistory: true,
     phoneNumber: true,
+    profilePhoto: true,
 };
 
 // FIXED: Get user details with proper wallet structure
@@ -56,6 +57,7 @@ const getUserDetails = async (req: Request, res: Response) => {
                     balance: walletBalance
                 },
                 totalProjects,
+                profilePhoto: user.profilePhoto ?? null,
             },
         });
     } catch (error) {
@@ -110,6 +112,7 @@ const listUsers = async (req: Request, res: Response) => {
                 name: true,
                 email: true,
                 phoneNumber: true,
+    profilePhoto: true,
                 age: true,
                 id: true,
             },
@@ -143,7 +146,15 @@ const getUserById = async (req: Request, res: Response) => {
             where: { id: userId },
             select: {
                 ...userSelectAttributes,
-                projects: { select: { id: true, title: true } },
+                projects: { select: { id: true, title: true, status: true } },
+                orders: {
+                  select: {
+                    id: true, totalAmount: true, paymentStatus: true,
+                    fulfillmentStatus: true, courierName: true, trackingNumber: true,
+                    estimatedDelivery: true, deliveryAddress: true, createdAt: true, products: true,
+                  },
+                  orderBy: { createdAt: 'desc' },
+                },
             },
         });
 
@@ -168,7 +179,9 @@ const getUserById = async (req: Request, res: Response) => {
                     balance: walletBalance
                 },
                 totalProjects,
+                profilePhoto: user.profilePhoto ?? null,
                 projects: user.projects,
+                orders: user.orders ?? [],
             },
         });
     } catch (error) {
