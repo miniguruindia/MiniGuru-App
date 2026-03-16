@@ -774,6 +774,33 @@ class MiniguruApi {
     return null;
   }
 
+  // ========================= MENTOR =========================
+  Future<http.Response> registerMentor({
+    required String name,
+    required String email,
+    required String phoneNumber,
+    required String password,
+    required String mentorType,
+    String? institutionName,
+    String? city,
+    String? state,
+  }) async {
+    return await http.post(
+      Uri.parse('$_baseUrl/mentor/register'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'name': name,
+        'email': email,
+        'phoneNumber': phoneNumber,
+        'password': password,
+        'mentorType': mentorType,
+        if (institutionName != null) 'institutionName': institutionName,
+        if (city != null) 'city': city,
+        if (state != null) 'state': state,
+      }),
+    );
+  }
+
   // ========================= CMS (PUBLIC — no auth needed) =========================
 
   /// Fetches CMS content for a given key from GET /cms/:key.

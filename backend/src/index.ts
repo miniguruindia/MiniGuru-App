@@ -22,6 +22,7 @@ import videoRoutes from './routes/videoRoutes';
 import materialsRouter from './routes/materialsRoutes';
 import userAnalyticsRouter from './routes/userAnalyticsRoutes';
 import cmsRouter from './routes/cmsRoutes';
+import guardianRouter from './routes/guardianRoutes';
 import communicationRouter from './routes/communicationRoutes';   // ← NEW
 import goinsRouter from './routes/goinsRoutes';           // ← NEW
 
@@ -261,6 +262,7 @@ try {
   app.use('/goins', goinsRouter);
   app.use('/users', userAnalyticsRouter);
   app.use('/cms', cmsRouter);
+app.use('/mentor', guardianRouter);
   app.use('/communication', communicationRouter);
   app.use('/admin/communication', communicationRouter);
   app.use('/admin/cms', cmsRouter);           // ← NEW: Goins balance, deduct, award

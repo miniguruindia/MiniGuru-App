@@ -13,9 +13,31 @@ enum Role {
   SUPERADMIN
 }
 
+enum GuardianType {
+  PARENT
+  SCHOOL
+  TLAB
+  COMMUNITY
+}
+
 type ScoreHistory {
   time         DateTime
   updatedScore Int
+}
+
+type ChildScoreHistory {
+  time         DateTime
+  updatedScore Int
+  reason       String?
+}
+
+type GuardianInfo {
+  institutionName String?
+  address         String?
+  city            String?
+  state           String?
+  pincode         String?
+  isVerified      Boolean
 }
 
 model User {
@@ -32,6 +54,10 @@ model User {
   score         Int            @default(0)
   scoreHistory  ScoreHistory[]
   profilePhoto  String?
+  isMentor      Boolean        @default(false)
+  mentorType    GuardianType?
+  guardianInfo  GuardianInfo?
+  children      ChildProfile[]
   comments      Comment[]
   orders        Order[]
   likes         Like[]
@@ -43,6 +69,67 @@ model User {
   videoComments VideoComment[]
 
   @@map("users")
+}
+
+model ChildProfile {
+  id           String              @id @default(auto()) @map("_id") @db.ObjectId
+  guardianId   String              @db.ObjectId
+  guardian     User                @relation(fields: [guardianId], references: [id], onDelete: Cascade)
+  name         String
+  age          Int
+  grade        String?
+  avatar       String?
+  pinHash      String
+  score        Int                 @default(0)
+  scoreHistory ChildScoreHistory[]
+  isActive     Boolean             @default(true)
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+  projects     ChildProject[]
+  videoUploads ChildVideo[]
+  orders       ChildOrder[]
+
+  @@index([guardianId])
+  @@map("child_profiles")
+}
+
+model ChildProject {
+  id             String       @id @default(auto()) @map("_id") @db.ObjectId
+  childProfileId String       @db.ObjectId
+  child          ChildProfile @relation(fields: [childProfileId], references: [id], onDelete: Cascade)
+  projectId      String       @db.ObjectId
+  role           String       @default("OWNER")
+  goinsShare     Int          @default(100)
+  createdAt      DateTime     @default(now())
+
+  @@unique([childProfileId, projectId])
+  @@map("child_projects")
+}
+
+model ChildVideo {
+  id             String       @id @default(auto()) @map("_id") @db.ObjectId
+  childProfileId String       @db.ObjectId
+  child          ChildProfile @relation(fields: [childProfileId], references: [id], onDelete: Cascade)
+  projectId      String?      @db.ObjectId
+  youtubeUrl     String?
+  title          String
+  status         String       @default("pending")
+  uploadedBy     String       @db.ObjectId
+  createdAt      DateTime     @default(now())
+
+  @@index([childProfileId])
+  @@map("child_videos")
+}
+
+model ChildOrder {
+  id             String       @id @default(auto()) @map("_id") @db.ObjectId
+  childProfileId String       @db.ObjectId
+  child          ChildProfile @relation(fields: [childProfileId], references: [id], onDelete: Cascade)
+  orderId        String       @db.ObjectId
+  createdAt      DateTime     @default(now())
+
+  @@index([childProfileId])
+  @@map("child_orders")
 }
 
 model VideoView {
@@ -194,16 +281,16 @@ model Product {
 }
 
 model Order {
-  id              String        @id @default(auto()) @map("_id") @db.ObjectId
-  userId          String        @db.ObjectId
-  user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  products        OrderProduct[]
-  totalAmount     Float
-  paymentStatus   PaymentStatus @default(PENDING)
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
-  transaction     Transaction   @relation(fields: [transactionId], references: [id])
-  transactionId   String        @db.ObjectId @unique
+  id                String            @id @default(auto()) @map("_id") @db.ObjectId
+  userId            String            @db.ObjectId
+  user              User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  products          OrderProduct[]
+  totalAmount       Float
+  paymentStatus     PaymentStatus     @default(PENDING)
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  transaction       Transaction       @relation(fields: [transactionId], references: [id])
+  transactionId     String            @db.ObjectId @unique
   deliveryAddress   String?
   fulfillmentStatus FulfillmentStatus @default(PENDING_DISPATCH)
   courierName       String?
@@ -272,15 +359,16 @@ model SiteContent {
 }
 
 model ContactMessage {
-  id          String   @id @default(auto()) @map("_id") @db.ObjectId
-  name        String
-  email       String
-  subject     String
-  message     String
-  source      String   @default("app")   // app | website | admin
-  status      String   @default("unread") // unread | read | replied
-  repliedAt   DateTime?
-  repliedBy   String?
-  createdAt   DateTime @default(now())
+  id        String    @id @default(auto()) @map("_id") @db.ObjectId
+  name      String
+  email     String
+  subject   String
+  message   String
+  source    String    @default("app")
+  status    String    @default("unread")
+  repliedAt DateTime?
+  repliedBy String?
+  createdAt DateTime  @default(now())
+
   @@map("contact_messages")
 }
