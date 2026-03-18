@@ -18,6 +18,8 @@ const userSelectAttributes = {
     scoreHistory: true,
     phoneNumber: true,
     profilePhoto: true,
+    isMentor: true,
+    mentorType: true,
 };
 
 // FIXED: Get user details with proper wallet structure
@@ -58,6 +60,8 @@ const getUserDetails = async (req: Request, res: Response) => {
                 },
                 totalProjects,
                 profilePhoto: user.profilePhoto ?? null,
+                isMentor: user.isMentor ?? false,
+                mentorType: user.mentorType ?? null,
             },
         });
     } catch (error) {
@@ -113,6 +117,8 @@ const listUsers = async (req: Request, res: Response) => {
                 email: true,
                 phoneNumber: true,
     profilePhoto: true,
+    isMentor: true,
+    mentorType: true,
                 age: true,
                 id: true,
             },
@@ -180,6 +186,8 @@ const getUserById = async (req: Request, res: Response) => {
                 },
                 totalProjects,
                 profilePhoto: user.profilePhoto ?? null,
+                isMentor: user.isMentor ?? false,
+                mentorType: user.mentorType ?? null,
                 projects: user.projects,
                 orders: user.orders ?? [],
             },

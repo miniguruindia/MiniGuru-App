@@ -10,6 +10,8 @@ class User {
   final List<dynamic> scoreHistory;
   final String phoneNumber;
   final int totalProjects;
+  final bool isMentor;
+  final String? mentorType;
 
   User({
     required this.id,
@@ -21,6 +23,8 @@ class User {
     required this.scoreHistory,
     required this.phoneNumber,
     required this.totalProjects,
+    this.isMentor = false,
+    this.mentorType,
   });
 
   // Convert a User instance to a Map.
@@ -50,6 +54,8 @@ class User {
         scoreHistory: List<Map<String, dynamic>>.from(
             jsonDecode(map['scoreHistory'] ?? [])),
         phoneNumber: map['phoneNumber'],
-        totalProjects: map['totalProjects']);
+        totalProjects: map['totalProjects'],
+        isMentor: map['isMentor'] ?? false,
+        mentorType: map['mentorType'] as String?);
   }
 }

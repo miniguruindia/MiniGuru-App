@@ -9,6 +9,11 @@ import 'package:miniguru/screens/navScreen/shop.dart';
 import 'package:miniguru/screens/navScreen/community_screen.dart';
 import 'package:miniguru/screens/about.dart';
 import 'package:miniguru/network/MiniguruApi.dart';
+import 'package:miniguru/state/sessionState.dart';
+import 'package:miniguru/screens/mentor/mentorChildPickerScreen.dart';
+import 'package:miniguru/screens/mentor/mentorChildrenTab.dart';
+import 'package:miniguru/screens/mentor/mentorProfileTab.dart';
+import 'package:miniguru/screens/mentor/mentorActivityTab.dart';
 import 'package:miniguru/models/User.dart';
 import 'package:google_fonts/google_fonts.dart';
 
@@ -36,6 +41,11 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _checkAuth() async {
+    // If we are in a child session, just mark authenticated — don't overwrite with mentor data
+    if (SessionState.isChildSession) {
+      setState(() { _isAuthenticated = true; _authChecked = true; });
+      return;
+    }
     try {
       final userData = await _miniguruApi.getUserData();
       if (mounted) {
@@ -66,6 +76,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
     // Profile (logged in) or About (guest)
     if (index == 4) {
+      if (_user?.isMentor == true && !SessionState.isChildSession) return const MentorProfileTab();
       if (_isAuthenticated && _user != null) {
         if (!_cachedScreens.containsKey(index)) {
           _cachedScreens[index] = const Profile();
@@ -78,19 +89,21 @@ class _HomeScreenState extends State<HomeScreen> {
     if (!_cachedScreens.containsKey(index)) {
       switch (index) {
         case 1:
-          // Library for logged-in, Consultancy for guests
-          _cachedScreens[index] = _isAuthenticated
-              ? const Library()
-              : const ConsultancyPage();
+          if (_user?.isMentor == true && !SessionState.isChildSession) {
+            _cachedScreens[index] = const MentorChildrenTab();
+            break;
+          }
+          _cachedScreens[index] = _isAuthenticated ? const Library() : const ConsultancyPage();
           break;
         case 2:
           _cachedScreens[index] = const Shop();
           break;
         case 3:
-          // Projects for logged-in, Community for guests
-          _cachedScreens[index] = _isAuthenticated
-              ? const ProjectScreen()
-              : const CommunityScreen();
+          if (_user?.isMentor == true && !SessionState.isChildSession) {
+            _cachedScreens[index] = const MentorActivityTab();
+            break;
+          }
+          _cachedScreens[index] = _isAuthenticated ? const ProjectScreen() : const CommunityScreen();
           break;
       }
     }
@@ -115,6 +128,33 @@ class _HomeScreenState extends State<HomeScreen> {
     }
 
     return Scaffold(
+      appBar: SessionState.isChildSession ? PreferredSize(
+        preferredSize: const Size.fromHeight(36),
+        child: Container(
+          color: const Color(0xFF5B6EF5),
+          alignment: Alignment.center,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.child_care, color: Colors.white, size: 16),
+              const SizedBox(width: 6),
+              Text('Viewing as ${SessionState.activeChildName}',
+                style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w700)),
+              const SizedBox(width: 16),
+              GestureDetector(
+                onTap: () {
+                  SessionState.clearChild();
+                  Navigator.of(context).pushAndRemoveUntil(
+                    MaterialPageRoute(builder: (_) => const MentorChildPickerScreen()),
+                    (route) => false,
+                  );
+                },
+                child: const Text('Switch', style: TextStyle(color: Colors.white, fontSize: 12, decoration: TextDecoration.underline)),
+              ),
+            ],
+          ),
+        ),
+      ) : null,
       body: IndexedStack(
         index: _currentIndex,
         children: [
@@ -154,13 +194,9 @@ class _HomeScreenState extends State<HomeScreen> {
               label: 'Home',
             ),
             BottomNavigationBarItem(
-              icon: Icon(_isAuthenticated
-                  ? Icons.library_books_outlined
-                  : Icons.support_agent_outlined),
-              activeIcon: Icon(_isAuthenticated
-                  ? Icons.library_books
-                  : Icons.support_agent),
-              label: _isAuthenticated ? 'Library' : 'Consult',
+              icon: Icon(_user?.isMentor == true && !SessionState.isChildSession ? Icons.people_outline : _isAuthenticated ? Icons.library_books_outlined : Icons.support_agent_outlined),
+              activeIcon: Icon(_user?.isMentor == true && !SessionState.isChildSession ? Icons.people : _isAuthenticated ? Icons.library_books : Icons.support_agent),
+              label: _user?.isMentor == true && !SessionState.isChildSession ? 'Learners' : _isAuthenticated ? 'Library' : 'Consult',
             ),
             const BottomNavigationBarItem(
               icon: Icon(Icons.shopping_bag_outlined),
@@ -168,20 +204,14 @@ class _HomeScreenState extends State<HomeScreen> {
               label: 'Shop',
             ),
             BottomNavigationBarItem(
-              icon: Icon(_isAuthenticated
-                  ? Icons.work_outline
-                  : Icons.people_outline),
-              activeIcon: Icon(
-                  _isAuthenticated ? Icons.work : Icons.people),
+              icon: Icon(_isAuthenticated ? Icons.work_outline : Icons.people_outline),
+              activeIcon: Icon(_isAuthenticated ? Icons.work : Icons.people),
               label: _isAuthenticated ? 'Projects' : 'Community',
             ),
             BottomNavigationBarItem(
-              icon: Icon(_isAuthenticated
-                  ? Icons.person_outline
-                  : Icons.info_outline),
-              activeIcon:
-                  Icon(_isAuthenticated ? Icons.person : Icons.info),
-              label: _isAuthenticated ? 'Profile' : 'About',
+              icon: Icon(_user?.isMentor == true && !SessionState.isChildSession ? Icons.supervisor_account_outlined : _isAuthenticated ? Icons.person_outline : Icons.info_outline),
+              activeIcon: Icon(_user?.isMentor == true && !SessionState.isChildSession ? Icons.supervisor_account : _isAuthenticated ? Icons.person : Icons.info),
+              label: _user?.isMentor == true && !SessionState.isChildSession ? 'My Account' : _isAuthenticated ? 'Profile' : 'About',
             ),
           ],
         ),

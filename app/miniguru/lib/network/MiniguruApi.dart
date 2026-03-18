@@ -6,6 +6,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:miniguru/database/database_helper.dart';
 import 'package:miniguru/models/AuthToken.dart';
 import 'package:miniguru/models/User.dart';
+import 'package:miniguru/models/ChildProfile.dart';
 import 'package:path/path.dart';
 import 'package:http_parser/http_parser.dart';
 import 'package:miniguru/secrets.dart';
@@ -153,6 +154,7 @@ class MiniguruApi {
           scoreHistory: data['scoreHistory'] ?? [],
           phoneNumber: data['phoneNumber'],
           totalProjects: data['totalProjects'] ?? 0,
+          isMentor: data['isMentor'] ?? false,
         );
       } else if (response.statusCode == 401) {
         print('❌ Unauthorized - token invalid');
@@ -799,6 +801,59 @@ class MiniguruApi {
         if (state != null) 'state': state,
       }),
     );
+  }
+
+  // ========================= MENTOR — CHILDREN =========================
+  Future<List<ChildProfile>> getMentorChildren() async {
+    try {
+      final authToken = await _db!.getAuthToken();
+      if (authToken == null) return [];
+      final response = await http.get(
+        Uri.parse('$_baseUrl/mentor/children'),
+        headers: _buildHeaders(authToken.accessToken),
+      );
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final list = data['children'] as List<dynamic>;
+        return list.map((e) => ChildProfile.fromMap(e as Map<String, dynamic>)).toList();
+      }
+    } catch (e) { print('❌ getMentorChildren: $e'); }
+    return [];
+  }
+
+  Future<bool> addChildProfile({required String name, required int age, String? grade, required String pin}) async {
+    try {
+      final authToken = await _db!.getAuthToken();
+      if (authToken == null) return false;
+      final response = await http.post(
+        Uri.parse('$_baseUrl/mentor/children'),
+        headers: _buildHeaders(authToken.accessToken),
+        body: jsonEncode({
+          'name': name,
+          'age': age,
+          if (grade != null) 'grade': grade,
+          'pin': pin,
+        }),
+      );
+      return response.statusCode == 201;
+    } catch (e) { print('❌ addChildProfile: $e'); }
+    return false;
+  }
+
+  Future<bool> verifyChildPin(String childId, String pin) async {
+    try {
+      final authToken = await _db!.getAuthToken();
+      if (authToken == null) return false;
+      final response = await http.post(
+        Uri.parse('$_baseUrl/mentor/children/$childId/verify-pin'),
+        headers: _buildHeaders(authToken.accessToken),
+        body: jsonEncode({'pin': pin}),
+      );
+      if (response.statusCode == 200) {
+        return (jsonDecode(response.body))['valid'] == true;
+      }
+    } catch (e) { print('❌ verifyChildPin: $e'); }
+    return false;
   }
 
   // ========================= CMS (PUBLIC — no auth needed) =========================
