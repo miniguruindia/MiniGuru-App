@@ -2,82 +2,111 @@ name: Build MiniGuru APK
 
 on:
   workflow_dispatch:
+    inputs:
+      api_url:
+        description: 'Backend API URL'
+        required: false
+        default: 'https://api.miniguru.in'
+        type: string
+      build_type:
+        description: 'Build type'
+        required: true
+        default: 'release'
+        type: choice
+        options:
+          - release
+          - debug
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     
     steps:
-    - name: Checkout
+    - name: 📥 Checkout latest code
       uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
     
-    - name: Setup Java
+    - name: ☕ Setup Java 17
       uses: actions/setup-java@v4
       with:
         distribution: 'zulu'
         java-version: '17'
+        cache: 'gradle'
     
-    - name: Setup Android SDK 34
+    - name: 🤖 Setup Android SDK
       run: |
         export ANDROID_SDK_ROOT=/usr/local/lib/android/sdk
         export PATH=$PATH:$ANDROID_SDK_ROOT/cmdline-tools/latest/bin
         
-        yes | $ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager --licenses || true
-        $ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager "platforms;android-34"
-        $ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager "build-tools;34.0.0"
+        echo "📦 Installing Android SDK components..."
+        yes | sdkmanager --licenses || true
+        sdkmanager "platforms;android-34"
+        sdkmanager "build-tools;34.0.0"
+        
+        echo "✅ Android SDK setup complete"
     
-    - name: Setup Flutter
+    - name: 🐦 Setup Flutter
       uses: subosito/flutter-action@v2
       with:
-        flutter-version: '3.24.3'
+        flutter-version: '3.27.4'
         channel: 'stable'
-        cache: false
+        cache: true
     
-    - name: Clean everything
+    - name: ✏️  Configure API URL
       working-directory: ./app/miniguru
       run: |
+        API_URL="${{ github.event.inputs.api_url || 'https://api.miniguru.in' }}"
+        echo "🔗 Setting API URL to: $API_URL"
+        
+        # Update secrets.dart with the API URL
+        sed -i "s|const String apiBaseUrl = '.*';|const String apiBaseUrl = '$API_URL';|g" lib/secrets.dart
+        
+        # Verify the change
+        grep "apiBaseUrl" lib/secrets.dart
+    
+    - name: 🧹 Clean build directory
+      working-directory: ./app/miniguru
+      run: |
+        echo "🧹 Cleaning Flutter and gradle caches..."
         flutter clean
         rm -rf android/.gradle android/app/build build ~/.gradle/caches
+        echo "✅ Clean complete"
     
-    - name: Get dependencies
+    - name: 📚 Get Flutter dependencies
       working-directory: ./app/miniguru
-      run: flutter pub get
+      run: |
+        echo "📥 Getting pub dependencies..."
+        flutter pub get
+        echo "✅ Dependencies installed"
     
-    - name: Patch flutter_inappwebview plugin
+    - name: 🔧 Patch flutter_inappwebview
       run: |
         PLUGIN_PATH="$HOME/.pub-cache/hosted/pub.dev/flutter_inappwebview-5.8.0/android"
         
         if [ -d "$PLUGIN_PATH" ]; then
-          echo "=== PATCHING flutter_inappwebview ==="
+          echo "✏️  Found flutter_inappwebview at: $PLUGIN_PATH"
+          echo ""
+          echo "1️⃣  Adding namespace..."
+          sed -i '/^android {/a \    namespace "com.pichillilorenzo.flutter_inappwebview"' "$PLUGIN_PATH/build.gradle" || true
           
-          # 1. Add namespace
-          if ! grep -q "namespace" "$PLUGIN_PATH/build.gradle"; then
-            sed -i '/^android {/a \    namespace "com.pichillilorenzo.flutter_inappwebview"' "$PLUGIN_PATH/build.gradle"
-            echo "✓ Added namespace"
-          fi
+          echo "2️⃣  Disabling minification..."
+          sed -i 's/minifyEnabled true/minifyEnabled false/g' "$PLUGIN_PATH/build.gradle"
+          sed -i 's/shrinkResources true/shrinkResources false/g' "$PLUGIN_PATH/build.gradle"
           
-          # 2. Disable minification
-          if grep -q "minifyEnabled true" "$PLUGIN_PATH/build.gradle"; then
-            sed -i 's/minifyEnabled true/minifyEnabled false/g' "$PLUGIN_PATH/build.gradle"
-            echo "✓ Disabled minifyEnabled"
-          fi
-          
-          if grep -q "shrinkResources true" "$PLUGIN_PATH/build.gradle"; then
-            sed -i 's/shrinkResources true/shrinkResources false/g' "$PLUGIN_PATH/build.gradle"
-            echo "✓ Disabled shrinkResources"
-          fi
-          
-          # 3. Show result
-          echo "=== PATCHED build.gradle ==="
-          grep -A 10 "android {" "$PLUGIN_PATH/build.gradle" | head -20
+          echo "3️⃣  Verifying patch..."
+          grep -A 5 "android {" "$PLUGIN_PATH/build.gradle" | head -10
+          echo "✅ flutter_inappwebview patched successfully"
         else
-          echo "WARNING: flutter_inappwebview not found"
+          echo "⚠️  flutter_inappwebview not found at $PLUGIN_PATH (this is OK if it's not used)"
         fi
     
-    - name: Nuclear option - Delete SDK 35
+    - name: 💣 Remove problematic Android SDK versions
       run: |
         export ANDROID_SDK_ROOT=/usr/local/lib/android/sdk
+        echo "🗑️  Removing SDK versions that cause conflicts..."
+        
         sudo rm -rf $ANDROID_SDK_ROOT/platforms/android-35 || true
         sudo rm -rf $ANDROID_SDK_ROOT/build-tools/35.* || true
         sudo rm -rf $ANDROID_SDK_ROOT/build-tools/33.0.1 || true
@@ -86,18 +115,43 @@ jobs:
         sudo touch $ANDROID_SDK_ROOT/platforms/android-35
         sudo chmod 000 $ANDROID_SDK_ROOT/platforms/android-35 || true
         
-        echo "Remaining platforms:"
+        echo "✅ Cleanup complete. Remaining platforms:"
         ls -la $ANDROID_SDK_ROOT/platforms/ || true
     
-    - name: Build APK
+    - name: 🚀 Build APK (${{ github.event.inputs.build_type || 'release' }})
       working-directory: ./app/miniguru
       env:
         ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
         ANDROID_HOME: /usr/local/lib/android/sdk
-      run: flutter build apk --release --no-shrink --no-tree-shake-icons
+      run: |
+        BUILD_TYPE="${{ github.event.inputs.build_type || 'release' }}"
+        echo "📱 Building APK in $BUILD_TYPE mode..."
+        
+        if [ "$BUILD_TYPE" = "debug" ]; then
+          flutter build apk --debug --no-tree-shake-icons
+        else
+          flutter build apk --release --no-shrink --no-tree-shake-icons
+        fi
+        
+        echo "✅ APK build complete!"
     
-    - name: Upload APK
+    - name: 📦 Upload APK artifact
+      if: always()
       uses: actions/upload-artifact@v4
       with:
-        name: miniguru-apk
-        path: app/miniguru/build/app/outputs/flutter-apk/app-release.apk
+        name: MiniGuru-APK-${{ github.event.inputs.build_type || 'release' }}-${{ github.run_number }}
+        path: app/miniguru/build/app/outputs/flutter-apk/app-*.apk
+        retention-days: 30
+        if-no-files-found: warn
+    
+    - name: 📊 Show Build Info
+      if: always()
+      run: |
+        echo "=== BUILD SUMMARY ==="
+        echo "Build Type: ${{ github.event.inputs.build_type || 'release' }}"
+        echo "API URL: ${{ github.event.inputs.api_url || 'https://api.miniguru.in' }}"
+        echo "Build Number: ${{ github.run_number }}"
+        echo "Commit: ${{ github.sha }}"
+        echo ""
+        echo "📁 APK Location:"
+        ls -lh app/miniguru/build/app/outputs/flutter-apk/ || echo "❌ APK not found"
