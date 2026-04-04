@@ -48,5 +48,7 @@ export interface User {
   projects: Project[];
   totalProjects: number;
   profilePhoto?: string | null;
+  passwordHash?: string;
+  orders?: UserOrder[];
   orders?: UserOrder[];
 }

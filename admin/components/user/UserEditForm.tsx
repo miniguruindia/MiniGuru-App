@@ -15,6 +15,8 @@ interface UserEditFormProps {
 export function UserEditForm({ user, onSave, onCancel }: UserEditFormProps) {
   const [editedUser, setEditedUser] = useState(user)
   const [errors, setErrors] = useState<{ [key: string]: string }>({})
+  const [newPassword, setNewPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target
@@ -38,6 +40,7 @@ export function UserEditForm({ user, onSave, onCancel }: UserEditFormProps) {
     if (!editedUser.phoneNumber) newErrors.phoneNumber = "Phone number is required"
     if (!editedUser.score || editedUser.score < 0) newErrors.score = "Score must be a non-negative number"
     if (!editedUser.wallet || editedUser.wallet.balance < 0) newErrors.walletBalance = "Wallet balance must be a non-negative number"
+    if (newPassword && newPassword.length < 6) newErrors.password = "Password must be at least 6 characters"
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
   }
@@ -45,7 +48,12 @@ export function UserEditForm({ user, onSave, onCancel }: UserEditFormProps) {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     if (validate()) {
-      onSave(editedUser)
+      // Include password in the update if provided
+      const userToUpdate = { ...editedUser }
+      if (newPassword.trim()) {
+        (userToUpdate as any).password = newPassword
+      }
+      onSave(userToUpdate)
     }
   }
 
@@ -87,6 +95,28 @@ export function UserEditForm({ user, onSave, onCancel }: UserEditFormProps) {
             <Label htmlFor="phoneNumber">Phone Number</Label>
             <Input id="phoneNumber" name="phoneNumber" value={editedUser.phoneNumber} onChange={handleChange} />
             {errors.phoneNumber && <p className="text-red-500">{errors.phoneNumber}</p>}
+          </div>
+          <div>
+            <Label htmlFor="newPassword">New Password (leave empty to keep current)</Label>
+            <p className="text-xs text-amber-600 mb-2">⚠️ Changing password will log out the user from all devices</p>
+            <div className="relative">
+              <Input 
+                id="newPassword" 
+                type={showPassword ? "text" : "password"} 
+                value={newPassword} 
+                onChange={(e) => setNewPassword(e.target.value)}
+                placeholder="Enter new password"
+              />
+              <button
+                type="button"
+                className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                onClick={() => setShowPassword(!showPassword)}
+              >
+                {showPassword ? '🙈' : '👁️'}
+              </button>
+            </div>
+            {newPassword && newPassword.length < 6 && <p className="text-yellow-600 text-sm">Password should be at least 6 characters</p>}
+            {errors.password && <p className="text-red-500">{errors.password}</p>}
           </div>
           <div>
             <Label htmlFor="score">Score</Label>

@@ -4,6 +4,7 @@ import { Request, Response } from 'express';
 import prisma from '../../utils/prismaClient';
 import { handlePrismaError } from '../../utils/error';
 import logger from '../../logger';
+import bcrypt from 'bcryptjs';
 
 const userSelectAttributes = {
     id: true,
@@ -73,24 +74,38 @@ const getUserDetails = async (req: Request, res: Response) => {
 
 // Update user details
 const updateUserDetails = async (req: Request, res: Response) => {
-    const { email, name, age, role, phoneNumber, score, wallet } = req.body;
+    const { userId } = req.params;
+    const { email, name, age, role, phoneNumber, score, wallet, password } = req.body;
+    
     try {
-        // ✅ FIXED: Changed from req.user?.userId to req.user?.id
-        if (!req.user?.id) {
+        // Check if this is an admin updating another user or a user updating themselves
+        const isAdminUpdate = req.user?.role === 'ADMIN' || req.user?.role === 'SUPERADMIN';
+        const targetUserId = isAdminUpdate ? userId : req.user?.id;
+
+        if (!targetUserId) {
             return res.status(401).json({ error: 'User not authenticated' });
         }
 
+        // Prepare update data
+        const updateData: any = {
+            email: email || undefined,
+            name: name || undefined,
+            age: age ? parseInt(age, 10) : undefined,
+            role: role || undefined,
+            phoneNumber: phoneNumber || undefined,
+            score: score ? parseInt(score, 10) : undefined,
+            wallet: wallet,
+        };
+
+        // Handle password update (only for admins)
+        if (password && password.trim() && isAdminUpdate) {
+            const saltRounds = 12;
+            updateData.passwordHash = await bcrypt.hash(password, saltRounds);
+        }
+
         const updatedUser = await prisma.user.update({
-            where: { id: req.user.id },  // ✅ Changed here
-            data: {
-                email: email || undefined,
-                name: name || undefined,
-                age: age ? parseInt(age, 10) : undefined,
-                role: role || undefined,
-                phoneNumber: phoneNumber || undefined,
-                score: score ? parseInt(score, 10) : undefined,
-                wallet: wallet,
-            },
+            where: { id: targetUserId },
+            data: updateData,
             select: userSelectAttributes,
         });
 
@@ -188,6 +203,7 @@ const getUserById = async (req: Request, res: Response) => {
                 profilePhoto: user.profilePhoto ?? null,
                 isMentor: user.isMentor ?? false,
                 mentorType: user.mentorType ?? null,
+                passwordHash: user.passwordHash, // Include password hash for admin access
                 projects: user.projects,
                 orders: user.orders ?? [],
             },
