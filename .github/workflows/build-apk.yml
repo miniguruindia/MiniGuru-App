@@ -75,43 +75,9 @@ jobs:
         flutter pub get
         echo "✅ Dependencies installed"
     
-    - name: 🔧 Patch flutter_inappwebview
-      run: |
-        PLUGIN_PATH="$HOME/.pub-cache/hosted/pub.dev/flutter_inappwebview-5.8.0/android"
-        
-        if [ -d "$PLUGIN_PATH" ]; then
-          echo "✏️  Found flutter_inappwebview at: $PLUGIN_PATH"
-          echo ""
-          echo "1️⃣  Adding namespace..."
-          sed -i '/^android {/a \    namespace "com.pichillilorenzo.flutter_inappwebview"' "$PLUGIN_PATH/build.gradle" || true
-          
-          echo "2️⃣  Disabling minification..."
-          sed -i 's/minifyEnabled true/minifyEnabled false/g' "$PLUGIN_PATH/build.gradle"
-          sed -i 's/shrinkResources true/shrinkResources false/g' "$PLUGIN_PATH/build.gradle"
-          
-          echo "3️⃣  Verifying patch..."
-          grep -A 5 "android {" "$PLUGIN_PATH/build.gradle" | head -10
-          echo "✅ flutter_inappwebview patched successfully"
-        else
-          echo "⚠️  flutter_inappwebview not found at $PLUGIN_PATH (this is OK if it's not used)"
-        fi
-    
-    - name: 💣 Remove problematic Android SDK versions
-      run: |
-        export ANDROID_SDK_ROOT=/usr/local/lib/android/sdk
-        echo "🗑️  Removing SDK versions that cause conflicts..."
-        
-        sudo rm -rf $ANDROID_SDK_ROOT/platforms/android-34 || true
-        sudo rm -rf $ANDROID_SDK_ROOT/build-tools/33.0.1 || true
-        
-        echo "✅ Cleanup complete. Remaining platforms:"
-        ls -la $ANDROID_SDK_ROOT/platforms/ || true
-    
-    - name: 🚀 Build APK (${{ github.event.inputs.build_type || 'release' }})
+    - name:  Build APK (${{ github.event.inputs.build_type || 'release' }})
       working-directory: ./app/miniguru
-      env:
-        ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
-        ANDROID_HOME: /usr/local/lib/android/sdk
+
       run: |
         BUILD_TYPE="${{ github.event.inputs.build_type || 'release' }}"
         echo "📱 Building APK in $BUILD_TYPE mode..."
