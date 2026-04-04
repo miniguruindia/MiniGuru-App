@@ -41,14 +41,23 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _checkAuth() async {
+    print('🔵 [HomeScreen] Checking authentication...');
+    
     // If we are in a child session, just mark authenticated — don't overwrite with mentor data
     if (SessionState.isChildSession) {
+      print('✅ [HomeScreen] Child session detected, marking as authenticated');
       setState(() { _isAuthenticated = true; _authChecked = true; });
       return;
     }
     try {
+      print('🔵 [HomeScreen] Calling getUserData()...');
       final userData = await _miniguruApi.getUserData();
       if (mounted) {
+        if (userData != null) {
+          print('✅ [HomeScreen] User authenticated: ${userData.name}');
+        } else {
+          print('❌ [HomeScreen] No user data received');
+        }
         setState(() {
           _user = userData;
           _isAuthenticated = userData != null;
@@ -60,6 +69,7 @@ class _HomeScreenState extends State<HomeScreen> {
         });
       }
     } catch (e) {
+      print('❌ [HomeScreen] Auth check failed: $e');
       if (mounted) {
         setState(() {
           _user = null;

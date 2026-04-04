@@ -18,9 +18,9 @@ const COOKIE_EXPIRATION_TIME = 60 * 60; // 1 hour expiration in seconds
 export async function setAuthCookie(token: string): Promise<void> {
   const cookieStore = await cookies();
   cookieStore.set(TOKEN_COOKIE_NAME, token, {
-    httpOnly: true,       // Prevents access to cookie via JavaScript
+    httpOnly: false,       // Allow client access for debugging
     secure: process.env.NODE_ENV === 'production',  // Only over HTTPS in production
-    sameSite: 'strict',   // Prevents CSRF attacks
+    sameSite: 'lax',   // More permissive for development
     maxAge: COOKIE_EXPIRATION_TIME,  // 1 hour expiration
     path: '/',            // Accessible from the entire site
   });

@@ -226,8 +226,19 @@ class DatabaseHelper {
 
     if (kIsWeb) {
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('authToken', jsonEncode(token.toMap()));
-      print('💾 [WEB] Token saved to SharedPreferences (persists on reload)');
+      final tokenJson = jsonEncode(token.toMap());
+      print('💾 [WEB-insertToken] Saving to SharedPreferences');
+      print('   📦 Key: "authToken"');
+      print('   📦 Value: ${tokenJson.substring(0, 50)}...');
+      await prefs.setString('authToken', tokenJson);
+      
+      // Verify it was actually saved
+      final saved = prefs.getString('authToken');
+      if (saved != null) {
+        print('✅ [WEB-insertToken] Verified saved in SharedPreferences');
+      } else {
+        print('❌ [WEB-insertToken] FAILED TO SAVE - not found after saving!');
+      }
       return;
     }
 
@@ -239,9 +250,23 @@ class DatabaseHelper {
   Future<AuthToken?> getAuthToken() async {
     if (kIsWeb) {
       final prefs = await SharedPreferences.getInstance();
+      print('🔍 [WEB-getToken] Retrieving from SharedPreferences');
       final tokenJson = prefs.getString('authToken');
-      if (tokenJson == null) return null;
-      return AuthToken.fromMap(jsonDecode(tokenJson));
+      print('   📦 Found: ${tokenJson != null ? 'YES' : 'NO'}');
+      if (tokenJson == null) {
+        print('❌ [WEB-getToken] Token not found in SharedPreferences');
+        print('   📋 Available keys: ${prefs.getKeys()}');
+        return null;
+      }
+      print('   ✅ Token JSON: ${tokenJson.substring(0, 50)}...');
+      try {
+        final parsed = AuthToken.fromMap(jsonDecode(tokenJson));
+        print('✅ [WEB-getToken] Parsed successfully');
+        return parsed;
+      } catch (e) {
+        print('❌ [WEB-getToken] Failed to parse: $e');
+        return null;
+      }
     }
 
     final db = await database;

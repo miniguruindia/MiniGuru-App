@@ -6,6 +6,7 @@ import express from 'express';
 import prisma from '../utils/prismaClient';
 import logger from '../logger';
 import { authenticateToken } from '../middleware/authMiddleware';
+import { resolveSubject } from '../middleware/resolveSubject';
 
 const router = express.Router();
 
@@ -21,7 +22,7 @@ async function getScore(userId: string): Promise<number> {
 
 // ─── GET /goins/balance ──────────────────────────────────────────────────────
 // Returns user.score — the virtual Goins balance
-router.get('/balance', authenticateToken, async (req: any, res) => {
+router.get('/balance', authenticateToken, resolveSubject, async (req: any, res) => {
   try {
     const userId = req.user?.userId;
     const score  = await getScore(userId);
@@ -33,7 +34,7 @@ router.get('/balance', authenticateToken, async (req: any, res) => {
 });
 
 // ─── GET /goins/check?required=100 ──────────────────────────────────────────
-router.get('/check', authenticateToken, async (req: any, res) => {
+router.get('/check', authenticateToken, resolveSubject, async (req: any, res) => {
   try {
     const userId   = req.user?.userId;
     const required = parseInt(req.query.required as string) || 0;
@@ -47,7 +48,7 @@ router.get('/check', authenticateToken, async (req: any, res) => {
 
 // ─── GET /goins/history ──────────────────────────────────────────────────────
 // Reads from GoinsTransaction table (separate from wallet transactions)
-router.get('/history', authenticateToken, async (req: any, res) => {
+router.get('/history', authenticateToken, resolveSubject, async (req: any, res) => {
   try {
     const userId = req.user?.userId;
     const page   = Math.max(1, parseInt(req.query.page  as string) || 1);

@@ -5,8 +5,15 @@ import { uploadThumbnail } from "../../middleware/upload";
 import { increaseScoreByProjectId } from "../../services/project/score";
 import logger from "../../logger";
 
-// ✅ Import YouTube upload service
-const { uploadToYouTube } = require("../../services/youtubeUploadService");
+// ✅ Import YouTube upload service (optional)
+let uploadToYouTube: any = null;
+try {
+  const youtubeService = require("../../services/youtubeUploadService");
+  uploadToYouTube = youtubeService.uploadToYouTube;
+  logger.info('YouTube service loaded in project controller');
+} catch (error) {
+  logger.warn({ error: (error as Error).message }, 'YouTube service not available in project controller - YouTube features will be disabled');
+}
 
 const projectService = new ProjectService();
 
@@ -55,27 +62,34 @@ export const createProject = async (req: Request, res: Response) => {
   // ✅ Upload thumbnail as before (local storage)
   const thumbnailPath = thumbnailFile ? await uploadThumbnail(thumbnailFile) : "";
 
-  // ✅ Upload video to YouTube as UNLISTED (replaces local URL approach)
+  // ✅ Upload video to YouTube as UNLISTED (optional - falls back to local if unavailable)
   let videoUrl = "";
-  try {
-    logger.info(`📤 Uploading video to YouTube for project: "${title}"`);
+  if (uploadToYouTube) {
+    try {
+      logger.info(`📤 Uploading video to YouTube for project: "${title}"`);
 
-    const result = await uploadToYouTube(
-      videoFile.path, // multer diskStorage sets file.path to the full local path
-      {
-        title: title,
-        description: description || "",
-        tags: ["MiniGuru", "STEM", "Education", "India"],
-      }
-    );
+      const result = await uploadToYouTube(
+        videoFile.path, // multer diskStorage sets file.path to the full local path
+        {
+          title: title,
+          description: description || "",
+          tags: ["MiniGuru", "STEM", "Education", "India"],
+        }
+      );
 
-    videoUrl = result.url; // e.g. https://www.youtube.com/watch?v=ABC123
-    logger.info(`✅ YouTube upload successful. Video ID: ${result.videoId}`);
-  } catch (error) {
-    logger.error(`❌ YouTube upload failed: ${(error as Error).message}`);
-    return res.status(500).json({
-      error: "Failed to upload video to YouTube. Please try again.",
-    });
+      videoUrl = result.url; // e.g. https://www.youtube.com/watch?v=ABC123
+      logger.info(`✅ YouTube upload successful. Video ID: ${result.videoId}`);
+    } catch (error) {
+      logger.error(`❌ YouTube upload failed: ${(error as Error).message}`);
+      return res.status(500).json({
+        error: "Failed to upload video to YouTube. Please try again.",
+      });
+    }
+  } else {
+    logger.warn('YouTube service not available, skipping video upload');
+    // For now, we'll store an empty videoUrl - this might need to be handled differently
+    // depending on how the frontend expects to handle videos without YouTube
+    videoUrl = ""; // Or you could return an error here
   }
 
   try {

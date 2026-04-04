@@ -6,11 +6,12 @@ import express from 'express';
 import prisma from '../utils/prismaClient';
 import logger from '../logger';
 import { authenticateToken } from '../middleware/authMiddleware';
+import { resolveSubject } from '../middleware/resolveSubject';
 
 const router = express.Router();
 
 // ─── GET /users/me/analytics ──────────────────────────────────────────────────
-router.get('/me/analytics', authenticateToken, async (req: any, res) => {
+router.get('/me/analytics', authenticateToken, resolveSubject, async (req: any, res) => {
   try {
     const userId = req.user?.userId;
 
@@ -71,7 +72,7 @@ router.get('/me/analytics', authenticateToken, async (req: any, res) => {
 });
 
 // ─── GET /users/me/badges ─────────────────────────────────────────────────────
-router.get('/me/badges', authenticateToken, async (req: any, res) => {
+router.get('/me/badges', authenticateToken, resolveSubject, async (req: any, res) => {
   try {
     const userId = req.user?.userId;
 
@@ -132,7 +133,7 @@ router.get('/me/badges', authenticateToken, async (req: any, res) => {
 
 // ─── GET /users/me/notifications ─────────────────────────────────────────────
 // Comments and likes received on the user's own projects
-router.get('/me/notifications', authenticateToken, async (req: any, res) => {
+router.get('/me/notifications', authenticateToken, resolveSubject, async (req: any, res) => {
   try {
     const userId = req.user?.userId;
 
@@ -233,7 +234,7 @@ router.post('/me/photo', authenticateToken, async (req: any, res) => {
 });
 
 // ─── GET /users/me/photo ──────────────────────────────────────────────────────
-router.get('/me/photo', authenticateToken, async (req: any, res) => {
+router.get('/me/photo', authenticateToken, resolveSubject, async (req: any, res) => {
   try {
     const userId = req.user?.userId;
     const user   = await (prisma.user as any).findUnique({

@@ -1,7 +1,7 @@
 // lib/secrets.dart
 // API Keys and Configuration
 
-// Backend API
+// Backend API - Updated for GitHub Codespace environment
 const String apiBaseUrl = 'https://bug-free-fiesta-69xwgg4jwj6r34gpv-5001.app.github.dev';
 
 // Razorpay

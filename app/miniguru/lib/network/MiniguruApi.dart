@@ -10,6 +10,7 @@ import 'package:miniguru/models/ChildProfile.dart';
 import 'package:path/path.dart';
 import 'package:http_parser/http_parser.dart';
 import 'package:miniguru/secrets.dart';
+import 'package:miniguru/state/sessionState.dart';
 
 
 class MiniguruApi {
@@ -123,26 +124,39 @@ class MiniguruApi {
 
   Future<User?> getUserData() async {
     try {
+      print('🔵 [getUserData] Starting user data fetch');
       final storedToken = await _db!.getAuthToken();
       if (storedToken == null) {
-        print('ℹ️  No user logged in (no token found)');
+        print('❌ [getUserData] No auth token found in storage');
         return null;
       }
+      print('✅ [getUserData] Token found: ${storedToken.accessToken.substring(0, 20)}...');
+      
       var hasTokenExpired = await _db!.hasTokenExpired();
       AuthToken? authToken;
       if (hasTokenExpired) {
+        print('⚠️  [getUserData] Token expired, refreshing...');
         authToken = await refreshToken();
         if (authToken == null) {
-          print('❌ Token refresh failed - user needs to login again');
+          print('❌ [getUserData] Token refresh failed');
           return null;
         }
       } else {
+        print('✅ [getUserData] Token valid, proceeding');
         authToken = storedToken;
       }
+      
       final url = Uri.parse('$_baseUrl/me');
+      print('🔵 [getUserData] Calling $url');
+      print('   📌 Authorization: Bearer ${authToken.accessToken.substring(0, 20)}...');
+      
       final response = await http.get(url, headers: _buildHeaders(authToken.accessToken));
+      print('✅ [getUserData] Response status: ${response.statusCode}');
+      print('   📦 Response body length: ${response.body.length}');
+      
       if (response.statusCode == 200) {
         var data = jsonDecode(response.body);
+        print('✅ [getUserData] Response received: ${data['user']['name']}');
         data = data['user'];
         return User(
           id: data['id'],
@@ -157,13 +171,16 @@ class MiniguruApi {
           isMentor: data['isMentor'] ?? false,
         );
       } else if (response.statusCode == 401) {
-        print('❌ Unauthorized - token invalid');
+        print('❌ [getUserData] 401 Unauthorized - token invalid');
+        print('   📦 Response: ${response.body}');
         return null;
       } else {
+        print('❌ [getUserData] Unexpected status: ${response.statusCode}');
+        print('   📦 Response: ${response.body}');
         throw Exception('Failed to load user data: ${response.statusCode}');
       }
     } catch (e) {
-      print('❌ Error fetching user data: $e');
+      print('❌ [getUserData] Error fetching user data: $e');
       return null;
     }
   }
@@ -692,6 +709,8 @@ class MiniguruApi {
     return {
       'Content-Type': 'application/json',
       if (accessToken != null) 'Authorization': 'Bearer $accessToken',
+      if (SessionState.isChildSession && SessionState.activeChildProfileId != null)
+        'X-Child-Profile-Id': SessionState.activeChildProfileId!,
     };
   }
 

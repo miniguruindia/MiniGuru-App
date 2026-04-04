@@ -66,8 +66,20 @@ class _LoginScreenState extends State<LoginScreen> {
 
       if (response.statusCode == 200) {
         final body = jsonDecode(response.body);
+        print('✅ [LoginScreen] Login successful, received tokens');
+        print('   📦 Access Token: ${body['accessToken'].substring(0, 20)}...');
 
         await _db.insertAuthToken(body['accessToken'], body['refreshToken']);
+        print('✅ [LoginScreen] Tokens stored in database');
+
+        // Verify tokens were actually saved
+        final savedToken = await _db.getAuthToken();
+        if (savedToken != null) {
+          print('✅ [LoginScreen] Tokens verified in storage');
+          print('   📦 Saved Token: ${savedToken.accessToken.substring(0, 20)}...');
+        } else {
+          print('❌ [LoginScreen] ERROR: Tokens NOT found in storage after saving!');
+        }
 
         if (!mounted) return;
 
@@ -76,20 +88,30 @@ class _LoginScreenState extends State<LoginScreen> {
 
         if (!mounted) return;
 
+        print('🔵 [LoginScreen] Fetching user data...');
         final userData = await _api.getUserData();
 
         if (!mounted) return;
 
-        if (userData != null && userData.isMentor == true) {
-          Navigator.of(context).pushAndRemoveUntil(
-            MaterialPageRoute(builder: (_) => const MentorChildPickerScreen()),
-            (route) => false,
-          );
+        if (userData != null) {
+          print('✅ [LoginScreen] User data received: ${userData.name}');
+          print('   📌 IsMentor: ${userData.isMentor}');
+          if (userData.isMentor == true) {
+            print('🔄 [LoginScreen] Navigating to MentorChildPickerScreen');
+            Navigator.of(context).pushAndRemoveUntil(
+              MaterialPageRoute(builder: (_) => const MentorChildPickerScreen()),
+              (route) => false,
+            );
+          } else {
+            print('🔄 [LoginScreen] Navigating to HomeScreen');
+            Navigator.of(context).pushNamedAndRemoveUntil(
+              HomeScreen.id,
+              (route) => false,
+            );
+          }
         } else {
-          Navigator.of(context).pushNamedAndRemoveUntil(
-            HomeScreen.id,
-            (route) => false,
-          );
+          print('❌ [LoginScreen] ERROR: getUserData returned null!');
+          _showSnackBar('Failed to load user data. Please try again.', Colors.red);
         }
       } else {
         String errorMessage = 'Login failed';

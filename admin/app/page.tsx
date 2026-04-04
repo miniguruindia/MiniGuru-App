@@ -16,8 +16,16 @@ import {
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || ''
 
 async function authHeader() {
-  const token = typeof window !== 'undefined' ? localStorage.getItem('adminToken') || '' : ''
+  const token = typeof window !== 'undefined' ? getCookie('auth_token') || '' : ''
   return { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }
+}
+
+function getCookie(name: string): string | null {
+  if (typeof window === 'undefined') return null;
+  const value = `; ${document.cookie}`;
+  const parts = value.split(`; ${name}=`);
+  if (parts.length === 2) return parts.pop()?.split(';').shift() || null;
+  return null;
 }
 
 const DEFAULT_STATS = {

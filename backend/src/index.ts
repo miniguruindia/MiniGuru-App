@@ -26,8 +26,14 @@ import guardianRouter from './routes/guardianRoutes';
 import communicationRouter from './routes/communicationRoutes';   // ← NEW
 import goinsRouter from './routes/goinsRoutes';           // ← NEW
 
-// YouTube Upload Setup
-const { getAuthUrl, handleCallback } = require('./services/youtubeUploadService');
+// YouTube Upload Setup (optional)
+let youtubeService: any = null;
+try {
+  youtubeService = require('./services/youtubeUploadService');
+  logger.info('YouTube service loaded successfully');
+} catch (error) {
+  logger.warn({ error: (error as Error).message }, 'YouTube service not available - YouTube features will be disabled');
+}
 
 const app = express();
 
@@ -108,16 +114,19 @@ app.get('/health', (req, res) => {
 // ============================================
 
 app.get('/setup-youtube', (req, res) => {
+  if (!youtubeService) {
+    return res.status(503).send('YouTube service is not configured.');
+  }
   try {
-    const url = getAuthUrl();
+    const url = youtubeService.getAuthUrl();
     res.send(`
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <title>YouTube OAuth Setup - MiniGuru</title>
-        <style>
-          body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+//       <!DOCTYPE html>
+//       <html>
+//       <head>
+//         <title>YouTube OAuth Setup - MiniGuru</title>
+//         <style>
+//           body {
+//             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             max-width: 600px;
             margin: 50px auto;
             padding: 20px;
@@ -179,13 +188,16 @@ app.get('/setup-youtube', (req, res) => {
 });
 
 app.get('/auth/youtube/callback', async (req, res) => {
+  if (!youtubeService) {
+    return res.status(503).send('YouTube service is not configured.');
+  }
   const { code } = req.query;
   if (!code) {
     return res.status(400).send(`<h1>❌ Error</h1><p>No authorization code received. Please try again.</p>`);
   }
   try {
     logger.info('Processing YouTube OAuth callback...');
-    const tokens = await handleCallback(code as string);
+    const tokens = await youtubeService.handleCallback(code);
     logger.info('YouTube OAuth tokens received successfully');
     res.send(`
       <!DOCTYPE html>
@@ -316,7 +328,11 @@ const server = app.listen(PORT, HOST, () => {
   logger.info(`🚀 Server running on ${HOST}:${PORT}`);
   logger.info(`🌐 CORS enabled for all origins (development mode)`);
   logger.info(`📡 Ready to accept requests`);
-  logger.info(`📺 YouTube OAuth setup available at: /setup-youtube`);
+  if (youtubeService) {
+    logger.info(`📺 YouTube OAuth setup available at: /setup-youtube`);
+  } else {
+    logger.info(`📺 YouTube OAuth setup: DISABLED (service not available)`);
+  }
   logger.info(`🧰 Materials API: /materials`);
   logger.info(`🪙 Goins API: /goins`);
 });
