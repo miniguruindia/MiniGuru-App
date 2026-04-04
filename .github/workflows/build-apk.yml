@@ -26,7 +26,7 @@ jobs:
     - name: 📥 Checkout latest code
       uses: actions/checkout@v4
       with:
-        fetch-depth: 0
+        fetch-depth: 1
     
     - name: ☕ Setup Java 17
       uses: actions/setup-java@v4
@@ -36,16 +36,10 @@ jobs:
         cache: 'gradle'
     
     - name: 🤖 Setup Android SDK
-      run: |
-        export ANDROID_SDK_ROOT=/usr/local/lib/android/sdk
-        export PATH=$PATH:$ANDROID_SDK_ROOT/cmdline-tools/latest/bin
-        
-        echo "📦 Installing Android SDK components..."
-        yes | sdkmanager --licenses || true
-        sdkmanager "platforms;android-34"
-        sdkmanager "build-tools;34.0.0"
-        
-        echo "✅ Android SDK setup complete"
+      uses: android-actions/setup-android@v3
+      with:
+        packages: 'platforms;android-35 build-tools;34.0.0'
+        cache-key: 'android-sdk-v1'
     
     - name: 🐦 Setup Flutter
       uses: subosito/flutter-action@v2
@@ -107,13 +101,8 @@ jobs:
         export ANDROID_SDK_ROOT=/usr/local/lib/android/sdk
         echo "🗑️  Removing SDK versions that cause conflicts..."
         
-        sudo rm -rf $ANDROID_SDK_ROOT/platforms/android-35 || true
-        sudo rm -rf $ANDROID_SDK_ROOT/build-tools/35.* || true
+        sudo rm -rf $ANDROID_SDK_ROOT/platforms/android-34 || true
         sudo rm -rf $ANDROID_SDK_ROOT/build-tools/33.0.1 || true
-        
-        # Prevent re-installation
-        sudo touch $ANDROID_SDK_ROOT/platforms/android-35
-        sudo chmod 000 $ANDROID_SDK_ROOT/platforms/android-35 || true
         
         echo "✅ Cleanup complete. Remaining platforms:"
         ls -la $ANDROID_SDK_ROOT/platforms/ || true
@@ -155,3 +144,6 @@ jobs:
         echo ""
         echo "📁 APK Location:"
         ls -lh app/miniguru/build/app/outputs/flutter-apk/ || echo "❌ APK not found"
+        echo ""
+        echo "💾 Disk Usage:"
+        df -h | grep -E "(Filesystem|overlay|/tmp)" || true

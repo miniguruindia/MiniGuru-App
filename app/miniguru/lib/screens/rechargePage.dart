@@ -3,8 +3,7 @@ import 'package:miniguru/constants.dart';
 import 'package:miniguru/models/User.dart';
 import 'package:miniguru/network/MiniguruApi.dart';
 import 'package:miniguru/secrets.dart';
-// ignore: avoid_web_libraries_in_flutter
-import 'dart:js' as js;
+import 'package:razorpay_flutter/razorpay_flutter.dart';
 
 class RechargePage extends StatefulWidget {
   final User user;
@@ -19,11 +18,22 @@ class _RechargePageState extends State<RechargePage> {
   final TextEditingController _amountController = TextEditingController();
   bool _isLoading = false;
   int? _selectedAmount;
+  late Razorpay _razorpay;
 
   final List<int> _quickAmounts = [100, 500, 1000, 2000, 5000];
 
   @override
+  void initState() {
+    super.initState();
+    _razorpay = Razorpay();
+    _razorpay.on(Razorpay.EVENT_PAYMENT_SUCCESS, _handlePaymentSuccess);
+    _razorpay.on(Razorpay.EVENT_PAYMENT_ERROR, _handlePaymentError);
+    _razorpay.on(Razorpay.EVENT_EXTERNAL_WALLET, _handleExternalWallet);
+  }
+
+  @override
   void dispose() {
+    _razorpay.clear();
     _amountController.dispose();
     super.dispose();
   }
@@ -40,6 +50,28 @@ class _RechargePageState extends State<RechargePage> {
     );
   }
 
+  void _handlePaymentSuccess(PaymentSuccessResponse response) async {
+    final String? paymentId = response.paymentId;
+    final String? orderId = response.orderId;
+
+    if (paymentId != null && orderId != null) {
+      await _verifyTransaction(orderId, paymentId);
+    } else {
+      _showSnackBar("Payment verification failed", Colors.red);
+      setState(() => _isLoading = false);
+    }
+  }
+
+  void _handlePaymentError(PaymentFailureResponse response) {
+    setState(() => _isLoading = false);
+    _showSnackBar("Payment failed: ${response.message}", Colors.red);
+  }
+
+  void _handleExternalWallet(ExternalWalletResponse response) {
+    setState(() => _isLoading = false);
+    _showSnackBar("External wallet selected: ${response.walletName}", Colors.blue);
+  }
+
   Future<void> _initiatePayment(int amount) async {
     setState(() => _isLoading = true);
 
@@ -51,41 +83,38 @@ class _RechargePageState extends State<RechargePage> {
     }
 
     final String orderId = orderData["orderId"];
-    final String transactionId = orderData["transactionId"];
 
-    // Open Razorpay JS checkout
-    js.context.callMethod("openRazorpay", [
-      js.JsObject.jsify({
-        "key": razorpay_key_test,
-        "amount": amount * 100,
-        "currency": "INR",
-        "order_id": orderId,
-        "name": "MiniGuru",
-        "description": "Wallet Recharge",
-        "prefill": {"email": widget.user.email},
-        "theme": {"color": "#5B6EF5"},
-        "handler": js.allowInterop((js.JsObject response) async {
-          await _verifyTransaction(orderId, transactionId);
-        }),
-        "modal": js.JsObject.jsify({
-          "ondismiss": js.allowInterop(() {
-            if (mounted) {
-              setState(() => _isLoading = false);
-              _showSnackBar("Payment cancelled", Colors.orange);
-            }
-          }),
-        }),
-      })
-    ]);
+    var options = {
+      'key': razorpay_key_test,
+      'amount': amount * 100, // Amount in paise
+      'name': 'MiniGuru',
+      'description': 'Wallet Recharge',
+      'order_id': orderId,
+      'prefill': {
+        'contact': '', // You can add phone number if available
+        'email': widget.user.email
+      },
+      'theme': {
+        'color': '#5B6EF5'
+      }
+    };
+
+    try {
+      _razorpay.open(options);
+    } catch (e) {
+      setState(() => _isLoading = false);
+      _showSnackBar("Error opening payment gateway", Colors.red);
+    }
+  }
 
     setState(() => _isLoading = false);
   }
 
-  Future<void> _verifyTransaction(String orderId, String transactionId) async {
+  Future<void> _verifyTransaction(String orderId, String paymentId) async {
     setState(() => _isLoading = true);
     final success = await miniguruApi.verifyTransaction(
       widget.user.id,
-      transactionId,
+      paymentId,
       orderId,
     );
     setState(() => _isLoading = false);
