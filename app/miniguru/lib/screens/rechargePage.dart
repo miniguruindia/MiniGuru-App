@@ -107,9 +107,6 @@ class _RechargePageState extends State<RechargePage> {
     }
   }
 
-    setState(() => _isLoading = false);
-  }
-
   Future<void> _verifyTransaction(String orderId, String paymentId) async {
     setState(() => _isLoading = true);
     final success = await miniguruApi.verifyTransaction(
