@@ -4,6 +4,7 @@
 import express, { Request, Response } from 'express';
 import fs from 'fs';
 import { authenticateToken, authorizeAdmin } from '../middleware/authMiddleware';
+import prisma from '../utils/prismaClient';
 
 // Video interaction controllers
 import {
@@ -21,7 +22,6 @@ const router = express.Router();
 
 // Import upload service (JS module)
 const { upload, uploadToYouTube } = require('../services/youtubeUploadService');
-const PendingVideo = require('../models/PendingVideo');
 
 // ========================================================================
 // SECTION 1: VIDEO UPLOAD ROUTES (Admin workflow)
@@ -29,31 +29,41 @@ const PendingVideo = require('../models/PendingVideo');
 
 router.post('/upload', authenticateToken, upload.single('video'), async (req: Request, res: Response) => {
   try {
-    const { title, description, category, tags } = req.body;
+    const { title, description, category, tags, privacyStatus } = req.body;
     const videoFile = req.file;
 
     if (!videoFile) {
       return res.status(400).json({ error: 'No video file uploaded' });
     }
 
-    const pendingVideo = await PendingVideo.create({
-      title,
-      description,
-      category,
-      tags: tags ? tags.split(',') : [],
-      localPath: videoFile.path,
-      originalName: videoFile.originalname,
-      fileSize: videoFile.size,
-      mimeType: videoFile.mimetype,
-      uploadedBy: req.user!.id,
-      status: 'pending',
-      submittedAt: new Date(),
+    const pendingVideo = await prisma.pendingVideo.create({
+      data: {
+        title,
+        description,
+        category: category?.toUpperCase().replace(/\s+/g, '_') || 'SHOW_PIECE',
+        tags: tags ? tags.split(',').map((tag: string) => tag.trim()).filter(Boolean) : [],
+        localPath: videoFile.path,
+        originalName: videoFile.originalname,
+        fileSize: videoFile.size,
+        mimeType: videoFile.mimetype,
+        uploadedById: req.user!.id,
+        status: 'PENDING',
+        privacyStatus: privacyStatus || 'public',
+        submittedAt: new Date(),
+        auditTrail: {
+          create: {
+            action: 'SUBMITTED',
+            actionById: req.user!.id,
+            notes: `Video submitted for approval by ${req.user!.id}`,
+          },
+        },
+      },
     });
 
     res.json({
       success: true,
       message: 'Video submitted for approval',
-      videoId: pendingVideo._id,
+      videoId: pendingVideo.id,
       estimatedReviewTime: '24-48 hours',
     });
   } catch (error: any) {
@@ -64,9 +74,11 @@ router.post('/upload', authenticateToken, upload.single('video'), async (req: Re
 
 router.get('/pending', authenticateToken, authorizeAdmin, async (req: Request, res: Response) => {
   try {
-    const pendingVideos = await PendingVideo.find({ status: 'pending' })
-      .populate('uploadedBy', 'name email')
-      .sort({ submittedAt: -1 });
+    const pendingVideos = await prisma.pendingVideo.findMany({
+      where: { status: 'PENDING' },
+      orderBy: { submittedAt: 'desc' },
+      include: { auditTrail: { orderBy: { timestamp: 'desc' }, take: 1 } },
+    });
 
     res.json({
       success: true,
@@ -84,29 +96,44 @@ router.post('/approve/:id', authenticateToken, authorizeAdmin, async (req: Reque
     const { id } = req.params;
     const { privacyStatus = 'public' } = req.body;
 
-    const video = await PendingVideo.findById(id);
+    const video = await prisma.pendingVideo.findUnique({ where: { id } });
     
     if (!video) {
       return res.status(404).json({ error: 'Video not found' });
     }
 
-    if (video.status !== 'pending') {
+    if (video.status !== 'PENDING') {
       return res.status(400).json({ error: 'Video is not pending approval' });
     }
+
+    const { approvalNotes } = req.body;
 
     const youtubeResult = await uploadToYouTube(video.localPath, {
       title: video.title,
       description: video.description,
       tags: video.tags,
-      privacyStatus,
+      privacyStatus: video.privacyStatus,
     });
 
-    video.status = 'approved';
-    video.youtubeVideoId = youtubeResult.videoId;
-    video.youtubeUrl = youtubeResult.url;
-    video.approvedAt = new Date();
-    video.approvedBy = req.user!.id;
-    await video.save();
+    await prisma.pendingVideo.update({
+      where: { id },
+      data: {
+        status: 'APPROVED',
+        youtubeVideoId: youtubeResult.videoId,
+        youtubeUrl: youtubeResult.url,
+        approvalNotes: approvalNotes,
+        approvedAt: new Date(),
+        approvedById: req.user!.id,
+        auditTrail: {
+          create: {
+            action: 'APPROVED',
+            actionById: req.user!.id,
+            notes: approvalNotes || `Approved by ${req.user!.id}`,
+            changesSummary: `Uploaded to YouTube: ${youtubeResult.videoId}`,
+          },
+        },
+      },
+    });
 
     res.json({
       success: true,
@@ -125,7 +152,7 @@ router.post('/reject/:id', authenticateToken, authorizeAdmin, async (req: Reques
     const { id } = req.params;
     const { reason } = req.body;
 
-    const video = await PendingVideo.findById(id);
+    const video = await prisma.pendingVideo.findUnique({ where: { id } });
     
     if (!video) {
       return res.status(404).json({ error: 'Video not found' });
@@ -135,11 +162,23 @@ router.post('/reject/:id', authenticateToken, authorizeAdmin, async (req: Reques
       fs.unlinkSync(video.localPath);
     }
 
-    video.status = 'rejected';
-    video.rejectionReason = reason;
-    video.rejectedAt = new Date();
-    video.rejectedBy = req.user!.id;
-    await video.save();
+    await prisma.pendingVideo.update({
+      where: { id },
+      data: {
+        status: 'REJECTED',
+        rejectionReason: reason,
+        rejectedAt: new Date(),
+        rejectedById: req.user!.id,
+        auditTrail: {
+          create: {
+            action: 'REJECTED',
+            actionById: req.user!.id,
+            notes: `Rejected by ${req.user!.id}`,
+            changesSummary: reason || 'No reason provided',
+          },
+        },
+      },
+    });
 
     res.json({
       success: true,
@@ -153,13 +192,16 @@ router.post('/reject/:id', authenticateToken, authorizeAdmin, async (req: Reques
 
 router.get('/my-submissions', authenticateToken, async (req: Request, res: Response) => {
   try {
-    const videos = await PendingVideo.find({ uploadedBy: req.user!.id })
-      .sort({ submittedAt: -1 });
+    const videos = await prisma.pendingVideo.findMany({
+      where: { uploadedById: req.user!.id },
+      orderBy: { submittedAt: 'desc' },
+      include: { auditTrail: { orderBy: { timestamp: 'desc' }, take: 5 } },
+    });
 
     res.json({
       success: true,
-      videos: videos.map((v: any) => ({
-        id: v._id,
+      videos: videos.map((v) => ({
+        id: v.id,
         title: v.title,
         status: v.status,
         submittedAt: v.submittedAt,

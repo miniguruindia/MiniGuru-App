@@ -8,7 +8,7 @@ import {
   RefreshCw, AlertCircle, CheckCircle, Clock
 } from 'lucide-react'
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || ''
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001'
 
 async function authHeader() {
   const token = typeof window !== 'undefined' ? localStorage.getItem('adminToken') || '' : ''
@@ -51,11 +51,16 @@ export default function RevenuePage() {
   const load = async () => {
     setLoading(true); setError('')
     try {
+      console.log('💰 Revenue: Fetching from', API_BASE)
       const res = await fetch(`${API_BASE}/admin/orders`, { headers: await authHeader() })
-      if (!res.ok) throw new Error(`${res.status}`)
+      console.log('📊 Response:', res.status, res.statusText)
+      if (!res.ok) throw new Error(`${res.status} ${res.statusText}`)
       setOrders(await res.json())
-    } catch {
-      setError('Could not load orders — check backend connection')
+      setError('')
+    } catch (e: any) {
+      const msg = e?.message || String(e)
+      console.error('❌ Revenue fetch failed:', msg, e)
+      setError(`⚠️ Backend error: ${msg}. Make sure backend is running at ${API_BASE}`)
     } finally {
       setLoading(false)
     }

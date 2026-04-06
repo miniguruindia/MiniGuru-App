@@ -28,6 +28,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _nameCtrl = TextEditingController();
   final _emailCtrl = TextEditingController();
   final _passwordCtrl = TextEditingController();
+  final _confirmPasswordCtrl = TextEditingController();
   final _ageCtrl = TextEditingController();
   final _phoneCtrl = TextEditingController();
   final _institutionCtrl = TextEditingController();
@@ -51,6 +52,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     _nameCtrl.dispose();
     _emailCtrl.dispose();
     _passwordCtrl.dispose();
+    _confirmPasswordCtrl.dispose();
     _ageCtrl.dispose();
     _phoneCtrl.dispose();
     _institutionCtrl.dispose();
@@ -405,6 +407,24 @@ class _RegisterScreenState extends State<RegisterScreen> {
             validator: (v) {
               if (v == null || v.isEmpty) return 'Please enter your password';
               if (v.length < 6) return 'Password must be at least 6 characters';
+              return null;
+            },
+          ),
+          const SizedBox(height: 14),
+          // Confirm Password
+          _field(
+            ctrl: _confirmPasswordCtrl,
+            label: 'Confirm Password',
+            icon: Icons.lock_outline,
+            obscureText: _obscurePassword,
+            suffixIcon: IconButton(
+              icon: Icon(_obscurePassword ? Icons.visibility_off : Icons.visibility,
+                  color: Colors.grey[600]),
+              onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+            ),
+            validator: (v) {
+              if (v == null || v.isEmpty) return 'Please confirm your password';
+              if (v != _passwordCtrl.text) return 'Passwords do not match';
               return null;
             },
           ),

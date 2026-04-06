@@ -21,7 +21,6 @@ const FULFILLMENT_LABELS: Record<string, string> = {
 
 export function UserDetails({ user }: UserDetailsProps) {
   const [activeTab, setActiveTab] = useState<'overview' | 'orders' | 'projects' | 'goins'>('overview');
-  const [showFullPassword, setShowFullPassword] = useState(false);
 
   const tabs = [
     { id: 'overview', label: 'Overview' },
@@ -104,31 +103,18 @@ export function UserDetails({ user }: UserDetailsProps) {
               { label: 'Phone', value: user.phoneNumber },
               { label: 'Age', value: user.age },
               { label: 'Role', value: user.role },
-              { label: 'Password Hash', value: user.passwordHash || 'Not available', isPassword: true },
+              { label: 'Password', value: '••••••••' },
               { label: 'Goins', value: user.score },
               { label: 'Wallet', value: `₹${(user.wallet?.balance ?? 0).toFixed(2)}` },
               { label: 'Projects', value: user.totalProjects ?? 0 },
               { label: 'Joined', value: new Date(user.createdAt).toLocaleDateString('en-IN') },
               { label: 'User ID', value: user.id },
-            ].map(({ label, value, isPassword }) => (
+            ].map(({ label, value }) => (
               <div key={label} className="border-b pb-2">
                 <p className="text-xs text-gray-400 mb-0.5">{label}</p>
-                <div className="flex items-center gap-2">
-                  <p className={`text-sm font-medium break-all ${isPassword ? 'font-mono text-xs bg-gray-100 p-2 rounded flex-1' : 'text-gray-900'}`}>
-                    {isPassword && value !== 'Not available' 
-                      ? (showFullPassword ? value : `${value.substring(0, 20)}...`)
-                      : value
-                    }
-                  </p>
-                  {isPassword && value !== 'Not available' && (
-                    <button
-                      onClick={() => setShowFullPassword(!showFullPassword)}
-                      className="text-xs text-blue-600 hover:text-blue-800 underline"
-                    >
-                      {showFullPassword ? 'Hide' : 'Show Full'}
-                    </button>
-                  )}
-                </div>
+                <p className="text-sm font-medium break-all text-gray-900">
+                  {value}
+                </p>
               </div>
             ))}
           </CardContent>

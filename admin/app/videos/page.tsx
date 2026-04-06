@@ -5,7 +5,7 @@ import { AdminLayout } from '@/components/AdminLayout'
 import { Card } from '@/components/ui/card'
 import { RefreshCw, CheckCircle, XCircle, Eye } from 'lucide-react'
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || ''
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001'
 
 interface ProjectUser { id: string; name: string; email: string }
 interface ProjectCategory { id: string; name: string }
@@ -64,12 +64,17 @@ export default function VideoApprovalsPage() {
   const load = async () => {
     setLoading(true); setError('')
     try {
+      console.log('🎬 Videos: Fetching from', API_BASE)
       const res = await fetch(`${API_BASE}/admin/projects/pending`, { headers: await authHeader() })
-      if (!res.ok) throw new Error(`${res.status}`)
+      console.log('📹 Response:', res.status, res.statusText)
+      if (!res.ok) throw new Error(`${res.status} ${res.statusText}`)
       const data = await res.json()
       setProjects(Array.isArray(data) ? data : data.projects ?? [])
-    } catch {
-      setError('Backend not connected — showing sample data')
+      setError('')
+    } catch (e: any) {
+      const msg = e?.message || String(e)
+      console.error('❌ Videos fetch failed:', msg, e)
+      setError(`⚠️ Backend error: ${msg}. Showing sample data. Make sure backend is running at ${API_BASE}`)
       setProjects(MOCK_PROJECTS)
     } finally { setLoading(false) }
   }

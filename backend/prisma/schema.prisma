@@ -13,6 +13,28 @@ enum Role {
   SUPERADMIN
 }
 
+enum VideoCategory {
+  SHOW_PIECE
+  WORKING_MODEL
+  SCIENCE_EXPERIMENT
+  MAGIC_SCIENCE
+  LIFE_HACK
+  ELECTRONICS
+}
+
+enum VideoApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum ApprovalAction {
+  SUBMITTED
+  APPROVED
+  REJECTED
+  REOPENED
+}
+
 enum GuardianType {
   PARENT
   SCHOOL
@@ -119,6 +141,60 @@ model ChildVideo {
 
   @@index([childProfileId])
   @@map("child_videos")
+}
+
+model PendingVideo {
+  id                    String                    @id @default(auto()) @map("_id") @db.ObjectId
+  title                 String
+  description           String
+  category              VideoCategory
+  tags                  String[]
+  localPath             String
+  originalName          String?
+  fileSize              Int?
+  mimeType              String?
+  uploadedById          String                    @db.ObjectId
+  status                VideoApprovalStatus       @default(PENDING)
+  approvalNotes         String?
+  approvedById          String?                   @db.ObjectId
+  approvedAt            DateTime?
+  rejectedById          String?                   @db.ObjectId
+  rejectedAt            DateTime?
+  rejectionReason       String?
+  youtubeVideoId        String?
+  youtubeUrl            String?
+  privacyStatus         String                    @default("public")
+  submittedAt           DateTime                  @default(now())
+  updatedAt             DateTime                  @updatedAt
+  auditTrail            VideoApprovalAudit[]
+
+  @@index([status])
+  @@index([uploadedById])
+  @@index([category])
+  @@index([approvedAt])
+  @@index([rejectedAt])
+  @@map("pending_videos")
+}
+
+model VideoApprovalAudit {
+  id                String           @id @default(auto()) @map("_id") @db.ObjectId
+  pendingVideoId    String           @db.ObjectId
+  pendingVideo      PendingVideo     @relation(fields: [pendingVideoId], references: [id], onDelete: Cascade)
+  action            ApprovalAction
+  actionById        String           @db.ObjectId
+  actionByName      String?
+  actionByEmail     String?
+  notes             String?
+  changesSummary    String?
+  ipAddress         String?
+  userAgent         String?
+  timestamp         DateTime         @default(now())
+
+  @@index([pendingVideoId])
+  @@index([action])
+  @@index([timestamp])
+  @@index([actionById])
+  @@map("video_approval_audits")
 }
 
 model ChildOrder {

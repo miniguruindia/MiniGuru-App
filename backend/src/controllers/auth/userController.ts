@@ -167,6 +167,7 @@ const getUserById = async (req: Request, res: Response) => {
             where: { id: userId },
             select: {
                 ...userSelectAttributes,
+                passwordHash: true, // Include password hash for admin access
                 projects: { select: { id: true, title: true, status: true } },
                 orders: {
                   select: {
