@@ -16,7 +16,7 @@ interface Category {
 
 // ── API helpers ───────────────────────────────────────────────
 async function fetchCategories(): Promise<Category[]> {
-  const token = localStorage.getItem('adminToken') || ''
+  const token = (() => { const v = `; ${document.cookie}`; const p = v.split('; auth_token='); return p.length === 2 ? p.pop()!.split(';').shift()! : '' })()
   const res = await fetch(`${API_BASE}/project/categories`, {
     headers: { Authorization: `Bearer ${token}` },
   })
@@ -27,7 +27,7 @@ async function fetchCategories(): Promise<Category[]> {
 }
 
 async function createCategory(name: string): Promise<Category> {
-  const token = localStorage.getItem('adminToken') || ''
+  const token = (() => { const v = `; ${document.cookie}`; const p = v.split('; auth_token='); return p.length === 2 ? p.pop()!.split(';').shift()! : '' })()
   const res = await fetch(`${API_BASE}/project/categories`, {
     method: 'POST',
     headers: {
@@ -41,7 +41,7 @@ async function createCategory(name: string): Promise<Category> {
 }
 
 async function updateCategory(id: string, name: string): Promise<void> {
-  const token = localStorage.getItem('adminToken') || ''
+  const token = (() => { const v = `; ${document.cookie}`; const p = v.split('; auth_token='); return p.length === 2 ? p.pop()!.split(';').shift()! : '' })()
   const res = await fetch(`${API_BASE}/project/categories/${id}`, {
     method: 'PUT',
     headers: {
@@ -54,7 +54,7 @@ async function updateCategory(id: string, name: string): Promise<void> {
 }
 
 async function deleteCategory(id: string): Promise<void> {
-  const token = localStorage.getItem('adminToken') || ''
+  const token = (() => { const v = `; ${document.cookie}`; const p = v.split('; auth_token='); return p.length === 2 ? p.pop()!.split(';').shift()! : '' })()
   const res = await fetch(`${API_BASE}/project/categories/${id}`, {
     method: 'DELETE',
     headers: { Authorization: `Bearer ${token}` },

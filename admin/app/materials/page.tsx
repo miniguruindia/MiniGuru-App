@@ -17,7 +17,7 @@ interface Category {
 }
 
 async function authToken() {
-  return typeof window !== 'undefined' ? localStorage.getItem('adminToken') || '' : ''
+  return (() => { const v = `; ${document.cookie}`; const p = v.split('; auth_token='); return p.length === 2 ? p.pop()!.split(';').shift()! : '' })()
 }
 
 const EMPTY_MAT = { name: '', description: '', price: '', inventory: '100', categoryId: '', categoryName: '' }

@@ -11,7 +11,7 @@ import {
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || ''
 
 async function authHeader() {
-  const token = typeof window !== 'undefined' ? localStorage.getItem('adminToken') || '' : ''
+  const token = (() => { const v = `; ${document.cookie}`; const p = v.split('; auth_token='); return p.length === 2 ? p.pop()!.split(';').shift()! : '' })()
   return { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }
 }
 
