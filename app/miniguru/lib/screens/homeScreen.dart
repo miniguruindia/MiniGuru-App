@@ -87,7 +87,7 @@ class _HomeScreenState extends State<HomeScreen> {
     // Profile (logged in) or About (guest)
     if (index == 4) {
       if (_user?.isMentor == true && !SessionState.isChildSession) return const MentorProfileTab();
-      if (_isAuthenticated && _user != null) {
+      if (SessionState.isChildSession || (_isAuthenticated && _user != null)) {
         if (!_cachedScreens.containsKey(index)) {
           _cachedScreens[index] = const Profile();
         }
