@@ -74,6 +74,31 @@ router.post('/children', authenticateToken, async (req: Request, res: Response) 
 
     const pinHash = await bcrypt.hash(String(pin), 10);
 
+    // Auto-generate login credentials
+    const nameParts = name.trim().toLowerCase().split(' ');
+    const baseEmail = nameParts.join('.') + '@miniguru.in';
+    // Make email unique if already taken
+    const existing = await prisma.user.findUnique({ where: { email: baseEmail } });
+    const autoEmail = existing
+      ? nameParts.join('.') + '.' + Math.floor(1000 + Math.random() * 9000) + '@miniguru.in'
+      : baseEmail;
+
+    // Create real User account for child — password is MG + PIN (6 chars)
+    const autoPassword = 'MG' + String(pin);
+    const passwordHash = await bcrypt.hash(autoPassword, 10);
+    const linkedUser = await prisma.user.create({
+      data: {
+        email: autoEmail,
+        passwordHash,
+        name,
+        age: Number(age),
+        phoneNumber: 'child_' + Date.now(),
+        role: 'USER',
+        score: 100,
+        isMentor: false,
+      }
+    });
+
     const child = await prisma.childProfile.create({
       data: {
         guardianId: userId,
@@ -81,6 +106,7 @@ router.post('/children', authenticateToken, async (req: Request, res: Response) 
         age: Number(age),
         grade: grade ?? null,
         pinHash,
+        linkedUserId: linkedUser.id,
       },
       select: {
         id: true, name: true, age: true, grade: true,
@@ -88,7 +114,15 @@ router.post('/children', authenticateToken, async (req: Request, res: Response) 
       }
     });
 
-    return res.status(201).json({ message: 'Child added successfully', child });
+    return res.status(201).json({
+      message: 'Child added successfully',
+      child,
+      credentials: {
+        email: autoEmail,
+        password: autoPassword,
+        note: 'Child can login independently with these credentials'
+      }
+    });
   } catch (err: any) {
     console.error('add child error:', err);
     return res.status(500).json({ message: 'Internal server error' });

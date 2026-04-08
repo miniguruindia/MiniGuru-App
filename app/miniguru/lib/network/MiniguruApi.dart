@@ -840,10 +840,10 @@ class MiniguruApi {
     return [];
   }
 
-  Future<bool> addChildProfile({required String name, required int age, String? grade, required String pin}) async {
+  Future<Map<String, dynamic>?> addChildProfile({required String name, required int age, String? grade, required String pin}) async {
     try {
       final authToken = await _db!.getAuthToken();
-      if (authToken == null) return false;
+      if (authToken == null) return null;
       final response = await http.post(
         Uri.parse('$_baseUrl/mentor/children'),
         headers: _buildHeaders(authToken.accessToken),
@@ -854,9 +854,12 @@ class MiniguruApi {
           'pin': pin,
         }),
       );
-      return response.statusCode == 201;
+      if (response.statusCode == 201) {
+        final data = jsonDecode(response.body);
+        return data['credentials'] as Map<String, dynamic>?;
+      }
     } catch (e) { print('❌ addChildProfile: $e'); }
-    return false;
+    return null;
   }
 
   Future<bool> verifyChildPin(String childId, String pin) async {

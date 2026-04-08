@@ -50,5 +50,6 @@ export interface User {
   profilePhoto?: string | null;
   passwordHash?: string;
   orders?: UserOrder[];
-  orders?: UserOrder[];
+  isMentor?: boolean;
+  mentorType?: string | null;
 }

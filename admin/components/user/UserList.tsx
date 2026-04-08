@@ -38,14 +38,33 @@ export function UserList({ users, onDeleteUser }: UserListProps) {
           <TableRow>
             <TableHead>Name</TableHead>
             <TableHead>Email</TableHead>
+            <TableHead>Type</TableHead>
+            <TableHead>Goins</TableHead>
             <TableHead>Actions</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
-          {filteredUsers.map((user) => (
+          {filteredUsers.map((user) => {
+            const isChild = user.phoneNumber?.startsWith('child_')
+            const isMentor = user.isMentor
+            const mentorLabel = user.mentorType === 'SCHOOL' ? '🏫 School'
+              : user.mentorType === 'TLAB' ? '🔬 T-LAB'
+              : user.mentorType === 'COMMUNITY' ? '🌍 Community'
+              : '👨‍👩‍👧 Parent'
+            const typeLabel = isChild ? '🧒 Child' : isMentor ? mentorLabel : '👤 Individual'
+            const typeBg = isChild ? 'bg-blue-100 text-blue-700'
+              : isMentor ? 'bg-purple-100 text-purple-700'
+              : 'bg-green-100 text-green-700'
+            return (
             <TableRow key={user.id}>
               <TableCell>{user.name}</TableCell>
               <TableCell>{user.email}</TableCell>
+              <TableCell>
+                <span className={`px-2 py-1 rounded-full text-xs font-bold ${typeBg}`}>
+                  {typeLabel}
+                </span>
+              </TableCell>
+              <TableCell className="font-bold text-amber-600">⬡ {user.score ?? 0}</TableCell>
               <TableCell>
                 <div className="space-x-2">
                   <Button variant="outline" size="sm" asChild>
@@ -55,7 +74,7 @@ export function UserList({ users, onDeleteUser }: UserListProps) {
                 </div>
               </TableCell>
             </TableRow>
-          ))}
+          )})}
         </TableBody>
       </Table>
     </div>

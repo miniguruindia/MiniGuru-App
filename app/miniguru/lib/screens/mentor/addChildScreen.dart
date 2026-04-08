@@ -50,16 +50,66 @@ class _AddChildScreenState extends State<AddChildScreen> {
         pin: _pinCtrl.text.trim(),
       );
       if (!mounted) return;
-      if (success) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('${_nameCtrl.text.trim()} added successfully! 🎉',
-              style: const TextStyle(color: Colors.white)),
-          backgroundColor: Colors.green,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-        ));
-        await Future.delayed(const Duration(milliseconds: 800));
-        if (mounted) Navigator.pop(context, true);
+      if (success != null) {
+        final email = success['email'] ?? '';
+        final password = success['password'] ?? '';
+        if (mounted) {
+          await showDialog(
+            context: context,
+            barrierDismissible: false,
+            builder: (_) => AlertDialog(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              title: Row(children: [
+                const Icon(Icons.check_circle, color: Colors.green, size: 28),
+                const SizedBox(width: 8),
+                Text('${_nameCtrl.text.trim()} Added! 🎉',
+                  style: GoogleFonts.nunito(fontWeight: FontWeight.w900, fontSize: 18)),
+              ]),
+              content: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text('Share these login credentials with your child:',
+                  style: GoogleFonts.nunito(fontSize: 14, color: Colors.grey[600])),
+                const SizedBox(height: 16),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFE8EAF6),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Row(children: [
+                      const Icon(Icons.email_outlined, size: 16, color: Color(0xFF5B6EF5)),
+                      const SizedBox(width: 8),
+                      Expanded(child: Text(email,
+                        style: GoogleFonts.nunito(fontWeight: FontWeight.w700, fontSize: 14))),
+                    ]),
+                    const SizedBox(height: 8),
+                    Row(children: [
+                      const Icon(Icons.lock_outline, size: 16, color: Color(0xFF5B6EF5)),
+                      const SizedBox(width: 8),
+                      Text('PIN: $password',
+                        style: GoogleFonts.nunito(fontWeight: FontWeight.w700, fontSize: 14)),
+                    ]),
+                  ]),
+                ),
+                const SizedBox(height: 12),
+                Text('Child can also login using the MiniGuru app with these credentials.',
+                  style: GoogleFonts.nunito(fontSize: 12, color: Colors.grey[500])),
+              ]),
+              actions: [
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF5B6EF5),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                  onPressed: () => Navigator.pop(context),
+                  child: Text('Got it!', style: GoogleFonts.nunito(
+                    fontWeight: FontWeight.w900, color: Colors.white)),
+                ),
+              ],
+            ),
+          );
+          if (mounted) Navigator.pop(context, true);
+        }
       } else {
         _snack('Failed to add child. Please try again.', Colors.red);
       }
