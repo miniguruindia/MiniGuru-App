@@ -6,7 +6,6 @@ node_modules/
 .env.local
 
 # Build
-dist/
 
 # Logs
 logs/
