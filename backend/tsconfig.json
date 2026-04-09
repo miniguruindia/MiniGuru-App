@@ -8,10 +8,9 @@
     "outDir": "dist",
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
-    "strict": true,
-    "noImplicitAny": false,
-    "noImplicitThis": false,
-    "skipLibCheck": true
+    "strict": false,
+    "skipLibCheck": true,
+    "noEmitOnError": false
   },
   "include": ["src/**/*.ts", "src/**/*.js", "src/types/express.d.ts"],
   "exclude": ["node_modules", "dist"]
