@@ -1,0 +1,150 @@
+"use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.getAllDrafts = exports.rejectProject = exports.approveProject = exports.getPendingProjects = void 0;
+const prismaClient_1 = __importDefault(require("../../utils/prismaClient"));
+const logger_1 = __importDefault(require("../../logger"));
+const { setVideoPublic, deleteVideo } = require('../../services/youtubeUploadService');
+function extractYouTubeId(videoUrl) {
+    const match = videoUrl.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
+    return match ? match[1] : videoUrl;
+}
+// GET /admin/projects/pending
+const getPendingProjects = async (req, res) => {
+    try {
+        const page = Math.max(1, parseInt(req.query.page) || 1);
+        const limit = Math.min(50, parseInt(req.query.limit) || 20);
+        const skip = (page - 1) * limit;
+        const [projects, total] = await Promise.all([
+            prismaClient_1.default.project.findMany({
+                where: { status: 'pending' },
+                include: {
+                    user: { select: { id: true, name: true, email: true } },
+                    category: { select: { id: true, name: true } },
+                },
+                orderBy: { createdAt: 'asc' },
+                skip,
+                take: limit,
+            }),
+            prismaClient_1.default.project.count({ where: { status: 'pending' } }),
+        ]);
+        logger_1.default.info(`Admin fetched pending projects: ${total} total`);
+        return res.status(200).json({
+            projects,
+            pagination: { page, limit, total, pages: Math.ceil(total / limit) },
+        });
+    }
+    catch (error) {
+        logger_1.default.error(`Error fetching pending projects: ${error.message}`);
+        return res.status(500).json({ message: 'Failed to fetch pending projects.' });
+    }
+};
+exports.getPendingProjects = getPendingProjects;
+// POST /admin/projects/:id/approve
+const approveProject = async (req, res) => {
+    const { id } = req.params;
+    try {
+        const project = await prismaClient_1.default.project.findUnique({ where: { id } });
+        if (!project)
+            return res.status(404).json({ message: 'Project not found.' });
+        if (project.status !== 'pending')
+            return res.status(400).json({
+                message: `Cannot approve — status is '${project.status}', expected 'pending'.`,
+            });
+        if (project.video?.url) {
+            try {
+                await setVideoPublic(extractYouTubeId(project.video.url));
+                logger_1.default.info(`YouTube video set to PUBLIC for project ${id}`);
+            }
+            catch (ytError) {
+                logger_1.default.error(`YouTube publish failed: ${ytError.message}`);
+                return res.status(502).json({
+                    message: 'Failed to publish on YouTube. Project not approved.',
+                    error: ytError.message,
+                });
+            }
+        }
+        else {
+            logger_1.default.warn(`Project ${id} has no video URL — skipping YouTube step`);
+        }
+        const updated = await prismaClient_1.default.project.update({
+            where: { id },
+            data: { status: 'published' },
+        });
+        logger_1.default.info(`Project ${id} approved`);
+        return res.status(200).json({ message: 'Project approved and published on YouTube.', project: updated });
+    }
+    catch (error) {
+        logger_1.default.error(`Error approving project ${id}: ${error.message}`);
+        return res.status(500).json({ message: 'Failed to approve project.' });
+    }
+};
+exports.approveProject = approveProject;
+// POST /admin/projects/:id/reject
+const rejectProject = async (req, res) => {
+    const { id } = req.params;
+    const { reason = '' } = req.body;
+    const deleteFromYouTube = req.query.deleteFromYoutube === 'true';
+    try {
+        const project = await prismaClient_1.default.project.findUnique({ where: { id } });
+        if (!project)
+            return res.status(404).json({ message: 'Project not found.' });
+        if (project.status !== 'pending')
+            return res.status(400).json({
+                message: `Cannot reject — status is '${project.status}', expected 'pending'.`,
+            });
+        if (deleteFromYouTube && project.video?.url) {
+            try {
+                await deleteVideo(extractYouTubeId(project.video.url));
+                logger_1.default.info(`YouTube video deleted for project ${id}`);
+            }
+            catch (ytError) {
+                logger_1.default.warn(`YouTube delete failed (non-fatal): ${ytError.message}`);
+            }
+        }
+        const updated = await prismaClient_1.default.project.update({
+            where: { id },
+            data: { status: 'rejected' },
+        });
+        logger_1.default.info(`Project ${id} rejected. Reason: ${reason || 'none'}`);
+        return res.status(200).json({ message: 'Project rejected.', project: updated, reason });
+    }
+    catch (error) {
+        logger_1.default.error(`Error rejecting project ${id}: ${error.message}`);
+        return res.status(500).json({ message: 'Failed to reject project.' });
+    }
+};
+exports.rejectProject = rejectProject;
+// GET /admin/drafts
+const getAllDrafts = async (req, res) => {
+    try {
+        const page = Math.max(1, parseInt(req.query.page) || 1);
+        const limit = Math.min(50, parseInt(req.query.limit) || 20);
+        const skip = (page - 1) * limit;
+        const [drafts, total] = await Promise.all([
+            prismaClient_1.default.project.findMany({
+                where: { status: 'draft' },
+                include: {
+                    user: { select: { id: true, name: true, email: true } },
+                    category: { select: { id: true, name: true } },
+                },
+                orderBy: { updatedAt: 'desc' },
+                skip,
+                take: limit,
+            }),
+            prismaClient_1.default.project.count({ where: { status: 'draft' } }),
+        ]);
+        logger_1.default.info(`Admin fetched drafts: ${total} total`);
+        return res.status(200).json({
+            drafts,
+            pagination: { page, limit, total, pages: Math.ceil(total / limit) },
+        });
+    }
+    catch (error) {
+        logger_1.default.error(`Error fetching drafts: ${error.message}`);
+        return res.status(500).json({ message: 'Failed to fetch drafts.' });
+    }
+};
+exports.getAllDrafts = getAllDrafts;
