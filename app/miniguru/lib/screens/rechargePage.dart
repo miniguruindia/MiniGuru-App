@@ -85,7 +85,7 @@ class _RechargePageState extends State<RechargePage> {
     final String orderId = orderData["orderId"];
 
     var options = {
-      'key': razorpay_key_test,
+      'key': razorpayKeyTest,
       'amount': amount * 100, // Amount in paise
       'name': 'MiniGuru',
       'description': 'Wallet Recharge',
