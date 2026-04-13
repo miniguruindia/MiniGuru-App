@@ -54,7 +54,13 @@ flutter:
     - assets/bag.png
     - assets/ic_logo.png
     - assets/shopping-cart.png
-    - assets/Goine.png          # ← added
+    - assets/Goine.png
+    - assets/pari T-LAB.jpg
+    - assets/ananya.png
+    - assets/Founder_Pramod.jpg
+    - assets/NLM.webp
+    - assets/T-LAB.png
+
 
 flutter_launcher_icons:
   android: "launcher_icon"

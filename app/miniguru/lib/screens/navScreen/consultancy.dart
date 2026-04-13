@@ -8,7 +8,8 @@ import 'package:miniguru/network/MiniguruApi.dart';
 import 'package:miniguru/screens/loginScreen.dart';
 
 class ConsultancyPage extends StatefulWidget {
-  const ConsultancyPage({super.key});
+  final int initialService;
+  const ConsultancyPage({super.key, this.initialService = 0});
 
   @override
   State<ConsultancyPage> createState() => _ConsultancyPageState();
@@ -51,6 +52,7 @@ class _ConsultancyPageState extends State<ConsultancyPage> {
   @override
   void initState() {
     super.initState();
+    _selectedService = widget.initialService;
     _loadCms();
   }
 
