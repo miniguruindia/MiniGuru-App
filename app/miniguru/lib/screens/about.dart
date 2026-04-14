@@ -109,16 +109,18 @@ class _HeroDesktop extends StatelessWidget {
             child: Stack(
               fit: StackFit.expand,
               children: [
-                Image.asset(
-                  'assets/pari T-LAB.jpg',
-                  fit: BoxFit.cover,
-                  alignment: Alignment.topCenter,
-                  errorBuilder: (_, __, ___) =>
-                      Container(color: _AC.deepGreen),
+                Container(
+                  color: const Color(0xFF145218),
+                  child: Image.asset(
+                    'assets/pari T-LAB.jpg',
+                    fit: BoxFit.contain,
+                    alignment: Alignment.bottomCenter,
+                    errorBuilder: (_, __, ___) => Container(),
+                  ),
                 ),
                 // Seamless left fade — no hard line
                 Positioned(
-                  left: 0, top: 0, bottom: 0, width: 80,
+                  left: 0, top: 0, bottom: 0, width: 40,
                   child: Container(
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
