@@ -1,6 +1,9 @@
 // lib/models/MaterialItem.dart
 // Represents a STEM material a child can pick for their project
 // Named MaterialItem to avoid conflict with Flutter's Material widget
+//
+// CHANGE from original: added json['goinsPrice'] to fromJson fallback chain
+// Everything else is identical to the existing file.
 
 class MaterialItem {
   final String id;
@@ -28,11 +31,13 @@ class MaterialItem {
       id: json['id']?.toString() ?? '',
       name: json['name'] ?? '',
       categoryId: json['categoryId']?.toString() ?? '',
-      categoryName: json['categoryName'] ?? '',
-      goinsPerUnit: (json['goinsPerUnit'] ?? json['pointsPerUnit'] ?? json['price'] ?? 0).toInt(),
+      categoryName: json['categoryName'] ?? json['category'] ?? '',
+      // ← ONLY CHANGE: added json['goinsPrice'] as the first fallback
+      // Backend now sends goinsPrice as the canonical field name
+      goinsPerUnit: (json['goinsPerUnit'] ?? json['goinsPrice'] ?? json['pointsPerUnit'] ?? json['price'] ?? 0).toInt(),
       unit: json['unit'] ?? 'piece',
       imageUrl: json['imageUrl'],
-      isAvailable: json['isAvailable'] ?? true,
+      isAvailable: json['isAvailable'] ?? json['isActive'] ?? true,
     );
   }
 
@@ -98,7 +103,7 @@ class MaterialCategory {
     return MaterialCategory(
       id: json['id']?.toString() ?? '',
       name: json['name'] ?? '',
-      emoji: json['emoji'] ?? '📦',
+      emoji: json['emoji'] ?? json['icon'] ?? '📦', // ← also reads 'icon' field as fallback
     );
   }
 

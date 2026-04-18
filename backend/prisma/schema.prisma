@@ -450,3 +450,21 @@ model ContactMessage {
 
   @@map("contact_messages")
 }
+// ─── ADD THIS TO THE END OF schema.prisma ────────────────────────────────────
+// Run `npx prisma generate` from /workspaces/MiniGuru-App/backend/ after saving
+
+model Material {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  name        String
+  description String?
+  imageUrl    String?
+  icon        String?   // emoji e.g. "🔩" — shown in Flutter material picker
+  category    String    // e.g. "Electronics", "Paper", "Scrap", "Wood"
+  unit        String    @default("piece")  // "piece", "gram", "ml", "cm", "sheet"
+  goinsPrice  Int       // Goins ONLY — NEVER ₹. Deducted from user.score
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@map("materials")
+}
