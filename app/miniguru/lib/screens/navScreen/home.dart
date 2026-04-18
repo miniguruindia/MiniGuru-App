@@ -947,6 +947,7 @@ class _HomeState extends State<Home> {
       MaterialPageRoute(
         builder: (_) => UnifiedVideoPlayer(
           videoId: video['videoId']?.toString() ?? '',
+          projectId: video['id']?.toString() ?? video['projectId']?.toString() ?? '',
           title: video['title']?.toString() ?? '',
           description: video['description']?.toString() ?? '',
           channelTitle: video['channelTitle']?.toString() ?? '',

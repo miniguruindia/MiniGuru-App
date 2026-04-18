@@ -27,6 +27,7 @@ const projectRoutes_1 = __importDefault(require("./routes/projectRoutes"));
 const adminRoutes_1 = __importDefault(require("./routes/adminRoutes"));
 const paymentRoutes_1 = __importDefault(require("./routes/paymentRoutes"));
 const videoRoutes_1 = __importDefault(require("./routes/videoRoutes"));
+const videoRatingRoutes_1 = __importDefault(require("./routes/videoRatingRoutes"));
 const materialsRoutes_1 = __importDefault(require("./routes/materialsRoutes"));
 const userAnalyticsRoutes_1 = __importDefault(require("./routes/userAnalyticsRoutes"));
 const cmsRoutes_1 = __importDefault(require("./routes/cmsRoutes"));
@@ -280,6 +281,7 @@ try {
     app.use('/admin', adminRoutes_1.default);
     app.use('/payment', paymentRoutes_1.default);
     app.use('/api/videos', videoRoutes_1.default);
+    app.use('/api/videos', videoRatingRoutes_1.default);
     app.use('/materials', materialsRoutes_1.default); // ← NEW: STEM materials for Goins exchange
     app.use('/goins', goinsRoutes_1.default);
     app.use('/users', userAnalyticsRoutes_1.default);

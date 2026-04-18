@@ -468,3 +468,20 @@ model Material {
 
   @@map("materials")
 }
+model VideoRating {
+  id            String   @id @default(auto()) @map("_id") @db.ObjectId
+  videoId       String   @db.ObjectId
+  raterId       String   @db.ObjectId
+  creatorId     String   @db.ObjectId
+  sturdy        Boolean  @default(false)
+  creative      Boolean  @default(false)
+  functional    Boolean  @default(false)
+  resourceful   Boolean  @default(false)
+  documented    Boolean  @default(false)
+  isCrossSchool Boolean  @default(false)
+  goinsAwarded  Int      @default(0)
+  createdAt     DateTime @default(now())
+
+  @@unique([videoId, raterId])
+  @@map("video_ratings")
+}

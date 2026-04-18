@@ -24,6 +24,7 @@ import projectRouter from './routes/projectRoutes';
 import adminRouter from './routes/adminRoutes';
 import paymentRouter from './routes/paymentRoutes';
 import videoRoutes from './routes/videoRoutes';
+import videoRatingRouter from './routes/videoRatingRoutes';
 import materialsRouter from './routes/materialsRoutes';
 import userAnalyticsRouter from './routes/userAnalyticsRoutes';
 import cmsRouter from './routes/cmsRoutes';
@@ -294,6 +295,7 @@ try {
   app.use('/admin', adminRouter);
   app.use('/payment', paymentRouter);
   app.use('/api/videos', videoRoutes);
+  app.use('/api/videos', videoRatingRouter);
   app.use('/materials', materialsRouter);   // ← NEW: STEM materials for Goins exchange
   app.use('/goins', goinsRouter);
   app.use('/users', userAnalyticsRouter);

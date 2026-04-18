@@ -4,6 +4,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:youtube_player_iframe/youtube_player_iframe.dart';
+import 'package:miniguru/screens/widgets/video_rating_widget.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:miniguru/network/MiniguruApi.dart';
 import 'package:miniguru/models/User.dart';
@@ -11,6 +12,7 @@ import 'package:miniguru/constants.dart';
 
 class UnifiedVideoPlayer extends StatefulWidget {
   final String videoId;
+  final String projectId;      // ← ADD: project DB id for ratings
   final String title;
   final String description;
   final String channelTitle;
@@ -19,6 +21,7 @@ class UnifiedVideoPlayer extends StatefulWidget {
   const UnifiedVideoPlayer({
     Key? key,
     required this.videoId,
+    required this.projectId,     // ← ADD this line
     required this.title,
     required this.description,
     required this.channelTitle,
@@ -655,6 +658,15 @@ class _UnifiedVideoPlayerState extends State<UnifiedVideoPlayer> {
                             ],
                           ),
                         ),
+
+                        const Divider(height: 1),
+
+                        // ── Peer Rating ──
+                        if (_isAuthenticated)
+                          VideoRatingWidget(
+                            videoId: widget.projectId,
+                            creatorName: widget.channelTitle,
+                          ),
 
                         const SizedBox(height: 20),
                       ],
