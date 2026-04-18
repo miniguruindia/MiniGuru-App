@@ -73,8 +73,7 @@ class GoinsBalanceBadge extends StatelessWidget {
           const SizedBox(width: 5),
           Text(
             '$balance',
-            style: GoogleFonts.poppins(
-              color: _amber,
+            style: GoogleFonts.nunito(color: _amber,
               fontWeight: FontWeight.bold,
               fontSize: 13,
             ),
@@ -168,8 +167,7 @@ class _GoinsWalletCardState extends State<GoinsWalletCard> {
                   const SizedBox(width: 8),
                   Text(
                     'Goine Wallet',
-                    style: GoogleFonts.poppins(
-                        color: Colors.white70,
+                    style: GoogleFonts.nunito(color: Colors.white70,
                         fontSize: 13,
                         fontWeight: FontWeight.w500),
                   ),
@@ -200,8 +198,7 @@ class _GoinsWalletCardState extends State<GoinsWalletCard> {
                         children: [
                           Text(
                             '$_balance',
-                            style: GoogleFonts.poppins(
-                              color: _amber,
+                            style: GoogleFonts.nunito(color: _amber,
                               fontSize: 44,
                               fontWeight: FontWeight.bold,
                               height: 1,
@@ -209,7 +206,7 @@ class _GoinsWalletCardState extends State<GoinsWalletCard> {
                           ),
                           Text(
                             'Goines',
-                            style: GoogleFonts.poppins(
+                            style: GoogleFonts.nunito(fontWeight: FontWeight.w900, 
                                 color: Colors.white38, fontSize: 13),
                           ),
                         ],
@@ -219,7 +216,7 @@ class _GoinsWalletCardState extends State<GoinsWalletCard> {
             const SizedBox(height: 6),
             Text(
               'The Education Currency of MiniGuru',
-              style: GoogleFonts.poppins(
+              style: GoogleFonts.nunito(fontWeight: FontWeight.w900, 
                 color: _amber.withValues(alpha: 0.45),
                 fontSize: 10,
                 letterSpacing: 0.4,
@@ -243,7 +240,7 @@ class _GoinsWalletCardState extends State<GoinsWalletCard> {
                   Expanded(
                     child: Text(
                       'Upload a project video → earn 2× your material cost back!',
-                      style: GoogleFonts.poppins(
+                      style: GoogleFonts.nunito(fontWeight: FontWeight.w900, 
                           color: Colors.white60, fontSize: 11),
                     ),
                   ),
@@ -261,8 +258,7 @@ class _GoinsWalletCardState extends State<GoinsWalletCard> {
                 children: [
                   Text(
                     _showHistory ? 'Hide History' : 'View History',
-                    style: GoogleFonts.poppins(
-                      color: _blue,
+                    style: GoogleFonts.nunito(color: _blue,
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
                     ),
@@ -301,7 +297,7 @@ class _GoinsWalletCardState extends State<GoinsWalletCard> {
             GoineIcon(size: 28),
             const SizedBox(height: 8),
             Text('No transactions yet',
-                style: GoogleFonts.poppins(
+                style: GoogleFonts.nunito(fontWeight: FontWeight.w900, 
                     color: Colors.white38, fontSize: 12)),
           ]),
         ),
@@ -349,15 +345,14 @@ class _GoinsWalletCardState extends State<GoinsWalletCard> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(txn.type.label,
-                    style: GoogleFonts.poppins(
-                        color: Colors.white,
+                    style: GoogleFonts.nunito(color: Colors.white,
                         fontSize: 12,
                         fontWeight: FontWeight.w500)),
                 Text(
                   txn.description.isNotEmpty
                       ? txn.description
                       : _fmtDate(txn.timestamp),
-                  style: GoogleFonts.poppins(
+                  style: GoogleFonts.nunito(fontWeight: FontWeight.w900, 
                       color: Colors.white38, fontSize: 10),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
@@ -374,15 +369,14 @@ class _GoinsWalletCardState extends State<GoinsWalletCard> {
                   GoineIcon(size: 11),
                   const SizedBox(width: 3),
                   Text(amountStr,
-                      style: GoogleFonts.poppins(
-                        color: amountColor,
+                      style: GoogleFonts.nunito(color: amountColor,
                         fontSize: 13,
                         fontWeight: FontWeight.bold,
                       )),
                 ],
               ),
               Text('${txn.balanceAfter}G',
-                  style: GoogleFonts.poppins(
+                  style: GoogleFonts.nunito(fontWeight: FontWeight.w900, 
                       color: Colors.white38, fontSize: 10)),
             ],
           ),
@@ -459,13 +453,12 @@ class _GoinsAwardDialog extends StatelessWidget {
             GoineIcon(size: 80),
             const SizedBox(height: 12),
             Text('Goines Awarded! 🎉',
-                style: GoogleFonts.poppins(
-                    color: Colors.white,
+                style: GoogleFonts.nunito(color: Colors.white,
                     fontSize: 20,
                     fontWeight: FontWeight.bold)),
             const SizedBox(height: 6),
             Text(reason,
-                style: GoogleFonts.poppins(
+                style: GoogleFonts.nunito(fontWeight: FontWeight.w900, 
                     color: Colors.white54, fontSize: 12),
                 textAlign: TextAlign.center),
             const SizedBox(height: 20),
@@ -484,8 +477,7 @@ class _GoinsAwardDialog extends StatelessWidget {
                   GoineIcon(size: 36),
                   const SizedBox(width: 10),
                   Text('+$awarded',
-                      style: GoogleFonts.poppins(
-                          color: _amber,
+                      style: GoogleFonts.nunito(color: _amber,
                           fontSize: 38,
                           fontWeight: FontWeight.bold)),
                 ],
@@ -493,7 +485,7 @@ class _GoinsAwardDialog extends StatelessWidget {
             ),
             const SizedBox(height: 10),
             Text('New balance: $newBalance Goines',
-                style: GoogleFonts.poppins(
+                style: GoogleFonts.nunito(fontWeight: FontWeight.w900, 
                     color: Colors.white38, fontSize: 12)),
             const SizedBox(height: 20),
             GestureDetector(
@@ -516,8 +508,7 @@ class _GoinsAwardDialog extends StatelessWidget {
                       GoineIcon(size: 18),
                       const SizedBox(width: 8),
                       Text('Awesome! Keep Building 🚀',
-                          style: GoogleFonts.poppins(
-                              color: Colors.white,
+                          style: GoogleFonts.nunito(color: Colors.white,
                               fontWeight: FontWeight.w600,
                               fontSize: 14)),
                     ],

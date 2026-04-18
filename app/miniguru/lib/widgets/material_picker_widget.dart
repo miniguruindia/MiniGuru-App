@@ -140,7 +140,7 @@ class _MaterialPickerSheetState extends State<MaterialPickerSheet> {
         SnackBar(
           content: Text(
             'Not enough Goins! Remove some materials.',
-            style: GoogleFonts.poppins(),
+            style: GoogleFonts.nunito(fontWeight: FontWeight.w900, ),
           ),
           backgroundColor: _red,
         ),
@@ -197,8 +197,7 @@ class _MaterialPickerSheetState extends State<MaterialPickerSheet> {
             Expanded(
               child: Text(
                 'Pick Your Materials',
-                style: GoogleFonts.poppins(
-                  color: Colors.white,
+                style: GoogleFonts.nunito(color: Colors.white,
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
                 ),
@@ -258,12 +257,10 @@ class _MaterialPickerSheetState extends State<MaterialPickerSheet> {
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         Text(label,
-            style: GoogleFonts.poppins(
-                color: Colors.white38, fontSize: 10, fontWeight: FontWeight.w500)),
+            style: GoogleFonts.nunito(color: Colors.white38, fontSize: 10, fontWeight: FontWeight.w500)),
         const SizedBox(height: 2),
         Text(value,
-            style: GoogleFonts.poppins(
-                color: valueColor, fontSize: 14, fontWeight: FontWeight.bold)),
+            style: GoogleFonts.nunito(color: valueColor, fontSize: 14, fontWeight: FontWeight.bold)),
       ],
     );
   }
@@ -276,10 +273,10 @@ class _MaterialPickerSheetState extends State<MaterialPickerSheet> {
           _searchQuery = v;
           _applyFilter();
         },
-        style: GoogleFonts.poppins(color: Colors.white, fontSize: 14),
+        style: GoogleFonts.nunito(fontWeight: FontWeight.w900, color: Colors.white, fontSize: 14),
         decoration: InputDecoration(
           hintText: 'Search materials...',
-          hintStyle: GoogleFonts.poppins(color: Colors.white38, fontSize: 14),
+          hintStyle: GoogleFonts.nunito(fontWeight: FontWeight.w900, color: Colors.white38, fontSize: 14),
           prefixIcon: const Icon(Icons.search, color: Colors.white38, size: 18),
           filled: true,
           fillColor: _cardDark,
@@ -323,8 +320,7 @@ class _MaterialPickerSheetState extends State<MaterialPickerSheet> {
               ),
               child: Text(
                 '${cat.emoji} ${cat.name}',
-                style: GoogleFonts.poppins(
-                  color: active ? Colors.white : Colors.white54,
+                style: GoogleFonts.nunito(color: active ? Colors.white : Colors.white54,
                   fontSize: 12,
                   fontWeight: active ? FontWeight.w600 : FontWeight.normal,
                 ),
@@ -349,7 +345,7 @@ class _MaterialPickerSheetState extends State<MaterialPickerSheet> {
             const Text('🔍', style: TextStyle(fontSize: 40)),
             const SizedBox(height: 10),
             Text('No materials found',
-                style: GoogleFonts.poppins(color: Colors.white38, fontSize: 14)),
+                style: GoogleFonts.nunito(fontWeight: FontWeight.w900, color: Colors.white38, fontSize: 14)),
           ],
         ),
       );
@@ -392,8 +388,7 @@ class _MaterialPickerSheetState extends State<MaterialPickerSheet> {
               Expanded(
                 child: Text(
                   mat.name,
-                  style: GoogleFonts.poppins(
-                    color: Colors.white,
+                  style: GoogleFonts.nunito(color: Colors.white,
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
                   ),
@@ -410,8 +405,7 @@ class _MaterialPickerSheetState extends State<MaterialPickerSheet> {
                 ),
                 child: Text(
                   '${mat.goinsPerUnit}G',
-                  style: GoogleFonts.poppins(
-                      color: _amber, fontSize: 10, fontWeight: FontWeight.bold),
+                  style: GoogleFonts.nunito(color: _amber, fontSize: 10, fontWeight: FontWeight.bold),
                 ),
               ),
             ],
@@ -419,7 +413,7 @@ class _MaterialPickerSheetState extends State<MaterialPickerSheet> {
           const SizedBox(height: 2),
           Text(
             '/${mat.unit}',
-            style: GoogleFonts.poppins(color: Colors.white38, fontSize: 10),
+            style: GoogleFonts.nunito(fontWeight: FontWeight.w900, color: Colors.white38, fontSize: 10),
           ),
           const Spacer(),
           // Quantity controls
@@ -429,8 +423,7 @@ class _MaterialPickerSheetState extends State<MaterialPickerSheet> {
               // Total cost for this item
               Text(
                 qty > 0 ? '= ${mat.goinsPerUnit * qty}G' : '',
-                style: GoogleFonts.poppins(
-                    color: _green, fontSize: 10, fontWeight: FontWeight.w500),
+                style: GoogleFonts.nunito(color: _green, fontSize: 10, fontWeight: FontWeight.w500),
               ),
               Row(
                 children: [
@@ -440,8 +433,7 @@ class _MaterialPickerSheetState extends State<MaterialPickerSheet> {
                     padding: const EdgeInsets.symmetric(horizontal: 8),
                     child: Text(
                       '$qty',
-                      style: GoogleFonts.poppins(
-                          color: Colors.white,
+                      style: GoogleFonts.nunito(color: Colors.white,
                           fontSize: 14,
                           fontWeight: FontWeight.bold),
                     ),
@@ -496,14 +488,13 @@ class _MaterialPickerSheetState extends State<MaterialPickerSheet> {
                 children: [
                   Text(
                     count == 0 ? 'No materials selected' : '$count material${count > 1 ? 's' : ''} selected',
-                    style: GoogleFonts.poppins(
+                    style: GoogleFonts.nunito(fontWeight: FontWeight.w900, 
                         color: Colors.white60, fontSize: 12),
                   ),
                   if (_totalGoins > 0)
                     Text(
                       'Total: $_totalGoins Goins',
-                      style: GoogleFonts.poppins(
-                          color: _overBudget ? _red : _amber,
+                      style: GoogleFonts.nunito(color: _overBudget ? _red : _amber,
                           fontSize: 13,
                           fontWeight: FontWeight.bold),
                     ),
@@ -523,7 +514,7 @@ class _MaterialPickerSheetState extends State<MaterialPickerSheet> {
                     border: Border.all(color: _red.withOpacity(0.3)),
                   ),
                   child: Text('Clear',
-                      style: GoogleFonts.poppins(color: _red, fontSize: 13)),
+                      style: GoogleFonts.nunito(fontWeight: FontWeight.w900, color: _red, fontSize: 13)),
                 ),
               ),
             ],
@@ -547,8 +538,7 @@ class _MaterialPickerSheetState extends State<MaterialPickerSheet> {
                     const SizedBox(width: 6),
                     Text(
                       _overBudget ? 'Over Budget' : 'Confirm',
-                      style: GoogleFonts.poppins(
-                          color: Colors.white,
+                      style: GoogleFonts.nunito(color: Colors.white,
                           fontSize: 13,
                           fontWeight: FontWeight.w600),
                     ),

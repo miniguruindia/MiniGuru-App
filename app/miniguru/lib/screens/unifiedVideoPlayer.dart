@@ -4,7 +4,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:youtube_player_iframe/youtube_player_iframe.dart';
-import 'package:miniguru/screens/widgets/video_rating_widget.dart';
+import 'package:miniguru/widgets/video_rating_widget.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:miniguru/network/MiniguruApi.dart';
 import 'package:miniguru/models/User.dart';
