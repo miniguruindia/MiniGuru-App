@@ -41,14 +41,14 @@ router.post('/:id/rate', authMiddleware_1.authenticateToken, async (req, res) =>
         }
         // ── Find the project/video to get creatorId ─────────────────────────────
         // videoId in the community feed is the project id
-        const project = await prismaClient_1.default.project.findUnique({
+        const project = await prismaClient_1.default.pendingVideo.findUnique({
             where: { id: videoId },
-            select: { userId: true },
+            select: { uploadedById: true },
         });
         if (!project) {
             return res.status(404).json({ error: 'Video not found.' });
         }
-        const creatorId = project.userId;
+        const creatorId = project.uploadedById;
         if (creatorId === raterId) {
             return res.status(403).json({ error: 'You cannot rate your own video.' });
         }

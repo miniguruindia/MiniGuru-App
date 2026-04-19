@@ -385,76 +385,16 @@ class _UnifiedVideoPlayerState extends State<UnifiedVideoPlayer> {
                           ),
                         ),
 
+
+
                         const Divider(height: 1),
 
-                        // Like Categories
-                        Padding(
-                          padding: const EdgeInsets.all(16),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                '💡 What do you like about this?',
-                                style: GoogleFonts.nunito(
-                                  fontSize: 15, fontWeight: FontWeight.w700,
-                                  color: Colors.black87,
-                                ),
-                              ),
-                              const SizedBox(height: 12),
-                              Wrap(
-                                spacing: 8, runSpacing: 8,
-                                children: _likeData.entries.map((entry) {
-                                  final key = entry.key;
-                                  final data = entry.value;
-                                  final isLiked = _likes[key]!;
-                                  return GestureDetector(
-                                    onTap: () => _toggleLike(key),
-                                    child: AnimatedContainer(
-                                      duration: const Duration(milliseconds: 200),
-                                      padding: const EdgeInsets.symmetric(
-                                          horizontal: 12, vertical: 8),
-                                      decoration: BoxDecoration(
-                                        color: isLiked
-                                            ? (data['color'] as Color)
-                                            : Colors.white,
-                                        border: Border.all(
-                                          color: isLiked
-                                              ? (data['color'] as Color)
-                                              : const Color(0xFFE5E7EB),
-                                          width: 2,
-                                        ),
-                                        borderRadius: BorderRadius.circular(20),
-                                      ),
-                                      child: Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          Icon(
-                                            data['icon'] as IconData,
-                                            size: 18,
-                                            color: isLiked
-                                                ? Colors.white
-                                                : data['color'] as Color,
-                                          ),
-                                          const SizedBox(width: 6),
-                                          Text(
-                                            data['label'] as String,
-                                            style: GoogleFonts.nunito(
-                                              fontSize: 13,
-                                              fontWeight: FontWeight.w600,
-                                              color: isLiked
-                                                  ? Colors.white
-                                                  : Colors.black87,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  );
-                                }).toList(),
-                              ),
-                            ],
+                        // ── Peer Rating ──
+                        if (_isAuthenticated)
+                          VideoRatingWidget(
+                            videoId: widget.projectId,
+                            creatorName: widget.channelTitle,
                           ),
-                        ),
 
                         const Divider(height: 1),
 
@@ -658,15 +598,6 @@ class _UnifiedVideoPlayerState extends State<UnifiedVideoPlayer> {
                             ],
                           ),
                         ),
-
-                        const Divider(height: 1),
-
-                        // ── Peer Rating ──
-                        if (_isAuthenticated)
-                          VideoRatingWidget(
-                            videoId: widget.projectId,
-                            creatorName: widget.channelTitle,
-                          ),
 
                         const SizedBox(height: 20),
                       ],
