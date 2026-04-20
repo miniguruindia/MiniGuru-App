@@ -105,10 +105,14 @@ router.post('/:id/rate', authMiddleware_1.authenticateToken, async (req, res) =>
                     goinsAwarded,
                 },
             }),
-            // Award Goins to creator
             prismaClient_1.default.user.update({
                 where: { id: creatorId },
                 data: { score: { increment: goinsAwarded } },
+            }),
+            // +1 Goin to rater for peer assessment
+            prismaClient_1.default.user.update({
+                where: { id: raterId },
+                data: { score: { increment: 1 } },
             }),
         ]);
         res.status(201).json({

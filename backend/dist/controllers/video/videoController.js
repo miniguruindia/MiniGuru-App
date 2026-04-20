@@ -62,6 +62,11 @@ const trackVideoView = async (req, res) => {
                 userId,
             },
         });
+        // +1 Goin to viewer for watching (once per video per day)
+        await prisma.user.update({
+            where: { id: userId },
+            data: { score: { increment: 1 } },
+        }).catch(() => { });
         // Get total views
         const totalViews = await prisma.videoView.count({
             where: { videoId },
@@ -318,6 +323,11 @@ const postVideoComment = async (req, res) => {
                 },
             },
         });
+        // +1 Goin to commenter for engaging with community
+        await prisma.user.update({
+            where: { id: userId },
+            data: { score: { increment: 1 } },
+        }).catch(() => { }); // non-blocking — don't fail comment if Goins fail
         // Try to post to YouTube (optional, non-blocking)
         let youtubeCommentId = null;
         try {
