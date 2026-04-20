@@ -101,6 +101,10 @@ class _VideoRatingWidgetState extends State<VideoRatingWidget> {
     setState(() { _loading = true; _error = null; });
     try {
       final token = await _getToken();
+      if (token == null || token.isEmpty) {
+        setState(() { _loading = false; _error = 'login_required'; });
+        return;
+      }
       final res = await http.get(
         Uri.parse('$apiBaseUrl/api/videos/${widget.videoId}/ratings'),
         headers: { 'Authorization': 'Bearer $token' },
@@ -203,6 +207,24 @@ class _VideoRatingWidgetState extends State<VideoRatingWidget> {
       return const Padding(
         padding: EdgeInsets.symmetric(vertical: 16),
         child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+      );
+    }
+
+    if (_error == 'login_required') {
+      return Container(
+        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: const Color(0xFFE8EAF6),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(children: [
+          const Text('⭐ ', style: TextStyle(fontSize: 16)),
+          Expanded(child: Text(
+            'Login to rate this project and award Goins',
+            style: GoogleFonts.nunito(fontSize: 13, fontWeight: FontWeight.w900, color: Color(0xFF3F51B5)),
+          )),
+        ]),
       );
     }
 

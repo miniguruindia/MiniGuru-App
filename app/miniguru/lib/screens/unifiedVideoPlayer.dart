@@ -336,7 +336,8 @@ class _UnifiedVideoPlayerState extends State<UnifiedVideoPlayer> {
 
               // ── Scrollable content below player ──
               Expanded(
-                child: Container(
+                child: LayoutBuilder(
+                  builder: (context, constraints) => Container(
                   decoration: const BoxDecoration(
                     color: backgroundWhite,
                     borderRadius: BorderRadius.only(
@@ -345,6 +346,7 @@ class _UnifiedVideoPlayerState extends State<UnifiedVideoPlayer> {
                     ),
                   ),
                   child: SingleChildScrollView(
+                    physics: const AlwaysScrollableScrollPhysics(),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -390,11 +392,10 @@ class _UnifiedVideoPlayerState extends State<UnifiedVideoPlayer> {
                         const Divider(height: 1),
 
                         // ── Peer Rating ──
-                        if (_isAuthenticated)
-                          VideoRatingWidget(
-                            videoId: widget.projectId,
-                            creatorName: widget.channelTitle,
-                          ),
+                        VideoRatingWidget(
+                          videoId: widget.projectId,
+                          creatorName: widget.channelTitle,
+                        ),
 
                         const Divider(height: 1),
 
@@ -603,6 +604,7 @@ class _UnifiedVideoPlayerState extends State<UnifiedVideoPlayer> {
                       ],
                     ),
                   ),
+                ),
                 ),
               ),
             ],
