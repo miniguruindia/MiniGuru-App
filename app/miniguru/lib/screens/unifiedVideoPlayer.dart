@@ -43,6 +43,42 @@ class _UnifiedVideoPlayerState extends State<UnifiedVideoPlayer> {
   bool _hasTrackedView = false;
   bool _isPlayerReady = false;
 
+  Map<String, bool> _likes = {
+    'aesthetic': false,
+    'functional': false,
+    'sturdy': false,
+    'creative': false,
+    'educational': false,
+  };
+
+  final Map<String, Map<String, dynamic>> _likeData = {
+    'aesthetic': {
+      'icon': Icons.palette_outlined,
+      'label': 'Aesthetic',
+      'color': Color(0xFFEC4899),
+    },
+    'functional': {
+      'icon': Icons.settings_outlined,
+      'label': 'Works Well',
+      'color': Color(0xFF3B82F6),
+    },
+    'sturdy': {
+      'icon': Icons.construction_outlined,
+      'label': 'Well-Built',
+      'color': Color(0xFF8B5CF6),
+    },
+    'creative': {
+      'icon': Icons.lightbulb_outline,
+      'label': 'Creative',
+      'color': Color(0xFFF59E0B),
+    },
+    'educational': {
+      'icon': Icons.school_outlined,
+      'label': 'Educational',
+      'color': Color(0xFF10B981),
+    },
+  };
+
   List<Map<String, dynamic>> _comments = [];
   Map<String, dynamic>? _viewStats;
 
@@ -53,6 +89,7 @@ class _UnifiedVideoPlayerState extends State<UnifiedVideoPlayer> {
     _checkAuth();
     _loadComments();
     _loadViewStats();
+    _loadUserLikes();
   }
 
   void _initializePlayer() {
@@ -94,7 +131,7 @@ class _UnifiedVideoPlayerState extends State<UnifiedVideoPlayer> {
           _user = userData;
           _isAuthenticated = userData != null;
         });
-
+        if (_isAuthenticated) _loadUserLikes();
       }
     } catch (e) {
       print('❌ Auth check error: $e');
@@ -119,6 +156,15 @@ class _UnifiedVideoPlayerState extends State<UnifiedVideoPlayer> {
       print('❌ Failed to load view stats: $e');
     }
   }
+
+  Future<void> _loadUserLikes() async {
+    if (!_isAuthenticated) return;
+    try {
+      final likes = await _miniguruApi.getUserVideoLikes(widget.videoId);
+      if (mounted) setState(() => _likes = likes);
+    } catch (e) {
+      print('❌ Failed to load user likes: $e');
+    }
   }
 
   Future<void> _loadComments() async {
@@ -141,10 +187,25 @@ class _UnifiedVideoPlayerState extends State<UnifiedVideoPlayer> {
       if (mounted) setState(() => _isLoadingComments = false);
     }
   }
+
+  void _toggleLike(String category) {
+    if (!_isAuthenticated) { _showLoginPrompt(); return; }
     final newValue = !_likes[category]!;
     setState(() => _likes[category] = newValue);
     _sendLikeToBackend(category, newValue);
   }
+
+  Future<void> _sendLikeToBackend(String category, bool liked) async {
+    try {
+      await _miniguruApi.likeVideo(widget.videoId, category, liked);
+      _showSnackBar(
+        liked ? '👍 Added ${_likeData[category]!['label']} like!' : 'Like removed',
+        liked ? Colors.green : Colors.grey,
+      );
+    } catch (e) {
+      setState(() => _likes[category] = !liked);
+      _showSnackBar('Failed to save like', Colors.red);
+    }
   }
 
   Future<void> _postComment() async {
@@ -335,7 +396,6 @@ class _UnifiedVideoPlayerState extends State<UnifiedVideoPlayer> {
                           videoId: widget.projectId,
                           creatorName: widget.channelTitle,
                         ),
-
                         const Divider(height: 1),
 
                         // Description
