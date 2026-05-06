@@ -40,6 +40,7 @@ export function UserList({ users, onDeleteUser }: UserListProps) {
             <TableHead>Email</TableHead>
             <TableHead>Type</TableHead>
             <TableHead>Goins</TableHead>
+            <TableHead>Wallet ₹</TableHead>
             <TableHead>Actions</TableHead>
           </TableRow>
         </TableHeader>
@@ -65,6 +66,7 @@ export function UserList({ users, onDeleteUser }: UserListProps) {
                 </span>
               </TableCell>
               <TableCell className="font-bold text-amber-600">⬡ {user.score ?? 0}</TableCell>
+              <TableCell className="font-semibold text-green-700">₹{(user.wallet?.balance ?? 0).toFixed(2)}</TableCell>
               <TableCell>
                 <div className="space-x-2">
                   <Button variant="outline" size="sm" asChild>

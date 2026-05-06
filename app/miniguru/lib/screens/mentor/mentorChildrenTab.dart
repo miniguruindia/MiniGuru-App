@@ -4,6 +4,7 @@ import 'package:miniguru/constants.dart';
 import 'package:miniguru/models/ChildProfile.dart';
 import 'package:miniguru/network/MiniguruApi.dart';
 import 'package:miniguru/screens/mentor/addChildScreen.dart';
+import 'package:miniguru/screens/mentor/BulkAddScreen.dart';
 import 'package:miniguru/screens/mentor/pinEntryScreen.dart';
 import 'package:miniguru/screens/mentor/mentorChildPickerScreen.dart';
 import 'package:miniguru/screens/homeScreen.dart';
@@ -134,16 +135,66 @@ class _MentorChildrenTabState extends State<MentorChildrenTab> {
         ),
       ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () async {
-          await Navigator.push(
-              context, MaterialPageRoute(builder: (_) => const AddChildScreen()));
-          _loadChildren();
-        },
+        onPressed: () => _showAddOptions(),
         backgroundColor: pastelBlueText,
         icon: const Icon(Icons.person_add, color: Colors.white),
-        label: Text('Add Child',
+        label: Text('Add Learner',
             style: GoogleFonts.nunito(
                 color: Colors.white, fontWeight: FontWeight.w800)),
+      ),
+    );
+  }
+
+  void _showAddOptions() {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (_) => Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Text('Add Learners', style: GoogleFonts.nunito(
+              fontSize: 18, fontWeight: FontWeight.w900)),
+          const SizedBox(height: 20),
+          ListTile(
+            leading: Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: pastelBlueText.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(12)),
+              child: const Icon(Icons.person_add, color: pastelBlueText)),
+            title: Text('Add One Child',
+                style: GoogleFonts.nunito(fontWeight: FontWeight.w800)),
+            subtitle: Text('Enter details manually',
+                style: GoogleFonts.nunito(fontSize: 12, color: Colors.grey)),
+            onTap: () async {
+              Navigator.pop(context);
+              await Navigator.push(context,
+                  MaterialPageRoute(builder: (_) => const AddChildScreen()));
+              _loadChildren();
+            },
+          ),
+          const SizedBox(height: 8),
+          ListTile(
+            leading: Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: Colors.green.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(12)),
+              child: const Icon(Icons.table_chart, color: Colors.green)),
+            title: Text('Bulk Add (School)',
+                style: GoogleFonts.nunito(fontWeight: FontWeight.w800)),
+            subtitle: Text('Paste from Excel — add entire class at once',
+                style: GoogleFonts.nunito(fontSize: 12, color: Colors.grey)),
+            onTap: () async {
+              Navigator.pop(context);
+              await Navigator.push(context,
+                  MaterialPageRoute(builder: (_) => const BulkAddScreen()));
+              _loadChildren();
+            },
+          ),
+          const SizedBox(height: 12),
+        ]),
       ),
     );
   }

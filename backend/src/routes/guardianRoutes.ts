@@ -260,4 +260,98 @@ router.delete('/children/:childId', authenticateToken, async (req: Request, res:
   }
 });
 
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+function getSchoolCode(name: string): string {
+  return name.split(/\s+/).map((w: string) => w[0]?.toLowerCase() || '').join('').slice(0, 4);
+}
+function getCityCode(city: string): string {
+  return city.toLowerCase().replace(/\s+/g, '').slice(0, 3);
+}
+
+// ─── POST /mentor/children/bulk ───────────────────────────────────────────────
+router.post('/children/bulk', authenticateToken, async (req: any, res: Response) => {
+  try {
+    const userId = (req as any).user?.id;
+    const { children } = req.body;
+
+    if (!Array.isArray(children) || children.length === 0)
+      return res.status(400).json({ message: 'children array required' });
+    if (children.length > 100)
+      return res.status(400).json({ message: 'Maximum 100 children per batch' });
+
+    const mentor = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { isMentor: true, mentorType: true, guardianInfo: true }
+    });
+    if (!mentor?.isMentor)
+      return res.status(403).json({ message: 'Only mentor accounts can bulk add children' });
+
+    const gi = mentor.guardianInfo as any;
+    const schoolCode = gi?.institutionName ? getSchoolCode(gi.institutionName) : 'mg';
+    const cityCode   = gi?.city           ? getCityCode(gi.city)              : 'in';
+    const year       = new Date().getFullYear();
+    const results    = [];
+
+    for (const row of children) {
+      const { childName, parentName, parentPhone, grade } = row;
+      if (!childName?.trim()) continue;
+
+      const firstName     = childName.trim().split(' ')[0].toLowerCase();
+      const parentInitial = (parentName?.trim()?.[0] ?? 'x').toLowerCase();
+      const baseEmail     = `${firstName}${parentInitial}.${schoolCode}.${cityCode}@miniguru.in`;
+
+      let email = baseEmail; let counter = 2;
+      while (await prisma.user.findUnique({ where: { email } })) {
+        email = `${firstName}${parentInitial}${counter}.${schoolCode}.${cityCode}@miniguru.in`;
+        counter++;
+      }
+
+      const displayFirst = childName.trim().split(' ')[0];
+      const password     = `${displayFirst}@${year}`;
+      const pin          = parentPhone
+        ? String(parentPhone).replace(/\D/g, '').slice(-4).padStart(4, '1')
+        : '1234';
+
+      const passwordHash = await bcrypt.hash(password, 10);
+      const pinHash      = await bcrypt.hash(pin, 10);
+
+      const linkedUser = await prisma.user.create({
+        data: {
+          email, passwordHash,
+          name: childName.trim(),
+          age: 10,
+          phoneNumber: `child_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+          role: 'USER', score: 100, isMentor: false,
+        }
+      });
+
+      await prisma.childProfile.create({
+        data: {
+          guardianId: userId,
+          name: childName.trim(),
+          age: 10,
+          grade: grade ?? null,
+          pinHash,
+          linkedUserId: linkedUser.id,
+        }
+      });
+
+      results.push({
+        childName: childName.trim(),
+        parentName: parentName ?? '',
+        grade: grade ?? '',
+        loginEmail: email,
+        password,
+        pin,
+      });
+    }
+
+    return res.status(201).json({ message: `${results.length} children added`, results });
+  } catch (err: any) {
+    console.error('bulk add error:', err);
+    return res.status(500).json({ message: 'Internal server error', error: err.message });
+  }
+});
+
 export default router;

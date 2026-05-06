@@ -898,4 +898,20 @@ class MiniguruApi {
     }
     return null;
   }
+  // ─── POST /mentor/children/bulk ─────────────────────────────────────────────
+  Future<List<dynamic>> bulkAddChildren(List<Map<String, String>> children) async {
+    final storedToken = await _db!.getAuthToken();
+    if (storedToken == null) throw Exception('Not logged in');
+    final token = storedToken.accessToken;
+    final response = await http.post(
+      Uri.parse('$apiBaseUrl/mentor/children/bulk'),
+      headers: {'Authorization': 'Bearer $token', 'Content-Type': 'application/json'},
+      body: jsonEncode({'children': children}),
+    );
+    final data = jsonDecode(response.body);
+    if (response.statusCode == 201) return data['results'] as List<dynamic>;
+    throw Exception(data['message'] ?? 'Bulk add failed');
+  }
+
+
 }
