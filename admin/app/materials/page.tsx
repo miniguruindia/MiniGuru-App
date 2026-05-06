@@ -20,6 +20,11 @@ interface Material {
   isActive: boolean
 }
 
+interface ExcelRow {
+  name: string; description: string; category: string
+  unit: string; goinsPrice: number; icon: string; imageUrl: string
+}
+
 async function authToken() {
   return (() => {
     const v = `; ${document.cookie}`
@@ -52,6 +57,12 @@ export default function MaterialsPage() {
   const [bulkText, setBulkText]           = useState('')
   const [bulkResult, setBulkResult]       = useState<any>(null)
   const [bulkLoading, setBulkLoading]     = useState(false)
+  const [excelText, setExcelText]           = useState('')
+  const [excelRows, setExcelRows]           = useState<ExcelRow[]>([])
+  const [defaultGoins, setDefaultGoins]     = useState(10)
+  const [defaultCat, setDefaultCat]         = useState('Other')
+  const [excelLoading, setExcelLoading]     = useState(false)
+  const [excelResult, setExcelResult]       = useState<any>(null)
 
   const flash = (msg: string, isError = false) => {
     if (isError) { setError(msg); setTimeout(() => setError(''), 6000) }
@@ -188,6 +199,55 @@ export default function MaterialsPage() {
     { name: 'Popsicle Stick', category: 'Wood', goinsPrice: 3, unit: 'piece', icon: '🪵' },
   ], null, 2)
 
+  const parseExcel = () => {
+    const lines = excelText.trim().split('\n').filter(l => l.trim())
+    const rows: ExcelRow[] = []
+    for (const line of lines) {
+      const cols = line.split('\t').map(c => c.trim())
+      const firstIsNum = /^\d+$/.test(cols[0])
+      const isHeader = ['s.no','item name','name','description'].includes((cols[0]||'').toLowerCase())
+      if (isHeader) continue
+      let name = '', desc = '', unit = 'piece', imageUrl = ''
+      if (firstIsNum) {
+        name     = cols[1] || ''
+        desc     = [cols[2], cols[3]].filter(Boolean).join(' | ')
+        unit     = cols[5] || 'piece'
+        imageUrl = cols[11] || ''
+      } else {
+        name     = cols[0] || ''
+        desc     = [cols[1], cols[2]].filter(Boolean).join(' | ')
+        unit     = cols[4] || 'piece'
+        imageUrl = cols[10] || ''
+      }
+      if (!name) continue
+      rows.push({ name, description: desc, category: defaultCat, unit, goinsPrice: defaultGoins, icon: '📦', imageUrl })
+    }
+    setExcelRows(rows)
+  }
+
+  const updateRow = (i: number, field: keyof ExcelRow, value: any) =>
+    setExcelRows(prev => prev.map((r, idx) => idx === i ? { ...r, [field]: value } : r))
+
+  const removeRow = (i: number) =>
+    setExcelRows(prev => prev.filter((_, idx) => idx !== i))
+
+  const submitExcel = async () => {
+    setExcelLoading(true); setExcelResult(null)
+    try {
+      const token = await authToken()
+      const res = await fetch(`${API_BASE}/materials/admin/bulk`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ materials: excelRows.map(r => ({ ...r, goinsPrice: Number(r.goinsPrice) })) }),
+      })
+      const result = await res.json()
+      setExcelResult(result)
+      if (result.created > 0) { load(); setExcelRows([]); setExcelText('') }
+    } catch (e: any) { setExcelResult({ error: e.message }) }
+    finally { setExcelLoading(false) }
+  }
+
+
   return (
     <AdminLayout>
       <div className="space-y-6">
@@ -257,7 +317,11 @@ export default function MaterialsPage() {
           </button>
           <button onClick={() => { setTab('bulk'); setBulkResult(null) }}
             className={`flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-medium transition-all ${tab==='bulk' ? 'bg-white shadow-sm text-indigo-700' : 'text-gray-500 hover:text-gray-700'}`}>
-            <Grid className="h-4 w-4" /> Bulk upload
+            <Grid className="h-4 w-4" /> Bulk upload (JSON)
+          </button>
+          <button onClick={() => { setTab('excel'); setExcelResult(null) }}
+            className={`flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-medium transition-all ${tab==='excel' ? 'bg-white shadow-sm text-indigo-700' : 'text-gray-500 hover:text-gray-700'}`}>
+            📋 Paste from Excel
           </button>
         </div>
 

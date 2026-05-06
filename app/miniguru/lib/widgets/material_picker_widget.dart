@@ -382,6 +382,20 @@ class _MaterialPickerSheetState extends State<MaterialPickerSheet> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Image (if available)
+          if (mat.imageUrl != null && mat.imageUrl!.isNotEmpty)
+            SizedBox(
+              height: 36,
+              child: Center(
+                child: Image.network(
+                  mat.imageUrl!,
+                  fit: BoxFit.contain,
+                  errorBuilder: (_, __, ___) => const SizedBox(),
+                ),
+              ),
+            ),
+          if (mat.imageUrl != null && mat.imageUrl!.isNotEmpty)
+            const SizedBox(height: 4),
           // Name row
           Row(
             children: [
