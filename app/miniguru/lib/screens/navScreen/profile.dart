@@ -13,6 +13,7 @@ import 'package:miniguru/network/MiniguruApi.dart';
 import 'package:miniguru/repository/userDataRepository.dart';
 import 'package:miniguru/screens/loginScreen.dart';
 import 'package:miniguru/screens/walletPage.dart';
+import 'package:miniguru/screens/editProfileScreen.dart';
 
 class Profile extends StatefulWidget {
   const Profile({super.key});
@@ -428,7 +429,10 @@ class _ProfileState extends State<Profile>
                         const SizedBox(height: 24),
                         _label('⚙️ Account'),
                         const SizedBox(height: 10),
-                        _tile(Icons.lock_reset, 'Change Password',
+                        _tile(Icons.edit_outlined, 'Edit Profile', const Color(0xFF5B6EF5),
+            () => Navigator.push(context, MaterialPageRoute(builder: (_) => const EditProfileScreen())).then((v) { if (v == true && mounted) _loadAll(); })),
+        const SizedBox(height: 8),
+        _tile(Icons.lock_reset, 'Change Password',
                             const Color(0xFF5B6EF5), _changePassword),
                         const SizedBox(height: 8),
                         _tile(Icons.privacy_tip_outlined, 'Privacy Policy',
@@ -457,7 +461,7 @@ class _ProfileState extends State<Profile>
     final initials = name.isNotEmpty ? name[0].toUpperCase() : 'M';
 
     return SliverAppBar(
-      expandedHeight: 230,
+      expandedHeight: 275,
       pinned: true,
       backgroundColor: const Color(0xFF5B6EF5),
       elevation: 0,
@@ -568,6 +572,27 @@ class _ProfileState extends State<Profile>
                             fontWeight: FontWeight.w600)),
                   ),
                 ],
+                const SizedBox(height: 10),
+                GestureDetector(
+                  onTap: () => Navigator.push(context,
+                    MaterialPageRoute(builder: (_) => const EditProfileScreen()))
+                    .then((v) { if (v == true && mounted) _loadAll(); }),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 7),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: Colors.white.withOpacity(0.6))),
+                    child: Row(mainAxisSize: MainAxisSize.min, children: [
+                      const Icon(Icons.edit_outlined, color: Colors.white, size: 14),
+                      const SizedBox(width: 6),
+                      Text('Edit Profile',
+                          style: GoogleFonts.nunito(
+                              color: Colors.white, fontSize: 13,
+                              fontWeight: FontWeight.w800)),
+                    ]),
+                  ),
+                ),
               ],
             ),
           ),

@@ -77,6 +77,13 @@ model User {
   score         Int            @default(0)
   scoreHistory  ScoreHistory[]
   profilePhoto  String?
+  parentName   String?
+  parentPhone  String?
+  about        String?
+  grade        String?
+  schoolName   String?
+  city         String?
+  interests    String[]  @default([])
   isMentor      Boolean        @default(false)
   mentorType    GuardianType?
   guardianInfo  GuardianInfo?

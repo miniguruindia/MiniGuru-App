@@ -914,4 +914,30 @@ class MiniguruApi {
   }
 
 
+  // ─── GET /users/me/profile ───────────────────────────────────────────────────
+  Future<Map<String, dynamic>?> getProfile() async {
+    final storedToken = await _db!.getAuthToken();
+    if (storedToken == null) return null;
+    final response = await http.get(
+      Uri.parse('$apiBaseUrl/users/me/profile'),
+      headers: {'Authorization': 'Bearer ${storedToken.accessToken}'},
+    );
+    if (response.statusCode == 200) return jsonDecode(response.body);
+    return null;
+  }
+
+  // ─── PUT /users/me/profile ───────────────────────────────────────────────────
+  Future<bool> updateProfile(Map<String, dynamic> data) async {
+    final storedToken = await _db!.getAuthToken();
+    if (storedToken == null) return false;
+    final response = await http.put(
+      Uri.parse('$apiBaseUrl/users/me/profile'),
+      headers: {'Authorization': 'Bearer ${storedToken.accessToken}',
+                 'Content-Type': 'application/json'},
+      body: jsonEncode(data),
+    );
+    return response.statusCode == 200;
+  }
+
+
 }
