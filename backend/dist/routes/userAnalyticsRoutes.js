@@ -213,4 +213,55 @@ router.get('/me/photo', authMiddleware_1.authenticateToken, resolveSubject_1.res
         return res.status(500).json({ message: 'Failed to fetch photo.' });
     }
 });
+// ─── GET /users/me/profile ────────────────────────────────────────────────────
+router.get('/me/profile', authMiddleware_1.authenticateToken, async (req, res) => {
+    try {
+        const userId = req.user?.userId;
+        const user = await prismaClient_1.default.user.findUnique({
+            where: { id: userId },
+            select: { id: true, name: true, email: true, age: true,
+                parentName: true, parentPhone: true, about: true,
+                grade: true, schoolName: true, city: true, interests: true }
+        });
+        if (!user)
+            return res.status(404).json({ message: 'User not found' });
+        return res.json(user);
+    }
+    catch (err) {
+        return res.status(500).json({ message: 'Failed to fetch profile' });
+    }
+});
+// ─── PUT /users/me/profile ────────────────────────────────────────────────────
+router.put('/me/profile', authMiddleware_1.authenticateToken, async (req, res) => {
+    try {
+        const userId = req.user?.userId;
+        const { name, parentName, parentPhone, about, grade, schoolName, city, interests } = req.body;
+        const data = {};
+        if (name !== undefined)
+            data.name = String(name).trim();
+        if (parentName !== undefined)
+            data.parentName = parentName ? String(parentName).trim() : null;
+        if (parentPhone !== undefined)
+            data.parentPhone = parentPhone ? String(parentPhone).trim() : null;
+        if (about !== undefined)
+            data.about = about ? String(about).trim() : null;
+        if (grade !== undefined)
+            data.grade = grade ? String(grade).trim() : null;
+        if (schoolName !== undefined)
+            data.schoolName = schoolName ? String(schoolName).trim() : null;
+        if (city !== undefined)
+            data.city = city ? String(city).trim() : null;
+        if (Array.isArray(interests))
+            data.interests = interests;
+        const user = await prismaClient_1.default.user.update({
+            where: { id: userId }, data,
+            select: { id: true, name: true, parentName: true, parentPhone: true,
+                about: true, grade: true, schoolName: true, city: true, interests: true }
+        });
+        return res.json({ message: 'Profile updated', user });
+    }
+    catch (err) {
+        return res.status(500).json({ message: 'Failed to update profile' });
+    }
+});
 exports.default = router;
