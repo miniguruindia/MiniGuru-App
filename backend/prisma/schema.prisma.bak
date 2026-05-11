@@ -357,9 +357,6 @@ model Product {
   brand            String?
   size             String?
   howToUse         String?
-  amazonUrl        String?           // Amazon affiliate link — use tag=miniguru08-21
-  flipkartUrl      String?           // Flipkart link (optional backup)
-  sourceType       String            @default("OWN")  // OWN | AMAZON | FLIPKART
   createdAt        DateTime          @default(now())
   updatedAt        DateTime          @updatedAt
   projectMaterials ProjectMaterial[]

@@ -3,7 +3,6 @@
 // Card layout uses mainAxisExtent (exact pixel height) so white space is impossible.
 // Tapping a card opens ProductDetailsPage (full gallery, description, qty, add to cart).
 // Cart badge updates live. Category chips + search bar filter in memory.
-// Amazon/Flipkart affiliate products show "Buy on Amazon/Flipkart" button — never enter cart.
 
 import 'dart:convert';
 import 'package:flutter/material.dart';
@@ -48,7 +47,9 @@ class _ShopState extends State<Shop> with AutomaticKeepAliveClientMixin {
   String _search    = '';
   int    _cartCount = 0;
 
-  final Map<String, int>    _cartQty    = {};
+  // productId → qty currently in cart (for +/- controls)
+  final Map<String, int> _cartQty = {};
+
   final TextEditingController _searchCtrl = TextEditingController();
   final CartRepository        _cartRepo   = CartRepository();
 
@@ -60,6 +61,7 @@ class _ShopState extends State<Shop> with AutomaticKeepAliveClientMixin {
   @override
   void dispose() { _searchCtrl.dispose(); super.dispose(); }
 
+  // ── Fetch products + categories ────────────────────────────────────────────
   Future<void> _load() async {
     setState(() { _loading = true; _error = ''; });
     try {
@@ -102,6 +104,7 @@ class _ShopState extends State<Shop> with AutomaticKeepAliveClientMixin {
     }
   }
 
+  // ── Sync cart badge + qty map ──────────────────────────────────────────────
   Future<void> _syncCart() async {
     try {
       final items = await _cartRepo.getCart();
@@ -118,6 +121,7 @@ class _ShopState extends State<Shop> with AutomaticKeepAliveClientMixin {
     } catch (_) {}
   }
 
+  // ── Filter ─────────────────────────────────────────────────────────────────
   void _filter() {
     setState(() {
       _filtered = _all.where((p) {
@@ -130,6 +134,7 @@ class _ShopState extends State<Shop> with AutomaticKeepAliveClientMixin {
     });
   }
 
+  // ── Image URL helper ───────────────────────────────────────────────────────
   String _thumb(dynamic images) {
     String raw = '';
     if (images is List && images.isNotEmpty) raw = images[0].toString();
@@ -138,6 +143,7 @@ class _ShopState extends State<Shop> with AutomaticKeepAliveClientMixin {
     return raw.startsWith('http') ? raw : '$apiBaseUrl/$raw';
   }
 
+  // ── Cart actions ───────────────────────────────────────────────────────────
   Future<void> _addToCart(Map<String, dynamic> p) async {
     try {
       final id    = p['id']?.toString() ?? '';
@@ -179,6 +185,7 @@ class _ShopState extends State<Shop> with AutomaticKeepAliveClientMixin {
     } catch (_) {}
   }
 
+  // ── Open detail page ───────────────────────────────────────────────────────
   void _openDetail(Map<String, dynamic> p) {
     try {
       Navigator.push(
@@ -195,6 +202,7 @@ class _ShopState extends State<Shop> with AutomaticKeepAliveClientMixin {
     }
   }
 
+  // ── Root build ─────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
     super.build(context);
@@ -236,6 +244,7 @@ class _ShopState extends State<Shop> with AutomaticKeepAliveClientMixin {
     );
   }
 
+  // ── AppBar ─────────────────────────────────────────────────────────────────
   Widget _buildAppBar() {
     return SliverAppBar(
       pinned: true,
@@ -258,7 +267,9 @@ class _ShopState extends State<Shop> with AutomaticKeepAliveClientMixin {
                         fontWeight: FontWeight.w900,
                         color: Colors.white)),
                 Text('Build something amazing ✨',
-                    style: GoogleFonts.nunito(fontSize: 10, color: Colors.white70)),
+                    style: GoogleFonts.nunito(
+                        fontSize: 10,
+                        color: Colors.white70)),
               ],
             ),
             GestureDetector(
@@ -281,13 +292,16 @@ class _ShopState extends State<Shop> with AutomaticKeepAliveClientMixin {
                     right: 0, top: 0,
                     child: Container(
                       width: 17, height: 17,
-                      decoration: const BoxDecoration(color: _amber, shape: BoxShape.circle),
+                      decoration: const BoxDecoration(
+                          color: _amber, shape: BoxShape.circle),
                       child: Center(
-                        child: Text('$_cartCount',
-                            style: const TextStyle(
-                                fontSize: 9,
-                                fontWeight: FontWeight.w900,
-                                color: Colors.white)),
+                        child: Text(
+                          '$_cartCount',
+                          style: const TextStyle(
+                              fontSize: 9,
+                              fontWeight: FontWeight.w900,
+                              color: Colors.white),
+                        ),
                       ),
                     ),
                   ),
@@ -308,6 +322,7 @@ class _ShopState extends State<Shop> with AutomaticKeepAliveClientMixin {
     );
   }
 
+  // ── Category chips ─────────────────────────────────────────────────────────
   Widget _buildCatRow() {
     return SizedBox(
       height: 48,
@@ -335,9 +350,12 @@ class _ShopState extends State<Shop> with AutomaticKeepAliveClientMixin {
         decoration: BoxDecoration(
           color: sel ? _accent : _card,
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: sel ? _accent : const Color(0xFFDDDDF0)),
+          border: Border.all(
+              color: sel ? _accent : const Color(0xFFDDDDF0)),
           boxShadow: sel
-              ? [BoxShadow(color: _accent.withOpacity(0.25), blurRadius: 6, offset: const Offset(0, 2))]
+              ? [BoxShadow(
+                  color: _accent.withOpacity(0.25),
+                  blurRadius: 6, offset: const Offset(0, 2))]
               : [],
         ),
         child: Text(label,
@@ -349,6 +367,7 @@ class _ShopState extends State<Shop> with AutomaticKeepAliveClientMixin {
     );
   }
 
+  // ── Search bar ─────────────────────────────────────────────────────────────
   Widget _buildSearchBar() {
     return Padding(
       padding: const EdgeInsets.fromLTRB(12, 6, 12, 4),
@@ -365,11 +384,14 @@ class _ShopState extends State<Shop> with AutomaticKeepAliveClientMixin {
           style: GoogleFonts.nunito(fontSize: 14),
           decoration: InputDecoration(
             hintText: 'Search materials...',
-            hintStyle: GoogleFonts.nunito(color: Colors.grey[400], fontSize: 14),
-            prefixIcon: const Icon(Icons.search_rounded, color: _muted, size: 20),
+            hintStyle: GoogleFonts.nunito(
+                color: Colors.grey[400], fontSize: 14),
+            prefixIcon: const Icon(Icons.search_rounded,
+                color: _muted, size: 20),
             suffixIcon: _search.isNotEmpty
                 ? IconButton(
-                    icon: const Icon(Icons.close_rounded, size: 18, color: _muted),
+                    icon: const Icon(Icons.close_rounded,
+                        size: 18, color: _muted),
                     onPressed: () {
                       _searchCtrl.clear();
                       setState(() => _search = '');
@@ -388,6 +410,7 @@ class _ShopState extends State<Shop> with AutomaticKeepAliveClientMixin {
     );
   }
 
+  // ── Product grid — mainAxisExtent = exact px height, ZERO white space ──────
   Widget _buildGrid() {
     return SliverPadding(
       padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -396,7 +419,7 @@ class _ShopState extends State<Shop> with AutomaticKeepAliveClientMixin {
           crossAxisCount:   2,
           crossAxisSpacing: 12,
           mainAxisSpacing:  12,
-          mainAxisExtent:   _cardH,
+          mainAxisExtent:   _cardH, // ← pixel height, NOT a ratio
         ),
         delegate: SliverChildBuilderDelegate(
           (context, i) {
@@ -426,7 +449,8 @@ class _ShopState extends State<Shop> with AutomaticKeepAliveClientMixin {
         const Text('🔍', style: TextStyle(fontSize: 48)),
         const SizedBox(height: 12),
         Text('No products found',
-            style: GoogleFonts.nunito(fontSize: 16, fontWeight: FontWeight.w800, color: _ink)),
+            style: GoogleFonts.nunito(
+                fontSize: 16, fontWeight: FontWeight.w800, color: _ink)),
         const SizedBox(height: 4),
         Text('Try a different search or category',
             style: GoogleFonts.nunito(fontSize: 13, color: _muted)),
@@ -442,25 +466,31 @@ class _ShopState extends State<Shop> with AutomaticKeepAliveClientMixin {
         const SizedBox(height: 12),
         Text(_error,
             textAlign: TextAlign.center,
-            style: GoogleFonts.nunito(fontSize: 14, color: Colors.red.shade700)),
+            style: GoogleFonts.nunito(
+                fontSize: 14, color: Colors.red[700])),
         const SizedBox(height: 20),
         ElevatedButton.icon(
           onPressed: _load,
           icon: const Icon(Icons.refresh_rounded),
-          label: Text('Retry', style: GoogleFonts.nunito(fontWeight: FontWeight.w800)),
+          label: Text('Retry',
+              style: GoogleFonts.nunito(fontWeight: FontWeight.w800)),
           style: ElevatedButton.styleFrom(
               backgroundColor: _accent,
               foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12))),
         ),
       ]),
     ));
   }
 }
 
-// ══════════════════════════════════════════════════════════════════════════════
-// _ProductTile
-// ══════════════════════════════════════════════════════════════════════════════
+// ── Product Tile ──────────────────────────────────────────────────────────────
+// Height is EXACTLY _cardH px (controlled by grid mainAxisExtent above).
+// _imgH px image + (_cardH - _imgH) px info area. Nothing can overflow or gap.
+// Qty 0  → shows "Add to Cart" button
+// Qty >0 → shows − N + inline stepper
+// Tap anywhere → opens ProductDetailsPage with full gallery + description
 class _ProductTile extends StatelessWidget {
   final Map<String, dynamic> product;
   final String               thumbUrl;
@@ -495,6 +525,7 @@ class _ProductTile extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
+        // Grid mainAxisExtent already constrains height to _cardH.
         decoration: BoxDecoration(
           color: _card,
           borderRadius: BorderRadius.circular(16),
@@ -504,9 +535,10 @@ class _ProductTile extends StatelessWidget {
         ),
         child: Column(
           children: [
-            // ── Thumbnail ──────────────────────────────────────────────
+            // ── Thumbnail image ─────────────────────────────────────────
             ClipRRect(
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+              borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(16)),
               child: SizedBox(
                 width: double.infinity,
                 height: _imgH,
@@ -515,19 +547,21 @@ class _ProductTile extends StatelessWidget {
                         thumbUrl,
                         fit: BoxFit.contain,
                         errorBuilder: (_, __, ___) => _placeholder(),
-                        loadingBuilder: (_, child, prog) => prog == null
-                            ? child
-                            : Container(
-                                color: const Color(0xFFF0F0FF),
-                                child: const Center(
-                                    child: CircularProgressIndicator(
-                                        strokeWidth: 2, color: _accent))),
+                        loadingBuilder: (_, child, prog) =>
+                            prog == null
+                                ? child
+                                : Container(
+                                    color: const Color(0xFFF0F0FF),
+                                    child: const Center(
+                                        child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                            color: _accent))),
                       )
                     : _placeholder(),
               ),
             ),
 
-            // ── Info area ──────────────────────────────────────────────
+            // ── Info area — remaining height = _cardH - _imgH ───────────
             Expanded(
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(9, 6, 9, 6),
@@ -535,17 +569,23 @@ class _ProductTile extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(name,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: GoogleFonts.nunito(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w800,
-                            color: _ink)),
+                    // Product name
+                    Text(
+                      name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.nunito(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w800,
+                          color: _ink),
+                    ),
+
+                    // Price + cart control
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
+                        // Price
                         Text(
                           'Rs.${price.toStringAsFixed(0)}',
                           style: GoogleFonts.nunito(
@@ -553,19 +593,12 @@ class _ProductTile extends StatelessWidget {
                               fontWeight: FontWeight.w900,
                               color: _accent),
                         ),
-                        // ── Cart / affiliate control ───────────────────
+
+                        // Cart control — OWN vs affiliate
                         if (isAmazon)
-                          _AffiliateButton(
-                            label: 'Amazon',
-                            url: amazonUrl,
-                            color: const Color(0xFFFF9900),
-                          )
+                          _AffiliateButton(label: 'Amazon', url: amazonUrl, color: const Color(0xFFFF9900))
                         else if (isFlipkart)
-                          _AffiliateButton(
-                            label: 'Flipkart',
-                            url: flipkartUrl,
-                            color: const Color(0xFF2874F0),
-                          )
+                          _AffiliateButton(label: 'Flipkart', url: flipkartUrl, color: const Color(0xFF2874F0))
                         else if (stock == 0)
                           Text('Out of stock',
                               style: GoogleFonts.nunito(
@@ -573,6 +606,7 @@ class _ProductTile extends StatelessWidget {
                                   color: Colors.red,
                                   fontWeight: FontWeight.w700))
                         else if (!inCart)
+                          // Add button
                           GestureDetector(
                             onTap: onAddCart,
                             child: Container(
@@ -580,15 +614,18 @@ class _ProductTile extends StatelessWidget {
                               decoration: BoxDecoration(
                                   color: _accent,
                                   borderRadius: BorderRadius.circular(8)),
-                              child: const Icon(Icons.add_shopping_cart_rounded,
+                              child: const Icon(
+                                  Icons.add_shopping_cart_rounded,
                                   color: Colors.white, size: 15),
                             ),
                           )
                         else
+                          // Qty stepper − N +
                           Row(mainAxisSize: MainAxisSize.min, children: [
                             _stepBtn(Icons.remove_rounded, onDecrement),
                             Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 6),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 6),
                               child: Text('$cartQty',
                                   style: GoogleFonts.nunito(
                                       fontSize: 13,
@@ -609,72 +646,64 @@ class _ProductTile extends StatelessWidget {
     );
   }
 
+  void _showFullImage(BuildContext context, String url) {
+    if (url.isEmpty) return;
+    showDialog(
+      context: context,
+      barrierColor: Colors.black87,
+      builder: (_) => GestureDetector(
+        onTap: () => Navigator.pop(context),
+        child: Dialog(
+          backgroundColor: Colors.transparent,
+          insetPadding: const EdgeInsets.all(16),
+          child: Stack(alignment: Alignment.topRight, children: [
+            InteractiveViewer(
+              minScale: 0.5,
+              maxScale: 4.0,
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(16),
+                child: Image.network(
+                  url,
+                  fit: BoxFit.contain,
+                  errorBuilder: (_, __, ___) => Container(
+                    color: const Color(0xFFF0F0FF),
+                    height: 300,
+                    child: const Center(child: Icon(Icons.broken_image_outlined, size: 60)),
+                  ),
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(8),
+              child: CircleAvatar(
+                backgroundColor: Colors.black54,
+                radius: 16,
+                child: IconButton(
+                  padding: EdgeInsets.zero,
+                  icon: const Icon(Icons.close, color: Colors.white, size: 16),
+                  onPressed: () => Navigator.pop(context),
+                ),
+              ),
+            ),
+          ]),
+        ),
+      ),
+    );
+  }
+
   Widget _stepBtn(IconData icon, VoidCallback fn) => GestureDetector(
     onTap: fn,
     child: Container(
       padding: const EdgeInsets.all(4),
-      decoration: BoxDecoration(color: _accent, borderRadius: BorderRadius.circular(6)),
+      decoration: BoxDecoration(
+          color: _accent, borderRadius: BorderRadius.circular(6)),
       child: Icon(icon, color: Colors.white, size: 13),
     ),
   );
 
   Widget _placeholder() => Container(
     color: const Color(0xFFF0F0FF),
-    child: const Center(
-        child: Icon(Icons.inventory_2_outlined, size: 36, color: Color(0xFFCCCCEE))),
+    child: const Center(child: Icon(Icons.inventory_2_outlined,
+        size: 36, color: Color(0xFFCCCCEE))),
   );
-}
-
-// ══════════════════════════════════════════════════════════════════════════════
-// _AffiliateButton — top-level widget, NOT inside _ProductTile
-// Shown on Amazon / Flipkart products instead of the cart stepper.
-// Tapping opens the affiliate URL in the external browser.
-// These products NEVER enter the local cart — no Order created in DB.
-// Amazon commission earned via tracking tag: miniguru08-21
-// ══════════════════════════════════════════════════════════════════════════════
-class _AffiliateButton extends StatelessWidget {
-  final String label;
-  final String url;
-  final Color  color;
-
-  const _AffiliateButton({
-    required this.label,
-    required this.url,
-    required this.color,
-  });
-
-  Future<void> _open() async {
-    final uri = Uri.parse(url);
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: _open,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
-        decoration: BoxDecoration(
-          color: color,
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              label,
-              style: GoogleFonts.nunito(
-                  fontSize: 10,
-                  fontWeight: FontWeight.w900,
-                  color: Colors.white),
-            ),
-            const SizedBox(width: 3),
-            const Icon(Icons.open_in_new_rounded, size: 10, color: Colors.white70),
-          ],
-        ),
-      ),
-    );
-  }
 }

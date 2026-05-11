@@ -499,8 +499,6 @@ class _LoginScreenState extends State<LoginScreen> {
                     label: 'Password',
                     icon: Icons.lock_outline,
                     obscureText: _obscurePassword,
-              textInputAction: TextInputAction.done,
-              onFieldSubmitted: (_) => _login(),
                     suffixIcon: IconButton(
                       icon: Icon(
                           _obscurePassword

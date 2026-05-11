@@ -431,6 +431,19 @@ class _LoginScreenState extends State<LoginScreen> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
+                  // Back button
+                  if (Navigator.canPop(context))
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: IconButton(
+                        icon: const Icon(
+                          Icons.arrow_back_ios_new,
+                          color: pastelBlueText,
+                          size: 20,
+                        ),
+                        onPressed: () => Navigator.of(context).pop(),
+                      ),
+                    ),
                   Hero(
                     tag: 'app_logo',
                     child: Container(
