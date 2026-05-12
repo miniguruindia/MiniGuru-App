@@ -334,6 +334,10 @@ const server = app.listen(PORT, HOST, () => {
     logger_1.default.info(`📡 Ready to accept requests`);
     if (youtubeService) {
         logger_1.default.info(`📺 YouTube OAuth setup available at: /setup-youtube`);
+        // Pre-warm YouTube token on startup — auto-refresh from here on
+        if (youtubeService.refreshTokenNow) {
+            youtubeService.refreshTokenNow().catch((e) => logger_1.default.warn({ err: e.message }, '⚠️  YouTube token pre-warm failed (non-fatal)'));
+        }
     }
     else {
         logger_1.default.info(`📺 YouTube OAuth setup: DISABLED (service not available)`);

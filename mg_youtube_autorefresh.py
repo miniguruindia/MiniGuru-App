@@ -1,4 +1,28 @@
-// backend/src/services/youtubeUploadService.js
+#!/usr/bin/env python3
+"""
+MiniGuru — YouTube Auto-Refresh Setup
+Run from /workspaces/MiniGuru-App/:
+  python3 mg_youtube_autorefresh.py
+
+What it does:
+  1. Rewrites youtubeUploadService.js with auto-refresh token listener
+  2. Patches index.ts to call refreshTokenNow() on server startup
+  3. Token now renews itself silently — zero manual work needed
+"""
+import shutil
+from pathlib import Path
+
+BASE = Path("/workspaces/MiniGuru-App/backend")
+
+# ══════════════════════════════════════════════════════════════════════════════
+# 1. Rewrite youtubeUploadService.js with auto-refresh
+# ══════════════════════════════════════════════════════════════════════════════
+print("\n[1/2] Writing youtubeUploadService.js with auto-refresh ...")
+
+service = BASE / "src/services/youtubeUploadService.js"
+shutil.copy(service, str(service) + ".bak")
+
+service.write_text(r"""// backend/src/services/youtubeUploadService.js
 // AUTO-REFRESH: Google OAuth library refreshes the token silently.
 // The 'tokens' event fires whenever a new access_token is issued.
 // We persist it back to Cloud Run so it survives restarts too.
@@ -162,3 +186,68 @@ async function deleteVideo(videoId) {
 }
 
 module.exports = { upload, getAuthUrl, handleCallback, uploadToYouTube, setVideoPublic, deleteVideo, refreshTokenNow };
+""")
+print("  ✅  youtubeUploadService.js written")
+
+# ══════════════════════════════════════════════════════════════════════════════
+# 2. Patch index.ts — call refreshTokenNow() after server starts
+# ══════════════════════════════════════════════════════════════════════════════
+print("\n[2/2] Patching index.ts — add refreshTokenNow() on startup ...")
+
+index = BASE / "src/index.ts"
+src   = index.read_text()
+
+OLD = """const server = app.listen(PORT, HOST, () => {
+  logger.info(`🚀 Server running on ${HOST}:${PORT}`);
+  logger.info(`🌐 CORS enabled for all origins (development mode)`);
+  logger.info(`📡 Ready to accept requests`);
+  if (youtubeService) {
+    logger.info(`📺 YouTube OAuth setup available at: /setup-youtube`);
+  } else {
+    logger.info(`📺 YouTube OAuth setup: DISABLED (service not available)`);
+  }"""
+
+NEW = """const server = app.listen(PORT, HOST, () => {
+  logger.info(`🚀 Server running on ${HOST}:${PORT}`);
+  logger.info(`🌐 CORS enabled for all origins (development mode)`);
+  logger.info(`📡 Ready to accept requests`);
+  if (youtubeService) {
+    logger.info(`📺 YouTube OAuth setup available at: /setup-youtube`);
+    // Pre-warm YouTube token on startup — auto-refresh from here on
+    if (youtubeService.refreshTokenNow) {
+      youtubeService.refreshTokenNow().catch((e: Error) =>
+        logger.warn({ err: e.message }, '⚠️  YouTube token pre-warm failed (non-fatal)')
+      );
+    }
+  } else {
+    logger.info(`📺 YouTube OAuth setup: DISABLED (service not available)`);
+  }"""
+
+if OLD in src:
+    shutil.copy(index, str(index) + ".bak")
+    index.write_text(src.replace(OLD, NEW, 1))
+    print("  ✅  index.ts patched — refreshTokenNow() called on startup")
+else:
+    print("  ⚠️  Could not find startup block in index.ts — add manually:")
+    print("      After server starts listening, add:")
+    print("      if (youtubeService?.refreshTokenNow) youtubeService.refreshTokenNow();")
+
+print("""
+════════════════════════════════════════════════════════════
+✅  AUTO-REFRESH SETUP COMPLETE
+
+HOW IT WORKS NOW:
+  1. Server starts → refreshTokenNow() pre-warms the token
+  2. Token expires → Google auto-issues new one silently
+  3. New token saved to Cloud Run → survives restarts
+  4. You NEVER need to visit /setup-youtube again
+     (unless you completely revoke access)
+
+NOW RUN:
+════════════════════════════════════════════════════════════
+
+cd /workspaces/MiniGuru-App/backend && npm run build && cp src/services/youtubeUploadService.js dist/services/ && cd /workspaces/MiniGuru-App && git add -f backend/dist/ && git add -A && git commit -m "feat: YouTube token auto-refresh — zero manual renewal" && git push origin main
+
+Then deploy to Cloud Run from Cloud Shell as usual.
+════════════════════════════════════════════════════════════
+""")
