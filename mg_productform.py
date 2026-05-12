@@ -1,4 +1,14 @@
-'use client'
+#!/usr/bin/env python3
+"""
+Run from /workspaces/MiniGuru-App/:
+  python3 mg_productform.py
+"""
+from pathlib import Path
+
+target = Path("/workspaces/MiniGuru-App/admin/components/product/ProductForm.tsx")
+target.parent.mkdir(parents=True, exist_ok=True)
+
+content = r"""'use client'
 // ProductForm.tsx — brand, size, howToUse, images + Amazon/Flipkart affiliate
 import { useState, useEffect } from 'react'
 import { Product, ProductCategory } from '@/types/product'
@@ -224,3 +234,9 @@ export function ProductForm({ product, onSubmit, onCancel }: UpdateProductFormPr
     </Card>
   )
 }
+"""
+
+target.write_text(content)
+print(f"✅  Written: {target}")
+print("\nNow run:")
+print('  cd /workspaces/MiniGuru-App && git add -A && git commit -m "feat: admin product form — sourceType, amazonUrl, flipkartUrl" && git push origin main')
