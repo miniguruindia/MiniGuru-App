@@ -898,6 +898,22 @@ class MiniguruApi {
     }
     return null;
   }
+  // ── GET /users/leaderboard ── top 10 makers + caller rank ───────────────
+  Future<Map<String, dynamic>?> getLeaderboard() async {
+    try {
+      final url = Uri.parse('$apiBaseUrl/users/leaderboard');
+      final authToken = await _db?.getAuthToken();
+      final response = await http.get(url, headers: _buildHeaders(authToken?.accessToken));
+      if (response.statusCode == 200) {
+        return json.decode(response.body) as Map<String, dynamic>;
+      }
+      return null;
+    } catch (e) {
+      print('getLeaderboard error: $e');
+      return null;
+    }
+  }
+
   // ─── POST /mentor/children/bulk ─────────────────────────────────────────────
   Future<List<dynamic>> bulkAddChildren(List<Map<String, String>> children) async {
     final storedToken = await _db!.getAuthToken();

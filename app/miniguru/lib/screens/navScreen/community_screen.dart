@@ -35,12 +35,22 @@ class _CommunityScreenState extends State<CommunityScreen>
   // Happenings list (overridden by CMS if available)
   List<_Happening> _happenings = _defaultHappenings;
 
+  // Challenges + Resources — null means use hardcoded fallback
+  List<_Challenge>? _cmsChallenges;
+  List<_Resource>?  _cmsResources;
+
+  // Leaderboard — null means use hardcoded fallback
+  List<_Leader>? _realLeaderboard;
+  int? _userRank;
+  int? _userScore;
+
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 4, vsync: this)
       ..addListener(() => setState(() => _activeTab = _tabController.index));
     _loadCms();
+    _fetchLeaderboard();
   }
 
   Future<void> _loadCms() async {
@@ -80,11 +90,91 @@ class _CommunityScreenState extends State<CommunityScreen>
           }).toList();
         }
 
+        // ── Challenges list ────────────────────────────────────────────────────────────────────
+        final challengesList = data['challenges'] as List<dynamic>?;
+        if (challengesList != null && challengesList.isNotEmpty) {
+          _cmsChallenges = challengesList.map((c) {
+            final map = c as Map<String, dynamic>;
+            Color color = const Color(0xFF3B82F6);
+            try {
+              final hex = (map['color'] as String?)?.replaceFirst('#', '') ?? '3B82F6';
+              color = Color(int.parse('FF$hex', radix: 16));
+            } catch (_) {}
+            return _Challenge(
+              title:         map['title']?.toString()         ?? '',
+              desc:          map['desc']?.toString()          ?? '',
+              category:      map['category']?.toString()      ?? 'STEAM',
+              categoryEmoji: map['categoryEmoji']?.toString() ?? '⚙️',
+              status:        (map['status'] as num?)?.toInt() ?? 0,
+              reward:        (map['reward'] as num?)?.toInt() ?? 100,
+              deadline:      map['deadline']?.toString()      ?? '',
+              participants:  (map['participants'] as num?)?.toInt() ?? 0,
+              color:         color,
+            );
+          }).toList();
+        }
+
+        // ── Resources list ──────────────────────────────────────────────────────────────────
+        final resourcesList = data['resources'] as List<dynamic>?;
+        if (resourcesList != null && resourcesList.isNotEmpty) {
+          _cmsResources = resourcesList.map((r) {
+            final map = r as Map<String, dynamic>;
+            Color tagColor = const Color(0xFF3B82F6);
+            try {
+              final hex = (map['tagColor'] as String?)?.replaceFirst('#', '') ?? '3B82F6';
+              tagColor = Color(int.parse('FF$hex', radix: 16));
+            } catch (_) {}
+            return _Resource(
+              emoji:    map['emoji']?.toString() ?? '📄',
+              title:    map['title']?.toString() ?? '',
+              desc:     map['desc']?.toString()  ?? '',
+              tag:      map['tag']?.toString()   ?? '',
+              tagColor: tagColor,
+              type:     map['type']?.toString()  ?? 'PDF',
+            );
+          }).toList();
+        }
+
         _cmsLoaded = true;
       });
     } catch (e) {
       debugPrint('❌ Community CMS load error: $e');
     }
+  }
+
+  // Fetch real leaderboard from backend
+  Future<void> _fetchLeaderboard() async {
+    try {
+      final result = await _api.getLeaderboard();
+      if (result == null || !mounted) return;
+      final list = result['leaderboard'] as List<dynamic>?;
+      if (list == null) return;
+      setState(() {
+        _realLeaderboard = list.map((m) {
+          final map = m as Map<String, dynamic>;
+          final score = (map['score'] as num?)?.toInt() ?? 0;
+          return _Leader(
+            rank:  (map['rank'] as num?)?.toInt() ?? 1,
+            name:  map['name']?.toString() ?? 'Maker',
+            city:  '', // not stored on User model yet
+            score: score,
+            badge: _levelEmoji(score),
+          );
+        }).toList();
+        _userRank  = (result['userRank']  as num?)?.toInt();
+        _userScore = (result['userScore'] as num?)?.toInt();
+      });
+    } catch (e) {
+      debugPrint('❌ Leaderboard fetch error: $e');
+    }
+  }
+
+  static String _levelEmoji(int score) {
+    if (score >= 1000) return '🚀';
+    if (score >= 600)  return '🔬';
+    if (score >= 300)  return '⚙️';
+    if (score >= 100)  return '🔩';
+    return '🌱';
   }
 
   @override
@@ -110,9 +200,9 @@ class _CommunityScreenState extends State<CommunityScreen>
           controller: _tabController,
           children: [
             _TLabTab(happenings: _happenings),
-            const _ChallengesTab(),
-            const _LadderTab(),
-            const _ResourcesTab(),
+            _ChallengesTab(cmsChallenges: _cmsChallenges),
+            _LadderTab(leaderboard: _realLeaderboard, userRank: _userRank, userScore: _userScore),
+            _ResourcesTab(cmsResources: _cmsResources),
           ],
         ),
       ),
@@ -410,7 +500,8 @@ class _SetupBanner extends StatelessWidget {
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _ChallengesTab extends StatefulWidget {
-  const _ChallengesTab();
+  final List<_Challenge>? cmsChallenges;
+  const _ChallengesTab({this.cmsChallenges});
 
   @override
   State<_ChallengesTab> createState() => _ChallengesTabState();
@@ -419,7 +510,7 @@ class _ChallengesTab extends StatefulWidget {
 class _ChallengesTabState extends State<_ChallengesTab> {
   int _filter = 0; // 0=ongoing 1=upcoming 2=past
 
-  static const _challenges = [
+  static const _defaultChallenges = [
     _Challenge(
       title: 'Bridge Builder March',
       desc: 'Build the strongest bridge using only cardboard and rubber bands. Max span: 30cm.',
@@ -467,7 +558,7 @@ class _ChallengesTabState extends State<_ChallengesTab> {
   ];
 
   List<_Challenge> get _filtered =>
-      _challenges.where((c) => c.status == _filter).toList();
+      (widget.cmsChallenges ?? _defaultChallenges).where((c) => c.status == _filter).toList();
 
   @override
   Widget build(BuildContext context) {
@@ -656,7 +747,10 @@ class _ChallengeCard extends StatelessWidget {
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _LadderTab extends StatelessWidget {
-  const _LadderTab();
+  final List<_Leader>? leaderboard;
+  final int? userRank;
+  final int? userScore;
+  const _LadderTab({this.leaderboard, this.userRank, this.userScore});
 
   static const _levels = [
     _Level('🌱', 'Sprout',    '0–99G',   'Just starting out', Color(0xFF86EFAC), 0.0),
@@ -694,6 +788,11 @@ class _LadderTab extends StatelessWidget {
           emoji: '🏆',
         ),
         const SizedBox(height: 16),
+
+        if (userRank != null) ...[  // show only when logged in + leaderboard loaded
+          _UserRankCard(rank: userRank!, score: userScore ?? 0),
+          const SizedBox(height: 16),
+        ],
 
         Text('Progression Levels',
             style: GoogleFonts.nunito(
@@ -739,7 +838,7 @@ class _LadderTab extends StatelessWidget {
             border: Border.all(color: const Color(0xFFE8EAFF)),
           ),
           child: Column(
-            children: _leaderboard.asMap().entries.map((e) {
+            children: (leaderboard ?? _leaderboard).asMap().entries.map((e) {
               final i = e.key;
               final l = e.value;
               return _LeaderRow(
@@ -891,9 +990,10 @@ class _LeaderRow extends StatelessWidget {
                     fontSize: 13,
                     fontWeight: FontWeight.w700,
                     color: const Color(0xFF1A1A2E))),
-            Text('📍 ${leader.city}',
-                style: GoogleFonts.nunito(
-                    fontSize: 11, color: const Color(0xFF6B6B8A))),
+            if (leader.city.isNotEmpty)
+              Text('📍 ${leader.city}',
+                  style: GoogleFonts.nunito(
+                      fontSize: 11, color: const Color(0xFF6B6B8A))),
           ]),
         ),
         Container(
@@ -918,9 +1018,10 @@ class _LeaderRow extends StatelessWidget {
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _ResourcesTab extends StatelessWidget {
-  const _ResourcesTab();
+  final List<_Resource>? cmsResources;
+  const _ResourcesTab({this.cmsResources});
 
-  static const _resources = [
+  static const _defaultResources = [
     _Resource(
       emoji: '📋',
       title: 'Project Planning Template',
@@ -982,7 +1083,7 @@ class _ResourcesTab extends StatelessWidget {
           emoji: '📦',
         ),
         const SizedBox(height: 16),
-        ..._resources.map((r) => Padding(
+        ...(cmsResources ?? _defaultResources).map((r) => Padding(
               padding: const EdgeInsets.only(bottom: 10),
               child: _ResourceCard(r: r),
             )),
@@ -1097,6 +1198,69 @@ class _ResourceCard extends StatelessWidget {
 // ─────────────────────────────────────────────────────────────────────────────
 //  SHARED WIDGETS
 // ─────────────────────────────────────────────────────────────────────────────
+
+// ─────────────────────────────────────────────────────────────────────────────────
+//  USER RANK CARD
+// ─────────────────────────────────────────────────────────────────────────────────
+
+class _UserRankCard extends StatelessWidget {
+  final int rank;
+  final int score;
+  const _UserRankCard({required this.rank, required this.score});
+
+  String get _level {
+    if (score >= 1000) return '🚀 Innovator';
+    if (score >= 600)  return '🔬 Inventor';
+    if (score >= 300)  return '⚙️ Builder';
+    if (score >= 100)  return '🔩 Tinkerer';
+    return '🌱 Sprout';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFF5B6EF5), Color(0xFF3B1F6E)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Row(children: [
+        Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text('Your Rank',
+              style: GoogleFonts.nunito(
+                  fontSize: 11, color: Colors.white60, fontWeight: FontWeight.w600)),
+          Text('#$rank',
+              style: GoogleFonts.nunito(
+                  fontSize: 28, fontWeight: FontWeight.w900, color: Colors.white)),
+        ]),
+        const SizedBox(width: 20),
+        Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text('Level',
+              style: GoogleFonts.nunito(
+                  fontSize: 11, color: Colors.white60, fontWeight: FontWeight.w600)),
+          Text(_level,
+              style: GoogleFonts.nunito(
+                  fontSize: 15, fontWeight: FontWeight.w800, color: Colors.white)),
+        ]),
+        const Spacer(),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.15),
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Text('🪙 ${score}G',
+              style: GoogleFonts.nunito(
+                  fontSize: 14, fontWeight: FontWeight.w800, color: Colors.white)),
+        ),
+      ]),
+    );
+  }
+}
 
 class _SectionHeader extends StatelessWidget {
   final String title, subtitle, emoji;
