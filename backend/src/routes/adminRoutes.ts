@@ -137,7 +137,7 @@ adminRouter.post('/goins/adjust', authenticateToken, authorizeAdmin, async (req:
 // ── GET /admin/amazon/product?asin=XXX ─────────────────────────────────────
 // Fetches Amazon.in product page and extracts meta info.
 // Used by admin ProductForm to auto-fill name/description/image/price.
-adminRouter.get('/amazon/product', adminMiddleware, async (req: any, res: any) => {
+adminRouter.get('/amazon/product', authenticateToken, authorizeAdmin, async (req: any, res: any) => {
   const asin = (req.query.asin as string)?.trim().toUpperCase();
   if (!asin || !/^[A-Z0-9]{10}$/.test(asin)) {
     return res.status(400).json({ error: 'Invalid ASIN' });
@@ -170,7 +170,7 @@ adminRouter.get('/amazon/product', adminMiddleware, async (req: any, res: any) =
       // Try og:title first, then <title>, then #productTitle
       const og = getMeta('og:title');
       if (og) return og;
-      const titleMatch = html.match(/<title[^>]*>([^<]+)</title>/i);
+      const titleMatch = html.match(/<title[^>]*>([^<]+)<\/title>/i);
       if (titleMatch) return titleMatch[1].replace(/ : Amazon.in.*$/i, '').trim();
       const spanMatch = html.match(/id="productTitle"[^>]*>\s*([^<]+)/i);
       return spanMatch?.[1]?.trim() ?? null;
