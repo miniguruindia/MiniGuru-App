@@ -103,7 +103,7 @@ class _HomeScreenState extends State<HomeScreen> {
             _cachedScreens[index] = const MentorChildrenTab();
             break;
           }
-          _cachedScreens[index] = _isAuthenticated ? const Library() : const ConsultancyPage();
+          _cachedScreens[index] = _isAuthenticated ? const CommunityScreen() : const ConsultancyPage();
           break;
         case 2:
           _cachedScreens[index] = const Shop();
@@ -206,7 +206,7 @@ class _HomeScreenState extends State<HomeScreen> {
             BottomNavigationBarItem(
               icon: Icon(_user?.isMentor == true && !SessionState.isChildSession ? Icons.people_outline : _isAuthenticated ? Icons.library_books_outlined : Icons.support_agent_outlined),
               activeIcon: Icon(_user?.isMentor == true && !SessionState.isChildSession ? Icons.people : _isAuthenticated ? Icons.library_books : Icons.support_agent),
-              label: _user?.isMentor == true && !SessionState.isChildSession ? 'Learners' : _isAuthenticated ? 'Library' : 'Consult',
+              label: _user?.isMentor == true && !SessionState.isChildSession ? 'Learners' : _isAuthenticated ? 'Community' : 'Consult',
             ),
             const BottomNavigationBarItem(
               icon: Icon(Icons.shopping_bag_outlined),

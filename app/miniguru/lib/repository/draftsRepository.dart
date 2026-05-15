@@ -75,7 +75,7 @@ class DraftRepository {
   }
 
   Future<int> uploadProjects(
-      Map<String, dynamic> project, XFile video, XFile thumbnail) async {
+      Map<String, dynamic> project, XFile video, XFile? thumbnail) async {
     final data = transformProject(project);
     final response = await _api.uploadProjectWithMedia(data, video, thumbnail);
     

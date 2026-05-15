@@ -201,7 +201,6 @@ class _AddDraftScreenState extends State<AddDraftScreen> with TickerProviderStat
     if (_startDate == null)  return 'Start date is required.';
     if (_endDate == null)    return 'End date is required.';
     if (_video == null)      return 'Please pick a project video.';
-    if (_thumbnail == null)  return 'Please pick a thumbnail image.';
     return null;
   }
 
@@ -231,7 +230,7 @@ class _AddDraftScreenState extends State<AddDraftScreen> with TickerProviderStat
         {'title': _titleCtrl.text, 'description': _descCtrl.text,
          'startDate': _startDate, 'endDate': _endDate,
          'category': _categoryCtrl.text, 'materials': materialsMap},
-        _video!, _thumbnail!,
+        _video!, _thumbnail,
       );
       if (mounted) Navigator.pop(context);
 
@@ -412,9 +411,6 @@ class _AddDraftScreenState extends State<AddDraftScreen> with TickerProviderStat
       _video != null ? '✅ ${_video!.name}' : 'Tap to pick a video file',
       _video != null, _pickVideo, _purple),
     const SizedBox(height: 10),
-    _mediaTile(Icons.image_rounded, 'Thumbnail Image',
-      _thumbnail != null ? '✅ ${_thumbnail!.name}' : 'Tap to pick an image',
-      _thumbnail != null, _pickThumbnail, _green),
   ]);
 
   Widget _mediaTile(IconData icon, String label, String sub, bool hasFile, VoidCallback onTap, Color accent) =>

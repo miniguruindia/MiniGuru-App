@@ -415,7 +415,7 @@ class _ProfileState extends State<Profile>
 
                         // ── Wallet + Goins ──
                         const SizedBox(height: 24),
-                        _label('💰 Wallet & Goins'),
+                        _label(_user?.isMentor == true ? '💰 Wallet & Goins' : '🪙 Goins'),
                         const SizedBox(height: 10),
                         _buildWalletGoinsRow(),
 
@@ -720,7 +720,7 @@ class _ProfileState extends State<Profile>
     final goinsScore = _analytics['score'] ?? _user?.score ?? 0;
 
     return Row(children: [
-      Expanded(
+      if (_user?.isMentor == true) Expanded(
         child: GestureDetector(
           onTap: () {
             if (_user != null) Navigator.push(context,
@@ -771,7 +771,7 @@ class _ProfileState extends State<Profile>
           ),
         ),
       ),
-      const SizedBox(width: 10),
+      if (_user?.isMentor == true) const SizedBox(width: 10),
       Expanded(
         child: Container(
           padding: const EdgeInsets.all(16),

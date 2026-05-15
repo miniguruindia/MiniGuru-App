@@ -262,7 +262,7 @@ class MiniguruApi {
   Future<http.Response?> uploadProjectWithMedia(
     Map<String, dynamic> data,
     XFile video,
-    XFile thumbnail,
+    XFile? thumbnail,
   ) async {
     final authToken = await _getValidToken();
     if (authToken == null) return null;
@@ -286,12 +286,14 @@ class MiniguruApi {
         filename: video.name,
         contentType: MediaType.parse('video/mp4'),
       ));
-      final thumbBytes = await thumbnail.readAsBytes();
-      request.files.add(http.MultipartFile.fromBytes(
-        'thumbnail', thumbBytes,
-        filename: thumbnail.name,
-        contentType: MediaType.parse('image/jpeg'),
-      ));
+      if (thumbnail != null) {
+        final thumbBytes = await thumbnail.readAsBytes();
+        request.files.add(http.MultipartFile.fromBytes(
+          'thumbnail', thumbBytes,
+          filename: thumbnail.name,
+          contentType: MediaType.parse('image/jpeg'),
+        ));
+      }
     } else {
       var videoStream = http.ByteStream(video.openRead());
       var videoLength = await video.length();
@@ -300,13 +302,15 @@ class MiniguruApi {
         filename: basename(video.path),
         contentType: MediaType.parse('video/mp4'),
       ));
-      var thumbnailStream = http.ByteStream(thumbnail.openRead());
-      var thumbnailLength = await thumbnail.length();
-      request.files.add(http.MultipartFile(
-        'thumbnail', thumbnailStream, thumbnailLength,
-        filename: basename(thumbnail.path),
-        contentType: MediaType.parse('image/jpeg'),
-      ));
+      if (thumbnail != null) {
+        var thumbnailStream = http.ByteStream(thumbnail.openRead());
+        var thumbnailLength = await thumbnail.length();
+        request.files.add(http.MultipartFile(
+          'thumbnail', thumbnailStream, thumbnailLength,
+          filename: basename(thumbnail.path),
+          contentType: MediaType.parse('image/jpeg'),
+        ));
+      }
     }
 
     final streamedResponse = await request.send();
