@@ -51,6 +51,7 @@ export const approveProject = async (req: Request, res: Response) => {
       message: `Cannot approve — status is '${project.status}', expected 'pending'.`,
     });
 
+    // ── YouTube ───────────────────────────────────────────────────
     if (project.video?.url) {
       try {
         await setVideoPublic(extractYouTubeId(project.video.url));
@@ -66,13 +67,49 @@ export const approveProject = async (req: Request, res: Response) => {
       logger.warn(`Project ${id} has no video URL — skipping YouTube step`);
     }
 
-    const updated = await prisma.project.update({
-      where: { id },
-      data: { status: 'published' },
-    });
+    // ── Re-calculate material cost in Goins ───────────────────────
+    let materialGoins = 0;
+    const mats = (project as any).materials as Array<{ productId: string; quantity: number }> | null;
+    if (mats && mats.length > 0) {
+      const productIds = mats.map(m => m.productId);
+      const products = await prisma.product.findMany({
+        where: { id: { in: productIds } },
+        select: { id: true, price: true },
+      });
+      const priceMap = new Map(products.map(p => [p.id, p.price]));
+      for (const mat of mats) {
+        const rate = priceMap.get(mat.productId) ?? 0;
+        materialGoins += rate * mat.quantity;
+      }
+    }
 
-    logger.info(`Project ${id} approved`);
-    return res.status(200).json({ message: 'Project approved and published on YouTube.', project: updated });
+    const BASE_REWARD    = 50;
+    const materialRefund = Math.round(materialGoins * 2);
+    const totalGoins     = BASE_REWARD + materialRefund;
+    // ─────────────────────────────────────────────────────────────
+
+    const [updated] = await prisma.$transaction([
+      prisma.project.update({
+        where: { id },
+        data: { status: 'published' },
+      }),
+      prisma.user.update({
+        where: { id: project.userId },
+        data: { score: { increment: totalGoins } },
+      }),
+    ]);
+
+    logger.info(
+      `Project ${id} approved. Awarded ${totalGoins} Goins to user ${project.userId} ` +
+      `(base: ${BASE_REWARD}, material refund 2x${Math.round(materialGoins)}: ${materialRefund})`
+    );
+
+    return res.status(200).json({
+      message: 'Project approved and published on YouTube.',
+      project: updated,
+      goinsAwarded: totalGoins,
+      breakdown: { base: BASE_REWARD, materialRefund },
+    });
   } catch (error) {
     logger.error(`Error approving project ${id}: ${(error as Error).message}`);
     return res.status(500).json({ message: 'Failed to approve project.' });

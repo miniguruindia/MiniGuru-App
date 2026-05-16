@@ -126,7 +126,7 @@ async function uploadToYouTube(videoPath, metadata) {
           tags:        metadata.tags || ['MiniGuru', 'STEM', 'Education'],
           categoryId:  '28',
         },
-        status: { privacyStatus: 'unlisted', selfDeclaredMadeForKids: true },
+        status: { privacyStatus: 'unlisted', selfDeclaredMadeForKids: false, embeddable: true },
       },
       media: { body: fs.createReadStream(videoPath) },
     });
@@ -147,7 +147,7 @@ async function setVideoPublic(videoId) {
   const youtube = google.youtube({ version: 'v3', auth: getOAuth2Client() });
   await youtube.videos.update({
     part: 'status',
-    requestBody: { id: videoId, status: { privacyStatus: 'public', selfDeclaredMadeForKids: true } },
+    requestBody: { id: videoId, status: { privacyStatus: 'public', selfDeclaredMadeForKids: false, embeddable: true } },
   });
   console.log(`✅  Video ${videoId} set to PUBLIC`);
   return true;
