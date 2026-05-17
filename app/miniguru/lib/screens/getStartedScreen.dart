@@ -35,7 +35,16 @@ class _GetStartedScreenState extends State<GetStartedScreen>
       chips: [],
       showStats: false,
       illustration: Image.asset(
-        'assets/mg-logo.png',
+        'assets/MGlogo.png',,
+                const SizedBox(height: 10),
+                Text(
+                  'MiniGuru',
+                  style: GoogleFonts.nunito(
+                    fontWeight: FontWeight.w900,
+                    fontSize: 32,
+                    color: const Color(0xFF1B5E20),
+                  ),
+                ),
         fit: BoxFit.contain,
       ),
     ),

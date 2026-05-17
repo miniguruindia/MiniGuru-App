@@ -9,7 +9,7 @@ export function LoadingSplash() {
           <div className="relative">
             <div className="w-24 h-24 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl shadow-2xl flex items-center justify-center animate-pulse">
               <img 
-                src="/mg-logo.png" 
+                src="/MGlogo.png" 
                 alt="MiniGuru" 
                 className="w-16 h-16 object-contain"
                 onError={(e) => {

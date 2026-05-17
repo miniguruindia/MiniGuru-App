@@ -192,7 +192,7 @@ class _SplashScreenState extends State<SplashScreen>
                           ),
                           padding: const EdgeInsets.all(30),
                           child: Image.asset(
-                            'assets/mg-logo.png',
+                            'assets/MGlogo.png',
                             fit: BoxFit.contain,
                             errorBuilder: (context, error, stackTrace) {
                               return Image.asset(
@@ -218,7 +218,7 @@ class _SplashScreenState extends State<SplashScreen>
                           ).createShader(bounds),
                           child: Text(
                             'MiniGuru',
-                            style: GoogleFonts.poppins(
+                            style: GoogleFonts.nunito(
                               fontSize: 48,
                               fontWeight: FontWeight.bold,
                               color: Colors.white,

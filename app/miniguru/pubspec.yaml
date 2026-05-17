@@ -50,7 +50,7 @@ flutter:
   uses-material-design: true
 
   assets:
-    - assets/mg-logo.png
+    - assets/MGlogo.png
     - assets/bag.png
     - assets/ic_logo.png
     - assets/shopping-cart.png
@@ -65,5 +65,5 @@ flutter:
 flutter_launcher_icons:
   android: "launcher_icon"
   ios: true
-  image_path: "assets/mg-logo.png"
+  image_path: "assets/MGlogo.png"
   min_sdk_android: 21

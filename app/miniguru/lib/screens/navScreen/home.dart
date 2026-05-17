@@ -156,7 +156,7 @@ class _HomeState extends State<Home> {
             child: ClipRRect(
               borderRadius: BorderRadius.circular(8),
               child: Image.asset(
-                'assets/mg-logo.png',
+                'assets/MGlogo.png',
                 width: 32, height: 32, fit: BoxFit.cover,
                 errorBuilder: (_, __, ___) =>
                     const Icon(Icons.lightbulb, color: Colors.white, size: 20),

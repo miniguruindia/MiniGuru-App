@@ -450,7 +450,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       constraints: const BoxConstraints(
                           maxWidth: 200, maxHeight: 100),
                       child: Image.asset(
-                        'assets/mg-logo.png',
+                        'assets/MGlogo.png',
                         fit: BoxFit.contain,
                         errorBuilder: (context, error, stackTrace) {
                           return Container(
@@ -468,7 +468,16 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                   ),
                   const SizedBox(height: 32),
-                  Text('Welcome Back!',
+                                  const SizedBox(height: 8),
+                Text(
+                  'MiniGuru',
+                  style: GoogleFonts.nunito(
+                    fontWeight: FontWeight.w900,
+                    fontSize: 32,
+                    color: const Color(0xFF1B5E20),
+                  ),
+                ),
+                Text('Welcome Back!',
                       style: GoogleFonts.poppins(
                           fontSize: 28,
                           fontWeight: FontWeight.bold,

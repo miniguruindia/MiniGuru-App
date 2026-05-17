@@ -132,7 +132,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
           <div className="flex h-16 shrink-0 items-center px-6 border-b border-gray-200">
             <div className="flex items-center gap-3">
               <Image 
-                src="/mg-logo.png" 
+                src="/MGlogo.png" 
                 alt="MiniGuru Logo" 
                 width={40} 
                 height={40}
@@ -187,7 +187,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
           <div className="flex h-16 items-center justify-between px-6 border-b">
             <div className="flex items-center gap-3">
               <Image 
-                src="/mg-logo.png" 
+                src="/MGlogo.png" 
                 alt="MiniGuru Logo" 
                 width={40} 
                 height={40}

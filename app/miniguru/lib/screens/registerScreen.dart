@@ -163,12 +163,21 @@ class _RegisterScreenState extends State<RegisterScreen> {
           tag: 'app_logo',
           child: SizedBox(
             height: 60,
-            child: Image.asset('assets/mg-logo.png', fit: BoxFit.contain,
+            child: Image.asset('assets/MGlogo.png', fit: BoxFit.contain,
                 errorBuilder: (_, __, ___) => const Icon(Icons.rocket_launch, size: 40, color: pastelBlueText)),
           ),
         ),
         const SizedBox(height: 28),
-        Text('Create Account',
+                      const SizedBox(height: 8),
+              Text(
+                'MiniGuru',
+                style: GoogleFonts.nunito(
+                  fontWeight: FontWeight.w900,
+                  fontSize: 32,
+                  color: const Color(0xFF1B5E20),
+                ),
+              ),
+              Text('Create Account',
             style: GoogleFonts.nunito(fontSize: 26, fontWeight: FontWeight.w900, color: Colors.black87)),
         const SizedBox(height: 8),
         Text('Who is joining MiniGuru?',

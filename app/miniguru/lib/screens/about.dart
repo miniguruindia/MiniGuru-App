@@ -185,7 +185,7 @@ class _HeroText extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             Image.asset(
-              'assets/mg-logo.png',
+              'assets/MGlogo.png',
               height: isMobile ? 36 : 44,
               errorBuilder: (_, __, ___) => const SizedBox.shrink(),
             ),
