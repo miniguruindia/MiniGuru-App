@@ -29,6 +29,7 @@ const paymentRoutes_1 = __importDefault(require("./routes/paymentRoutes"));
 const videoRoutes_1 = __importDefault(require("./routes/videoRoutes"));
 const videoRatingRoutes_1 = __importDefault(require("./routes/videoRatingRoutes"));
 const materialsRoutes_1 = __importDefault(require("./routes/materialsRoutes"));
+const shopRoutes_1 = __importDefault(require("./routes/shopRoutes"));
 const userAnalyticsRoutes_1 = __importDefault(require("./routes/userAnalyticsRoutes"));
 const cmsRoutes_1 = __importDefault(require("./routes/cmsRoutes"));
 const guardianRoutes_1 = __importDefault(require("./routes/guardianRoutes"));
@@ -283,6 +284,7 @@ try {
     app.use('/api/videos', videoRoutes_1.default);
     app.use('/api/videos', videoRatingRoutes_1.default);
     app.use('/materials', materialsRoutes_1.default); // ← NEW: STEM materials for Goins exchange
+    app.use('/shop', shopRoutes_1.default);
     app.use('/goins', goinsRoutes_1.default);
     app.use('/users', userAnalyticsRoutes_1.default);
     app.use('/cms', cmsRoutes_1.default);
