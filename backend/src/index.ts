@@ -310,6 +310,7 @@ app.use('/mentor', guardianRouter);
   logger.error({ error }, '❌ Failed to register routes');
 }
 
+
 // Static files
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
