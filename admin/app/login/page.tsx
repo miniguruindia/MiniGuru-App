@@ -16,7 +16,7 @@ export default function LoginPage() {
           {/* Logo */}
           <div className="flex justify-center">
             <Image 
-              src="/logo.png" 
+              src="/MGlogo.png" 
               alt="MiniGuru Logo" 
               width={120} 
               height={120}
