@@ -26,6 +26,7 @@ import paymentRouter from './routes/paymentRoutes';
 import videoRoutes from './routes/videoRoutes';
 import videoRatingRouter from './routes/videoRatingRoutes';
 import materialsRouter from './routes/materialsRoutes';
+import shopRoutes from './routes/shopRoutes';
 import userAnalyticsRouter from './routes/userAnalyticsRoutes';
 import cmsRouter from './routes/cmsRoutes';
 import guardianRouter from './routes/guardianRoutes';
@@ -297,6 +298,7 @@ try {
   app.use('/api/videos', videoRoutes);
   app.use('/api/videos', videoRatingRouter);
   app.use('/materials', materialsRouter);   // ← NEW: STEM materials for Goins exchange
+  app.use('/shop', shopRoutes);
   app.use('/goins', goinsRouter);
   app.use('/users', userAnalyticsRouter);
   app.use('/cms', cmsRouter);
