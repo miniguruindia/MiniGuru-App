@@ -264,4 +264,51 @@ router.put('/me/profile', authMiddleware_1.authenticateToken, async (req, res) =
         return res.status(500).json({ message: 'Failed to update profile' });
     }
 });
+// ── GET /users/leaderboard ── public, returns top 10 by Goins (user.score) ──
+// Also returns caller's rank + score if a valid JWT is present in Authorization header.
+router.get('/leaderboard', async (req, res) => {
+    try {
+        const top10 = await prismaClient_1.default.user.findMany({
+            orderBy: { score: 'desc' },
+            take: 10,
+            select: { id: true, name: true, score: true },
+        });
+        const leaderboard = top10.map((u, i) => {
+            const parts = u.name.trim().split(/\s+/);
+            const displayName = parts.length > 1
+                ? `${parts[0]} ${parts[1][0]}.`
+                : parts[0];
+            return { rank: i + 1, name: displayName, score: u.score };
+        });
+        // Try to get the caller's rank without requiring auth middleware
+        let userRank = null;
+        let userScore = null;
+        const authHeader = req.headers['authorization'];
+        if (authHeader?.startsWith('Bearer ')) {
+            try {
+                const jwt = require('jsonwebtoken');
+                const decoded = jwt.verify(authHeader.split(' ')[1], process.env.JWT_SECRET);
+                const user = await prismaClient_1.default.user.findUnique({
+                    where: { id: decoded.userId },
+                    select: { score: true },
+                });
+                if (user) {
+                    userScore = user.score;
+                    const usersAbove = await prismaClient_1.default.user.count({
+                        where: { score: { gt: user.score } },
+                    });
+                    userRank = usersAbove + 1;
+                }
+            }
+            catch (_) {
+                // No valid token — that's fine, leaderboard is public
+            }
+        }
+        res.json({ leaderboard, userRank, userScore });
+    }
+    catch (err) {
+        console.error('Leaderboard error:', err);
+        res.status(500).json({ error: 'Failed to fetch leaderboard' });
+    }
+});
 exports.default = router;

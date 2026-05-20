@@ -1,19 +1,17 @@
 "use strict";
-// /workspaces/MiniGuru-App/backend/src/controllers/auth/passwordResetController.ts
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.resetPassword = exports.requestPasswordReset = void 0;
-const crypto_1 = __importDefault(require("crypto"));
 const bcryptjs_1 = __importDefault(require("bcryptjs"));
+const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const prismaClient_1 = __importDefault(require("../../utils/prismaClient"));
 const logger_1 = __importDefault(require("../../logger"));
-// Store reset tokens in memory (in production, use Redis or database)
-const resetTokens = new Map();
+const emailService_1 = require("../../services/email/emailService");
+const JWT_SECRET = process.env.JWT_SECRET || 'miniguru-reset-secret';
 /**
- * @description Request password reset - generates temp password (dev) or reset token (prod)
- * @route POST /auth/forgot-password
+ * @route  POST /auth/forgot-password
  * @access Public
  */
 const requestPasswordReset = async (req, res) => {
@@ -23,112 +21,73 @@ const requestPasswordReset = async (req, res) => {
             return res.status(400).json({ error: 'Email is required' });
         }
         logger_1.default.info({ email }, '🔐 Password reset requested');
-        // Find user by email
         const user = await prismaClient_1.default.user.findUnique({
             where: { email: email.toLowerCase() },
         });
+        // Security: always return same message whether user exists or not
         if (!user) {
-            // For security, don't reveal if user exists or not
-            logger_1.default.info({ email }, '⚠️  Password reset requested for non-existent email');
-            return res.json({
-                message: 'If that email exists, we sent password reset instructions.'
-            });
+            logger_1.default.info({ email }, '⚠️  Reset requested for non-existent email');
+            return res.json({ message: 'If that email exists, we sent password reset instructions.' });
         }
-        // DEVELOPMENT MODE: Generate and return temporary password
-        if (process.env.NODE_ENV === 'development') {
-            // Generate 8-character temporary password
-            const tempPassword = crypto_1.default.randomBytes(4).toString('hex');
-            const passwordHash = await bcryptjs_1.default.hash(tempPassword, 10);
-            // Update user's password
-            await prismaClient_1.default.user.update({
-                where: { id: user.id },
-                data: { passwordHash },
-            });
-            logger_1.default.info({ email }, `✅ Temporary password generated: ${tempPassword}`);
-            // Return temp password directly (DEVELOPMENT ONLY!)
-            return res.json({
-                message: 'Password reset successful',
-                tempPassword: tempPassword,
-                note: 'This is a temporary password. Please log in and change it immediately.',
-            });
+        // JWT token — signed with user id + email, expires in 1 hour
+        // Survives Cloud Run restarts (stateless)
+        const resetToken = jsonwebtoken_1.default.sign({ userId: user.id, email: user.email, purpose: 'password-reset' }, JWT_SECRET, { expiresIn: '1h' });
+        logger_1.default.info({ email }, '✅ Reset token generated, sending email...');
+        const sent = await (0, emailService_1.sendPasswordResetEmail)(user.email, resetToken);
+        if (!sent) {
+            logger_1.default.error({ email }, '❌ Email service failed to send reset email');
+            return res.status(500).json({ error: 'Failed to send reset email. Please try again later.' });
         }
-        // PRODUCTION MODE: Generate reset token and send email
-        const resetToken = crypto_1.default.randomBytes(32).toString('hex');
-        const expires = Date.now() + 3600000; // 1 hour expiration
-        // Store token (in production, use database or Redis)
-        resetTokens.set(resetToken, { email: user.email, expires });
-        logger_1.default.info({ email }, '✅ Password reset token generated');
-        // TODO: Send email with reset link
-        // await sendPasswordResetEmail(user.email, resetToken);
-        // Return success message
-        res.json({
-            message: 'Password reset instructions have been sent to your email.',
-            // Development only - remove in production!
-            ...(process.env.NODE_ENV === 'development' && {
-                resetToken: resetToken,
-                resetLink: `${process.env.FRONTEND_URL}/reset-password?token=${resetToken}`
-            })
-        });
+        logger_1.default.info({ email }, '✅ Password reset email sent successfully');
+        return res.json({ message: 'Password reset instructions have been sent to your email.' });
     }
     catch (error) {
         logger_1.default.error({ error: error.message }, '❌ Password reset request error');
-        res.status(500).json({
-            error: 'Failed to process password reset request'
-        });
+        return res.status(500).json({ error: 'Failed to process password reset request' });
     }
 };
 exports.requestPasswordReset = requestPasswordReset;
 /**
- * @description Reset password using token
- * @route POST /auth/reset-password
+ * @route  POST /auth/reset-password
  * @access Public
  */
 const resetPassword = async (req, res) => {
     const { token, newPassword } = req.body;
     try {
         if (!token || !newPassword) {
-            return res.status(400).json({
-                error: 'Token and new password are required'
-            });
+            return res.status(400).json({ error: 'Token and new password are required' });
         }
         if (newPassword.length < 6) {
-            return res.status(400).json({
-                error: 'Password must be at least 6 characters'
-            });
+            return res.status(400).json({ error: 'Password must be at least 6 characters' });
         }
-        // Verify token exists
-        const tokenData = resetTokens.get(token);
-        if (!tokenData) {
-            return res.status(400).json({
-                error: 'Invalid or expired reset token'
-            });
+        // Verify JWT token
+        let payload;
+        try {
+            payload = jsonwebtoken_1.default.verify(token, JWT_SECRET);
         }
-        // Check if token has expired
-        if (Date.now() > tokenData.expires) {
-            resetTokens.delete(token);
-            return res.status(400).json({
-                error: 'Reset token has expired. Please request a new one.'
-            });
+        catch (jwtErr) {
+            return res.status(400).json({ error: 'Invalid or expired reset token. Please request a new one.' });
         }
-        // Hash new password
+        if (payload.purpose !== 'password-reset') {
+            return res.status(400).json({ error: 'Invalid token type.' });
+        }
+        // Find user
+        const user = await prismaClient_1.default.user.findUnique({ where: { id: payload.userId } });
+        if (!user) {
+            return res.status(400).json({ error: 'User not found.' });
+        }
+        // Hash and update password
         const passwordHash = await bcryptjs_1.default.hash(newPassword, 10);
-        // Update user's password
         await prismaClient_1.default.user.update({
-            where: { email: tokenData.email },
+            where: { id: user.id },
             data: { passwordHash },
         });
-        // Delete used token
-        resetTokens.delete(token);
-        logger_1.default.info({ email: tokenData.email }, '✅ Password reset successful');
-        res.json({
-            message: 'Password reset successful. You can now log in with your new password.'
-        });
+        logger_1.default.info({ email: user.email }, '✅ Password reset successful');
+        return res.json({ message: 'Password reset successful. You can now log in with your new password.' });
     }
     catch (error) {
         logger_1.default.error({ error: error.message }, '❌ Password reset error');
-        res.status(500).json({
-            error: 'Failed to reset password'
-        });
+        return res.status(500).json({ error: 'Failed to reset password' });
     }
 };
 exports.resetPassword = resetPassword;

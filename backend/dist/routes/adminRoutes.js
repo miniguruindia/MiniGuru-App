@@ -137,4 +137,85 @@ adminRouter.post('/goins/adjust', authMiddleware_1.authenticateToken, authMiddle
         res.status(500).json({ message: 'Failed to adjust goins' });
     }
 });
+// ── GET /admin/amazon/product?asin=XXX ─────────────────────────────────────
+// Fetches Amazon.in product page and extracts meta info.
+// Used by admin ProductForm to auto-fill name/description/image/price.
+adminRouter.get('/amazon/product', authMiddleware_1.authenticateToken, authMiddleware_1.authorizeAdmin, async (req, res) => {
+    const asin = req.query.asin?.trim().toUpperCase();
+    if (!asin || !/^[A-Z0-9]{10}$/.test(asin)) {
+        return res.status(400).json({ error: 'Invalid ASIN' });
+    }
+    try {
+        const url = `https://www.amazon.in/dp/${asin}`;
+        const response = await fetch(url, {
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 ' +
+                    '(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                'Accept-Language': 'en-IN,en;q=0.9',
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+            },
+        });
+        if (!response.ok) {
+            return res.status(502).json({ error: 'Amazon returned ' + response.status });
+        }
+        const html = await response.text();
+        // Parse meta tags
+        const getMeta = (prop) => {
+            const m = html.match(new RegExp(`<meta[^>]+property=["']${prop}["'][^>]+content=["']([^"']+)["']`, 'i'))
+                ?? html.match(new RegExp(`<meta[^>]+content=["']([^"']+)["'][^>]+property=["']${prop}["']`, 'i'));
+            return m?.[1]?.trim() ?? null;
+        };
+        const getTitle = () => {
+            // Try og:title first, then <title>, then #productTitle
+            const og = getMeta('og:title');
+            if (og)
+                return og;
+            const titleMatch = html.match(/<title[^>]*>([^<]+)<\/title>/i);
+            if (titleMatch)
+                return titleMatch[1].replace(/ : Amazon.in.*$/i, '').trim();
+            const spanMatch = html.match(/id="productTitle"[^>]*>\s*([^<]+)/i);
+            return spanMatch?.[1]?.trim() ?? null;
+        };
+        const getPrice = () => {
+            // Try multiple Amazon price selectors in HTML
+            const patterns = [
+                /class="a-price-whole"[^>]*>([\d,]+)/i,
+                /"priceAmount":([\d.]+)/i,
+                /id="priceblock_ourprice"[^>]*>[^\d]*([\d,]+)/i,
+                /"price":"INR ([\d.]+)"/i,
+            ];
+            for (const p of patterns) {
+                const m = html.match(p);
+                if (m)
+                    return parseFloat(m[1].replace(/,/g, ''));
+            }
+            return null;
+        };
+        const name = getTitle();
+        const description = getMeta('og:description');
+        const imageUrl = getMeta('og:image')
+            ?? `https://images-na.ssl-images-amazon.com/images/P/${asin}.01.LZZZZZZZ.jpg`;
+        const price = getPrice();
+        res.json({
+            asin,
+            name: name ?? `Amazon Product ${asin}`,
+            description: description ?? '',
+            imageUrl,
+            price: price ?? 0,
+            affiliateUrl: `https://www.amazon.in/dp/${asin}?tag=miniguru08-21`,
+        });
+    }
+    catch (err) {
+        console.error('Amazon proxy error:', err.message);
+        // Return partial data with ASIN thumbnail so form still works
+        res.json({
+            asin,
+            name: `Amazon Product ${asin}`,
+            description: '',
+            imageUrl: `https://images-na.ssl-images-amazon.com/images/P/${asin}.01.LZZZZZZZ.jpg`,
+            price: 0,
+            affiliateUrl: `https://www.amazon.in/dp/${asin}?tag=miniguru08-21`,
+        });
+    }
+});
 exports.default = adminRouter;

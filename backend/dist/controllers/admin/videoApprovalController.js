@@ -53,6 +53,7 @@ const approveProject = async (req, res) => {
             return res.status(400).json({
                 message: `Cannot approve — status is '${project.status}', expected 'pending'.`,
             });
+        // ── YouTube ───────────────────────────────────────────────────
         if (project.video?.url) {
             try {
                 await setVideoPublic(extractYouTubeId(project.video.url));
@@ -69,12 +70,43 @@ const approveProject = async (req, res) => {
         else {
             logger_1.default.warn(`Project ${id} has no video URL — skipping YouTube step`);
         }
-        const updated = await prismaClient_1.default.project.update({
-            where: { id },
-            data: { status: 'published' },
+        // ── Re-calculate material cost in Goins ───────────────────────
+        let materialGoins = 0;
+        const mats = project.materials;
+        if (mats && mats.length > 0) {
+            const productIds = mats.map(m => m.productId);
+            const products = await prismaClient_1.default.product.findMany({
+                where: { id: { in: productIds } },
+                select: { id: true, price: true },
+            });
+            const priceMap = new Map(products.map(p => [p.id, p.price]));
+            for (const mat of mats) {
+                const rate = priceMap.get(mat.productId) ?? 0;
+                materialGoins += rate * mat.quantity;
+            }
+        }
+        const BASE_REWARD = 50;
+        const materialRefund = Math.round(materialGoins * 2);
+        const totalGoins = BASE_REWARD + materialRefund;
+        // ─────────────────────────────────────────────────────────────
+        const [updated] = await prismaClient_1.default.$transaction([
+            prismaClient_1.default.project.update({
+                where: { id },
+                data: { status: 'published' },
+            }),
+            prismaClient_1.default.user.update({
+                where: { id: project.userId },
+                data: { score: { increment: totalGoins } },
+            }),
+        ]);
+        logger_1.default.info(`Project ${id} approved. Awarded ${totalGoins} Goins to user ${project.userId} ` +
+            `(base: ${BASE_REWARD}, material refund 2x${Math.round(materialGoins)}: ${materialRefund})`);
+        return res.status(200).json({
+            message: 'Project approved and published on YouTube.',
+            project: updated,
+            goinsAwarded: totalGoins,
+            breakdown: { base: BASE_REWARD, materialRefund },
         });
-        logger_1.default.info(`Project ${id} approved`);
-        return res.status(200).json({ message: 'Project approved and published on YouTube.', project: updated });
     }
     catch (error) {
         logger_1.default.error(`Error approving project ${id}: ${error.message}`);
