@@ -70,7 +70,7 @@ model User {
   name          String
   age           Int
   role          Role           @default(USER)
-  phoneNumber   String         @unique
+  phoneNumber   String?
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
   refreshToken  String?
@@ -79,6 +79,8 @@ model User {
   profilePhoto  String?
   parentName   String?
   parentPhone  String?
+  guardianEmail String?
+  emailVerified Boolean  @default(false)
   about        String?
   grade        String?
   schoolName   String?
@@ -494,6 +496,22 @@ model ProductSuggestion {
   createdAt  DateTime @default(now())
 
   @@map("product_suggestions")
+}
+
+model PendingRegistration {
+  id            String   @id @default(auto()) @map("_id") @db.ObjectId
+  miniguruId    String   @unique
+  childName     String
+  age           Int
+  grade         String?
+  guardianName  String?
+  guardianEmail String
+  guardianPhone String?
+  passwordHash  String
+  otpHash       String
+  otpExpiry     DateTime
+  createdAt     DateTime @default(now())
+  @@map("pending_registrations")
 }
 model VideoRating {
   id            String   @id @default(auto()) @map("_id") @db.ObjectId

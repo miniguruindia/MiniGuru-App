@@ -5,7 +5,8 @@ import express from 'express';
 import { login, refreshToken, logout, register, changePassword } from '../controllers/auth/authController';
 import { requestPasswordReset, resetPassword } from '../controllers/auth/passwordResetController';
 import { registerValidationRules } from '../middleware/validationMiddleware';
-import { authenticateToken } from '../middleware/authMiddleware'; // ✅ CHANGED: Use authenticateToken instead of authenticateUser
+import { authenticateToken } from '../middleware/authMiddleware';
+import { generateId, sendOtp, verifyOtp } from '../controllers/auth/registrationController'; // ✅ CHANGED: Use authenticateToken instead of authenticateUser
 
 const authRouter = express.Router();
 
@@ -62,5 +63,9 @@ authRouter.post('/reset-password', resetPassword);
  * ✅ FIXED: Use authenticateToken to verify JWT and populate req.user
  */
 authRouter.post('/change-password', authenticateToken, changePassword);
+
+authRouter.post('/generate-id', generateId);
+authRouter.post('/send-otp', sendOtp);
+authRouter.post('/verify-otp', verifyOtp);
 
 export default authRouter;

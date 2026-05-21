@@ -146,22 +146,15 @@ const register = async (req: Request, res: Response<ErrorResponse | { accessToke
 
 
    try {
-       const existingUser = await prisma.user.findFirst({
-           where: {
-               OR: [
-                   { email },
-                   { phoneNumber },
-               ],
-           },
-       });
-
-
-       if (existingUser) {
-           return res.status(400).json({
-               error: existingUser.email === email
-                   ? 'User with this email already exists.'
-                   : 'User with this phone number already exists.',
-           });
+       const emailExists = await prisma.user.findUnique({ where: { email } });
+       if (emailExists) {
+           return res.status(400).json({ error: 'User with this email already exists.' });
+       }
+       if (phoneNumber?.trim()) {
+           const phoneExists = await prisma.user.findFirst({ where: { phoneNumber: phoneNumber.trim() } });
+           if (phoneExists) {
+               return res.status(400).json({ error: 'User with this phone number already exists.' });
+           }
        }
 
 
