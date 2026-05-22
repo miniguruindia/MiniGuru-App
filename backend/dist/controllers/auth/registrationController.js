@@ -7,11 +7,11 @@ exports.generateId = generateId;
 exports.sendOtp = sendOtp;
 exports.verifyOtp = verifyOtp;
 const bcryptjs_1 = __importDefault(require("bcryptjs"));
-const nodemailer_1 = __importDefault(require("nodemailer"));
+const emailService_1 = require("../../services/emailService");
 const prismaClient_1 = __importDefault(require("../../utils/prismaClient"));
 const logger_1 = __importDefault(require("../../logger"));
 function getTransporter() {
-    return nodemailer_1.default.createTransport({
+    return nodemailer.createTransport({
         host: process.env.SMTP_HOST || 'smtp.gmail.com',
         port: parseInt(process.env.SMTP_PORT || '587'),
         secure: false,
@@ -87,9 +87,7 @@ async function sendOtp(req, res) {
             },
             update: { otpHash, otpExpiry, passwordHash },
         });
-        const transporter = getTransporter();
-        await transporter.sendMail({
-            from: `MiniGuru <${process.env.FROM_EMAIL || 'connect@miniguru.in'}>`,
+        await (0, emailService_1.sendEmail)({
             to: guardianEmail.trim(),
             subject: `${otp} — MiniGuru Verification Code for ${firstName.trim()}`,
             html: `<div style="font-family:Arial,sans-serif;max-width:520px;margin:0 auto;padding:32px;background:#F5F7FF;border-radius:16px;">

@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
-import nodemailer from 'nodemailer';
+import { sendEmail } from '../../services/emailService';
 import prisma from '../../utils/prismaClient';
 import logger from '../../logger';
 
@@ -82,9 +82,7 @@ export async function sendOtp(req: Request, res: Response) {
       },
       update: { otpHash, otpExpiry, passwordHash },
     });
-    const transporter = getTransporter();
-    await transporter.sendMail({
-      from: `MiniGuru <${process.env.FROM_EMAIL || 'connect@miniguru.in'}>`,
+    await sendEmail({
       to: guardianEmail.trim(),
       subject: `${otp} — MiniGuru Verification Code for ${firstName.trim()}`,
       html: `<div style="font-family:Arial,sans-serif;max-width:520px;margin:0 auto;padding:32px;background:#F5F7FF;border-radius:16px;">
