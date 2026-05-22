@@ -8,15 +8,8 @@ const express_1 = __importDefault(require("express"));
 const prismaClient_1 = __importDefault(require("../utils/prismaClient"));
 const logger_1 = __importDefault(require("../logger"));
 const authMiddleware_1 = require("../middleware/authMiddleware");
-const nodemailer_1 = __importDefault(require("nodemailer"));
 const router = express_1.default.Router();
 // ── Email transporter (reuse existing SMTP config) ─────────────────────────
-const transporter = nodemailer_1.default.createTransport({
-    host: process.env.SMTP_HOST,
-    port: parseInt(process.env.SMTP_PORT || '587'),
-    secure: false,
-    auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASSWORD },
-});
 const FROM = `"MiniGuru" <${process.env.FROM_EMAIL}>`;
 function htmlWrap(title, body) {
     return `<!DOCTYPE html><html><head><style>

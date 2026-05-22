@@ -4,15 +4,9 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = require("express");
-const nodemailer_1 = __importDefault(require("nodemailer"));
+const emailService_1 = require("../services/email/emailService");
 const prismaClient_1 = __importDefault(require("../utils/prismaClient"));
 const router = (0, express_1.Router)();
-const transporter = nodemailer_1.default.createTransport({
-    host: process.env.SMTP_HOST || 'smtp.gmail.com',
-    port: Number(process.env.SMTP_PORT) || 587,
-    secure: false,
-    auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASSWORD },
-});
 const AMAZON_TAG = 'miniguru08-21';
 const FROM_EMAIL = process.env.FROM_EMAIL || 'connect@miniguru.in';
 router.post('/send-to-parent', async (req, res) => {
@@ -60,7 +54,7 @@ ${amazonCartUrl ? '<div style="text-align:center;margin:28px 0"><a href="' + ama
 <p style="margin:0;color:#aaa;font-size:12px">MiniGuru Innovation Pvt Ltd &middot; Ujjain, Madhya Pradesh<br>
 <a href="https://miniguru.in" style="color:#5B6EF5">miniguru.in</a> &middot; <a href="mailto:connect@miniguru.in" style="color:#5B6EF5">connect@miniguru.in</a></p></div></div>
 </body></html>`;
-        await transporter.sendMail({
+        await (0, emailService_1.sendEmail)({
             from: `"MiniGuru" <${FROM_EMAIL}>`,
             to: parentEmail,
             subject: `&#128722; ${childName || 'Your child'} needs materials for their STEAM project!`,
