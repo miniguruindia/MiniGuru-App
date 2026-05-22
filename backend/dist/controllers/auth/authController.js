@@ -99,20 +99,15 @@ const register = async (req, res) => {
     }
     const { email, password, name, age, phoneNumber } = req.body;
     try {
-        const existingUser = await prismaClient_1.default.user.findFirst({
-            where: {
-                OR: [
-                    { email },
-                    { phoneNumber },
-                ],
-            },
-        });
-        if (existingUser) {
-            return res.status(400).json({
-                error: existingUser.email === email
-                    ? 'User with this email already exists.'
-                    : 'User with this phone number already exists.',
-            });
+        const emailExists = await prismaClient_1.default.user.findUnique({ where: { email } });
+        if (emailExists) {
+            return res.status(400).json({ error: 'User with this email already exists.' });
+        }
+        if (phoneNumber?.trim()) {
+            const phoneExists = await prismaClient_1.default.user.findFirst({ where: { phoneNumber: phoneNumber.trim() } });
+            if (phoneExists) {
+                return res.status(400).json({ error: 'User with this phone number already exists.' });
+            }
         }
         const hashedPassword = await bcryptjs_1.default.hash(password, 10);
         const newUser = await prismaClient_1.default.user.create({

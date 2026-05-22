@@ -9,7 +9,8 @@ const express_1 = __importDefault(require("express"));
 const authController_1 = require("../controllers/auth/authController");
 const passwordResetController_1 = require("../controllers/auth/passwordResetController");
 const validationMiddleware_1 = require("../middleware/validationMiddleware");
-const authMiddleware_1 = require("../middleware/authMiddleware"); // ✅ CHANGED: Use authenticateToken instead of authenticateUser
+const authMiddleware_1 = require("../middleware/authMiddleware");
+const registrationController_1 = require("../controllers/auth/registrationController"); // ✅ CHANGED: Use authenticateToken instead of authenticateUser
 const authRouter = express_1.default.Router();
 // ========================= AUTHENTICATION ROUTES =========================
 /**
@@ -56,4 +57,7 @@ authRouter.post('/reset-password', passwordResetController_1.resetPassword);
  * ✅ FIXED: Use authenticateToken to verify JWT and populate req.user
  */
 authRouter.post('/change-password', authMiddleware_1.authenticateToken, authController_1.changePassword);
+authRouter.post('/generate-id', registrationController_1.generateId);
+authRouter.post('/send-otp', registrationController_1.sendOtp);
+authRouter.post('/verify-otp', registrationController_1.verifyOtp);
 exports.default = authRouter;
