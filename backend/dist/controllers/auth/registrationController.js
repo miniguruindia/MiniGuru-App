@@ -10,14 +10,6 @@ const bcryptjs_1 = __importDefault(require("bcryptjs"));
 const emailService_1 = require("../../services/emailService");
 const prismaClient_1 = __importDefault(require("../../utils/prismaClient"));
 const logger_1 = __importDefault(require("../../logger"));
-function getTransporter() {
-    return nodemailer.createTransport({
-        host: process.env.SMTP_HOST || 'smtp.gmail.com',
-        port: parseInt(process.env.SMTP_PORT || '587'),
-        secure: false,
-        auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASSWORD },
-    });
-}
 function toIdSegment(s) {
     return s.toLowerCase().trim().replace(/[^a-z0-9]/g, '');
 }
