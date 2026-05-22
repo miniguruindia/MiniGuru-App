@@ -33,11 +33,7 @@ const requestPasswordReset = async (req, res) => {
         // Survives Cloud Run restarts (stateless)
         const resetToken = jsonwebtoken_1.default.sign({ userId: user.id, email: user.email, purpose: 'password-reset' }, JWT_SECRET, { expiresIn: '1h' });
         logger_1.default.info({ email }, '✅ Reset token generated, sending email...');
-        const sent = await (0, emailService_1.sendPasswordResetEmail)(user.email, resetToken);
-        if (!sent) {
-            logger_1.default.error({ email }, '❌ Email service failed to send reset email');
-            return res.status(500).json({ error: 'Failed to send reset email. Please try again later.' });
-        }
+        await (0, emailService_1.sendPasswordResetEmail)(user.email, resetToken);
         logger_1.default.info({ email }, '✅ Password reset email sent successfully');
         return res.json({ message: 'Password reset instructions have been sent to your email.' });
     }

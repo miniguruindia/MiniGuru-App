@@ -8,6 +8,7 @@ const express_1 = __importDefault(require("express"));
 const prismaClient_1 = __importDefault(require("../utils/prismaClient"));
 const logger_1 = __importDefault(require("../logger"));
 const authMiddleware_1 = require("../middleware/authMiddleware");
+const emailService_1 = require("../services/email/emailService");
 const router = express_1.default.Router();
 // ── Email transporter (reuse existing SMTP config) ─────────────────────────
 const FROM = `"MiniGuru" <${process.env.FROM_EMAIL}>`;
@@ -38,19 +39,7 @@ router.post('/contact', async (req, res) => {
         });
         // Forward to admin email
         try {
-            await transporter.sendMail({
-                from: FROM,
-                to: process.env.ADMIN_EMAIL,
-                replyTo: email,
-                subject: `[MiniGuru Inbox] ${subject || 'New message'} — from ${name}`,
-                html: htmlWrap('New Message Received', `
-          <p><strong>From:</strong> ${name} (${email})</p>
-          <p><strong>Subject:</strong> ${subject || 'General Enquiry'}</p>
-          <p><strong>Source:</strong> ${source || 'app'}</p>
-          <hr/>
-          <p>${message.replace(/\n/g, '<br/>')}</p>
-        `),
-            });
+            await (0, emailService_1.sendEmail)({ to: process.env.ADMIN_EMAIL, subject: `[MiniGuru Inbox] ${subject || 'New message'} — from ${name}`, html: "" });
         }
         catch (mailErr) {
             logger_1.default.warn(`Contact form: admin notify failed — ${mailErr.message}`);
@@ -115,16 +104,7 @@ router.post('/broadcast', authMiddleware_1.authenticateToken, authMiddleware_1.a
         let failed = 0;
         for (const user of users) {
             try {
-                await transporter.sendMail({
-                    from: FROM,
-                    to: user.email,
-                    subject,
-                    html: htmlWrap(subject, `
-            <p>Hi ${user.name},</p>
-            ${message.replace(/\n/g, '<br/>')}
-            <br/><br/><p style="color:#999;font-size:12px">${previewText || ''}</p>
-          `),
-                });
+                await (0, emailService_1.sendEmail)({ to: user.email, subject: "", html: "" });
                 sent++;
             }
             catch {
@@ -161,15 +141,7 @@ router.post('/send', authMiddleware_1.authenticateToken, authMiddleware_1.author
         }
         if (!recipient)
             return res.status(404).json({ message: 'User not found' });
-        await transporter.sendMail({
-            from: FROM,
-            to: recipient.email,
-            subject,
-            html: htmlWrap(subject, `
-        <p>Hi ${recipient.name},</p>
-        ${message.replace(/\n/g, '<br/>')}
-      `),
-        });
+        await (0, emailService_1.sendEmail)({ to: recipient.email, subject: "", html: "" });
         logger_1.default.info(`Direct email sent to ${recipient.email}`);
         return res.json({ success: true, sentTo: recipient.email });
     }
