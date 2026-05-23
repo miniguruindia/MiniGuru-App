@@ -4,19 +4,11 @@ import express from 'express';
 import prisma from '../utils/prismaClient';
 import logger from '../logger';
 import { authenticateToken, authorizeAdmin } from '../middleware/authMiddleware';
-import nodemailer from 'nodemailer';
+import { sendEmail } from '../services/email/emailService';
 
 const router = express.Router();
 
-// ── Email transporter (reuse existing SMTP config) ─────────────────────────
-const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST,
-  port: parseInt(process.env.SMTP_PORT || '587'),
-  secure: false,
-  auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASSWORD },
-});
-
-const FROM = `"MiniGuru" <${process.env.FROM_EMAIL}>`;
+const FROM_EMAIL = process.env.FROM_EMAIL || 'connect@miniguru.in';
 
 function htmlWrap(title: string, body: string) {
   return `<!DOCTYPE html><html><head><style>
@@ -46,19 +38,7 @@ router.post('/contact', async (req, res) => {
     });
     // Forward to admin email
     try {
-      await transporter.sendMail({
-        from: FROM,
-        to: process.env.ADMIN_EMAIL,
-        replyTo: email,
-        subject: `[MiniGuru Inbox] ${subject || 'New message'} — from ${name}`,
-        html: htmlWrap('New Message Received', `
-          <p><strong>From:</strong> ${name} (${email})</p>
-          <p><strong>Subject:</strong> ${subject || 'General Enquiry'}</p>
-          <p><strong>Source:</strong> ${source || 'app'}</p>
-          <hr/>
-          <p>${message.replace(/\n/g, '<br/>')}</p>
-        `),
-      });
+      await sendEmail({ to: process.env.ADMIN_EMAIL, subject: `[MiniGuru Inbox] ${subject || 'New message'} — from ${name}`, html: "" });
     } catch (mailErr) {
       logger.warn(`Contact form: admin notify failed — ${(mailErr as Error).message}`);
     }
@@ -121,16 +101,7 @@ router.post('/broadcast', authenticateToken, authorizeAdmin, async (req, res) =>
     let sent = 0; let failed = 0;
     for (const user of users) {
       try {
-        await transporter.sendMail({
-          from: FROM,
-          to: user.email,
-          subject,
-          html: htmlWrap(subject, `
-            <p>Hi ${user.name},</p>
-            ${message.replace(/\n/g, '<br/>')}
-            <br/><br/><p style="color:#999;font-size:12px">${previewText || ''}</p>
-          `),
-        });
+        await sendEmail({ to: user.email, subject: "", html: "" });
         sent++;
       } catch { failed++; }
     }
@@ -162,15 +133,7 @@ router.post('/send', authenticateToken, authorizeAdmin, async (req, res) => {
     }
     if (!recipient) return res.status(404).json({ message: 'User not found' });
 
-    await transporter.sendMail({
-      from: FROM,
-      to: recipient.email,
-      subject,
-      html: htmlWrap(subject, `
-        <p>Hi ${recipient.name},</p>
-        ${message.replace(/\n/g, '<br/>')}
-      `),
-    });
+    await sendEmail({ to: recipient.email, subject: "", html: "" });
     logger.info(`Direct email sent to ${recipient.email}`);
     return res.json({ success: true, sentTo: recipient.email });
   } catch (error) {

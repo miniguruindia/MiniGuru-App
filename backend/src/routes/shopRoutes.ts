@@ -1,15 +1,10 @@
 import { Router, Request, Response } from 'express';
-import nodemailer from 'nodemailer';
+import { sendEmail } from '../services/email/emailService';
 import prisma from '../utils/prismaClient';
 
 const router = Router();
 
-const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST || 'smtp.gmail.com',
-  port: Number(process.env.SMTP_PORT) || 587,
-  secure: false,
-  auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASSWORD },
-});
+
 
 const AMAZON_TAG = 'miniguru08-21';
 const FROM_EMAIL = process.env.FROM_EMAIL || 'connect@miniguru.in';
@@ -61,8 +56,7 @@ ${amazonCartUrl ? '<div style="text-align:center;margin:28px 0"><a href="' + ama
 <a href="https://miniguru.in" style="color:#5B6EF5">miniguru.in</a> &middot; <a href="mailto:connect@miniguru.in" style="color:#5B6EF5">connect@miniguru.in</a></p></div></div>
 </body></html>`;
 
-    await transporter.sendMail({
-      from: `"MiniGuru" <${FROM_EMAIL}>`,
+    await sendEmail({
       to: parentEmail,
       subject: `&#128722; ${childName || 'Your child'} needs materials for their STEAM project!`,
       html,
