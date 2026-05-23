@@ -159,11 +159,31 @@ router.post('/admin/create', authenticateToken, requireAdmin, async (req: Reques
 });
 
 // PUT /materials/admin/:id — update single material
+// Accepts all Material fields including Amazon affiliate fields added in May 2026 schema:
+//   priceEstimate, amazonASIN, amazonUrl, showInShop, showInPlanning
+// amazonUrl is auto-built from amazonASIN if not supplied directly.
 router.put('/admin/:id', authenticateToken, requireAdmin, async (req: Request, res: Response) => {
   try {
-    const { name, description, imageUrl, icon, category, unit, goinsPrice, isActive } = req.body;
+    const {
+      name,
+      description,
+      imageUrl,
+      icon,
+      category,
+      unit,
+      goinsPrice,
+      isActive,
+      // ── Amazon / shop fields (May 2026 schema) ──
+      priceEstimate,
+      amazonASIN,
+      amazonUrl,
+      showInShop,
+      showInPlanning,
+    } = req.body;
 
     const data: any = {};
+
+    // ── Core fields ──
     if (name !== undefined)        data.name = String(name).trim();
     if (description !== undefined) data.description = description ? String(description).trim() : null;
     if (imageUrl !== undefined)    data.imageUrl = imageUrl ? String(imageUrl).trim() : null;
@@ -173,6 +193,25 @@ router.put('/admin/:id', authenticateToken, requireAdmin, async (req: Request, r
     if (goinsPrice !== undefined)  data.goinsPrice = Number(goinsPrice);
     if (isActive !== undefined)    data.isActive = Boolean(isActive);
 
+    // ── Amazon / shop fields ──
+    if (priceEstimate !== undefined) {
+      data.priceEstimate = (priceEstimate === null || priceEstimate === '') ? null : Number(priceEstimate);
+    }
+    if (amazonASIN !== undefined) {
+      const asin = amazonASIN ? String(amazonASIN).trim() : null;
+      data.amazonASIN = asin;
+      // Auto-build amazonUrl from ASIN (always overwrite to keep them in sync)
+      // Only use the supplied amazonUrl if there's no ASIN (manual override case)
+      data.amazonUrl = asin
+        ? `https://www.amazon.in/dp/${asin}?tag=miniguru08-21`
+        : null;
+    } else if (amazonUrl !== undefined) {
+      // Allow explicit amazonUrl update without changing ASIN (rare case)
+      data.amazonUrl = amazonUrl ? String(amazonUrl).trim() : null;
+    }
+    if (showInShop !== undefined)     data.showInShop = Boolean(showInShop);
+    if (showInPlanning !== undefined) data.showInPlanning = Boolean(showInPlanning);
+
     const material = await prisma.material.update({
       where: { id: req.params.id },
       data,
@@ -180,6 +219,7 @@ router.put('/admin/:id', authenticateToken, requireAdmin, async (req: Request, r
     res.json(material);
   } catch (err: any) {
     if (err?.code === 'P2025') return res.status(404).json({ error: 'Material not found' });
+    console.error('[materials] PUT /admin/:id error:', err);
     res.status(500).json({ error: 'Failed to update material' });
   }
 });
@@ -235,6 +275,8 @@ router.post('/admin/bulk', authenticateToken, requireAdmin, async (req: Request,
           continue;
         }
 
+        const asin = m.amazonASIN ? String(m.amazonASIN).trim() : null;
+
         await prisma.material.create({
           data: {
             name: String(m.name).trim(),
@@ -244,6 +286,11 @@ router.post('/admin/bulk', authenticateToken, requireAdmin, async (req: Request,
             category: String(m.category).trim(),
             unit: m.unit ? String(m.unit).trim() : 'piece',
             goinsPrice: Number(m.goinsPrice),
+            priceEstimate: m.priceEstimate != null ? Number(m.priceEstimate) : null,
+            amazonASIN: asin,
+            amazonUrl: asin ? `https://www.amazon.in/dp/${asin}?tag=miniguru08-21` : null,
+            showInShop: m.showInShop !== undefined ? Boolean(m.showInShop) : true,
+            showInPlanning: m.showInPlanning !== undefined ? Boolean(m.showInPlanning) : true,
           },
         });
         results.created++;
