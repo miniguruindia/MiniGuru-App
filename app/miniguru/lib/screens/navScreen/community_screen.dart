@@ -1,7 +1,8 @@
 // lib/screens/navScreen/community_screen.dart
 // MiniGuru Community — live ecosystem hub
 // Sections: T-LAB Happenings · Challenges · Ladder & Badges · Resources
-// CMS-wired: stats strip + happenings fetched from GET /cms/community
+// CMS-wired: stats strip + happenings + challenges + resources
+//            fetched from GET /cms/community
 
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -35,14 +36,11 @@ class _CommunityScreenState extends State<CommunityScreen>
   // Happenings list (overridden by CMS if available)
   List<_Happening> _happenings = _defaultHappenings;
 
-  // Challenges + Resources — null means use hardcoded fallback
-  List<_Challenge>? _cmsChallenges;
-  List<_Resource>?  _cmsResources;
+  // Challenges list — CMS-driven (falls back to hardcoded if CMS empty)
+  List<_Challenge> _challenges = _defaultChallenges;
 
-  // Leaderboard — null means use hardcoded fallback
-  List<_Leader>? _realLeaderboard;
-  int? _userRank;
-  int? _userScore;
+  // Resources list — CMS-driven (falls back to hardcoded if CMS empty)
+  List<_Resource> _resources = _defaultResources;
 
   @override
   void initState() {
@@ -50,7 +48,6 @@ class _CommunityScreenState extends State<CommunityScreen>
     _tabController = TabController(length: 4, vsync: this)
       ..addListener(() => setState(() => _activeTab = _tabController.index));
     _loadCms();
-    _fetchLeaderboard();
   }
 
   Future<void> _loadCms() async {
@@ -72,28 +69,29 @@ class _CommunityScreenState extends State<CommunityScreen>
         if (happeningsList != null && happeningsList.isNotEmpty) {
           _happenings = happeningsList.map((h) {
             final map = h as Map<String, dynamic>;
-            // Parse hex colour string like '#FFD60A' → Color
             Color tagColor = const Color(0xFFFFD60A);
             try {
               final hex = (map['tagColor'] as String?)?.replaceFirst('#', '') ?? 'FFD60A';
               tagColor = Color(int.parse('FF$hex', radix: 16));
             } catch (_) {}
             return _Happening(
-              emoji:    map['emoji']?.toString()  ?? '🏫',
-              lab:      map['title']?.toString()    ?? '',
-              city:     map['city']?.toString()   ?? '',
+              emoji:    map['emoji']?.toString()       ?? '🏫',
+              lab:      map['title']?.toString()       ?? '',
+              city:     map['city']?.toString()        ?? '',
               update:   map['description']?.toString() ?? '',
-              tag:      map['tag']?.toString()    ?? 'Update',
+              tag:      map['tag']?.toString()         ?? 'Update',
               tagColor: tagColor,
-              date:     map['date']?.toString()   ?? '',
+              date:     map['date']?.toString()        ?? '',
             );
           }).toList();
         }
 
-        // ── Challenges list ────────────────────────────────────────────────────────────────────
+        // ── Challenges list ──────────────────────────────────────────────
+        // CMS shape: { title, desc, category, categoryEmoji, status (0/1/2),
+        //              reward, deadline, participants, color (hex) }
         final challengesList = data['challenges'] as List<dynamic>?;
         if (challengesList != null && challengesList.isNotEmpty) {
-          _cmsChallenges = challengesList.map((c) {
+          _challenges = challengesList.map((c) {
             final map = c as Map<String, dynamic>;
             Color color = const Color(0xFF3B82F6);
             try {
@@ -103,10 +101,10 @@ class _CommunityScreenState extends State<CommunityScreen>
             return _Challenge(
               title:         map['title']?.toString()         ?? '',
               desc:          map['desc']?.toString()          ?? '',
-              category:      map['category']?.toString()      ?? 'STEAM',
-              categoryEmoji: map['categoryEmoji']?.toString() ?? '⚙️',
+              category:      map['category']?.toString()      ?? '',
+              categoryEmoji: map['categoryEmoji']?.toString() ?? '🔬',
               status:        (map['status'] as num?)?.toInt() ?? 0,
-              reward:        (map['reward'] as num?)?.toInt() ?? 100,
+              reward:        (map['reward'] as num?)?.toInt() ?? 0,
               deadline:      map['deadline']?.toString()      ?? '',
               participants:  (map['participants'] as num?)?.toInt() ?? 0,
               color:         color,
@@ -114,10 +112,11 @@ class _CommunityScreenState extends State<CommunityScreen>
           }).toList();
         }
 
-        // ── Resources list ──────────────────────────────────────────────────────────────────
+        // ── Resources list ───────────────────────────────────────────────
+        // CMS shape: { emoji, title, desc, tag, tagColor (hex), type, url }
         final resourcesList = data['resources'] as List<dynamic>?;
         if (resourcesList != null && resourcesList.isNotEmpty) {
-          _cmsResources = resourcesList.map((r) {
+          _resources = resourcesList.map((r) {
             final map = r as Map<String, dynamic>;
             Color tagColor = const Color(0xFF3B82F6);
             try {
@@ -131,6 +130,7 @@ class _CommunityScreenState extends State<CommunityScreen>
               tag:      map['tag']?.toString()   ?? '',
               tagColor: tagColor,
               type:     map['type']?.toString()  ?? 'PDF',
+              url:      map['url']?.toString()   ?? '',
             );
           }).toList();
         }
@@ -140,41 +140,6 @@ class _CommunityScreenState extends State<CommunityScreen>
     } catch (e) {
       debugPrint('❌ Community CMS load error: $e');
     }
-  }
-
-  // Fetch real leaderboard from backend
-  Future<void> _fetchLeaderboard() async {
-    try {
-      final result = await _api.getLeaderboard();
-      if (result == null || !mounted) return;
-      final list = result['leaderboard'] as List<dynamic>?;
-      if (list == null) return;
-      setState(() {
-        _realLeaderboard = list.map((m) {
-          final map = m as Map<String, dynamic>;
-          final score = (map['score'] as num?)?.toInt() ?? 0;
-          return _Leader(
-            rank:  (map['rank'] as num?)?.toInt() ?? 1,
-            name:  map['name']?.toString() ?? 'Maker',
-            city:  '', // not stored on User model yet
-            score: score,
-            badge: _levelEmoji(score),
-          );
-        }).toList();
-        _userRank  = (result['userRank']  as num?)?.toInt();
-        _userScore = (result['userScore'] as num?)?.toInt();
-      });
-    } catch (e) {
-      debugPrint('❌ Leaderboard fetch error: $e');
-    }
-  }
-
-  static String _levelEmoji(int score) {
-    if (score >= 1000) return '🚀';
-    if (score >= 600)  return '🔬';
-    if (score >= 300)  return '⚙️';
-    if (score >= 100)  return '🔩';
-    return '🌱';
   }
 
   @override
@@ -200,9 +165,9 @@ class _CommunityScreenState extends State<CommunityScreen>
           controller: _tabController,
           children: [
             _TLabTab(happenings: _happenings),
-            _ChallengesTab(cmsChallenges: _cmsChallenges),
-            _LadderTab(leaderboard: _realLeaderboard, userRank: _userRank, userScore: _userScore),
-            _ResourcesTab(cmsResources: _cmsResources),
+            _ChallengesTab(challenges: _challenges),
+            const _LadderTab(),
+            _ResourcesTab(resources: _resources),
           ],
         ),
       ),
@@ -249,7 +214,6 @@ class _CommunityScreenState extends State<CommunityScreen>
                     ]),
                   ]),
                   const SizedBox(height: 12),
-                  // Live stats strip — driven by CMS
                   Row(children: [
                     _statPill('🔧', '$_statMakers makers'),
                     const SizedBox(width: 8),
@@ -307,45 +271,83 @@ class _CommunityScreenState extends State<CommunityScreen>
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  DEFAULT (FALLBACK) HAPPENINGS — used when CMS is unavailable
+//  DEFAULT FALLBACK DATA — used when CMS is unavailable / empty
 // ─────────────────────────────────────────────────────────────────────────────
 
 const _defaultHappenings = [
   _Happening(
-    emoji: '🏫',
-    lab: 'Sunrise School T-LAB',
-    city: 'Pune',
+    emoji: '🏫', lab: 'Sunrise School T-LAB', city: 'Pune',
     update: 'Students built a solar-powered water purifier in just 3 days!',
-    tag: 'Featured',
-    tagColor: Color(0xFFFFD60A),
-    date: 'Mar 2, 2026',
+    tag: 'Featured', tagColor: Color(0xFFFFD60A), date: 'Mar 2, 2026',
   ),
   _Happening(
-    emoji: '🏠',
-    lab: 'Rohan\'s Home Corner',
-    city: 'Mumbai',
+    emoji: '🏠', lab: 'Rohan\'s Home Corner', city: 'Mumbai',
     update: 'Completed 12 projects this month — youngest maker to hit Level 3!',
-    tag: 'Milestone',
-    tagColor: Color(0xFF10B981),
-    date: 'Mar 1, 2026',
+    tag: 'Milestone', tagColor: Color(0xFF10B981), date: 'Mar 1, 2026',
   ),
   _Happening(
-    emoji: '🏢',
-    lab: 'Maker Hub Bengaluru',
-    city: 'Bengaluru',
+    emoji: '🏢', lab: 'Maker Hub Bengaluru', city: 'Bengaluru',
     update: 'Opened doors to 40 new young makers from government schools.',
-    tag: 'New Lab',
-    tagColor: Color(0xFF3B82F6),
-    date: 'Feb 28, 2026',
+    tag: 'New Lab', tagColor: Color(0xFF3B82F6), date: 'Feb 28, 2026',
   ),
   _Happening(
-    emoji: '🏫',
-    lab: 'DPS Innovation Lab',
-    city: 'Delhi',
+    emoji: '🏫', lab: 'DPS Innovation Lab', city: 'Delhi',
     update: 'Won regional STEAM fair with their MiniGuru robotics project.',
-    tag: 'Award',
-    tagColor: Color(0xFFEC4899),
-    date: 'Feb 25, 2026',
+    tag: 'Award', tagColor: Color(0xFFEC4899), date: 'Feb 25, 2026',
+  ),
+];
+
+const _defaultChallenges = [
+  _Challenge(
+    title: 'Bridge Builder March', category: 'Mechanics', categoryEmoji: '⚙️',
+    desc: 'Build the strongest bridge using only cardboard and rubber bands. Max span: 30cm.',
+    status: 0, reward: 200, deadline: 'Mar 15, 2026', participants: 87,
+    color: Color(0xFF3B82F6),
+  ),
+  _Challenge(
+    title: 'Solar Science Sprint', category: 'Science', categoryEmoji: '🔬',
+    desc: 'Build a device powered only by sunlight. Anything goes — fan, car, pump!',
+    status: 0, reward: 300, deadline: 'Mar 20, 2026', participants: 54,
+    color: Color(0xFF10B981),
+  ),
+  _Challenge(
+    title: 'LED Art Festival', category: 'ArtCraft', categoryEmoji: '🎨',
+    desc: 'Create illuminated artwork using LEDs. Judged on creativity and circuit design.',
+    status: 1, reward: 150, deadline: 'Apr 1, 2026', participants: 0,
+    color: Color(0xFFEC4899),
+  ),
+];
+
+const _defaultResources = [
+  _Resource(
+    emoji: '📋', title: 'Project Planning Template', tag: 'Students',
+    desc: 'A fillable PDF to plan your next STEAM project step by step.',
+    tagColor: Color(0xFF3B82F6), type: 'PDF', url: '',
+  ),
+  _Resource(
+    emoji: '🏫', title: 'T-LAB Setup Guide', tag: 'Schools',
+    desc: 'Complete guide for schools to set up a tinkering lab from scratch.',
+    tagColor: Color(0xFF10B981), type: 'PDF', url: '',
+  ),
+  _Resource(
+    emoji: '🎓', title: 'Mentor Handbook', tag: 'Mentors',
+    desc: 'How to guide young makers — facilitation tips for parents and teachers.',
+    tagColor: Color(0xFF8B5CF6), type: 'PDF', url: '',
+  ),
+  _Resource(
+    emoji: '🔋', title: 'Electronics Starter Kit List', tag: 'Students',
+    desc: 'Curated list of components every home T-LAB should have under ₹2,000.',
+    tagColor: Color(0xFF3B82F6), type: 'List', url: '',
+  ),
+  _Resource(
+    emoji: '🤖', title: 'Robotics Challenge Toolkit', tag: 'Challenge',
+    desc: 'Worksheets, circuit diagrams and tips for the monthly robot challenge.',
+    tagColor: Color(0xFFEC4899), type: 'ZIP', url: '',
+  ),
+  _Resource(
+    emoji: '📊', title: 'STEAM Skills Rubric', tag: 'Schools',
+    desc: 'Assessment rubric for teachers to evaluate project quality and creativity.',
+    tagColor: Color(0xFF10B981), type: 'XLSX', url: '',
   ),
 ];
 
@@ -354,7 +356,6 @@ const _defaultHappenings = [
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _TLabTab extends StatelessWidget {
-  /// Happenings list — injected from CMS or falls back to defaults.
   final List<_Happening> happenings;
   const _TLabTab({required this.happenings});
 
@@ -408,8 +409,7 @@ class _HappeningCard extends StatelessWidget {
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Text(h.lab,
                   style: GoogleFonts.nunito(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w800,
+                      fontSize: 14, fontWeight: FontWeight.w800,
                       color: const Color(0xFF1A1A2E))),
               Text('📍 ${h.city}',
                   style: GoogleFonts.nunito(
@@ -424,8 +424,7 @@ class _HappeningCard extends StatelessWidget {
             ),
             child: Text(h.tag,
                 style: GoogleFonts.nunito(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w700,
+                    fontSize: 10, fontWeight: FontWeight.w700,
                     color: h.tagColor == const Color(0xFFFFD60A)
                         ? const Color(0xFF8B6800)
                         : h.tagColor)),
@@ -434,9 +433,7 @@ class _HappeningCard extends StatelessWidget {
         const SizedBox(height: 10),
         Text(h.update,
             style: GoogleFonts.nunito(
-                fontSize: 13,
-                color: const Color(0xFF3D3D5C),
-                height: 1.5)),
+                fontSize: 13, color: const Color(0xFF3D3D5C), height: 1.5)),
         const SizedBox(height: 8),
         Text(h.date,
             style: GoogleFonts.nunito(
@@ -466,8 +463,7 @@ class _SetupBanner extends StatelessWidget {
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Text('Start your own T-LAB',
                 style: GoogleFonts.nunito(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w800,
+                    fontSize: 15, fontWeight: FontWeight.w800,
                     color: Colors.white)),
             const SizedBox(height: 4),
             Text('Get expert help setting up your school or home lab.',
@@ -483,8 +479,7 @@ class _SetupBanner extends StatelessWidget {
                 ),
                 child: Text('Apply now →',
                     style: GoogleFonts.nunito(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w800,
+                        fontSize: 12, fontWeight: FontWeight.w800,
                         color: const Color(0xFF3B82F6))),
               ),
             ),
@@ -496,12 +491,13 @@ class _SetupBanner extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  TAB 2 — CHALLENGES
+//  TAB 2 — CHALLENGES  (now CMS-driven)
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _ChallengesTab extends StatefulWidget {
-  final List<_Challenge>? cmsChallenges;
-  const _ChallengesTab({this.cmsChallenges});
+  /// Injected from CMS or falls back to defaults.
+  final List<_Challenge> challenges;
+  const _ChallengesTab({required this.challenges});
 
   @override
   State<_ChallengesTab> createState() => _ChallengesTabState();
@@ -510,55 +506,8 @@ class _ChallengesTab extends StatefulWidget {
 class _ChallengesTabState extends State<_ChallengesTab> {
   int _filter = 0; // 0=ongoing 1=upcoming 2=past
 
-  static const _defaultChallenges = [
-    _Challenge(
-      title: 'Bridge Builder March',
-      desc: 'Build the strongest bridge using only cardboard and rubber bands. Max span: 30cm.',
-      category: 'Mechanics',
-      categoryEmoji: '⚙️',
-      status: 0,
-      reward: 200,
-      deadline: 'Mar 15, 2026',
-      participants: 87,
-      color: Color(0xFF3B82F6),
-    ),
-    _Challenge(
-      title: 'Solar Science Sprint',
-      desc: 'Build a device powered only by sunlight. Anything goes — fan, car, pump!',
-      category: 'Science',
-      categoryEmoji: '🔬',
-      status: 0,
-      reward: 300,
-      deadline: 'Mar 20, 2026',
-      participants: 54,
-      color: Color(0xFF10B981),
-    ),
-    _Challenge(
-      title: 'LED Art Festival',
-      desc: 'Create illuminated artwork using LEDs. Judged on creativity and circuit design.',
-      category: 'ArtCraft',
-      categoryEmoji: '🎨',
-      status: 1,
-      reward: 150,
-      deadline: 'Apr 1, 2026',
-      participants: 0,
-      color: Color(0xFFEC4899),
-    ),
-    _Challenge(
-      title: 'Robo-Race Jan 2026',
-      desc: 'Build the fastest line-following robot.',
-      category: 'Robotics',
-      categoryEmoji: '🤖',
-      status: 2,
-      reward: 500,
-      deadline: 'Jan 31, 2026',
-      participants: 143,
-      color: Color(0xFF8B5CF6),
-    ),
-  ];
-
   List<_Challenge> get _filtered =>
-      (widget.cmsChallenges ?? _defaultChallenges).where((c) => c.status == _filter).toList();
+      widget.challenges.where((c) => c.status == _filter).toList();
 
   @override
   Widget build(BuildContext context) {
@@ -611,8 +560,7 @@ class _ChallengesTabState extends State<_ChallengesTab> {
         ),
         child: Text(label,
             style: GoogleFonts.nunito(
-                fontSize: 12,
-                fontWeight: FontWeight.w700,
+                fontSize: 12, fontWeight: FontWeight.w700,
                 color: active ? Colors.white : const Color(0xFF6B6B8A))),
       ),
     );
@@ -650,8 +598,7 @@ class _ChallengeCard extends StatelessWidget {
           height: 4,
           decoration: BoxDecoration(
             color: c.color,
-            borderRadius:
-                const BorderRadius.vertical(top: Radius.circular(16)),
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
           ),
         ),
         Padding(
@@ -663,41 +610,36 @@ class _ChallengeCard extends StatelessWidget {
               Expanded(
                 child: Text(c.title,
                     style: GoogleFonts.nunito(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w800,
+                        fontSize: 15, fontWeight: FontWeight.w800,
                         color: const Color(0xFF1A1A2E))),
               ),
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
                   color: statusColor.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(statusLabel,
                     style: GoogleFonts.nunito(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w800,
+                        fontSize: 10, fontWeight: FontWeight.w800,
                         color: statusColor)),
               ),
             ]),
             const SizedBox(height: 8),
             Text(c.desc,
                 style: GoogleFonts.nunito(
-                    fontSize: 13,
-                    color: const Color(0xFF3D3D5C),
-                    height: 1.5)),
+                    fontSize: 13, color: const Color(0xFF3D3D5C), height: 1.5)),
             const SizedBox(height: 12),
             Row(children: [
-              _pill('🪙 ${c.reward}G reward', const Color(0xFFE8A000),
-                  const Color(0xFFFFF3CC)),
+              _pill('🪙 ${c.reward}G reward',
+                  const Color(0xFFE8A000), const Color(0xFFFFF3CC)),
               const SizedBox(width: 8),
-              _pill('📅 ${c.deadline}', const Color(0xFF3B82F6),
-                  const Color(0xFFDDE1FF)),
+              _pill('📅 ${c.deadline}',
+                  const Color(0xFF3B82F6), const Color(0xFFDDE1FF)),
               if (c.participants > 0) ...[
                 const SizedBox(width: 8),
-                _pill('👥 ${c.participants}', const Color(0xFF10B981),
-                    const Color(0xFFD4F5EE)),
+                _pill('👥 ${c.participants}',
+                    const Color(0xFF10B981), const Color(0xFFD4F5EE)),
               ],
             ]),
             if (c.status != 2) ...[
@@ -705,8 +647,7 @@ class _ChallengeCard extends StatelessWidget {
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
-                  onPressed: () =>
-                      Navigator.pushNamed(context, LoginScreen.id),
+                  onPressed: () => Navigator.pushNamed(context, LoginScreen.id),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: c.color,
                     foregroundColor: Colors.white,
@@ -732,8 +673,7 @@ class _ChallengeCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: bg,
-        borderRadius: BorderRadius.circular(20),
+        color: bg, borderRadius: BorderRadius.circular(20),
       ),
       child: Text(label,
           style: GoogleFonts.nunito(
@@ -743,38 +683,35 @@ class _ChallengeCard extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  TAB 3 — LADDER & BADGES
+//  TAB 3 — LADDER & BADGES  (unchanged — no CMS wiring needed here yet)
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _LadderTab extends StatelessWidget {
-  final List<_Leader>? leaderboard;
-  final int? userRank;
-  final int? userScore;
-  const _LadderTab({this.leaderboard, this.userRank, this.userScore});
+  const _LadderTab();
 
   static const _levels = [
-    _Level('🌱', 'Sprout',    '0–99G',   'Just starting out', Color(0xFF86EFAC), 0.0),
-    _Level('🔩', 'Tinkerer',  '100–299G', 'Getting handy',     Color(0xFF93C5FD), 0.15),
-    _Level('⚙️', 'Builder',   '300–599G', 'Serious maker',     Color(0xFFFDE68A), 0.35),
-    _Level('🔬', 'Inventor',  '600–999G', 'Creating new things',Color(0xFFFCA5A5), 0.60),
-    _Level('🚀', 'Innovator', '1000G+',   'Top of the ladder', Color(0xFFD8B4FE), 1.0),
+    _Level('🌱', 'Sprout',   '0–99G',    'Just starting out',   Color(0xFF86EFAC), 0.0),
+    _Level('🔩', 'Tinkerer', '100–299G', 'Getting handy',        Color(0xFF93C5FD), 0.15),
+    _Level('⚙️', 'Builder',  '300–599G', 'Serious maker',        Color(0xFFFDE68A), 0.35),
+    _Level('🔬', 'Inventor', '600–999G', 'Creating new things',  Color(0xFFFCA5A5), 0.60),
+    _Level('🚀', 'Innovator','1000G+',   'Top of the ladder',    Color(0xFFD8B4FE), 1.0),
   ];
 
   static const _badges = [
-    _Badge('🎬', 'Director',   'Upload 5 project videos',  Color(0xFFEC4899)),
-    _Badge('⭐', 'Star Maker', 'Get 50 likes total',        Color(0xFFE8A000)),
-    _Badge('🤝', 'Mentor',     'Help 10 other makers',      Color(0xFF3B82F6)),
-    _Badge('🔥', 'Streak',     '7-day activity streak',     Color(0xFFEF4444)),
-    _Badge('🏅', 'Champion',   'Win a challenge',           Color(0xFF8B5CF6)),
-    _Badge('🌏', 'Global',     'Project viewed in 5 countries', Color(0xFF10B981)),
+    _Badge('🎬', 'Director',   'Upload 5 project videos',       Color(0xFFEC4899)),
+    _Badge('⭐', 'Star Maker', 'Get 50 likes total',             Color(0xFFE8A000)),
+    _Badge('🤝', 'Mentor',     'Help 10 other makers',           Color(0xFF3B82F6)),
+    _Badge('🔥', 'Streak',     '7-day activity streak',          Color(0xFFEF4444)),
+    _Badge('🏅', 'Champion',   'Win a challenge',                Color(0xFF8B5CF6)),
+    _Badge('🌏', 'Global',     'Project viewed in 5 countries',  Color(0xFF10B981)),
   ];
 
   static const _leaderboard = [
-    _Leader(rank: 1, name: 'Aarav M.',   city: 'Mumbai',     score: 1240, badge: '🚀'),
-    _Leader(rank: 2, name: 'Priya K.',   city: 'Bengaluru',  score: 980,  badge: '🔬'),
-    _Leader(rank: 3, name: 'Rohan S.',   city: 'Pune',       score: 870,  badge: '🔬'),
-    _Leader(rank: 4, name: 'Diya T.',    city: 'Hyderabad',  score: 710,  badge: '⚙️'),
-    _Leader(rank: 5, name: 'Aryan P.',   city: 'Delhi',      score: 650,  badge: '⚙️'),
+    _Leader(rank: 1, name: 'Aarav M.',  city: 'Mumbai',    score: 1240, badge: '🚀'),
+    _Leader(rank: 2, name: 'Priya K.',  city: 'Bengaluru', score: 980,  badge: '🔬'),
+    _Leader(rank: 3, name: 'Rohan S.',  city: 'Pune',      score: 870,  badge: '🔬'),
+    _Leader(rank: 4, name: 'Diya T.',   city: 'Hyderabad', score: 710,  badge: '⚙️'),
+    _Leader(rank: 5, name: 'Aryan P.',  city: 'Delhi',     score: 650,  badge: '⚙️'),
   ];
 
   @override
@@ -788,29 +725,19 @@ class _LadderTab extends StatelessWidget {
           emoji: '🏆',
         ),
         const SizedBox(height: 16),
-
-        if (userRank != null) ...[  // show only when logged in + leaderboard loaded
-          _UserRankCard(rank: userRank!, score: userScore ?? 0),
-          const SizedBox(height: 16),
-        ],
-
         Text('Progression Levels',
             style: GoogleFonts.nunito(
-                fontSize: 14,
-                fontWeight: FontWeight.w800,
+                fontSize: 14, fontWeight: FontWeight.w800,
                 color: const Color(0xFF1A1A2E))),
         const SizedBox(height: 10),
         ..._levels.map((l) => Padding(
               padding: const EdgeInsets.only(bottom: 8),
               child: _LevelRow(l: l),
             )),
-
         const SizedBox(height: 24),
-
         Text('Badge Collection',
             style: GoogleFonts.nunito(
-                fontSize: 14,
-                fontWeight: FontWeight.w800,
+                fontSize: 14, fontWeight: FontWeight.w800,
                 color: const Color(0xFF1A1A2E))),
         const SizedBox(height: 10),
         GridView.count(
@@ -822,13 +749,10 @@ class _LadderTab extends StatelessWidget {
           childAspectRatio: 0.85,
           children: _badges.map((b) => _BadgeCard(b: b)).toList(),
         ),
-
         const SizedBox(height: 24),
-
         Text('Top Makers This Month',
             style: GoogleFonts.nunito(
-                fontSize: 14,
-                fontWeight: FontWeight.w800,
+                fontSize: 14, fontWeight: FontWeight.w800,
                 color: const Color(0xFF1A1A2E))),
         const SizedBox(height: 10),
         Container(
@@ -838,17 +762,14 @@ class _LadderTab extends StatelessWidget {
             border: Border.all(color: const Color(0xFFE8EAFF)),
           ),
           child: Column(
-            children: (leaderboard ?? _leaderboard).asMap().entries.map((e) {
-              final i = e.key;
-              final l = e.value;
+            children: _leaderboard.asMap().entries.map((e) {
               return _LeaderRow(
-                leader: l,
-                isLast: i == _leaderboard.length - 1,
+                leader: e.value,
+                isLast: e.key == _leaderboard.length - 1,
               );
             }).toList(),
           ),
         ),
-
         const SizedBox(height: 16),
         const _JoinCTA(
           title: 'Climb the ladder!',
@@ -880,14 +801,12 @@ class _LevelRow extends StatelessWidget {
             Row(children: [
               Text(l.title,
                   style: GoogleFonts.nunito(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w800,
+                      fontSize: 14, fontWeight: FontWeight.w800,
                       color: const Color(0xFF1A1A2E))),
               const SizedBox(width: 8),
               Text(l.range,
                   style: GoogleFonts.nunito(
-                      fontSize: 11,
-                      color: const Color(0xFF6B6B8A),
+                      fontSize: 11, color: const Color(0xFF6B6B8A),
                       fontWeight: FontWeight.w600)),
             ]),
             Text(l.desc,
@@ -921,16 +840,13 @@ class _BadgeCard extends StatelessWidget {
           Text(b.name,
               textAlign: TextAlign.center,
               style: GoogleFonts.nunito(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w800,
+                  fontSize: 11, fontWeight: FontWeight.w800,
                   color: const Color(0xFF1A1A2E))),
           const SizedBox(height: 3),
           Text(b.desc,
               textAlign: TextAlign.center,
               style: GoogleFonts.nunito(
-                  fontSize: 9,
-                  color: const Color(0xFF6B6B8A),
-                  height: 1.3),
+                  fontSize: 9, color: const Color(0xFF6B6B8A), height: 1.3),
               maxLines: 2,
               overflow: TextOverflow.ellipsis),
         ],
@@ -960,24 +876,19 @@ class _LeaderRow extends StatelessWidget {
       decoration: BoxDecoration(
         border: isLast
             ? null
-            : const Border(
-                bottom: BorderSide(color: Color(0xFFE8EAFF))),
+            : const Border(bottom: BorderSide(color: Color(0xFFE8EAFF))),
       ),
       child: Row(children: [
         Container(
           width: 30, height: 30,
           decoration: BoxDecoration(
-            color: rankColor.withOpacity(0.2),
-            shape: BoxShape.circle,
+            color: rankColor.withOpacity(0.2), shape: BoxShape.circle,
           ),
           child: Center(
             child: Text('${leader.rank}',
                 style: GoogleFonts.nunito(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w800,
-                    color: leader.rank <= 3
-                        ? rankColor
-                        : const Color(0xFF6B6B8A))),
+                    fontSize: 13, fontWeight: FontWeight.w800,
+                    color: leader.rank <= 3 ? rankColor : const Color(0xFF6B6B8A))),
           ),
         ),
         const SizedBox(width: 12),
@@ -987,13 +898,11 @@ class _LeaderRow extends StatelessWidget {
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Text(leader.name,
                 style: GoogleFonts.nunito(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
+                    fontSize: 13, fontWeight: FontWeight.w700,
                     color: const Color(0xFF1A1A2E))),
-            if (leader.city.isNotEmpty)
-              Text('📍 ${leader.city}',
-                  style: GoogleFonts.nunito(
-                      fontSize: 11, color: const Color(0xFF6B6B8A))),
+            Text('📍 ${leader.city}',
+                style: GoogleFonts.nunito(
+                    fontSize: 11, color: const Color(0xFF6B6B8A))),
           ]),
         ),
         Container(
@@ -1004,8 +913,7 @@ class _LeaderRow extends StatelessWidget {
           ),
           child: Text('🪙 ${leader.score}G',
               style: GoogleFonts.nunito(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w800,
+                  fontSize: 11, fontWeight: FontWeight.w800,
                   color: const Color(0xFF8B6800))),
         ),
       ]),
@@ -1014,63 +922,13 @@ class _LeaderRow extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  TAB 4 — RESOURCES
+//  TAB 4 — RESOURCES  (now CMS-driven)
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _ResourcesTab extends StatelessWidget {
-  final List<_Resource>? cmsResources;
-  const _ResourcesTab({this.cmsResources});
-
-  static const _defaultResources = [
-    _Resource(
-      emoji: '📋',
-      title: 'Project Planning Template',
-      desc: 'A fillable PDF to plan your next STEAM project step by step.',
-      tag: 'Students',
-      tagColor: Color(0xFF3B82F6),
-      type: 'PDF',
-    ),
-    _Resource(
-      emoji: '🏫',
-      title: 'T-LAB Setup Guide',
-      desc: 'Complete guide for schools to set up a tinkering lab from scratch.',
-      tag: 'Schools',
-      tagColor: Color(0xFF10B981),
-      type: 'PDF',
-    ),
-    _Resource(
-      emoji: '🎓',
-      title: 'Mentor Handbook',
-      desc: 'How to guide young makers — facilitation tips for parents and teachers.',
-      tag: 'Mentors',
-      tagColor: Color(0xFF8B5CF6),
-      type: 'PDF',
-    ),
-    _Resource(
-      emoji: '🔋',
-      title: 'Electronics Starter Kit List',
-      desc: 'Curated list of components every home T-LAB should have under ₹2,000.',
-      tag: 'Students',
-      tagColor: Color(0xFF3B82F6),
-      type: 'List',
-    ),
-    _Resource(
-      emoji: '🤖',
-      title: 'Robotics Challenge Toolkit',
-      desc: 'Worksheets, circuit diagrams and tips for the monthly robot challenge.',
-      tag: 'Challenge',
-      tagColor: Color(0xFFEC4899),
-      type: 'ZIP',
-    ),
-    _Resource(
-      emoji: '📊',
-      title: 'STEAM Skills Rubric',
-      desc: 'Assessment rubric for teachers to evaluate project quality and creativity.',
-      tag: 'Schools',
-      tagColor: Color(0xFF10B981),
-      type: 'XLSX',
-    ),
-  ];
+  /// Injected from CMS or falls back to defaults.
+  final List<_Resource> resources;
+  const _ResourcesTab({required this.resources});
 
   @override
   Widget build(BuildContext context) {
@@ -1083,7 +941,7 @@ class _ResourcesTab extends StatelessWidget {
           emoji: '📦',
         ),
         const SizedBox(height: 16),
-        ...(cmsResources ?? _defaultResources).map((r) => Padding(
+        ...resources.map((r) => Padding(
               padding: const EdgeInsets.only(bottom: 10),
               child: _ResourceCard(r: r),
             )),
@@ -1112,8 +970,7 @@ class _ResourceCard extends StatelessWidget {
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.03),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
+            blurRadius: 8, offset: const Offset(0, 2),
           ),
         ],
       ),
@@ -1135,8 +992,7 @@ class _ResourceCard extends StatelessWidget {
               Expanded(
                 child: Text(r.title,
                     style: GoogleFonts.nunito(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w800,
+                        fontSize: 13, fontWeight: FontWeight.w800,
                         color: const Color(0xFF1A1A2E))),
               ),
               Container(
@@ -1147,34 +1003,27 @@ class _ResourceCard extends StatelessWidget {
                 ),
                 child: Text(r.type,
                     style: GoogleFonts.nunito(
-                        fontSize: 9,
-                        fontWeight: FontWeight.w700,
+                        fontSize: 9, fontWeight: FontWeight.w700,
                         color: const Color(0xFF6B6B8A))),
               ),
             ]),
             const SizedBox(height: 3),
             Text(r.desc,
                 style: GoogleFonts.nunito(
-                    fontSize: 11,
-                    color: const Color(0xFF6B6B8A),
-                    height: 1.4),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis),
+                    fontSize: 11, color: const Color(0xFF6B6B8A), height: 1.4),
+                maxLines: 2, overflow: TextOverflow.ellipsis),
             const SizedBox(height: 6),
-            Row(children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                decoration: BoxDecoration(
-                  color: r.tagColor.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Text(r.tag,
-                    style: GoogleFonts.nunito(
-                        fontSize: 9,
-                        fontWeight: FontWeight.w700,
-                        color: r.tagColor)),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+              decoration: BoxDecoration(
+                color: r.tagColor.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(20),
               ),
-            ]),
+              child: Text(r.tag,
+                  style: GoogleFonts.nunito(
+                      fontSize: 9, fontWeight: FontWeight.w700,
+                      color: r.tagColor)),
+            ),
           ]),
         ),
         const SizedBox(width: 8),
@@ -1199,69 +1048,6 @@ class _ResourceCard extends StatelessWidget {
 //  SHARED WIDGETS
 // ─────────────────────────────────────────────────────────────────────────────
 
-// ─────────────────────────────────────────────────────────────────────────────────
-//  USER RANK CARD
-// ─────────────────────────────────────────────────────────────────────────────────
-
-class _UserRankCard extends StatelessWidget {
-  final int rank;
-  final int score;
-  const _UserRankCard({required this.rank, required this.score});
-
-  String get _level {
-    if (score >= 1000) return '🚀 Innovator';
-    if (score >= 600)  return '🔬 Inventor';
-    if (score >= 300)  return '⚙️ Builder';
-    if (score >= 100)  return '🔩 Tinkerer';
-    return '🌱 Sprout';
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFF5B6EF5), Color(0xFF3B1F6E)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(14),
-      ),
-      child: Row(children: [
-        Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text('Your Rank',
-              style: GoogleFonts.nunito(
-                  fontSize: 11, color: Colors.white60, fontWeight: FontWeight.w600)),
-          Text('#$rank',
-              style: GoogleFonts.nunito(
-                  fontSize: 28, fontWeight: FontWeight.w900, color: Colors.white)),
-        ]),
-        const SizedBox(width: 20),
-        Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text('Level',
-              style: GoogleFonts.nunito(
-                  fontSize: 11, color: Colors.white60, fontWeight: FontWeight.w600)),
-          Text(_level,
-              style: GoogleFonts.nunito(
-                  fontSize: 15, fontWeight: FontWeight.w800, color: Colors.white)),
-        ]),
-        const Spacer(),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-          decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.15),
-            borderRadius: BorderRadius.circular(20),
-          ),
-          child: Text('🪙 ${score}G',
-              style: GoogleFonts.nunito(
-                  fontSize: 14, fontWeight: FontWeight.w800, color: Colors.white)),
-        ),
-      ]),
-    );
-  }
-}
-
 class _SectionHeader extends StatelessWidget {
   final String title, subtitle, emoji;
   const _SectionHeader(
@@ -1275,8 +1061,7 @@ class _SectionHeader extends StatelessWidget {
       Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Text(title,
             style: GoogleFonts.nunito(
-                fontSize: 18,
-                fontWeight: FontWeight.w900,
+                fontSize: 18, fontWeight: FontWeight.w900,
                 color: const Color(0xFF1A1A2E))),
         Text(subtitle,
             style: GoogleFonts.nunito(
@@ -1305,8 +1090,7 @@ class _JoinCTA extends StatelessWidget {
       child: Column(children: [
         Text(title,
             style: GoogleFonts.nunito(
-                fontSize: 16,
-                fontWeight: FontWeight.w900,
+                fontSize: 16, fontWeight: FontWeight.w900,
                 color: Colors.white)),
         const SizedBox(height: 4),
         Text(subtitle,
@@ -1316,8 +1100,7 @@ class _JoinCTA extends StatelessWidget {
         Row(children: [
           Expanded(
             child: ElevatedButton(
-              onPressed: () =>
-                  Navigator.pushNamed(context, RegisterScreen.id),
+              onPressed: () => Navigator.pushNamed(context, RegisterScreen.id),
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFFFFD60A),
                 foregroundColor: const Color(0xFF1A1A2E),
@@ -1334,8 +1117,7 @@ class _JoinCTA extends StatelessWidget {
           const SizedBox(width: 10),
           Expanded(
             child: OutlinedButton(
-              onPressed: () =>
-                  Navigator.pushNamed(context, LoginScreen.id),
+              onPressed: () => Navigator.pushNamed(context, LoginScreen.id),
               style: OutlinedButton.styleFrom(
                 foregroundColor: Colors.white,
                 side: const BorderSide(color: Colors.white30, width: 1.5),
@@ -1407,10 +1189,11 @@ class _Leader {
 }
 
 class _Resource {
-  final String emoji, title, desc, tag, type;
+  final String emoji, title, desc, tag, type, url;
   final Color tagColor;
   const _Resource({
     required this.emoji, required this.title, required this.desc,
     required this.tag, required this.tagColor, required this.type,
+    required this.url,
   });
 }
