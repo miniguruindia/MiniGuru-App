@@ -10,8 +10,7 @@ const logger_1 = __importDefault(require("../logger"));
 const authMiddleware_1 = require("../middleware/authMiddleware");
 const emailService_1 = require("../services/email/emailService");
 const router = express_1.default.Router();
-// ── Email transporter (reuse existing SMTP config) ─────────────────────────
-const FROM = `"MiniGuru" <${process.env.FROM_EMAIL}>`;
+const FROM_EMAIL = process.env.FROM_EMAIL || 'connect@miniguru.in';
 function htmlWrap(title, body) {
     return `<!DOCTYPE html><html><head><style>
     body{font-family:Arial,sans-serif;line-height:1.6;color:#333;margin:0;padding:0}
