@@ -1,26 +1,25 @@
 // lib/widgets/material_picker_widget.dart
 // Full-screen Material Picker for children to select STEM materials
-// Shows categories, materials with goins cost, quantity selector, running total
+// Light theme — white background, clean cards, proper image sizing
 
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:miniguru/models/MaterialItem.dart';
 import 'package:miniguru/repository/GoinsRepository.dart';
 
-// ─── Colours (matching MiniGuru palette) ─────────────────────────────────────
-const _blue       = Color(0xFF3B82F6);
-const _navy       = Color(0xFF1E3A8A);
-const _green      = Color(0xFF10B981);
-const _amber      = Color(0xFFF59E0B);
-const _purple     = Color(0xFF8B5CF6);
-const _red        = Color(0xFFEF4444);
-const _bgDark     = Color(0xFF0F172A);
-const _cardDark   = Color(0xFF1E293B);
-const _cardLight  = Color(0xFF334155);
+// ─── Light theme colours ──────────────────────────────────────────────────────
+const _blue     = Color(0xFF5B6EF5);
+const _blueSoft = Color(0xFFEEF0FF);
+const _green    = Color(0xFF10B981);
+const _amber    = Color(0xFFE8A000);
+const _red      = Color(0xFFEF4444);
+const _ink      = Color(0xFF1A1A2E);
+const _muted    = Color(0xFF8888AA);
+const _bg       = Color(0xFFF5F7FF);
+const _card     = Color(0xFFFFFFFF);
+const _border   = Color(0xFFE8EAFF);
 
 // ─── Public entry-point ───────────────────────────────────────────────────────
-/// Show the material picker as a full-screen bottom sheet.
-/// Returns the list of [PickedMaterial] the child confirmed, or null if cancelled.
 Future<List<PickedMaterial>?> showMaterialPicker({
   required BuildContext context,
   required int currentGoinsBalance,
@@ -58,7 +57,7 @@ class _MaterialPickerSheetState extends State<MaterialPickerSheet> {
   List<MaterialCategory> _categories  = [];
   List<MaterialItem>     _allMaterials = [];
   List<MaterialItem>     _filtered     = [];
-  Map<String, int>       _quantities   = {}; // materialId → quantity
+  Map<String, int>       _quantities   = {};
   String                 _activeCategoryId = 'all';
   String                 _searchQuery  = '';
   bool                   _loading      = true;
@@ -66,7 +65,6 @@ class _MaterialPickerSheetState extends State<MaterialPickerSheet> {
   @override
   void initState() {
     super.initState();
-    // Pre-fill existing selections
     for (final p in widget.existingPicked) {
       _quantities[p.item.id] = p.quantity;
     }
@@ -84,7 +82,7 @@ class _MaterialPickerSheetState extends State<MaterialPickerSheet> {
     });
   }
 
-  // ─── Derived values ──────────────────────────────────────
+  // ─── Derived values ───────────────────────────────────────
   int get _totalGoins {
     int total = 0;
     for (final mat in _allMaterials) {
@@ -104,7 +102,7 @@ class _MaterialPickerSheetState extends State<MaterialPickerSheet> {
         .toList();
   }
 
-  // ─── Filter ──────────────────────────────────────────────
+  // ─── Filter ───────────────────────────────────────────────
   void _applyFilter() {
     setState(() {
       _filtered = _allMaterials.where((m) {
@@ -133,32 +131,27 @@ class _MaterialPickerSheetState extends State<MaterialPickerSheet> {
     });
   }
 
-  // ─── Confirm ─────────────────────────────────────────────
+  // ─── Confirm ──────────────────────────────────────────────
   void _confirm() {
     if (_overBudget) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'Not enough Goins! Remove some materials.',
-            style: GoogleFonts.nunito(fontWeight: FontWeight.w900),
-          ),
-          backgroundColor: _red,
-        ),
-      );
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('Not enough Goins! Remove some materials.',
+            style: GoogleFonts.nunito(fontWeight: FontWeight.w900)),
+        backgroundColor: _red,
+      ));
       return;
     }
     Navigator.of(context).pop(_pickedList);
   }
 
-  // ─── Build ───────────────────────────────────────────────
+  // ─── Build ────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
     final screenH = MediaQuery.of(context).size.height;
-
     return Container(
       height: screenH * 0.92,
       decoration: const BoxDecoration(
-        color: _bgDark,
+        color: _bg,
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       child: Column(
@@ -181,7 +174,7 @@ class _MaterialPickerSheetState extends State<MaterialPickerSheet> {
           child: Container(
             width: 40, height: 4,
             decoration: BoxDecoration(
-              color: Colors.white24,
+              color: _border,
               borderRadius: BorderRadius.circular(2),
             ),
           ),
@@ -190,33 +183,24 @@ class _MaterialPickerSheetState extends State<MaterialPickerSheet> {
 
   Widget _buildHeader() => Padding(
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-        child: Row(
-          children: [
-            const Text('🧰', style: TextStyle(fontSize: 22)),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Text(
-                'Pick Your Materials',
+        child: Row(children: [
+          const Text('🧰', style: TextStyle(fontSize: 22)),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text('Pick Your Materials',
                 style: GoogleFonts.nunito(
-                  color: Colors.white,
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
+                    color: _ink, fontSize: 18, fontWeight: FontWeight.w900)),
+          ),
+          GestureDetector(
+            onTap: () => Navigator.of(context).pop(null),
+            child: Container(
+              padding: const EdgeInsets.all(6),
+              decoration: BoxDecoration(
+                  color: _border, borderRadius: BorderRadius.circular(8)),
+              child: const Icon(Icons.close, color: _muted, size: 18),
             ),
-            GestureDetector(
-              onTap: () => Navigator.of(context).pop(null),
-              child: Container(
-                padding: const EdgeInsets.all(6),
-                decoration: BoxDecoration(
-                  color: _cardDark,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: const Icon(Icons.close, color: Colors.white60, size: 18),
-              ),
-            ),
-          ],
-        ),
+          ),
+        ]),
       );
 
   Widget _buildGoinsBar() {
@@ -224,18 +208,22 @@ class _MaterialPickerSheetState extends State<MaterialPickerSheet> {
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
-        color: _overBudget ? _red.withOpacity(0.15) : _navy.withOpacity(0.6),
+        color: _overBudget
+            ? const Color(0xFFFFEEEE)
+            : const Color(0xFFEEF0FF),
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
-          color: _overBudget ? _red.withOpacity(0.5) : _blue.withOpacity(0.3),
+          color: _overBudget
+              ? _red.withOpacity(0.3)
+              : _blue.withOpacity(0.2),
         ),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          _goinsStat('💰 Balance', '${widget.currentGoinsBalance} G', Colors.white70),
-          _goinsStat('🧰 Cost',    '-$_totalGoins G',
-              _totalGoins > 0 ? _amber : Colors.white38),
+          _goinsStat('💰 Balance', '${widget.currentGoinsBalance} G', _muted),
+          _goinsStat('🧰 Cost', '-$_totalGoins G',
+              _totalGoins > 0 ? _amber : _muted),
           _goinsStat(
             _overBudget ? '⛔ Short' : '✅ After',
             '${_remainingBalance} G',
@@ -247,41 +235,41 @@ class _MaterialPickerSheetState extends State<MaterialPickerSheet> {
   }
 
   Widget _goinsStat(String label, String value, Color valueColor) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.center,
-      children: [
-        Text(label,
-            style: GoogleFonts.nunito(
-                color: Colors.white38, fontSize: 10, fontWeight: FontWeight.w500)),
-        const SizedBox(height: 2),
-        Text(value,
-            style: GoogleFonts.nunito(
-                color: valueColor, fontSize: 14, fontWeight: FontWeight.bold)),
-      ],
-    );
+    return Column(crossAxisAlignment: CrossAxisAlignment.center, children: [
+      Text(label,
+          style: GoogleFonts.nunito(
+              color: _muted, fontSize: 10, fontWeight: FontWeight.w500)),
+      const SizedBox(height: 2),
+      Text(value,
+          style: GoogleFonts.nunito(
+              color: valueColor, fontSize: 14, fontWeight: FontWeight.bold)),
+    ]);
   }
 
   Widget _buildSearch() {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
       child: TextField(
-        onChanged: (v) {
-          _searchQuery = v;
-          _applyFilter();
-        },
-        style: GoogleFonts.nunito(
-            fontWeight: FontWeight.w900, color: Colors.white, fontSize: 14),
+        onChanged: (v) { _searchQuery = v; _applyFilter(); },
+        style: GoogleFonts.nunito(color: _ink, fontSize: 14),
         decoration: InputDecoration(
           hintText: 'Search materials...',
-          hintStyle: GoogleFonts.nunito(
-              fontWeight: FontWeight.w900, color: Colors.white38, fontSize: 14),
-          prefixIcon: const Icon(Icons.search, color: Colors.white38, size: 18),
+          hintStyle: GoogleFonts.nunito(color: _muted, fontSize: 14),
+          prefixIcon: const Icon(Icons.search, color: _muted, size: 18),
           filled: true,
-          fillColor: _cardDark,
+          fillColor: _card,
           contentPadding: const EdgeInsets.symmetric(vertical: 10),
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide.none,
+            borderSide: const BorderSide(color: _border),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: const BorderSide(color: _border),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: const BorderSide(color: _blue, width: 1.5),
           ),
         ),
       ),
@@ -293,7 +281,6 @@ class _MaterialPickerSheetState extends State<MaterialPickerSheet> {
       MaterialCategory(id: 'all', name: 'All', emoji: '🌟'),
       ..._categories,
     ];
-
     return SizedBox(
       height: 40,
       child: ListView.builder(
@@ -308,20 +295,20 @@ class _MaterialPickerSheetState extends State<MaterialPickerSheet> {
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 200),
               margin: const EdgeInsets.symmetric(horizontal: 4),
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
               decoration: BoxDecoration(
-                color: active ? _blue : _cardDark,
+                color: active ? _blue : _card,
                 borderRadius: BorderRadius.circular(20),
                 border: Border.all(
-                  color: active ? _blue : Colors.transparent,
-                ),
+                    color: active ? _blue : _border),
               ),
               child: Text(
                 '${cat.emoji} ${cat.name}',
                 style: GoogleFonts.nunito(
-                  color: active ? Colors.white : Colors.white54,
+                  color: active ? Colors.white : _muted,
                   fontSize: 12,
-                  fontWeight: active ? FontWeight.w600 : FontWeight.normal,
+                  fontWeight: active ? FontWeight.w700 : FontWeight.w500,
                 ),
               ),
             ),
@@ -331,35 +318,27 @@ class _MaterialPickerSheetState extends State<MaterialPickerSheet> {
     );
   }
 
-  Widget _buildLoader() => const Center(
-        child: CircularProgressIndicator(color: _blue),
-      );
+  Widget _buildLoader() =>
+      const Center(child: CircularProgressIndicator(color: _blue));
 
   Widget _buildMaterialGrid() {
     if (_filtered.isEmpty) {
       return Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text('🔍', style: TextStyle(fontSize: 40)),
-            const SizedBox(height: 10),
-            Text('No materials found',
-                style: GoogleFonts.nunito(
-                    fontWeight: FontWeight.w900,
-                    color: Colors.white38,
-                    fontSize: 14)),
-          ],
-        ),
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          const Text('🔍', style: TextStyle(fontSize: 40)),
+          const SizedBox(height: 10),
+          Text('No materials found',
+              style: GoogleFonts.nunito(color: _muted, fontSize: 14)),
+        ]),
       );
     }
-
     return GridView.builder(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 2,
         mainAxisSpacing: 10,
         crossAxisSpacing: 10,
-        childAspectRatio: 0.85, // ← was 1.55 — now portrait, image has room
+        childAspectRatio: 0.78, // portrait — image + name + qty all fit cleanly
       ),
       itemCount: _filtered.length,
       itemBuilder: (_, i) => _buildMaterialCard(_filtered[i]),
@@ -369,29 +348,38 @@ class _MaterialPickerSheetState extends State<MaterialPickerSheet> {
   Widget _buildMaterialCard(MaterialItem mat) {
     final qty      = _quantities[mat.id] ?? 0;
     final selected = qty > 0;
+    final hasImage = mat.imageUrl != null && mat.imageUrl!.isNotEmpty;
 
     return AnimatedContainer(
       duration: const Duration(milliseconds: 200),
       decoration: BoxDecoration(
-        color: selected ? _blue.withOpacity(0.15) : _cardDark,
+        color: selected ? const Color(0xFFEEF0FF) : _card,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
-          color: selected ? _blue.withOpacity(0.7) : _cardLight.withOpacity(0.5),
+          color: selected ? _blue : _border,
           width: selected ? 1.5 : 1,
         ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
-      padding: const EdgeInsets.all(10),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
 
-          // ── Image — 90px tall, emoji fallback ─────────────────────────────
+          // ── Image area ─────────────────────────────────────────────────────
           ClipRRect(
-            borderRadius: BorderRadius.circular(10),
-            child: SizedBox(
-              height: 90,
+            borderRadius:
+                const BorderRadius.vertical(top: Radius.circular(13)),
+            child: Container(
+              height: 100,
               width: double.infinity,
-              child: (mat.imageUrl != null && mat.imageUrl!.isNotEmpty)
+              color: const Color(0xFFF8F9FF),
+              child: hasImage
                   ? Image.network(
                       mat.imageUrl!,
                       fit: BoxFit.contain,
@@ -404,191 +392,189 @@ class _MaterialPickerSheetState extends State<MaterialPickerSheet> {
                     ),
             ),
           ),
-          const SizedBox(height: 6),
 
-          // ── Name + Goins badge ─────────────────────────────────────────────
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  mat.name,
-                  style: GoogleFonts.nunito(
-                    color: Colors.white,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
+          // ── Info area ──────────────────────────────────────────────────────
+          Padding(
+            padding: const EdgeInsets.fromLTRB(8, 6, 8, 0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+
+                // Name + Goins badge
+                Row(children: [
+                  Expanded(
+                    child: Text(mat.name,
+                        style: GoogleFonts.nunito(
+                            color: _ink,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w800),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis),
                   ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(
-                  color: _amber.withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Text(
-                  '${mat.goinsPerUnit}G',
-                  style: GoogleFonts.nunito(
-                      color: _amber, fontSize: 10, fontWeight: FontWeight.bold),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 2),
-
-          // ── Unit ──────────────────────────────────────────────────────────
-          Text(
-            '/${mat.unit}',
-            style: GoogleFonts.nunito(
-                fontWeight: FontWeight.w900, color: Colors.white38, fontSize: 10),
-          ),
-
-          const Spacer(),
-
-          // ── Quantity controls + running cost ──────────────────────────────
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                qty > 0 ? '= ${mat.goinsPerUnit * qty}G' : '',
-                style: GoogleFonts.nunito(
-                    color: _green, fontSize: 10, fontWeight: FontWeight.w500),
-              ),
-              Row(
-                children: [
-                  _qtyButton(Icons.remove, () => _setQty(mat.id, -1),
-                      enabled: qty > 0),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 8),
-                    child: Text(
-                      '$qty',
-                      style: GoogleFonts.nunito(
-                          color: Colors.white,
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold),
+                  const SizedBox(width: 4),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 5, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFFF3CC),
+                      borderRadius: BorderRadius.circular(6),
                     ),
+                    child: Text('${mat.goinsPerUnit}G',
+                        style: GoogleFonts.nunito(
+                            color: _amber,
+                            fontSize: 9,
+                            fontWeight: FontWeight.w900)),
                   ),
-                  _qtyButton(Icons.add, () => _setQty(mat.id, 1),
-                      enabled: !_overBudget || qty > 0),
-                ],
-              ),
-            ],
-          ),
+                ]),
 
+                // Unit
+                Text('/${mat.unit}',
+                    style: GoogleFonts.nunito(
+                        color: _muted, fontSize: 9)),
+
+                const SizedBox(height: 6),
+
+                // Qty controls + running cost
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      qty > 0 ? '${mat.goinsPerUnit * qty}G' : '',
+                      style: GoogleFonts.nunito(
+                          color: _green,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700),
+                    ),
+                    Row(children: [
+                      _qtyButton(Icons.remove,
+                          () => _setQty(mat.id, -1),
+                          enabled: qty > 0),
+                      Padding(
+                        padding:
+                            const EdgeInsets.symmetric(horizontal: 6),
+                        child: Text('$qty',
+                            style: GoogleFonts.nunito(
+                                color: _ink,
+                                fontSize: 14,
+                                fontWeight: FontWeight.bold)),
+                      ),
+                      _qtyButton(Icons.add,
+                          () => _setQty(mat.id, 1),
+                          enabled: !_overBudget || qty > 0),
+                    ]),
+                  ],
+                ),
+              ],
+            ),
+          ),
         ],
       ),
     );
   }
 
-  Widget _qtyButton(IconData icon, VoidCallback onTap, {bool enabled = true}) {
+  Widget _qtyButton(IconData icon, VoidCallback onTap,
+      {bool enabled = true}) {
     return GestureDetector(
       onTap: enabled ? onTap : null,
       child: Container(
         width: 26, height: 26,
         decoration: BoxDecoration(
-          color: enabled ? _blue.withOpacity(0.3) : Colors.white10,
+          color: enabled ? _blue.withOpacity(0.12) : _border,
           borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+              color: enabled ? _blue.withOpacity(0.3) : _border),
         ),
         child: Icon(icon,
-            size: 14, color: enabled ? Colors.white : Colors.white24),
+            size: 14, color: enabled ? _blue : _muted),
       ),
     );
   }
 
   Widget _buildConfirmBar() {
     final count = _pickedList.length;
-
     return SafeArea(
       child: Container(
         padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
         decoration: const BoxDecoration(
-          color: _cardDark,
-          border: Border(top: BorderSide(color: Colors.white12)),
+          color: _card,
+          border: Border(top: BorderSide(color: _border)),
         ),
-        child: Row(
-          children: [
-            // Summary
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    count == 0
-                        ? 'No materials selected'
-                        : '$count material${count > 1 ? 's' : ''} selected',
-                    style: GoogleFonts.nunito(
-                        fontWeight: FontWeight.w900,
-                        color: Colors.white60,
-                        fontSize: 12),
-                  ),
-                  if (_totalGoins > 0)
-                    Text(
-                      'Total: $_totalGoins Goins',
-                      style: GoogleFonts.nunito(
-                          color: _overBudget ? _red : _amber,
-                          fontSize: 13,
-                          fontWeight: FontWeight.bold),
-                    ),
-                ],
-              ),
-            ),
-            // Clear button
-            if (count > 0) ...[
-              GestureDetector(
-                onTap: () => setState(() => _quantities.clear()),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 14, vertical: 10),
-                  margin: const EdgeInsets.only(right: 8),
-                  decoration: BoxDecoration(
-                    color: _red.withOpacity(0.15),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: _red.withOpacity(0.3)),
-                  ),
-                  child: Text('Clear',
-                      style: GoogleFonts.nunito(
-                          fontWeight: FontWeight.w900,
-                          color: _red,
-                          fontSize: 13)),
+        child: Row(children: [
+          // Summary
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  count == 0
+                      ? 'No materials selected'
+                      : '$count material${count > 1 ? 's' : ''} selected',
+                  style: GoogleFonts.nunito(
+                      color: _muted, fontSize: 12, fontWeight: FontWeight.w600),
                 ),
-              ),
-            ],
-            // Confirm button
+                if (_totalGoins > 0)
+                  Text(
+                    'Total: $_totalGoins Goins',
+                    style: GoogleFonts.nunito(
+                        color: _overBudget ? _red : _amber,
+                        fontSize: 13,
+                        fontWeight: FontWeight.bold),
+                  ),
+              ],
+            ),
+          ),
+          // Clear
+          if (count > 0) ...[
             GestureDetector(
-              onTap: _confirm,
+              onTap: () => setState(() => _quantities.clear()),
               child: Container(
                 padding: const EdgeInsets.symmetric(
-                    horizontal: 20, vertical: 10),
+                    horizontal: 14, vertical: 10),
+                margin: const EdgeInsets.only(right: 8),
                 decoration: BoxDecoration(
-                  color: _overBudget ? _red : _blue,
+                  color: const Color(0xFFFFEEEE),
                   borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: _red.withOpacity(0.3)),
                 ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      _overBudget
-                          ? Icons.warning_rounded
-                          : Icons.check_rounded,
-                      color: Colors.white,
-                      size: 16,
-                    ),
-                    const SizedBox(width: 6),
-                    Text(
-                      _overBudget ? 'Over Budget' : 'Confirm',
-                      style: GoogleFonts.nunito(
-                          color: Colors.white,
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600),
-                    ),
-                  ],
-                ),
+                child: Text('Clear',
+                    style: GoogleFonts.nunito(
+                        fontWeight: FontWeight.w900,
+                        color: _red,
+                        fontSize: 13)),
               ),
             ),
           ],
-        ),
+          // Confirm
+          GestureDetector(
+            onTap: _confirm,
+            child: Container(
+              padding: const EdgeInsets.symmetric(
+                  horizontal: 20, vertical: 10),
+              decoration: BoxDecoration(
+                color: _overBudget ? _red : _blue,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Row(mainAxisSize: MainAxisSize.min, children: [
+                Icon(
+                  _overBudget
+                      ? Icons.warning_rounded
+                      : Icons.check_rounded,
+                  color: Colors.white,
+                  size: 16,
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  _overBudget ? 'Over Budget' : 'Confirm',
+                  style: GoogleFonts.nunito(
+                      color: Colors.white,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700),
+                ),
+              ]),
+            ),
+          ),
+        ]),
       ),
     );
   }
