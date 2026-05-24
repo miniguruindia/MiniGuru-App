@@ -338,7 +338,7 @@ class _MaterialPickerSheetState extends State<MaterialPickerSheet> {
         crossAxisCount: 2,
         mainAxisSpacing: 10,
         crossAxisSpacing: 10,
-        childAspectRatio: 0.78, // portrait — image + name + qty all fit cleanly
+        mainAxisExtent: 195.0, // portrait — image + name + qty all fit cleanly
       ),
       itemCount: _filtered.length,
       itemBuilder: (_, i) => _buildMaterialCard(_filtered[i]),

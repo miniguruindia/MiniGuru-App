@@ -717,7 +717,7 @@ class _ProfileState extends State<Profile>
   Widget _buildWalletGoinsRow() {
     final walletBalance =
         _user?.walletBalance?.toStringAsFixed(2) ?? '0.00';
-    final goinsScore = _analytics['score'] ?? _user?.score ?? 0;
+    final goinsScore = _user?.score ?? _analytics['score'] ?? 0;
 
     return Row(children: [
       if (_user?.isMentor == true) Expanded(

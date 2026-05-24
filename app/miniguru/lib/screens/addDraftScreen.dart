@@ -17,15 +17,18 @@ import 'package:miniguru/widgets/goins_wallet_widget.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'homeScreen.dart';
 
-const _blue      = Color(0xFF3B82F6);
-const _navy      = Color(0xFF1E3A8A);
+// ── Light theme colours ───────────────────────────────────────────────────────
+const _blue      = Color(0xFF5B6EF5);
 const _green     = Color(0xFF10B981);
 const _amber     = Color(0xFFF59E0B);
 const _red       = Color(0xFFEF4444);
 const _purple    = Color(0xFF8B5CF6);
-const _bgDark    = Color(0xFF0F172A);
-const _card      = Color(0xFF1E293B);
-const _cardLight = Color(0xFF334155);
+const _bg        = Color(0xFFF5F7FF);   // was _bgDark 0xFF0F172A
+const _card      = Color(0xFFFFFFFF);   // was 0xFF1E293B
+const _cardBorder= Color(0xFFE8EAFF);  // was _cardLight 0xFF334155
+const _ink       = Color(0xFF1A1A2E);
+const _muted     = Color(0xFF8888AA);
+const _accent    = Color(0xFF5B6EF5);   // appbar — was _navy 0xFF1E3A8A
 
 class AddDraftScreen extends StatefulWidget {
   final int? draftId;
@@ -34,19 +37,20 @@ class AddDraftScreen extends StatefulWidget {
   State<AddDraftScreen> createState() => _AddDraftScreenState();
 }
 
-class _AddDraftScreenState extends State<AddDraftScreen> with TickerProviderStateMixin {
+class _AddDraftScreenState extends State<AddDraftScreen>
+    with TickerProviderStateMixin {
   final _formKey   = GlobalKey<FormState>();
   final _draftRepo = DraftRepository();
   final _goinsRepo = GoinsRepository();
   final _picker    = ImagePicker();
 
-  List<String>         _categories          = [];
-  List<PickedMaterial> _pickedMaterials      = [];
-  int                  _currentGoinsBalance  = 0;
-  bool                 _goinsLoading         = true;
-  bool                 _loading              = true;
-  bool                 _submitting           = false;
-  int                  _draftId              = -1;
+  List<String>         _categories         = [];
+  List<PickedMaterial> _pickedMaterials     = [];
+  int                  _currentGoinsBalance = 0;
+  bool                 _goinsLoading        = true;
+  bool                 _loading             = true;
+  bool                 _submitting          = false;
+  int                  _draftId             = -1;
   DateTime?            _startDate;
   DateTime?            _endDate;
   XFile?               _video;
@@ -57,9 +61,11 @@ class _AddDraftScreenState extends State<AddDraftScreen> with TickerProviderStat
   final _categoryCtrl = TextEditingController();
 
   late final AnimationController _fadeCtrl = AnimationController(
-    vsync: this, duration: const Duration(milliseconds: 500));
+      vsync: this, duration: const Duration(milliseconds: 500));
 
-  static const _defaultCategories = ['Robotics', 'Mechanics', 'ArtCraft', 'Science'];
+  static const _defaultCategories = [
+    'Robotics', 'Mechanics', 'ArtCraft', 'Science'
+  ];
 
   int  get _totalGoins => _pickedMaterials.fold(0, (s, m) => s + m.totalGoins);
   int  get _goinsAfter => _currentGoinsBalance - _totalGoins;
@@ -68,14 +74,19 @@ class _AddDraftScreenState extends State<AddDraftScreen> with TickerProviderStat
   @override
   void initState() {
     super.initState();
-    if (widget.draftId != null && widget.draftId! > 0) _draftId = widget.draftId!;
+    if (widget.draftId != null && widget.draftId! > 0) {
+      _draftId = widget.draftId!;
+    }
     _loadInitialData();
   }
 
   @override
   void dispose() {
-    _titleCtrl.dispose(); _descCtrl.dispose(); _categoryCtrl.dispose();
-    _fadeCtrl.dispose(); super.dispose();
+    _titleCtrl.dispose();
+    _descCtrl.dispose();
+    _categoryCtrl.dispose();
+    _fadeCtrl.dispose();
+    super.dispose();
   }
 
   Future<void> _loadInitialData() async {
@@ -100,7 +111,10 @@ class _AddDraftScreenState extends State<AddDraftScreen> with TickerProviderStat
     try {
       final cats  = await ProjectRepository().getProjectCategories();
       final names = cats.map((c) => c.name).toList();
-      if (mounted) setState(() { _categories = names.isNotEmpty ? names : _defaultCategories; _loading = false; });
+      if (mounted) setState(() {
+        _categories = names.isNotEmpty ? names : _defaultCategories;
+        _loading    = false;
+      });
     } catch (_) {
       if (mounted) setState(() { _categories = _defaultCategories; _loading = false; });
     }
@@ -119,73 +133,95 @@ class _AddDraftScreenState extends State<AddDraftScreen> with TickerProviderStat
         final all    = await _goinsRepo.getMaterials();
         final picked = <PickedMaterial>[];
         draft.materials.forEach((id, qty) {
-          try { picked.add(PickedMaterial(item: all.firstWhere((m) => m.id == id), quantity: qty)); }
-          catch (_) {}
+          try {
+            picked.add(PickedMaterial(
+                item: all.firstWhere((m) => m.id == id), quantity: qty));
+          } catch (_) {}
         });
         if (mounted) setState(() => _pickedMaterials = picked);
       }
       if (mounted) setState(() {});
-    } catch (e) { debugPrint('load draft error: $e'); }
+    } catch (e) {
+      debugPrint('load draft error: $e');
+    }
   }
 
-  // ── VIDEO PICKER — works on web + mobile ─────────────────
+  // ── VIDEO PICKER ─────────────────────────────────────────
   Future<void> _pickVideo() async {
     try {
       if (kIsWeb) {
         final result = await FilePicker.platform.pickFiles(
-          type: FileType.video, allowMultiple: false,
-          withData: false, withReadStream: true);
+            type: FileType.video, allowMultiple: false,
+            withData: false, withReadStream: true);
         if (result != null && result.files.isNotEmpty) {
-          final f = result.files.first;
+          final f      = result.files.first;
           final chunks = await f.readStream!.expand((x) => x).toList();
-          final bytes = Uint8List.fromList(chunks);
-          setState(() => _video = XFile.fromData(bytes, name: f.name, mimeType: 'video/mp4'));
-          _showSnack('Video selected: ' + f.name);
+          final bytes  = Uint8List.fromList(chunks);
+          setState(() => _video =
+              XFile.fromData(bytes, name: f.name, mimeType: 'video/mp4'));
+          _showSnack('Video selected: ${f.name}');
         }
       } else {
         await [Permission.storage].request();
         final f = await _picker.pickVideo(source: ImageSource.gallery);
         if (f != null) setState(() => _video = f);
       }
-    } catch (e) { _showSnack('Could not pick video: $e', isError: true); }
+    } catch (e) {
+      _showSnack('Could not pick video: $e', isError: true);
+    }
   }
 
   Future<void> _pickThumbnail() async {
     try {
       if (kIsWeb) {
         final result = await FilePicker.platform.pickFiles(
-          type: FileType.image, allowMultiple: false,
-          withData: false, withReadStream: true);
+            type: FileType.image, allowMultiple: false,
+            withData: false, withReadStream: true);
         if (result != null && result.files.isNotEmpty) {
-          final f = result.files.first;
+          final f       = result.files.first;
           final chunks2 = await f.readStream!.expand((x) => x).toList();
-          final bytes2 = Uint8List.fromList(chunks2);
-          setState(() => _thumbnail = XFile.fromData(bytes2, name: f.name, mimeType: 'image/jpeg'));
+          final bytes2  = Uint8List.fromList(chunks2);
+          setState(() => _thumbnail =
+              XFile.fromData(bytes2, name: f.name, mimeType: 'image/jpeg'));
         }
       } else {
         await [Permission.storage].request();
         final f = await _picker.pickImage(source: ImageSource.gallery);
         if (f != null) setState(() => _thumbnail = f);
       }
-    } catch (e) { _showSnack('Could not pick image: $e', isError: true); }
+    } catch (e) {
+      _showSnack('Could not pick image: $e', isError: true);
+    }
   }
 
   Future<void> _pickDate(bool isStart) async {
     final picked = await showDatePicker(
       context: context,
       initialDate: (isStart ? _startDate : _endDate) ?? DateTime.now(),
-      firstDate: DateTime(2000), lastDate: DateTime(2101),
+      firstDate: DateTime(2000),
+      lastDate:  DateTime(2101),
       builder: (ctx, child) => Theme(
-        data: Theme.of(ctx).copyWith(colorScheme: const ColorScheme.dark(primary: _blue, surface: _card, onSurface: Colors.white)),
+        data: Theme.of(ctx).copyWith(
+          colorScheme: ColorScheme.light(
+            primary: _blue,
+            onPrimary: Colors.white,
+            surface: _card,
+            onSurface: _ink,
+          ),
+        ),
         child: child!,
       ),
     );
-    if (picked != null) setState(() => isStart ? _startDate = picked : _endDate = picked);
+    if (picked != null) {
+      setState(() => isStart ? _startDate = picked : _endDate = picked);
+    }
   }
 
   Future<void> _openMaterialPicker() async {
     final result = await showMaterialPicker(
-      context: context, currentGoinsBalance: _currentGoinsBalance, existingPicked: _pickedMaterials);
+        context: context,
+        currentGoinsBalance: _currentGoinsBalance,
+        existingPicked: _pickedMaterials);
     if (result != null) setState(() => _pickedMaterials = result);
   }
 
@@ -197,57 +233,83 @@ class _AddDraftScreenState extends State<AddDraftScreen> with TickerProviderStat
   }
 
   String? _validateFinal() {
-    final d = _validateDraft(); if (d != null) return d;
-    if (_startDate == null)  return 'Start date is required.';
-    if (_endDate == null)    return 'End date is required.';
-    if (_video == null)      return 'Please pick a project video.';
+    final d = _validateDraft();
+    if (d != null) return d;
+    if (_startDate == null) return 'Start date is required.';
+    if (_endDate == null)   return 'End date is required.';
+    if (_video == null)     return 'Please pick a project video.';
     return null;
   }
 
   Future<void> _handleSubmit({required bool isDraft}) async {
     final error = isDraft ? _validateDraft() : _validateFinal();
     if (error != null) { _showSnack(error, isError: true); return; }
-    if (!isDraft && _overBudget) { _showSnack('Not enough Goines!', isError: true); return; }
+    if (!isDraft && _overBudget) {
+      _showSnack('Not enough Goins!', isError: true); return;
+    }
 
     final materialsMap = {for (final m in _pickedMaterials) m.item.id: m.quantity};
 
     if (isDraft) {
       _draftId = await _draftRepo.saveOrUpdateDraft(
-        id: _draftId > 0 ? _draftId : null,
-        title: _titleCtrl.text, description: _descCtrl.text,
-        category: _categoryCtrl.text, startDate: _startDate, endDate: _endDate, materials: materialsMap,
+        id:          _draftId > 0 ? _draftId : null,
+        title:       _titleCtrl.text,
+        description: _descCtrl.text,
+        category:    _categoryCtrl.text,
+        startDate:   _startDate,
+        endDate:     _endDate,
+        materials:   materialsMap,
       );
       _showSnack('Saved as draft! ✅');
-      if (mounted) Navigator.pushNamedAndRemoveUntil(context, HomeScreen.id, (r) => false);
+      if (mounted) {
+        Navigator.pushNamedAndRemoveUntil(context, HomeScreen.id, (r) => false);
+      }
       return;
     }
 
     setState(() => _submitting = true);
-    showDialog(context: context, barrierDismissible: false, builder: (_) => const _UploadingDialog());
+    showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (_) => const _UploadingDialog());
 
     try {
       final statusCode = await _draftRepo.uploadProjects(
-        {'title': _titleCtrl.text, 'description': _descCtrl.text,
-         'startDate': _startDate, 'endDate': _endDate,
-         'category': _categoryCtrl.text, 'materials': materialsMap},
-        _video!, _thumbnail,
+        {
+          'title':       _titleCtrl.text,
+          'description': _descCtrl.text,
+          'startDate':   _startDate,
+          'endDate':     _endDate,
+          'category':    _categoryCtrl.text,
+          'materials':   materialsMap,
+        },
+        _video!,
+        _thumbnail,
       );
       if (mounted) Navigator.pop(context);
 
       if (statusCode == 201) {
         if (_pickedMaterials.isNotEmpty) {
           final pid = 'proj_${DateTime.now().millisecondsSinceEpoch}';
-          final ded = await _goinsRepo.deductForMaterials(projectId: pid, pickedMaterials: _pickedMaterials);
+          final ded = await _goinsRepo.deductForMaterials(
+              projectId: pid, pickedMaterials: _pickedMaterials);
           if (ded.success) setState(() => _currentGoinsBalance = ded.newBalance);
-          final aw  = await _goinsRepo.awardForVideoUpload(projectId: pid);
+          final aw = await _goinsRepo.awardForVideoUpload(projectId: pid);
           if (aw.success && mounted) {
-            await showGoinsAwardPopup(context: context, awarded: aw.awarded, newBalance: aw.newBalance,
-              reason: 'You earned 2× your material cost back for uploading! 🎬');
+            await showGoinsAwardPopup(
+              context:    context,
+              awarded:    aw.awarded,
+              newBalance: aw.newBalance,
+              reason:
+                  'You earned 2× your material cost back for uploading! 🎬',
+            );
           }
         }
         if (_draftId > 0) await _draftRepo.deleteDraft(_draftId);
         _showSnack('Project submitted! 🚀');
-        if (mounted) Navigator.pushNamedAndRemoveUntil(context, HomeScreen.id, (r) => false);
+        if (mounted) {
+          Navigator.pushNamedAndRemoveUntil(context, HomeScreen.id, (r) => false);
+        }
       } else {
         _showSnack('Upload failed. Please try again.', isError: true);
       }
@@ -262,20 +324,23 @@ class _AddDraftScreenState extends State<AddDraftScreen> with TickerProviderStat
   void _showSnack(String msg, {bool isError = false}) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(msg, style: GoogleFonts.poppins(color: Colors.white, fontSize: 13)),
+      content: Text(msg,
+          style: GoogleFonts.nunito(
+              color: Colors.white, fontSize: 13, fontWeight: FontWeight.w700)),
       backgroundColor: isError ? _red : _green,
-      behavior: SnackBarBehavior.floating,
+      behavior:        SnackBarBehavior.floating,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       margin: const EdgeInsets.all(12),
     ));
   }
 
+  // ── BUILD ─────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
     return AnnotatedRegion<SystemUiOverlayStyle>(
-      value: SystemUiOverlayStyle.light,
+      value: SystemUiOverlayStyle.dark, // dark icons on light background
       child: Scaffold(
-        backgroundColor: _bgDark,
+        backgroundColor: _bg,
         appBar: _buildAppBar(),
         body: _loading
             ? const Center(child: CircularProgressIndicator(color: _blue))
@@ -286,15 +351,26 @@ class _AddDraftScreenState extends State<AddDraftScreen> with TickerProviderStat
                   child: CustomScrollView(slivers: [
                     SliverPadding(
                       padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
-                      sliver: SliverList(delegate: SliverChildListDelegate([
-                        _section(emoji: '📋', title: 'Project Details', child: _buildDetails()),
-                        const SizedBox(height: 12),
-                        _section(emoji: '📅', title: 'Timeline',        child: _buildTimeline()),
-                        const SizedBox(height: 12),
-                        _section(emoji: '🎬', title: 'Media',           child: _buildMedia()),
-                        const SizedBox(height: 12),
-                        _buildMaterials(),
-                      ])),
+                      sliver: SliverList(
+                        delegate: SliverChildListDelegate([
+                          _section(
+                              emoji: '📋',
+                              title: 'Project Details',
+                              child: _buildDetails()),
+                          const SizedBox(height: 12),
+                          _section(
+                              emoji: '📅',
+                              title: 'Timeline',
+                              child: _buildTimeline()),
+                          const SizedBox(height: 12),
+                          _section(
+                              emoji: '🎬',
+                              title: 'Media',
+                              child: _buildMedia()),
+                          const SizedBox(height: 12),
+                          _buildMaterials(),
+                        ]),
+                      ),
                     ),
                   ]),
                 ),
@@ -305,293 +381,509 @@ class _AddDraftScreenState extends State<AddDraftScreen> with TickerProviderStat
   }
 
   PreferredSizeWidget _buildAppBar() => AppBar(
-    backgroundColor: _navy, elevation: 0,
-    leading: IconButton(
-      icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 18),
-      onPressed: () => Navigator.pop(context)),
-    title: Text(_draftId > 0 ? 'Edit Draft' : 'New Project',
-      style: GoogleFonts.poppins(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 17)),
-    actions: [Padding(
-      padding: const EdgeInsets.only(right: 14),
-      child: _goinsLoading
-          ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.white38, strokeWidth: 2))
-          : GoinsBalanceBadge(balance: _currentGoinsBalance),
-    )],
-  );
+        backgroundColor: _accent,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new_rounded,
+              color: Colors.white, size: 18),
+          onPressed: () => Navigator.pop(context),
+        ),
+        title: Text(
+          _draftId > 0 ? 'Edit Draft' : 'New Project',
+          style: GoogleFonts.nunito(
+              color: Colors.white,
+              fontWeight: FontWeight.w900,
+              fontSize: 18),
+        ),
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 14),
+            child: _goinsLoading
+                ? const SizedBox(
+                    width: 24,
+                    height: 24,
+                    child: CircularProgressIndicator(
+                        color: Colors.white54, strokeWidth: 2))
+                : GoinsBalanceBadge(balance: _currentGoinsBalance),
+          ),
+        ],
+      );
 
-  Widget _section({required String emoji, required String title, required Widget child}) =>
-    Container(
-      decoration: BoxDecoration(color: _card, borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white.withOpacity(0.06))),
+  Widget _section(
+          {required String emoji,
+          required String title,
+          required Widget child}) =>
+      Container(
+        decoration: BoxDecoration(
+          color:        _card,
+          borderRadius: BorderRadius.circular(16),
+          border:       Border.all(color: _cardBorder),
+          boxShadow: [
+            BoxShadow(
+              color:  Colors.black.withOpacity(0.04),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        padding: const EdgeInsets.all(16),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Row(children: [
+            Text(emoji, style: const TextStyle(fontSize: 16)),
+            const SizedBox(width: 8),
+            Text(title,
+                style: GoogleFonts.nunito(
+                    color:      _ink,
+                    fontWeight: FontWeight.w900,
+                    fontSize:   14)),
+          ]),
+          const SizedBox(height: 14),
+          child,
+        ]),
+      );
+
+  Widget _buildDetails() => Column(children: [
+        _field(
+            ctrl:  _titleCtrl,
+            label: 'Title',
+            hint:  'What did you build?',
+            icon:  Icons.title_rounded),
+        const SizedBox(height: 12),
+        _field(
+            ctrl:     _descCtrl,
+            label:    'Description',
+            hint:     'Describe your project and what you learned...',
+            icon:     Icons.description_rounded,
+            maxLines: 3),
+        const SizedBox(height: 12),
+        _buildCategoryDropdown(),
+      ]);
+
+  Widget _field({
+    required TextEditingController ctrl,
+    required String label,
+    required String hint,
+    required IconData icon,
+    int maxLines = 1,
+  }) =>
+      TextFormField(
+        controller: ctrl,
+        maxLines:   maxLines,
+        style: GoogleFonts.nunito(
+            color: _ink, fontSize: 14, fontWeight: FontWeight.w600),
+        cursorColor: _blue,
+        decoration: InputDecoration(
+          labelText: label,
+          hintText:  hint,
+          labelStyle: GoogleFonts.nunito(color: _muted, fontSize: 13),
+          hintStyle:  GoogleFonts.nunito(color: const Color(0xFFCCCCDD), fontSize: 13),
+          prefixIcon: Icon(icon, color: _muted, size: 18),
+          filled:     true,
+          fillColor:  const Color(0xFFF8F9FF),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide:   const BorderSide(color: Color(0xFFE8EAFF)),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide:   const BorderSide(color: _blue, width: 1.5),
+          ),
+          contentPadding:
+              const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        ),
+      );
+
+  Widget _buildCategoryDropdown() => DropdownButtonFormField<String>(
+        value: (_categoryCtrl.text.isNotEmpty &&
+                _categories.contains(_categoryCtrl.text))
+            ? _categoryCtrl.text
+            : null,
+        dropdownColor: _card,
+        style: GoogleFonts.nunito(
+            color: _ink, fontSize: 14, fontWeight: FontWeight.w600),
+        icon: const Icon(Icons.keyboard_arrow_down_rounded, color: _muted),
+        decoration: InputDecoration(
+          labelText: 'Category',
+          labelStyle: GoogleFonts.nunito(color: _muted, fontSize: 13),
+          prefixIcon: const Icon(Icons.category_rounded, color: _muted, size: 18),
+          filled:    true,
+          fillColor: const Color(0xFFF8F9FF),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide:   const BorderSide(color: Color(0xFFE8EAFF)),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide:   const BorderSide(color: _blue, width: 1.5),
+          ),
+          contentPadding:
+              const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        ),
+        items: _categories
+            .map((c) => DropdownMenuItem(
+                  value: c,
+                  child: Text(c,
+                      style: GoogleFonts.nunito(color: _ink, fontSize: 14)),
+                ))
+            .toList(),
+        onChanged: (v) => setState(() => _categoryCtrl.text = v ?? ''),
+      );
+
+  Widget _buildTimeline() => Row(children: [
+        Expanded(child: _dateTile('Start Date', _startDate, () => _pickDate(true))),
+        const SizedBox(width: 10),
+        const Icon(Icons.arrow_forward_rounded, color: _muted, size: 18),
+        const SizedBox(width: 10),
+        Expanded(child: _dateTile('End Date', _endDate, () => _pickDate(false))),
+      ]);
+
+  Widget _dateTile(String label, DateTime? date, VoidCallback onTap) =>
+      GestureDetector(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+          decoration: BoxDecoration(
+            color:        const Color(0xFFF8F9FF),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+                color: date != null ? _blue.withOpacity(0.5) : _cardBorder),
+          ),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(label,
+                style: GoogleFonts.nunito(color: _muted, fontSize: 10)),
+            const SizedBox(height: 4),
+            Row(children: [
+              Icon(Icons.calendar_today_rounded,
+                  size:  13,
+                  color: date != null ? _blue : _muted),
+              const SizedBox(width: 6),
+              Text(
+                date != null
+                    ? '${date.day}/${date.month}/${date.year}'
+                    : 'Pick date',
+                style: GoogleFonts.nunito(
+                    color: date != null ? _ink : _muted,
+                    fontSize:   12,
+                    fontWeight: date != null
+                        ? FontWeight.w700
+                        : FontWeight.normal),
+              ),
+            ]),
+          ]),
+        ),
+      );
+
+  Widget _buildMedia() => Column(children: [
+        _mediaTile(
+          Icons.video_library_rounded,
+          'Project Video',
+          _video != null ? '✅ ${_video!.name}' : 'Tap to pick a video file',
+          _video != null,
+          _pickVideo,
+          _purple,
+        ),
+        const SizedBox(height: 10),
+      ]);
+
+  Widget _mediaTile(IconData icon, String label, String sub, bool hasFile,
+      VoidCallback onTap, Color accent) =>
+      GestureDetector(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color:        const Color(0xFFF8F9FF),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+                color: hasFile ? accent.withOpacity(0.5) : _cardBorder),
+          ),
+          child: Row(children: [
+            Container(
+              width:  44, height: 44,
+              decoration: BoxDecoration(
+                color:        accent.withOpacity(0.12),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(icon, color: accent, size: 22),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(label,
+                        style: GoogleFonts.nunito(
+                            color:      _ink,
+                            fontSize:   13,
+                            fontWeight: FontWeight.w700)),
+                    Text(sub,
+                        style: GoogleFonts.nunito(
+                            color:    hasFile ? accent : _muted,
+                            fontSize: 11),
+                        maxLines:  1,
+                        overflow:  TextOverflow.ellipsis),
+                  ]),
+            ),
+            Icon(Icons.chevron_right_rounded, color: _muted, size: 20),
+          ]),
+        ),
+      );
+
+  Widget _buildMaterials() {
+    final totalGoins = _totalGoins;
+    return Container(
+      decoration: BoxDecoration(
+        color:        _card,
+        borderRadius: BorderRadius.circular(16),
+        border:       Border.all(color: _cardBorder),
+        boxShadow: [
+          BoxShadow(
+            color:      Colors.black.withOpacity(0.04),
+            blurRadius: 8,
+            offset:     const Offset(0, 2),
+          ),
+        ],
+      ),
       padding: const EdgeInsets.all(16),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(children: [
-          Text(emoji, style: const TextStyle(fontSize: 16)), const SizedBox(width: 8),
-          Text(title, style: GoogleFonts.poppins(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
+          const Text('🧰', style: TextStyle(fontSize: 16)),
+          const SizedBox(width: 8),
+          Text('Materials',
+              style: GoogleFonts.nunito(
+                  color: _ink, fontWeight: FontWeight.w900, fontSize: 14)),
+          const Spacer(),
+          if (totalGoins > 0)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                color:        const Color(0xFFFFF3CC),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Text('$totalGoins G total',
+                  style: GoogleFonts.nunito(
+                      color:      const Color(0xFFE8A000),
+                      fontSize:   12,
+                      fontWeight: FontWeight.w800)),
+            ),
         ]),
-        const SizedBox(height: 14), child,
-      ]),
-    );
-
-  Widget _buildDetails() => Column(children: [
-    _field(ctrl: _titleCtrl,  label: 'Title',       hint: 'What did you build?',                        icon: Icons.title_rounded),
-    const SizedBox(height: 12),
-    _field(ctrl: _descCtrl,   label: 'Description', hint: 'Describe your project and what you learned...', icon: Icons.description_rounded, maxLines: 3),
-    const SizedBox(height: 12),
-    _buildCategoryDropdown(),
-  ]);
-
-  Widget _field({required TextEditingController ctrl, required String label, required String hint, required IconData icon, int maxLines = 1}) =>
-    TextFormField(
-      controller: ctrl, maxLines: maxLines,
-      style: GoogleFonts.poppins(color: Colors.white, fontSize: 14), cursorColor: _blue,
-      decoration: InputDecoration(
-        labelText: label, hintText: hint,
-        labelStyle: GoogleFonts.poppins(color: Colors.white54, fontSize: 13),
-        hintStyle:  GoogleFonts.poppins(color: Colors.white24, fontSize: 13),
-        prefixIcon: Icon(icon, color: Colors.white38, size: 18),
-        filled: true, fillColor: _bgDark,
-        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: _cardLight.withOpacity(0.6))),
-        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: _blue)),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      ),
-    );
-
-  Widget _buildCategoryDropdown() => DropdownButtonFormField<String>(
-    value: (_categoryCtrl.text.isNotEmpty && _categories.contains(_categoryCtrl.text)) ? _categoryCtrl.text : null,
-    dropdownColor: _card,
-    style: GoogleFonts.poppins(color: Colors.white, fontSize: 14),
-    icon: const Icon(Icons.keyboard_arrow_down_rounded, color: Colors.white38),
-    decoration: InputDecoration(
-      labelText: 'Category',
-      labelStyle: GoogleFonts.poppins(color: Colors.white54, fontSize: 13),
-      prefixIcon: const Icon(Icons.category_rounded, color: Colors.white38, size: 18),
-      filled: true, fillColor: _bgDark,
-      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: _cardLight.withOpacity(0.6))),
-      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: _blue)),
-      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-    ),
-    items: _categories.map((c) => DropdownMenuItem(value: c, child: Text(c, style: GoogleFonts.poppins(color: Colors.white, fontSize: 14)))).toList(),
-    onChanged: (v) => setState(() => _categoryCtrl.text = v ?? ''),
-  );
-
-  Widget _buildTimeline() => Row(children: [
-    Expanded(child: _dateTile('Start Date', _startDate, () => _pickDate(true))),
-    const SizedBox(width: 10),
-    const Icon(Icons.arrow_forward_rounded, color: Colors.white24, size: 18),
-    const SizedBox(width: 10),
-    Expanded(child: _dateTile('End Date',   _endDate,   () => _pickDate(false))),
-  ]);
-
-  Widget _dateTile(String label, DateTime? date, VoidCallback onTap) => GestureDetector(
-    onTap: onTap,
-    child: Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
-      decoration: BoxDecoration(
-        color: _bgDark, borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: date != null ? _blue.withOpacity(0.5) : _cardLight.withOpacity(0.6))),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text(label, style: GoogleFonts.poppins(color: Colors.white38, fontSize: 10)),
+        const SizedBox(height: 14),
+        if (_pickedMaterials.isEmpty)
+          GestureDetector(
+            onTap: _openMaterialPicker,
+            child: Container(
+              width:   double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 20),
+              decoration: BoxDecoration(
+                color:        const Color(0xFFF8F9FF),
+                borderRadius: BorderRadius.circular(12),
+                border:       Border.all(
+                    color: _cardBorder, style: BorderStyle.solid),
+              ),
+              child: Column(children: [
+                const Text('📦', style: TextStyle(fontSize: 32)),
+                const SizedBox(height: 8),
+                Text('No materials selected yet',
+                    style: GoogleFonts.nunito(color: _muted, fontSize: 13)),
+                const SizedBox(height: 4),
+                Text('Tap to pick materials for your project',
+                    style: GoogleFonts.nunito(
+                        color: _blue, fontSize: 12, fontWeight: FontWeight.w700)),
+              ]),
+            ),
+          )
+        else ...[
+          ..._pickedMaterials.map((pm) => Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Row(children: [
+                  Container(
+                    width:  36, height: 36,
+                    decoration: BoxDecoration(
+                        color:        const Color(0xFFF0F4FF),
+                        borderRadius: BorderRadius.circular(8)),
+                    child: pm.item.imageUrl != null &&
+                            pm.item.imageUrl!.isNotEmpty
+                        ? ClipRRect(
+                            borderRadius: BorderRadius.circular(8),
+                            child: Image.network(pm.item.imageUrl!,
+                                fit:          BoxFit.contain,
+                                errorBuilder: (_, __, ___) => const Center(
+                                    child: Text('📦',
+                                        style: TextStyle(fontSize: 16)))))
+                        : const Center(
+                            child:
+                                Text('📦', style: TextStyle(fontSize: 16))),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(pm.item.name,
+                              style: GoogleFonts.nunito(
+                                  color:      _ink,
+                                  fontSize:   13,
+                                  fontWeight: FontWeight.w700)),
+                          Text('×${pm.quantity} ${pm.item.unit}',
+                              style: GoogleFonts.nunito(
+                                  color: _muted, fontSize: 11)),
+                        ]),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color:        const Color(0xFFFFF3CC),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text('${pm.totalGoins} G',
+                        style: GoogleFonts.nunito(
+                            color:      const Color(0xFFE8A000),
+                            fontSize:   11,
+                            fontWeight: FontWeight.w800)),
+                  ),
+                ]),
+              )),
+          const SizedBox(height: 8),
+        ],
         const SizedBox(height: 4),
-        Row(children: [
-          Icon(Icons.calendar_today_rounded, size: 13, color: date != null ? _blue : Colors.white24),
-          const SizedBox(width: 6),
-          Text(
-            date != null ? '${date.day}/${date.month}/${date.year}' : 'Pick date',
-            style: GoogleFonts.poppins(color: date != null ? Colors.white : Colors.white38,
-              fontSize: 12, fontWeight: date != null ? FontWeight.w600 : FontWeight.normal),
+        SizedBox(
+          width: double.infinity,
+          child: OutlinedButton.icon(
+            onPressed: _openMaterialPicker,
+            icon:  const Icon(Icons.add_rounded, size: 18),
+            label: Text(
+              _pickedMaterials.isEmpty
+                  ? 'Pick Materials'
+                  : 'Edit Materials',
+              style: GoogleFonts.nunito(
+                  fontWeight: FontWeight.w800, fontSize: 13),
+            ),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: _blue,
+              side:            const BorderSide(color: _blue),
+              padding:         const EdgeInsets.symmetric(vertical: 12),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
+            ),
           ),
-        ]),
+        ),
       ]),
-    ),
-  );
-
-  Widget _buildMedia() => Column(children: [
-    _mediaTile(Icons.video_library_rounded, 'Project Video',
-      _video != null ? '✅ ${_video!.name}' : 'Tap to pick a video file',
-      _video != null, _pickVideo, _purple),
-    const SizedBox(height: 10),
-  ]);
-
-  Widget _mediaTile(IconData icon, String label, String sub, bool hasFile, VoidCallback onTap, Color accent) =>
-    GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: _bgDark, borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: hasFile ? accent.withOpacity(0.6) : _cardLight.withOpacity(0.6))),
-        child: Row(children: [
-          Container(width: 44, height: 44,
-            decoration: BoxDecoration(color: accent.withOpacity(0.15), borderRadius: BorderRadius.circular(10)),
-            child: Icon(icon, color: accent, size: 22)),
-          const SizedBox(width: 12),
-          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(label, style: GoogleFonts.poppins(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600)),
-            Text(sub,   style: GoogleFonts.poppins(color: hasFile ? accent : Colors.white38, fontSize: 11), maxLines: 1, overflow: TextOverflow.ellipsis),
-          ])),
-          Icon(hasFile ? Icons.check_circle_rounded : Icons.add_circle_outline_rounded,
-            color: hasFile ? accent : Colors.white24, size: 22),
-        ]),
-      ),
     );
-
-  Widget _buildMaterials() => Container(
-    decoration: BoxDecoration(color: _card, borderRadius: BorderRadius.circular(16),
-      border: Border.all(color: _pickedMaterials.isNotEmpty ? _blue.withOpacity(0.3) : Colors.white.withOpacity(0.06))),
-    padding: const EdgeInsets.all(16),
-    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-        Row(children: [
-          const Text('🧰', style: TextStyle(fontSize: 16)), const SizedBox(width: 8),
-          Text('Materials', style: GoogleFonts.poppins(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
-        ]),
-        if (_pickedMaterials.isNotEmpty) Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-          decoration: BoxDecoration(
-            color: (_overBudget ? _red : _amber).withOpacity(0.15), borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: (_overBudget ? _red : _amber).withOpacity(0.4))),
-          child: Row(mainAxisSize: MainAxisSize.min, children: [
-            Text(_overBudget ? '⛔' : '💸', style: const TextStyle(fontSize: 12)),
-            const SizedBox(width: 4),
-            Text('$_totalGoins G', style: GoogleFonts.poppins(color: _overBudget ? _red : _amber, fontSize: 12, fontWeight: FontWeight.bold)),
-          ]),
-        ),
-      ]),
-      const SizedBox(height: 12),
-      if (_pickedMaterials.isNotEmpty) ...[
-        Wrap(spacing: 8, runSpacing: 6,
-          children: _pickedMaterials.map((p) => _MaterialChip(picked: p,
-            onRemove: () => setState(() => _pickedMaterials.remove(p)))).toList()),
-        const SizedBox(height: 12),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-          decoration: BoxDecoration(
-            color: (_overBudget ? _red : _green).withOpacity(0.08), borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: (_overBudget ? _red : _green).withOpacity(0.2))),
-          child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-            _stat('My Balance',  '$_currentGoinsBalance G', Colors.white60),
-            _stat('Cost',        '-$_totalGoins G',         _amber),
-            _stat(_overBudget ? '⛔ Short' : '✅ Left', '$_goinsAfter G', _overBudget ? _red : _green),
-          ]),
-        ),
-        const SizedBox(height: 12),
-      ],
-      GestureDetector(
-        onTap: _openMaterialPicker,
-        child: Container(
-          width: double.infinity, padding: const EdgeInsets.symmetric(vertical: 14),
-          decoration: BoxDecoration(color: _bgDark, borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: _pickedMaterials.isNotEmpty ? _blue.withOpacity(0.4) : Colors.white12)),
-          child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-            Icon(_pickedMaterials.isNotEmpty ? Icons.edit_rounded : Icons.add_rounded, color: _blue, size: 18),
-            const SizedBox(width: 8),
-            Text(
-              _pickedMaterials.isNotEmpty ? 'Edit Materials (${_pickedMaterials.length} items)' : '+ Pick Materials',
-              style: GoogleFonts.poppins(color: _blue, fontWeight: FontWeight.w600, fontSize: 13)),
-          ]),
-        ),
-      ),
-      if (_pickedMaterials.isNotEmpty) ...[
-        const SizedBox(height: 10),
-        Container(
-          padding: const EdgeInsets.all(10),
-          decoration: BoxDecoration(color: _green.withOpacity(0.06), borderRadius: BorderRadius.circular(10)),
-          child: Row(children: [
-            const Text('🚀', style: TextStyle(fontSize: 12)), const SizedBox(width: 8),
-            Expanded(child: Text(
-              'Upload video → earn back 2× ($_totalGoins × 2 = ${_totalGoins * 2} Goines)!',
-              style: GoogleFonts.poppins(color: Colors.white38, fontSize: 10))),
-          ]),
-        ),
-      ],
-    ]),
-  );
-
-  Widget _stat(String label, String val, Color c) => Column(children: [
-    Text(label, style: GoogleFonts.poppins(color: Colors.white38, fontSize: 9)),
-    const SizedBox(height: 2),
-    Text(val, style: GoogleFonts.poppins(color: c, fontSize: 12, fontWeight: FontWeight.bold)),
-  ]);
+  }
 
   Widget _buildBottomBar() => SafeArea(
-    child: Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-      decoration: const BoxDecoration(color: _card, border: Border(top: BorderSide(color: Colors.white10))),
-      child: Row(children: [
-        Expanded(child: _ActionButton(label: 'Save Draft', icon: Icons.drafts_rounded,
-          color: _cardLight, textColor: Colors.white70, loading: false,
-          onTap: () => _handleSubmit(isDraft: true))),
-        const SizedBox(width: 10),
-        Expanded(flex: 2, child: _ActionButton(
-          label: _overBudget ? 'Not Enough Goines' : 'Submit Project',
-          icon:  _overBudget ? Icons.warning_rounded : Icons.rocket_launch_rounded,
-          color: _overBudget ? _red.withOpacity(0.3) : _blue,
-          textColor: Colors.white, loading: _submitting,
-          onTap: _overBudget ? null : () => _handleSubmit(isDraft: false))),
-      ]),
-    ),
-  );
+        child: Container(
+          padding:   const EdgeInsets.fromLTRB(16, 10, 16, 12),
+          decoration: BoxDecoration(
+            color:  _card,
+            border: const Border(top: BorderSide(color: Color(0xFFE8EAFF))),
+            boxShadow: [
+              BoxShadow(
+                color:      Colors.black.withOpacity(0.05),
+                blurRadius: 12,
+                offset:     const Offset(0, -3),
+              ),
+            ],
+          ),
+          child: Row(children: [
+            // Goins summary
+            Expanded(
+              child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize:       MainAxisSize.min,
+                  children: [
+                    Text('Balance after selection',
+                        style: GoogleFonts.nunito(
+                            color: _muted, fontSize: 11)),
+                    Text(
+                      _overBudget
+                          ? '⛔ Not enough Goins!'
+                          : '🪙 ${_goinsAfter} G remaining',
+                      style: GoogleFonts.nunito(
+                          color:      _overBudget ? _red : _green,
+                          fontSize:   13,
+                          fontWeight: FontWeight.w800),
+                    ),
+                  ]),
+            ),
+            // Save draft
+            GestureDetector(
+              onTap: () => _handleSubmit(isDraft: true),
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 14, vertical: 10),
+                margin: const EdgeInsets.only(right: 8),
+                decoration: BoxDecoration(
+                  color:        const Color(0xFFF0F4FF),
+                  borderRadius: BorderRadius.circular(12),
+                  border:       Border.all(color: _cardBorder),
+                ),
+                child: Text('Save Draft',
+                    style: GoogleFonts.nunito(
+                        color:      _blue,
+                        fontSize:   13,
+                        fontWeight: FontWeight.w800)),
+              ),
+            ),
+            // Submit
+            GestureDetector(
+              onTap: _submitting ? null : () => _handleSubmit(isDraft: false),
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 18, vertical: 10),
+                decoration: BoxDecoration(
+                  color:        _overBudget ? _red : _blue,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(mainAxisSize: MainAxisSize.min, children: [
+                  Icon(
+                    _overBudget
+                        ? Icons.warning_rounded
+                        : Icons.upload_rounded,
+                    color: Colors.white,
+                    size:  16,
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    _submitting ? 'Uploading...' : 'Submit',
+                    style: GoogleFonts.nunito(
+                        color:      Colors.white,
+                        fontSize:   13,
+                        fontWeight: FontWeight.w800),
+                  ),
+                ]),
+              ),
+            ),
+          ]),
+        ),
+      );
 }
 
-class _MaterialChip extends StatelessWidget {
-  final PickedMaterial picked; final VoidCallback onRemove;
-  const _MaterialChip({required this.picked, required this.onRemove});
-  @override
-  Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-    decoration: BoxDecoration(
-      color: const Color(0xFF1E3A8A).withOpacity(0.4), borderRadius: BorderRadius.circular(20),
-      border: Border.all(color: const Color(0xFF3B82F6).withOpacity(0.3))),
-    child: Row(mainAxisSize: MainAxisSize.min, children: [
-      Text('${picked.item.name} ×${picked.quantity}',
-        style: GoogleFonts.poppins(color: Colors.white70, fontSize: 11)),
-      const SizedBox(width: 4),
-      Text('${picked.totalGoins}G',
-        style: GoogleFonts.poppins(color: const Color(0xFFF59E0B), fontSize: 10, fontWeight: FontWeight.bold)),
-      const SizedBox(width: 4),
-      GestureDetector(onTap: onRemove,
-        child: const Icon(Icons.close_rounded, size: 13, color: Colors.white38)),
-    ]),
-  );
-}
-
-class _ActionButton extends StatelessWidget {
-  final String label; final IconData icon; final Color color;
-  final Color textColor; final bool loading; final VoidCallback? onTap;
-  const _ActionButton({required this.label, required this.icon, required this.color,
-    required this.textColor, required this.loading, required this.onTap});
-  @override
-  Widget build(BuildContext context) => GestureDetector(
-    onTap: loading ? null : onTap,
-    child: Container(
-      height: 48,
-      decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(12)),
-      child: loading
-          ? const Center(child: SizedBox(width: 20, height: 20,
-              child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)))
-          : Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-              Icon(icon, color: textColor, size: 16), const SizedBox(width: 6),
-              Text(label, style: GoogleFonts.poppins(color: textColor, fontWeight: FontWeight.w600, fontSize: 13)),
-            ]),
-    ),
-  );
-}
-
+// ── Uploading dialog ──────────────────────────────────────────────────────────
 class _UploadingDialog extends StatelessWidget {
   const _UploadingDialog();
+
   @override
-  Widget build(BuildContext context) => Dialog(
-    backgroundColor: const Color(0xFF1E293B),
-    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-    child: Padding(padding: const EdgeInsets.all(28),
-      child: Column(mainAxisSize: MainAxisSize.min, children: [
-        const CircularProgressIndicator(color: Color(0xFF3B82F6)),
-        const SizedBox(height: 16),
-        Text('Uploading project...', style: GoogleFonts.poppins(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w500)),
-        const SizedBox(height: 4),
-        Text('This may take a moment 🚀', style: GoogleFonts.poppins(color: Colors.white38, fontSize: 12)),
-      ]),
-    ),
-  );
+  Widget build(BuildContext context) {
+    return Dialog(
+      backgroundColor: _card,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      child: Padding(
+        padding: const EdgeInsets.all(28),
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          const CircularProgressIndicator(color: _blue, strokeWidth: 3),
+          const SizedBox(height: 20),
+          Text('Uploading your project...',
+              style: GoogleFonts.nunito(
+                  color:      _ink,
+                  fontSize:   15,
+                  fontWeight: FontWeight.w800)),
+          const SizedBox(height: 6),
+          Text('This may take a minute 🎬',
+              style: GoogleFonts.nunito(color: _muted, fontSize: 12)),
+        ]),
+      ),
+    );
+  }
 }
