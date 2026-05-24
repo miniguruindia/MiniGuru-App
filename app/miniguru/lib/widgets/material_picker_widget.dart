@@ -55,13 +55,13 @@ class MaterialPickerSheet extends StatefulWidget {
 class _MaterialPickerSheetState extends State<MaterialPickerSheet> {
   final _repo = GoinsRepository();
 
-  List<MaterialCategory> _categories = [];
+  List<MaterialCategory> _categories  = [];
   List<MaterialItem>     _allMaterials = [];
-  List<MaterialItem>     _filtered = [];
-  Map<String, int>       _quantities = {}; // materialId → quantity
+  List<MaterialItem>     _filtered     = [];
+  Map<String, int>       _quantities   = {}; // materialId → quantity
   String                 _activeCategoryId = 'all';
-  String                 _searchQuery = '';
-  bool                   _loading = true;
+  String                 _searchQuery  = '';
+  bool                   _loading      = true;
 
   @override
   void initState() {
@@ -77,10 +77,10 @@ class _MaterialPickerSheetState extends State<MaterialPickerSheet> {
     final cats = await _repo.getMaterialCategories();
     final mats = await _repo.getMaterials();
     setState(() {
-      _categories = cats;
+      _categories   = cats;
       _allMaterials = mats;
-      _filtered = mats;
-      _loading = false;
+      _filtered     = mats;
+      _loading      = false;
     });
   }
 
@@ -95,7 +95,7 @@ class _MaterialPickerSheetState extends State<MaterialPickerSheet> {
   }
 
   int get _remainingBalance => widget.currentGoinsBalance - _totalGoins;
-  bool get _overBudget => _remainingBalance < 0;
+  bool get _overBudget      => _remainingBalance < 0;
 
   List<PickedMaterial> get _pickedList {
     return _allMaterials
@@ -108,7 +108,7 @@ class _MaterialPickerSheetState extends State<MaterialPickerSheet> {
   void _applyFilter() {
     setState(() {
       _filtered = _allMaterials.where((m) {
-        final matchCat = _activeCategoryId == 'all' || m.categoryId == _activeCategoryId;
+        final matchCat    = _activeCategoryId == 'all' || m.categoryId == _activeCategoryId;
         final matchSearch = _searchQuery.isEmpty ||
             m.name.toLowerCase().contains(_searchQuery.toLowerCase());
         return matchCat && matchSearch;
@@ -124,7 +124,7 @@ class _MaterialPickerSheetState extends State<MaterialPickerSheet> {
   void _setQty(String materialId, int delta) {
     setState(() {
       final current = _quantities[materialId] ?? 0;
-      final newQty = (current + delta).clamp(0, 99);
+      final newQty  = (current + delta).clamp(0, 99);
       if (newQty == 0) {
         _quantities.remove(materialId);
       } else {
@@ -140,7 +140,7 @@ class _MaterialPickerSheetState extends State<MaterialPickerSheet> {
         SnackBar(
           content: Text(
             'Not enough Goins! Remove some materials.',
-            style: GoogleFonts.nunito(fontWeight: FontWeight.w900, ),
+            style: GoogleFonts.nunito(fontWeight: FontWeight.w900),
           ),
           backgroundColor: _red,
         ),
@@ -197,7 +197,8 @@ class _MaterialPickerSheetState extends State<MaterialPickerSheet> {
             Expanded(
               child: Text(
                 'Pick Your Materials',
-                style: GoogleFonts.nunito(color: Colors.white,
+                style: GoogleFonts.nunito(
+                  color: Colors.white,
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
                 ),
@@ -232,16 +233,9 @@ class _MaterialPickerSheetState extends State<MaterialPickerSheet> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          _goinsStat(
-            '💰 Balance',
-            '${widget.currentGoinsBalance} G',
-            Colors.white70,
-          ),
-          _goinsStat(
-            '🧰 Cost',
-            '-$_totalGoins G',
-            _totalGoins > 0 ? _amber : Colors.white38,
-          ),
+          _goinsStat('💰 Balance', '${widget.currentGoinsBalance} G', Colors.white70),
+          _goinsStat('🧰 Cost',    '-$_totalGoins G',
+              _totalGoins > 0 ? _amber : Colors.white38),
           _goinsStat(
             _overBudget ? '⛔ Short' : '✅ After',
             '${_remainingBalance} G',
@@ -257,10 +251,12 @@ class _MaterialPickerSheetState extends State<MaterialPickerSheet> {
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         Text(label,
-            style: GoogleFonts.nunito(color: Colors.white38, fontSize: 10, fontWeight: FontWeight.w500)),
+            style: GoogleFonts.nunito(
+                color: Colors.white38, fontSize: 10, fontWeight: FontWeight.w500)),
         const SizedBox(height: 2),
         Text(value,
-            style: GoogleFonts.nunito(color: valueColor, fontSize: 14, fontWeight: FontWeight.bold)),
+            style: GoogleFonts.nunito(
+                color: valueColor, fontSize: 14, fontWeight: FontWeight.bold)),
       ],
     );
   }
@@ -273,10 +269,12 @@ class _MaterialPickerSheetState extends State<MaterialPickerSheet> {
           _searchQuery = v;
           _applyFilter();
         },
-        style: GoogleFonts.nunito(fontWeight: FontWeight.w900, color: Colors.white, fontSize: 14),
+        style: GoogleFonts.nunito(
+            fontWeight: FontWeight.w900, color: Colors.white, fontSize: 14),
         decoration: InputDecoration(
           hintText: 'Search materials...',
-          hintStyle: GoogleFonts.nunito(fontWeight: FontWeight.w900, color: Colors.white38, fontSize: 14),
+          hintStyle: GoogleFonts.nunito(
+              fontWeight: FontWeight.w900, color: Colors.white38, fontSize: 14),
           prefixIcon: const Icon(Icons.search, color: Colors.white38, size: 18),
           filled: true,
           fillColor: _cardDark,
@@ -303,7 +301,7 @@ class _MaterialPickerSheetState extends State<MaterialPickerSheet> {
         padding: const EdgeInsets.symmetric(horizontal: 12),
         itemCount: all.length,
         itemBuilder: (_, i) {
-          final cat = all[i];
+          final cat    = all[i];
           final active = _activeCategoryId == cat.id;
           return GestureDetector(
             onTap: () => _setCategory(cat.id),
@@ -320,7 +318,8 @@ class _MaterialPickerSheetState extends State<MaterialPickerSheet> {
               ),
               child: Text(
                 '${cat.emoji} ${cat.name}',
-                style: GoogleFonts.nunito(color: active ? Colors.white : Colors.white54,
+                style: GoogleFonts.nunito(
+                  color: active ? Colors.white : Colors.white54,
                   fontSize: 12,
                   fontWeight: active ? FontWeight.w600 : FontWeight.normal,
                 ),
@@ -345,7 +344,10 @@ class _MaterialPickerSheetState extends State<MaterialPickerSheet> {
             const Text('🔍', style: TextStyle(fontSize: 40)),
             const SizedBox(height: 10),
             Text('No materials found',
-                style: GoogleFonts.nunito(fontWeight: FontWeight.w900, color: Colors.white38, fontSize: 14)),
+                style: GoogleFonts.nunito(
+                    fontWeight: FontWeight.w900,
+                    color: Colors.white38,
+                    fontSize: 14)),
           ],
         ),
       );
@@ -357,7 +359,7 @@ class _MaterialPickerSheetState extends State<MaterialPickerSheet> {
         crossAxisCount: 2,
         mainAxisSpacing: 10,
         crossAxisSpacing: 10,
-        childAspectRatio: 1.55,
+        childAspectRatio: 0.85, // ← was 1.55 — now portrait, image has room
       ),
       itemCount: _filtered.length,
       itemBuilder: (_, i) => _buildMaterialCard(_filtered[i]),
@@ -365,7 +367,7 @@ class _MaterialPickerSheetState extends State<MaterialPickerSheet> {
   }
 
   Widget _buildMaterialCard(MaterialItem mat) {
-    final qty = _quantities[mat.id] ?? 0;
+    final qty      = _quantities[mat.id] ?? 0;
     final selected = qty > 0;
 
     return AnimatedContainer(
@@ -382,27 +384,36 @@ class _MaterialPickerSheetState extends State<MaterialPickerSheet> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Image (if available)
-          if (mat.imageUrl != null && mat.imageUrl!.isNotEmpty)
-            SizedBox(
-              height: 36,
-              child: Center(
-                child: Image.network(
-                  mat.imageUrl!,
-                  fit: BoxFit.contain,
-                  errorBuilder: (_, __, ___) => const SizedBox(),
-                ),
-              ),
+
+          // ── Image — 90px tall, emoji fallback ─────────────────────────────
+          ClipRRect(
+            borderRadius: BorderRadius.circular(10),
+            child: SizedBox(
+              height: 90,
+              width: double.infinity,
+              child: (mat.imageUrl != null && mat.imageUrl!.isNotEmpty)
+                  ? Image.network(
+                      mat.imageUrl!,
+                      fit: BoxFit.contain,
+                      errorBuilder: (_, __, ___) => const Center(
+                        child: Text('📦', style: TextStyle(fontSize: 36)),
+                      ),
+                    )
+                  : const Center(
+                      child: Text('📦', style: TextStyle(fontSize: 36)),
+                    ),
             ),
-          if (mat.imageUrl != null && mat.imageUrl!.isNotEmpty)
-            const SizedBox(height: 4),
-          // Name row
+          ),
+          const SizedBox(height: 6),
+
+          // ── Name + Goins badge ─────────────────────────────────────────────
           Row(
             children: [
               Expanded(
                 child: Text(
                   mat.name,
-                  style: GoogleFonts.nunito(color: Colors.white,
+                  style: GoogleFonts.nunito(
+                    color: Colors.white,
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
                   ),
@@ -410,7 +421,6 @@ class _MaterialPickerSheetState extends State<MaterialPickerSheet> {
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
-              // Goins cost badge
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                 decoration: BoxDecoration(
@@ -419,25 +429,31 @@ class _MaterialPickerSheetState extends State<MaterialPickerSheet> {
                 ),
                 child: Text(
                   '${mat.goinsPerUnit}G',
-                  style: GoogleFonts.nunito(color: _amber, fontSize: 10, fontWeight: FontWeight.bold),
+                  style: GoogleFonts.nunito(
+                      color: _amber, fontSize: 10, fontWeight: FontWeight.bold),
                 ),
               ),
             ],
           ),
           const SizedBox(height: 2),
+
+          // ── Unit ──────────────────────────────────────────────────────────
           Text(
             '/${mat.unit}',
-            style: GoogleFonts.nunito(fontWeight: FontWeight.w900, color: Colors.white38, fontSize: 10),
+            style: GoogleFonts.nunito(
+                fontWeight: FontWeight.w900, color: Colors.white38, fontSize: 10),
           ),
+
           const Spacer(),
-          // Quantity controls
+
+          // ── Quantity controls + running cost ──────────────────────────────
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              // Total cost for this item
               Text(
                 qty > 0 ? '= ${mat.goinsPerUnit * qty}G' : '',
-                style: GoogleFonts.nunito(color: _green, fontSize: 10, fontWeight: FontWeight.w500),
+                style: GoogleFonts.nunito(
+                    color: _green, fontSize: 10, fontWeight: FontWeight.w500),
               ),
               Row(
                 children: [
@@ -447,7 +463,8 @@ class _MaterialPickerSheetState extends State<MaterialPickerSheet> {
                     padding: const EdgeInsets.symmetric(horizontal: 8),
                     child: Text(
                       '$qty',
-                      style: GoogleFonts.nunito(color: Colors.white,
+                      style: GoogleFonts.nunito(
+                          color: Colors.white,
                           fontSize: 14,
                           fontWeight: FontWeight.bold),
                     ),
@@ -458,6 +475,7 @@ class _MaterialPickerSheetState extends State<MaterialPickerSheet> {
               ),
             ],
           ),
+
         ],
       ),
     );
@@ -467,17 +485,13 @@ class _MaterialPickerSheetState extends State<MaterialPickerSheet> {
     return GestureDetector(
       onTap: enabled ? onTap : null,
       child: Container(
-        width: 26,
-        height: 26,
+        width: 26, height: 26,
         decoration: BoxDecoration(
           color: enabled ? _blue.withOpacity(0.3) : Colors.white10,
           borderRadius: BorderRadius.circular(8),
         ),
-        child: Icon(
-          icon,
-          size: 14,
-          color: enabled ? Colors.white : Colors.white24,
-        ),
+        child: Icon(icon,
+            size: 14, color: enabled ? Colors.white : Colors.white24),
       ),
     );
   }
@@ -488,7 +502,7 @@ class _MaterialPickerSheetState extends State<MaterialPickerSheet> {
     return SafeArea(
       child: Container(
         padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
-        decoration: BoxDecoration(
+        decoration: const BoxDecoration(
           color: _cardDark,
           border: Border(top: BorderSide(color: Colors.white12)),
         ),
@@ -501,14 +515,19 @@ class _MaterialPickerSheetState extends State<MaterialPickerSheet> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
-                    count == 0 ? 'No materials selected' : '$count material${count > 1 ? 's' : ''} selected',
-                    style: GoogleFonts.nunito(fontWeight: FontWeight.w900, 
-                        color: Colors.white60, fontSize: 12),
+                    count == 0
+                        ? 'No materials selected'
+                        : '$count material${count > 1 ? 's' : ''} selected',
+                    style: GoogleFonts.nunito(
+                        fontWeight: FontWeight.w900,
+                        color: Colors.white60,
+                        fontSize: 12),
                   ),
                   if (_totalGoins > 0)
                     Text(
                       'Total: $_totalGoins Goins',
-                      style: GoogleFonts.nunito(color: _overBudget ? _red : _amber,
+                      style: GoogleFonts.nunito(
+                          color: _overBudget ? _red : _amber,
                           fontSize: 13,
                           fontWeight: FontWeight.bold),
                     ),
@@ -520,7 +539,8 @@ class _MaterialPickerSheetState extends State<MaterialPickerSheet> {
               GestureDetector(
                 onTap: () => setState(() => _quantities.clear()),
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 14, vertical: 10),
                   margin: const EdgeInsets.only(right: 8),
                   decoration: BoxDecoration(
                     color: _red.withOpacity(0.15),
@@ -528,7 +548,10 @@ class _MaterialPickerSheetState extends State<MaterialPickerSheet> {
                     border: Border.all(color: _red.withOpacity(0.3)),
                   ),
                   child: Text('Clear',
-                      style: GoogleFonts.nunito(fontWeight: FontWeight.w900, color: _red, fontSize: 13)),
+                      style: GoogleFonts.nunito(
+                          fontWeight: FontWeight.w900,
+                          color: _red,
+                          fontSize: 13)),
                 ),
               ),
             ],
@@ -536,7 +559,8 @@ class _MaterialPickerSheetState extends State<MaterialPickerSheet> {
             GestureDetector(
               onTap: _confirm,
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 20, vertical: 10),
                 decoration: BoxDecoration(
                   color: _overBudget ? _red : _blue,
                   borderRadius: BorderRadius.circular(12),
@@ -545,14 +569,17 @@ class _MaterialPickerSheetState extends State<MaterialPickerSheet> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Icon(
-                      _overBudget ? Icons.warning_rounded : Icons.check_rounded,
+                      _overBudget
+                          ? Icons.warning_rounded
+                          : Icons.check_rounded,
                       color: Colors.white,
                       size: 16,
                     ),
                     const SizedBox(width: 6),
                     Text(
                       _overBudget ? 'Over Budget' : 'Confirm',
-                      style: GoogleFonts.nunito(color: Colors.white,
+                      style: GoogleFonts.nunito(
+                          color: Colors.white,
                           fontSize: 13,
                           fontWeight: FontWeight.w600),
                     ),
