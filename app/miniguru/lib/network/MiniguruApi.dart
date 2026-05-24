@@ -919,18 +919,46 @@ class MiniguruApi {
   }
 
   // ─── POST /mentor/children/bulk ─────────────────────────────────────────────
-  Future<List<dynamic>> bulkAddChildren(List<Map<String, String>> children) async {
-    final storedToken = await _db!.getAuthToken();
-    if (storedToken == null) throw Exception('Not logged in');
-    final token = storedToken.accessToken;
-    final response = await http.post(
-      Uri.parse('$apiBaseUrl/mentor/children/bulk'),
-      headers: {'Authorization': 'Bearer $token', 'Content-Type': 'application/json'},
-      body: jsonEncode({'children': children}),
-    );
-    final data = jsonDecode(response.body);
-    if (response.statusCode == 201) return data['results'] as List<dynamic>;
-    throw Exception(data['message'] ?? 'Bulk add failed');
+  Future<Map<String, dynamic>?> bulkAddChildren(
+      List<Map<String, dynamic>> children) async {
+    try {
+      final token = await _getToken();
+      final response = await http.post(
+        Uri.parse('$apiBaseUrl/mentor/children/bulk'),
+        headers: {
+          'Content-Type': 'application/json',
+          if (token != null) 'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode({'children': children}),
+      );
+      if (response.statusCode == 201) {
+        return jsonDecode(response.body) as Map<String, dynamic>;
+      }
+      debugPrint('bulkAddChildren error: ${response.statusCode}');
+      return null;
+    } catch (e) {
+      debugPrint('bulkAddChildren exception: $e');
+      return null;
+    }
+  }
+
+  Future<bool> emailBulkCredentials(
+      List<Map<String, dynamic>> results) async {
+    try {
+      final token = await _getToken();
+      final response = await http.post(
+        Uri.parse('$apiBaseUrl/mentor/send-credentials'),
+        headers: {
+          'Content-Type': 'application/json',
+          if (token != null) 'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode({'results': results}),
+      );
+      return response.statusCode == 200;
+    } catch (e) {
+      debugPrint('emailBulkCredentials exception: $e');
+      return false;
+    }
   }
 
 

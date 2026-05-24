@@ -1,3 +1,4 @@
+import 'package:flutter/services.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:miniguru/constants.dart';
@@ -86,24 +87,48 @@ class _AddChildScreenState extends State<AddChildScreen> {
                     Row(children: [
                       const Icon(Icons.lock_outline, size: 16, color: Color(0xFF5B6EF5)),
                       const SizedBox(width: 8),
-                      Text('PIN: $password',
+                      Text('Password: $password',
                         style: GoogleFonts.nunito(fontWeight: FontWeight.w700, fontSize: 14)),
                     ]),
                   ]),
                 ),
                 const SizedBox(height: 12),
-                Text('Child can also login using the MiniGuru app with these credentials.',
+                Text('Child logs in at miniguru.in with their MiniGuru ID + Password. They can change the password after first login.',
                   style: GoogleFonts.nunito(fontSize: 12, color: Colors.grey[500])),
               ]),
               actions: [
+                TextButton.icon(
+                  icon: const Icon(Icons.copy, size: 16,
+                      color: Color(0xFF5B6EF5)),
+                  label: Text('Copy',
+                      style: GoogleFonts.nunito(
+                          color: const Color(0xFF5B6EF5),
+                          fontWeight: FontWeight.w700)),
+                  onPressed: () {
+                    Clipboard.setData(ClipboardData(
+                        text: 'MiniGuru ID: \$email\nPassword: \$password'));
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Copied!',
+                            style: GoogleFonts.nunito(color: Colors.white)),
+                        backgroundColor: const Color(0xFF10B981),
+                        behavior: SnackBarBehavior.floating,
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10)),
+                      ));
+                  },
+                ),
                 ElevatedButton(
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF5B6EF5),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10)),
                   ),
                   onPressed: () => Navigator.pop(context),
-                  child: Text('Got it!', style: GoogleFonts.nunito(
-                    fontWeight: FontWeight.w900, color: Colors.white)),
+                  child: Text('Got it!',
+                      style: GoogleFonts.nunito(
+                          fontWeight: FontWeight.w900,
+                          color: Colors.white)),
                 ),
               ],
             ),

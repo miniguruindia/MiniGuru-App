@@ -4,7 +4,7 @@ import 'package:miniguru/constants.dart';
 import 'package:miniguru/models/ChildProfile.dart';
 import 'package:miniguru/network/MiniguruApi.dart';
 import 'package:miniguru/screens/mentor/addChildScreen.dart';
-import 'package:miniguru/screens/mentor/BulkAddScreen.dart';
+import 'package:miniguru/screens/mentor/bulkAddStudentsScreen.dart';
 import 'package:miniguru/screens/mentor/pinEntryScreen.dart';
 import 'package:miniguru/screens/mentor/mentorChildPickerScreen.dart';
 import 'package:miniguru/screens/homeScreen.dart';
@@ -189,7 +189,7 @@ class _MentorChildrenTabState extends State<MentorChildrenTab> {
             onTap: () async {
               Navigator.pop(context);
               await Navigator.push(context,
-                  MaterialPageRoute(builder: (_) => const BulkAddScreen()));
+                  MaterialPageRoute(builder: (_) => const BulkAddStudentsScreen()));
               _loadChildren();
             },
           ),
