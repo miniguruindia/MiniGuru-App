@@ -169,7 +169,7 @@ const register = async (req: Request, res: Response<ErrorResponse | { accessToke
                age: parseInt(age, 10),
                phoneNumber,
                role: 'USER',
-               score: 0,
+               score: 100,
                wallet: {
                    create: {
                        balance: 100,
