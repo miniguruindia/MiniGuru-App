@@ -922,22 +922,19 @@ class MiniguruApi {
   Future<Map<String, dynamic>?> bulkAddChildren(
       List<Map<String, dynamic>> children) async {
     try {
-      final token = await _getToken();
+      final authToken = await _db!.getAuthToken();
       final response = await http.post(
         Uri.parse('$apiBaseUrl/mentor/children/bulk'),
-        headers: {
-          'Content-Type': 'application/json',
-          if (token != null) 'Authorization': 'Bearer $token',
-        },
+        headers: _buildHeaders(authToken?.accessToken ?? ''),
         body: jsonEncode({'children': children}),
       );
       if (response.statusCode == 201) {
         return jsonDecode(response.body) as Map<String, dynamic>;
       }
-      debugPrint('bulkAddChildren error: ${response.statusCode}');
+      print('bulkAddChildren error: \${response.statusCode}');
       return null;
     } catch (e) {
-      debugPrint('bulkAddChildren exception: $e');
+      print('bulkAddChildren exception: \$e');
       return null;
     }
   }
@@ -945,18 +942,15 @@ class MiniguruApi {
   Future<bool> emailBulkCredentials(
       List<Map<String, dynamic>> results) async {
     try {
-      final token = await _getToken();
+      final authToken = await _db!.getAuthToken();
       final response = await http.post(
         Uri.parse('$apiBaseUrl/mentor/send-credentials'),
-        headers: {
-          'Content-Type': 'application/json',
-          if (token != null) 'Authorization': 'Bearer $token',
-        },
+        headers: _buildHeaders(authToken?.accessToken ?? ''),
         body: jsonEncode({'results': results}),
       );
       return response.statusCode == 200;
     } catch (e) {
-      debugPrint('emailBulkCredentials exception: $e');
+      print('emailBulkCredentials exception: \$e');
       return false;
     }
   }
