@@ -4,6 +4,7 @@ class User {
   final String id;
   final String name;
   final String email;
+  final String? guardianEmail;
   final int age;
   final int score;
   final double walletBalance;
@@ -17,6 +18,7 @@ class User {
     required this.id,
     required this.name,
     required this.email,
+    this.guardianEmail,
     required this.age,
     required this.score,
     required this.walletBalance,
@@ -33,6 +35,7 @@ class User {
       'id': id,
       'name': name,
       'email': email,
+      'guardianEmail': guardianEmail,
       'age': age,
       'score': score,
       'walletBalance': walletBalance,
@@ -48,6 +51,7 @@ class User {
         id: map['id'],
         name: map['name'],
         email: map['email'],
+        guardianEmail: map['guardianEmail'],
         age: map['age'],
         score: map['score'],
         walletBalance: map['walletBalance'].toDouble(),

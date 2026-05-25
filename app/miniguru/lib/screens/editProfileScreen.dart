@@ -20,7 +20,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   final _schoolCtrl      = TextEditingController();
   final _cityCtrl        = TextEditingController();
   final _parentNameCtrl  = TextEditingController();
-  final _parentPhoneCtrl = TextEditingController();
+  final _parentPhoneCtrl    = TextEditingController();
+  final _guardianEmailCtrl  = TextEditingController();
   List<String> _interests = [];
 
   static const _allInterests = [
@@ -49,7 +50,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           _schoolCtrl.text      = data['schoolName']   ?? '';
           _cityCtrl.text        = data['city']         ?? '';
           _parentNameCtrl.text  = data['parentName']   ?? '';
-          _parentPhoneCtrl.text = data['parentPhone']  ?? '';
+          _parentPhoneCtrl.text   = data['parentPhone']    ?? '';
+          _guardianEmailCtrl.text  = data['guardianEmail']  ?? '';
           _interests = List<String>.from(data['interests'] ?? []);
           _loading = false;
         });
@@ -71,7 +73,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         'schoolName':  _schoolCtrl.text.trim(),
         'city':        _cityCtrl.text.trim(),
         'parentName':  _parentNameCtrl.text.trim(),
-        'parentPhone': _parentPhoneCtrl.text.trim(),
+        'parentPhone':   _parentPhoneCtrl.text.trim(),
+        'guardianEmail': _guardianEmailCtrl.text.trim(),
         'interests':   _interests,
       });
       if (mounted) {
@@ -160,6 +163,43 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                     Icons.phone_outlined, hint: 'e.g. 9876543210',
                     keyboardType: TextInputType.phone,
                     formatters: [FilteringTextInputFormatter.digitsOnly]),
+
+                const SizedBox(height: 12),
+                // ── Guardian email — mandatory for password recovery ──────
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFFF8E1),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: const Color(0xFFFFE082)),
+                  ),
+                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Row(children: [
+                      const Icon(Icons.shield_outlined,
+                          color: Color(0xFFE8A000), size: 16),
+                      const SizedBox(width: 6),
+                      Text('Recovery Email (Important!)',
+                          style: GoogleFonts.nunito(
+                              fontWeight: FontWeight.w900,
+                              color: const Color(0xFF8B6800),
+                              fontSize: 13)),
+                    ]),
+                    const SizedBox(height: 4),
+                    Text(
+                      'If you forget your password, a reset link will be sent here. Use a parent or guardian email that is regularly checked.',
+                      style: GoogleFonts.nunito(
+                          fontSize: 11,
+                          color: const Color(0xFF6D4C41),
+                          height: 1.4),
+                    ),
+                    const SizedBox(height: 10),
+                    _field(_guardianEmailCtrl,
+                        'Parent / Guardian Email',
+                        Icons.email_outlined,
+                        hint: 'e.g. parent@gmail.com',
+                        keyboardType: TextInputType.emailAddress),
+                  ]),
+                ),
 
                 const SizedBox(height: 28),
                 _section('🌟 My Interests'),
