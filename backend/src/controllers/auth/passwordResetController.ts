@@ -42,7 +42,9 @@ export const requestPasswordReset = async (req: Request, res: Response) => {
 
     logger.info({ email }, '✅ Reset token generated, sending email...');
 
-    await sendPasswordResetEmail(user.email, resetToken);
+    // Child accounts: send to guardianEmail, fallback to user.email
+    const resetTarget = (user as any).guardianEmail || user.email;
+    await sendPasswordResetEmail(resetTarget, resetToken);
 
     logger.info({ email }, '✅ Password reset email sent successfully');
     return res.json({ message: 'Password reset instructions have been sent to your email.' });
