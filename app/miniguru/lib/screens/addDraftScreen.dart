@@ -16,6 +16,7 @@ import 'package:miniguru/widgets/material_picker_widget.dart';
 import 'package:miniguru/widgets/goins_wallet_widget.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'homeScreen.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 // ── Light theme colours ───────────────────────────────────────────────────────
 const _blue      = Color(0xFF5B6EF5);
@@ -884,6 +885,219 @@ class _UploadingDialog extends StatelessWidget {
               style: GoogleFonts.nunito(color: _muted, fontSize: 12)),
         ]),
       ),
+    );
+  }
+}
+
+// ── Project Kit Popup ─────────────────────────────────────────────────────────
+Future<void> showProjectKitPopup({
+  required BuildContext context,
+  required List<PickedMaterial> pickedMaterials,
+}) async {
+  await showModalBottomSheet(
+    context: context,
+    isScrollControlled: true,
+    backgroundColor: Colors.transparent,
+    builder: (_) => _ProjectKitSheet(pickedMaterials: pickedMaterials),
+  );
+}
+
+class _ProjectKitSheet extends StatelessWidget {
+  final List<PickedMaterial> pickedMaterials;
+  const _ProjectKitSheet({required this.pickedMaterials});
+
+  static const _bg     = Color(0xFFF5F7FF);
+  static const _accent = Color(0xFF5B6EF5);
+  static const _amber  = Color(0xFFE8A000);
+  static const _ink    = Color(0xFF1A1A2E);
+  static const _muted  = Color(0xFF8888AA);
+
+  @override
+  Widget build(BuildContext context) {
+    final withLink    = pickedMaterials.where((m) => (m.item.amazonUrl ?? '').isNotEmpty).toList();
+    final withoutLink = pickedMaterials.where((m) => (m.item.amazonUrl ?? '').isEmpty).toList();
+
+    return Container(
+      decoration: const BoxDecoration(
+        color: _bg,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Handle bar
+          Center(
+            child: Container(
+              width: 40, height: 4,
+              decoration: BoxDecoration(
+                color: Colors.black12,
+                borderRadius: BorderRadius.circular(2)),
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          // Header
+          Row(children: [
+            const Text('🛒', style: TextStyle(fontSize: 22)),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text('Your Project Kit',
+                  style: GoogleFonts.nunito(
+                    fontSize: 18, fontWeight: FontWeight.w900, color: _ink)),
+                Text('Materials needed to build your project',
+                  style: GoogleFonts.nunito(fontSize: 12, color: _muted)),
+              ]),
+            ),
+            IconButton(
+              icon: const Icon(Icons.close_rounded, color: _muted),
+              onPressed: () => Navigator.pop(context),
+            ),
+          ]),
+
+          const SizedBox(height: 4),
+          const Divider(),
+          const SizedBox(height: 8),
+
+          // Materials with Amazon links
+          if (withLink.isNotEmpty) ...[
+            Text('Buy on Amazon',
+              style: GoogleFonts.nunito(
+                fontSize: 12, fontWeight: FontWeight.w800,
+                color: _accent)),
+            const SizedBox(height: 8),
+            ...withLink.map((m) => _KitItem(picked: m, hasLink: true)),
+            const SizedBox(height: 12),
+          ],
+
+          // Materials without Amazon links
+          if (withoutLink.isNotEmpty) ...[
+            Text('Buy locally / stationery store',
+              style: GoogleFonts.nunito(
+                fontSize: 12, fontWeight: FontWeight.w800,
+                color: _muted)),
+            const SizedBox(height: 8),
+            ...withoutLink.map((m) => _KitItem(picked: m, hasLink: false)),
+            const SizedBox(height: 12),
+          ],
+
+          // Send to parent button
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: () {
+                Navigator.pop(context);
+                // TODO: wire to send-to-parent flow
+              },
+              icon: const Icon(Icons.send_rounded, size: 16),
+              label: Text('Send Kit to Parent',
+                style: GoogleFonts.nunito(
+                  fontWeight: FontWeight.w800, fontSize: 14)),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: _accent,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14)),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _KitItem extends StatelessWidget {
+  final PickedMaterial picked;
+  final bool hasLink;
+  const _KitItem({required this.picked, required this.hasLink});
+
+  static const _accent = Color(0xFF5B6EF5);
+  static const _amber  = Color(0xFFE8A000);
+  static const _ink    = Color(0xFF1A1A2E);
+  static const _muted  = Color(0xFF8888AA);
+
+  @override
+  Widget build(BuildContext context) {
+    final imageUrl = picked.item.imageUrl ?? '';
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: hasLink
+            ? _accent.withOpacity(0.2)
+            : Colors.black.withOpacity(0.06)),
+      ),
+      child: Row(children: [
+        // Image or emoji
+        ClipRRect(
+          borderRadius: BorderRadius.circular(8),
+          child: Container(
+            width: 44, height: 44,
+            color: const Color(0xFFF0F0FF),
+            child: imageUrl.isNotEmpty
+              ? Image.network(imageUrl, fit: BoxFit.cover,
+                  errorBuilder: (_, __, ___) =>
+                    Center(child: Text(picked.item.icon ?? '📦',
+                      style: const TextStyle(fontSize: 22))))
+              : Center(child: Text(picked.item.icon ?? '📦',
+                  style: const TextStyle(fontSize: 22))),
+          ),
+        ),
+        const SizedBox(width: 12),
+
+        // Name + qty
+        Expanded(
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(picked.item.name,
+              style: GoogleFonts.nunito(
+                fontSize: 13, fontWeight: FontWeight.w700, color: _ink),
+              maxLines: 1, overflow: TextOverflow.ellipsis),
+            Text('Qty: \${picked.quantity}  •  \${picked.item.unit ?? "piece"}',
+              style: GoogleFonts.nunito(fontSize: 11, color: _muted)),
+          ]),
+        ),
+
+        // Action button
+        if (hasLink)
+          GestureDetector(
+            onTap: () async {
+              final url = picked.item.amazonUrl ?? '';
+              if (url.isNotEmpty) {
+                final uri = Uri.parse(url);
+                if (await canLaunchUrl(uri)) launchUrl(uri,
+                  mode: LaunchMode.externalApplication);
+              }
+            },
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFF9900),
+                borderRadius: BorderRadius.circular(8)),
+              child: Text('Amazon →',
+                style: GoogleFonts.nunito(
+                  fontSize: 11, fontWeight: FontWeight.w800,
+                  color: Colors.white)),
+            ),
+          )
+        else
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            decoration: BoxDecoration(
+              color: Colors.black.withOpacity(0.05),
+              borderRadius: BorderRadius.circular(8)),
+            child: Text('Local shop',
+              style: GoogleFonts.nunito(
+                fontSize: 11, fontWeight: FontWeight.w700,
+                color: _muted)),
+          ),
+      ]),
     );
   }
 }

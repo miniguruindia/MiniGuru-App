@@ -13,6 +13,8 @@ class MaterialItem {
   final int goinsPerUnit;    // Goins deducted per unit picked
   final String unit;         // "piece", "gram", "ml", "cm", "sheet", etc.
   final String? imageUrl;
+  final String? amazonUrl;
+  final String? icon;
   final bool isAvailable;
 
   const MaterialItem({
@@ -23,6 +25,8 @@ class MaterialItem {
     required this.goinsPerUnit,
     required this.unit,
     this.imageUrl,
+    this.amazonUrl,
+    this.icon,
     this.isAvailable = true,
   });
 
@@ -37,6 +41,8 @@ class MaterialItem {
       goinsPerUnit: (json['goinsPerUnit'] ?? json['goinsPrice'] ?? json['pointsPerUnit'] ?? json['price'] ?? 0).toInt(),
       unit: json['unit'] ?? 'piece',
       imageUrl: json['imageUrl'],
+      amazonUrl: json['amazonUrl'],
+      icon: json['icon'],
       isAvailable: json['isAvailable'] ?? json['isActive'] ?? true,
     );
   }
@@ -50,6 +56,8 @@ class MaterialItem {
       'goinsPerUnit': goinsPerUnit,
       'unit': unit,
       'imageUrl': imageUrl,
+      'amazonUrl': amazonUrl,
+      'icon': icon,
       'isAvailable': isAvailable ? 1 : 0,
     };
   }
@@ -63,6 +71,8 @@ class MaterialItem {
       goinsPerUnit: map['goinsPerUnit'] ?? 0,
       unit: map['unit'] ?? 'piece',
       imageUrl: map['imageUrl'],
+      amazonUrl: map['amazonUrl'],
+      icon: map['icon'],
       isAvailable: (map['isAvailable'] ?? 1) == 1,
     );
   }

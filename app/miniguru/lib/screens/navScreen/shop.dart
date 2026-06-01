@@ -15,6 +15,10 @@ import 'package:miniguru/screens/cartScreen.dart';
 import 'package:miniguru/screens/productDetailsScreen.dart';
 import 'package:miniguru/models/Product.dart';
 import 'package:miniguru/repository/cartRepository.dart';
+import 'package:miniguru/repository/draftsRepository.dart';
+import 'package:miniguru/repository/GoinsRepository.dart';
+import 'package:miniguru/models/MaterialItem.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 // ── Design tokens ─────────────────────────────────────────────────────────────
@@ -37,7 +41,7 @@ class Shop extends StatefulWidget {
   State<Shop> createState() => _ShopState();
 }
 
-class _ShopState extends State<Shop> with AutomaticKeepAliveClientMixin {
+class _ShopState extends State<Shop> with AutomaticKeepAliveClientMixin, TickerProviderStateMixin {
   List<Map<String, dynamic>> _all      = [];
   List<Map<String, dynamic>> _filtered = [];
   List<Map<String, dynamic>> _cats     = [];
@@ -55,14 +59,22 @@ class _ShopState extends State<Shop> with AutomaticKeepAliveClientMixin {
   int _amazonCount = 0;
   final TextEditingController _searchCtrl = TextEditingController();
   final CartRepository        _cartRepo   = CartRepository();
+  final DraftRepository       _draftRepo  = DraftRepository();
+  final GoinsRepository       _goinsRepo  = GoinsRepository();
+
+  // Kit tab state
+  late final TabController _tabCtrl = TabController(length: 2, vsync: this);
+  List<PickedMaterial> _kitMaterials = [];
+  bool _kitLoading = true;
+  String? _kitDraftTitle;
 
   @override bool get wantKeepAlive => true;
 
   @override
-  void initState() { super.initState(); _load(); }
+  void initState() { super.initState(); _load(); _loadKit(); }
 
   @override
-  void dispose() { _searchCtrl.dispose(); super.dispose(); }
+  void dispose() { _searchCtrl.dispose(); _tabCtrl.dispose(); super.dispose(); }
 
   Future<void> _load() async {
     setState(() { _loading = true; _error = ''; });
@@ -183,6 +195,38 @@ class _ShopState extends State<Shop> with AutomaticKeepAliveClientMixin {
     } catch (_) {}
   }
 
+
+  // ── Load kit from latest draft ────────────────────────────────────────────
+  Future<void> _loadKit() async {
+    setState(() => _kitLoading = true);
+    try {
+      final drafts = await _draftRepo.getDrafts();
+      if (drafts.isEmpty) {
+        setState(() { _kitMaterials = []; _kitLoading = false; });
+        return;
+      }
+      final latest = drafts.first;
+      _kitDraftTitle = latest.title.isNotEmpty ? latest.title : 'My Project';
+      if (latest.materials.isEmpty) {
+        setState(() { _kitMaterials = []; _kitLoading = false; });
+        return;
+      }
+      final allMats = await _goinsRepo.getMaterials();
+      final picked  = <PickedMaterial>[];
+      latest.materials.forEach((id, qty) {
+        try {
+          picked.add(PickedMaterial(
+            item: allMats.firstWhere((m) => m.id == id),
+            quantity: qty,
+          ));
+        } catch (_) {}
+      });
+      setState(() { _kitMaterials = picked; _kitLoading = false; });
+    } catch (e) {
+      setState(() { _kitMaterials = []; _kitLoading = false; });
+    }
+  }
+
   // ── Amazon helpers ────────────────────────────────────────────────────────
   String? _extractAsin(String url) {
     final re = RegExp(r'/dp/([A-Z0-9]{10})');
@@ -293,38 +337,205 @@ class _ShopState extends State<Shop> with AutomaticKeepAliveClientMixin {
           : null,
       body: NestedScrollView(
         headerSliverBuilder: (_, __) => [_buildAppBar()],
-        body: _loading
-            ? const Center(child: CircularProgressIndicator(color: _accent))
-            : _error.isNotEmpty
-                ? _buildError()
-                : RefreshIndicator(
-                    onRefresh: _load,
-                    color: _accent,
-                    child: CustomScrollView(slivers: [
-                      if (_cats.isNotEmpty)
-                        SliverToBoxAdapter(child: _buildCatRow()),
-                      SliverToBoxAdapter(child: _buildSearchBar()),
-                      SliverToBoxAdapter(
-                        child: Padding(
-                          padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
-                          child: Text(
-                            '${_filtered.length} product${_filtered.length == 1 ? '' : 's'}',
-                            style: GoogleFonts.nunito(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                                color: _muted),
+        body: Column(children: [
+          // ── Tab bar ──────────────────────────────────────────────────────
+          Container(
+            color: Colors.white,
+            child: TabBar(
+              controller: _tabCtrl,
+              labelStyle: GoogleFonts.nunito(fontWeight: FontWeight.w800, fontSize: 13),
+              unselectedLabelStyle: GoogleFonts.nunito(fontWeight: FontWeight.w600, fontSize: 13),
+              labelColor: _accent,
+              unselectedLabelColor: _muted,
+              indicatorColor: _accent,
+              indicatorWeight: 3,
+              tabs: [
+                const Tab(text: '🛍️  Browse'),
+                Tab(text: _kitMaterials.isEmpty
+                    ? '🛒  My Kit'
+                    : '🛒  My Kit (${_kitMaterials.length})'),
+              ],
+            ),
+          ),
+          Expanded(
+            child: TabBarView(
+              controller: _tabCtrl,
+              children: [
+                // ── Tab 1: Browse ───────────────────────────────────────
+                _loading
+                    ? const Center(child: CircularProgressIndicator(color: _accent))
+                    : _error.isNotEmpty
+                        ? _buildError()
+                        : RefreshIndicator(
+                            onRefresh: _load,
+                            color: _accent,
+                            child: CustomScrollView(slivers: [
+                              if (_cats.isNotEmpty)
+                                SliverToBoxAdapter(child: _buildCatRow()),
+                              SliverToBoxAdapter(child: _buildSearchBar()),
+                              SliverToBoxAdapter(
+                                child: Padding(
+                                  padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
+                                  child: Text(
+                                    '${_filtered.length} product${_filtered.length == 1 ? '' : 's'}',
+                                    style: GoogleFonts.nunito(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w600,
+                                        color: _muted),
+                                  ),
+                                ),
+                              ),
+                              if (_filtered.isEmpty)
+                                SliverFillRemaining(child: _buildEmpty())
+                              else
+                                _buildGrid(),
+                              const SliverToBoxAdapter(child: SizedBox(height: 32)),
+                            ]),
                           ),
-                        ),
-                      ),
-                      if (_filtered.isEmpty)
-                        SliverFillRemaining(child: _buildEmpty())
-                      else
-                        _buildGrid(),
-                      const SliverToBoxAdapter(child: SizedBox(height: 32)),
-                    ]),
-                  ),
+                // ── Tab 2: My Kit ───────────────────────────────────────
+                _buildKitTab(),
+              ],
+            ),
+          ),
+        ]),
       ),
     );
+  }
+
+  // ── My Kit tab ───────────────────────────────────────────────────────────
+  Widget _buildKitTab() {
+    if (_kitLoading) return const Center(child: CircularProgressIndicator(color: _accent));
+    if (_kitMaterials.isEmpty) return _buildKitEmpty();
+    final withLink    = _kitMaterials.where((m) => (m.item.amazonUrl ?? '').isNotEmpty).toList();
+    final withoutLink = _kitMaterials.where((m) => (m.item.amazonUrl ?? '').isEmpty).toList();
+    return RefreshIndicator(
+      onRefresh: _loadKit,
+      color: _accent,
+      child: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [Color(0xFF4B5EE4), Color(0xFF7C8EFF)],
+                begin: Alignment.topLeft, end: Alignment.bottomRight),
+              borderRadius: BorderRadius.circular(14)),
+            child: Row(children: [
+              const Text('🔬', style: TextStyle(fontSize: 22)),
+              const SizedBox(width: 10),
+              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text('Project: ${_kitDraftTitle ?? "My Project"}',
+                  style: GoogleFonts.nunito(fontWeight: FontWeight.w900, fontSize: 15, color: Colors.white)),
+                Text('${_kitMaterials.length} materials needed',
+                  style: GoogleFonts.nunito(fontSize: 12, color: Colors.white70)),
+              ])),
+            ]),
+          ),
+          const SizedBox(height: 16),
+          if (withLink.isNotEmpty) ...[
+            Text('🛒  Buy on Amazon',
+              style: GoogleFonts.nunito(fontSize: 13, fontWeight: FontWeight.w800, color: _accent)),
+            const SizedBox(height: 8),
+            ...withLink.map((m) => _buildKitItem(m, hasLink: true)),
+            const SizedBox(height: 16),
+          ],
+          if (withoutLink.isNotEmpty) ...[
+            Text('🏪  Buy locally',
+              style: GoogleFonts.nunito(fontSize: 13, fontWeight: FontWeight.w800, color: _muted)),
+            const SizedBox(height: 8),
+            ...withoutLink.map((m) => _buildKitItem(m, hasLink: false)),
+            const SizedBox(height: 16),
+          ],
+          ElevatedButton.icon(
+            onPressed: () {/* TODO: send-to-parent flow */},
+            icon: const Icon(Icons.send_rounded, size: 16),
+            label: Text('Send Kit to Parent',
+              style: GoogleFonts.nunito(fontWeight: FontWeight.w800, fontSize: 14)),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: _accent,
+              foregroundColor: Colors.white,
+              minimumSize: const Size(double.infinity, 50),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))),
+          ),
+          const SizedBox(height: 80),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildKitItem(PickedMaterial m, {required bool hasLink}) {
+    final imageUrl = m.item.imageUrl ?? '';
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 6)],
+      ),
+      child: Row(children: [
+        ClipRRect(
+          borderRadius: BorderRadius.circular(8),
+          child: Container(
+            width: 48, height: 48, color: const Color(0xFFF0F0FF),
+            child: imageUrl.isNotEmpty
+              ? Image.network(imageUrl, fit: BoxFit.cover,
+                  errorBuilder: (_, __, ___) => Center(
+                    child: Text(m.item.icon ?? '📦', style: const TextStyle(fontSize: 22))))
+              : Center(child: Text(m.item.icon ?? '📦', style: const TextStyle(fontSize: 22))),
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(m.item.name,
+            style: GoogleFonts.nunito(fontSize: 13, fontWeight: FontWeight.w700, color: _ink),
+            maxLines: 1, overflow: TextOverflow.ellipsis),
+          Text('Qty: ${m.quantity}  •  ${m.item.unit}',
+            style: GoogleFonts.nunito(fontSize: 11, color: _muted)),
+        ])),
+        if (hasLink)
+          GestureDetector(
+            onTap: () async {
+              final uri = Uri.parse(m.item.amazonUrl!);
+              if (await canLaunchUrl(uri)) {
+                launchUrl(uri, mode: LaunchMode.externalApplication);
+              }
+            },
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFF9900), borderRadius: BorderRadius.circular(8)),
+              child: Text('Amazon →',
+                style: GoogleFonts.nunito(fontSize: 11, fontWeight: FontWeight.w800, color: Colors.white)),
+            ),
+          )
+        else
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            decoration: BoxDecoration(
+              color: Colors.black.withOpacity(0.05), borderRadius: BorderRadius.circular(8)),
+            child: Text('Local shop',
+              style: GoogleFonts.nunito(fontSize: 11, fontWeight: FontWeight.w700, color: _muted)),
+          ),
+      ]),
+    );
+  }
+
+  Widget _buildKitEmpty() {
+    return Center(child: Padding(
+      padding: const EdgeInsets.all(32),
+      child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+        const Text('🛒', style: TextStyle(fontSize: 56)),
+        const SizedBox(height: 16),
+        Text('No project kit yet',
+          style: GoogleFonts.nunito(fontSize: 18, fontWeight: FontWeight.w800, color: _ink)),
+        const SizedBox(height: 8),
+        Text('Plan a project and pick materials to see your kit here',
+          textAlign: TextAlign.center,
+          style: GoogleFonts.nunito(fontSize: 13, color: _muted)),
+      ]),
+    ));
   }
 
   Widget _buildAppBar() {
