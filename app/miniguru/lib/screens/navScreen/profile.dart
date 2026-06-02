@@ -415,9 +415,9 @@ class _ProfileState extends State<Profile>
 
                         // ── Wallet + Goins ──
                         const SizedBox(height: 24),
-                        _label(_user?.isMentor == true ? '💰 Wallet & Goins' : '🪙 Goins'),
+                        _label('🪙 My Goins'),
                         const SizedBox(height: 10),
-                        _buildWalletGoinsRow(),
+                        _buildGoinsOnlyCard(),
 
                         // ── Analytics with count-up ──
                         const SizedBox(height: 24),
@@ -714,6 +714,42 @@ class _ProfileState extends State<Profile>
   }
 
   // ── Wallet + Goins row ────────────────────────────────────────────────────
+  // ── Goins only card ─────────────────────────────────────────────────────────
+  Widget _buildGoinsOnlyCard() {
+    final goins = _user?.score ?? 0;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFFE8A000), Color(0xFFFFCC02)],
+          begin: Alignment.topLeft, end: Alignment.bottomRight),
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: [BoxShadow(
+          color: const Color(0xFFE8A000).withOpacity(0.3),
+          blurRadius: 12, offset: const Offset(0, 4))],
+      ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          const Text('🪙', style: TextStyle(fontSize: 22)),
+          const SizedBox(width: 8),
+          Text('Goins',
+            style: GoogleFonts.nunito(
+              fontSize: 14, fontWeight: FontWeight.w800,
+              color: Colors.white70)),
+        ]),
+        const SizedBox(height: 8),
+        Text('$goins',
+          style: GoogleFonts.nunito(
+            fontSize: 36, fontWeight: FontWeight.w900,
+            color: Colors.white)),
+        const SizedBox(height: 4),
+        Text('Keep building to earn more! 🚀',
+          style: GoogleFonts.nunito(fontSize: 11, color: Colors.white70)),
+      ]),
+    );
+  }
+
   Widget _buildWalletGoinsRow() {
     final walletBalance =
         _user?.walletBalance?.toStringAsFixed(2) ?? '0.00';

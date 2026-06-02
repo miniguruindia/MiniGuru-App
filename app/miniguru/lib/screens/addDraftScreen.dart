@@ -291,18 +291,11 @@ class _AddDraftScreenState extends State<AddDraftScreen>
 
       if (statusCode == 201) {
         if (_pickedMaterials.isNotEmpty) {
-          final pid = 'proj_${DateTime.now().millisecondsSinceEpoch}';
-          final ded = await _goinsRepo.deductForMaterials(
-              projectId: pid, pickedMaterials: _pickedMaterials);
-          if (ded.success) setState(() => _currentGoinsBalance = ded.newBalance);
-          final aw = await _goinsRepo.awardForVideoUpload(projectId: pid);
-          if (aw.success && mounted) {
-            await showGoinsAwardPopup(
-              context:    context,
-              awarded:    aw.awarded,
-              newBalance: aw.newBalance,
-              reason:
-                  'You earned 2× your material cost back for uploading! 🎬',
+          // Goins are earned by completing projects, not spent on materials
+          if (mounted) {
+            await showProjectKitPopup(
+              context: context,
+              pickedMaterials: _pickedMaterials,
             );
           }
         }
