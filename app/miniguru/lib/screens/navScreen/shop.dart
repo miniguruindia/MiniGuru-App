@@ -440,6 +440,159 @@ class _ShopState extends State<Shop> with AutomaticKeepAliveClientMixin, TickerP
     );
   }
 
+
+  // ── Send to Parent (in-app, uses SendGrid backend) ────────────────────────
+  void _showSendToParentSheet() {
+    final emailCtrl = TextEditingController();
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Padding(
+        padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
+        child: Container(
+          decoration: const BoxDecoration(
+            color: Color(0xFFF5F7FF),
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
+          child: StatefulBuilder(builder: (ctx2, setSt) {
+            bool sending = false;
+            bool sent    = false;
+            String? err;
+
+            Future<void> doSend() async {
+              final email = emailCtrl.text.trim();
+              if (email.isEmpty || !email.contains('@')) {
+                setSt(() => err = 'Please enter a valid email address');
+                return;
+              }
+              setSt(() { sending = true; err = null; });
+              try {
+                String? token;
+                try { token = (await DatabaseHelper().getAuthToken())?.accessToken; } catch (_) {}
+                final items = _amazonList.entries.map((e) => {
+                  'name':     e.value['name'],
+                  'qty':      e.value['qty'],
+                  'price':    e.value['price'],
+                  'asin':     e.value['asin'],
+                  'imageUrl': e.value['thumbUrl'],
+                }).toList();
+                final cartUrl = _buildAmazonCartUrl();
+                final res = await http.post(
+                  Uri.parse('\$apiBaseUrl/shop/send-to-parent'),
+                  headers: {
+                    'Content-Type': 'application/json',
+                    if (token != null) 'Authorization': 'Bearer \$token',
+                  },
+                  body: jsonEncode({
+                    'parentEmail': email,
+                    'childName':   'Your child',
+                    'items':       items,
+                    'cartUrl':     cartUrl,
+                  }),
+                );
+                if (res.statusCode == 200) {
+                  setSt(() { sent = true; sending = false; });
+                } else {
+                  setSt(() { err = 'Failed to send. Try again.'; sending = false; });
+                }
+              } catch (e) {
+                setSt(() { err = 'Network error. Try again.'; sending = false; });
+              }
+            }
+
+            return Column(mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(child: Container(width: 40, height: 4,
+                  decoration: BoxDecoration(color: Colors.black12,
+                    borderRadius: BorderRadius.circular(2)))),
+                const SizedBox(height: 16),
+                Row(children: [
+                  const Text('📧', style: TextStyle(fontSize: 22)),
+                  const SizedBox(width: 10),
+                  Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Text('Send Kit to Parent',
+                      style: GoogleFonts.nunito(fontSize: 18, fontWeight: FontWeight.w900, color: _ink)),
+                    Text('\${_amazonList.length} items — parent gets one-tap Amazon buy link',
+                      style: GoogleFonts.nunito(fontSize: 12, color: _muted)),
+                  ])),
+                  IconButton(icon: const Icon(Icons.close_rounded, color: _muted),
+                    onPressed: () => Navigator.pop(ctx2)),
+                ]),
+                const Divider(height: 24),
+                if (sent) ...[
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(color: const Color(0xFFE8F5E9),
+                      borderRadius: BorderRadius.circular(12)),
+                    child: Row(children: [
+                      const Icon(Icons.check_circle_rounded, color: Color(0xFF2E7D32)),
+                      const SizedBox(width: 10),
+                      Expanded(child: Text(
+                        'Email sent! Parent will receive the full kit list with a one-tap Amazon buy link.',
+                        style: GoogleFonts.nunito(fontSize: 13,
+                          color: const Color(0xFF2E7D32), fontWeight: FontWeight.w700))),
+                    ]),
+                  ),
+                  const SizedBox(height: 16),
+                  SizedBox(width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: () => Navigator.pop(ctx2),
+                      style: ElevatedButton.styleFrom(backgroundColor: _accent,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+                      child: Text('Done',
+                        style: GoogleFonts.nunito(fontWeight: FontWeight.w800)))),
+                ] else ...[
+                  Text("Parent's email address",
+                    style: GoogleFonts.nunito(fontSize: 13,
+                      fontWeight: FontWeight.w700, color: _ink)),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: emailCtrl,
+                    keyboardType: TextInputType.emailAddress,
+                    style: GoogleFonts.nunito(fontSize: 14),
+                    decoration: InputDecoration(
+                      hintText: 'parent@example.com',
+                      hintStyle: GoogleFonts.nunito(color: _muted, fontSize: 14),
+                      prefixIcon: const Icon(Icons.email_outlined, color: _muted, size: 20),
+                      filled: true, fillColor: Colors.white,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide.none),
+                      errorText: err,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text('Parent receives item list with images and a pre-loaded Amazon cart link. No Amazon account needed on your side.',
+                    style: GoogleFonts.nunito(fontSize: 11, color: _muted)),
+                  const SizedBox(height: 16),
+                  SizedBox(width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: sending ? null : doSend,
+                      icon: sending
+                        ? const SizedBox(width: 16, height: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                        : const Icon(Icons.send_rounded, size: 16),
+                      label: Text(sending ? 'Sending...' : 'Send Email to Parent',
+                        style: GoogleFonts.nunito(fontWeight: FontWeight.w800, fontSize: 14)),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: _accent, foregroundColor: Colors.white,
+                        minimumSize: const Size(double.infinity, 50),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14))),
+                    )),
+                ],
+              ],
+            );
+          }),
+        ),
+      ),
+    );
+  }
+
   // ── My Kit tab ───────────────────────────────────────────────────────────
   Widget _buildKitTab() {
     if (_amazonList.isEmpty) return _buildKitEmpty();
@@ -505,12 +658,14 @@ class _ShopState extends State<Shop> with AutomaticKeepAliveClientMixin, TickerP
         const SizedBox(height: 16),
 
         // Buy on Amazon button (opens pre-loaded cart)
-        if (hasAmazon)
+        if (hasAmazon) ...[
           ElevatedButton.icon(
             onPressed: () async {
               final url = _buildAmazonCartUrl();
               final uri = Uri.parse(url);
-              if (await canLaunchUrl(uri)) launchUrl(uri, mode: LaunchMode.externalApplication);
+              if (await canLaunchUrl(uri)) {
+                launchUrl(uri, mode: LaunchMode.platformDefault);
+              }
             },
             icon: const Text('🛍️', style: TextStyle(fontSize: 16)),
             label: Text('Buy on Amazon  (cart pre-loaded)',
@@ -521,11 +676,28 @@ class _ShopState extends State<Shop> with AutomaticKeepAliveClientMixin, TickerP
               minimumSize: const Size(double.infinity, 50),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))),
           ),
+          const SizedBox(height: 6),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              color: const Color(0xFFFFF8E1),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: const Color(0xFFFFE082))),
+            child: Row(children: [
+              const Icon(Icons.info_outline_rounded, size: 14, color: Color(0xFFE65100)),
+              const SizedBox(width: 6),
+              Expanded(child: Text(
+                'Make sure you are logged into Amazon in this browser before tapping above.',
+                style: GoogleFonts.nunito(fontSize: 11, color: const Color(0xFFE65100)),
+              )),
+            ]),
+          ),
+        ],
         const SizedBox(height: 10),
 
         // Send to Parent button
         OutlinedButton.icon(
-          onPressed: () => _showAmazonCheckout(),
+          onPressed: () => _showSendToParentSheet(),
           icon: const Icon(Icons.send_rounded, size: 16),
           label: Text('Send Kit to Parent',
             style: GoogleFonts.nunito(fontWeight: FontWeight.w800, fontSize: 14)),
@@ -537,7 +709,7 @@ class _ShopState extends State<Shop> with AutomaticKeepAliveClientMixin, TickerP
         ),
         const SizedBox(height: 8),
         Center(
-          child: Text('Parent receives an email with item list + one-tap Amazon buy link',
+          child: Text('Parent gets an email with full list + one-tap Amazon buy link',
             textAlign: TextAlign.center,
             style: GoogleFonts.nunito(fontSize: 11, color: _muted)),
         ),
@@ -934,6 +1106,15 @@ class _MaterialTile extends StatelessWidget {
   static const _muted  = Color(0xFF8888AA);
   static const _card   = Color(0xFFFFFFFF);
   static const _bg     = Color(0xFFF5F7FF);
+
+  String _priceLabel(Map<String, dynamic> m) {
+    final price   = double.tryParse(m['priceEstimate']?.toString() ?? '0') ?? 0.0;
+    final unit    = m['unit']?.toString() ?? 'piece';
+    final hasAsin = (m['amazonASIN']?.toString() ?? '').isNotEmpty;
+    if (price > 0) return '₹\${price.toStringAsFixed(0)} / \$unit';
+    if (hasAsin)  return 'Check price on Amazon';
+    return 'Collect locally / free';
+  }
 
   @override
   Widget build(BuildContext context) {
