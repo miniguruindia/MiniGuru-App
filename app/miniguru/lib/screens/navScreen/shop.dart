@@ -738,7 +738,7 @@ class _ShopState extends State<Shop> with AutomaticKeepAliveClientMixin, TickerP
           child: Container(
             width: 48, height: 48, color: const Color(0xFFF0F0FF),
             child: thumbUrl.isNotEmpty
-              ? Image.network(thumbUrl, fit: BoxFit.cover,
+              ? Image.network(thumbUrl, fit: BoxFit.contain,
                   errorBuilder: (_, __, ___) =>
                     Center(child: Text(icon, style: const TextStyle(fontSize: 22))))
               : Center(child: Text(icon, style: const TextStyle(fontSize: 22))),
@@ -804,7 +804,7 @@ class _ShopState extends State<Shop> with AutomaticKeepAliveClientMixin, TickerP
           child: Container(
             width: 48, height: 48, color: const Color(0xFFF0F0FF),
             child: imageUrl.isNotEmpty
-              ? Image.network(imageUrl, fit: BoxFit.cover,
+              ? Image.network(imageUrl, fit: BoxFit.contain,
                   errorBuilder: (_, __, ___) => Center(
                     child: Text(m.item.icon ?? '📦', style: const TextStyle(fontSize: 22))))
               : Center(child: Text(m.item.icon ?? '📦', style: const TextStyle(fontSize: 22))),

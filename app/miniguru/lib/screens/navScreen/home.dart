@@ -7,6 +7,7 @@ import 'package:miniguru/screens/registerScreen.dart';
 import 'package:miniguru/services/youtube_service.dart';
 import 'package:miniguru/screens/unifiedVideoPlayer.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class Home extends StatefulWidget {
   const Home({super.key});
@@ -23,6 +24,11 @@ class _HomeState extends State<Home> {
   bool _isLoadingVideos = true;
   final TextEditingController _searchController = TextEditingController();
   String _selectedCategory = 'All';
+
+  // Cache: videoId -> list of material maps
+  final Map<String, List<Map<String, dynamic>>> _materialCache = {};
+  // Track which videoIds we've already fetched (to avoid duplicate requests)
+  final Set<String> _fetchedMaterials = {};
 
   final List<Map<String, dynamic>> _categories = [
     {'name': 'Robotics',  'icon': Icons.precision_manufacturing, 'color': Color(0xFF93C5FD)},
@@ -80,9 +86,37 @@ class _HomeState extends State<Home> {
           _filteredVideos = videos;
           _isLoadingVideos = false;
         });
+        // Pre-fetch materials for the first 6 visible videos
+        _prefetchMaterials(videos.take(6).toList());
       }
     } catch (e) {
       if (mounted) setState(() => _isLoadingVideos = false);
+    }
+  }
+
+  /// Fetch materials for a list of videos without blocking UI
+  void _prefetchMaterials(List<Map<String, dynamic>> videos) {
+    for (final v in videos) {
+      final id = v['videoId']?.toString() ?? '';
+      if (id.isNotEmpty && !_fetchedMaterials.contains(id)) {
+        _fetchVideoMaterials(id);
+      }
+    }
+  }
+
+  /// Fetch materials for a single video ID from backend
+  Future<void> _fetchVideoMaterials(String videoId) async {
+    if (videoId.isEmpty || _fetchedMaterials.contains(videoId)) return;
+    _fetchedMaterials.add(videoId);
+    try {
+      final result = await _miniguruApi.getVideoMaterials(videoId);
+      if (mounted && result != null) {
+        setState(() {
+          _materialCache[videoId] = List<Map<String, dynamic>>.from(result);
+        });
+      }
+    } catch (_) {
+      // silently ignore — materials strip is optional
     }
   }
 
@@ -96,6 +130,8 @@ class _HomeState extends State<Home> {
   }
 
   Future<void> _refreshAll() async {
+    _materialCache.clear();
+    _fetchedMaterials.clear();
     await Future.wait([_checkAuthAndLoadData(), _loadYouTubeVideos()]);
   }
 
@@ -165,7 +201,7 @@ class _HomeState extends State<Home> {
           ),
           const SizedBox(width: 12),
           Text('MiniGuru',
-              style: GoogleFonts.nunito(fontWeight: FontWeight.w900, 
+              style: GoogleFonts.nunito(fontWeight: FontWeight.w900,
                   fontSize: 22, color: Colors.black87)),
         ],
       ),
@@ -307,7 +343,7 @@ class _HomeState extends State<Home> {
         ]),
         const SizedBox(height: 8),
         Text(value,
-            style: GoogleFonts.nunito(fontWeight: FontWeight.w900, 
+            style: GoogleFonts.nunito(fontWeight: FontWeight.w900,
               fontSize: label == 'Score' || label == 'Your' ? 24 : 14,
               color: Colors.black87,
             )),
@@ -357,9 +393,17 @@ class _HomeState extends State<Home> {
           scrollDirection: Axis.horizontal,
           padding: const EdgeInsets.symmetric(horizontal: 16),
           itemCount: videos.length,
-          itemBuilder: (_, i) => cardWidth >= 200
-              ? _buildVideoCard(videos[i], width: cardWidth)
-              : _buildSmallVideoCard(videos[i]),
+          itemBuilder: (_, i) {
+            // Lazily fetch materials when card is built
+            final vid = videos[i];
+            final vidId = vid['videoId']?.toString() ?? '';
+            if (vidId.isNotEmpty && !_fetchedMaterials.contains(vidId)) {
+              _fetchVideoMaterials(vidId);
+            }
+            return cardWidth >= 200
+                ? _buildVideoCard(vid, width: cardWidth)
+                : _buildSmallVideoCard(vid);
+          },
         ),
       ),
     ]);
@@ -523,6 +567,13 @@ class _HomeState extends State<Home> {
   Widget _buildFeatured() {
     if (_filteredVideos.isEmpty) return const SizedBox.shrink();
     final featured = _filteredVideos.first;
+    final featuredId = featured['videoId']?.toString() ?? '';
+    final featuredMaterials = _materialCache[featuredId] ?? [];
+
+    // Fetch materials for featured if not yet done
+    if (featuredId.isNotEmpty && !_fetchedMaterials.contains(featuredId)) {
+      _fetchVideoMaterials(featuredId);
+    }
 
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       Padding(
@@ -546,19 +597,16 @@ class _HomeState extends State<Home> {
       ),
       const SizedBox(height: 8),
 
-      // ── Featured card — image only, NO white section underneath ──
       GestureDetector(
         onTap: () => _openVideo(featured),
         child: Container(
           margin: const EdgeInsets.symmetric(horizontal: 16),
-          // ✅ FIX: height is ONLY the image — no extra white area below
           height: 200,
           child: ClipRRect(
             borderRadius: BorderRadius.circular(16),
             child: Stack(
-              fit: StackFit.expand,   // ✅ Stack fills exactly 200px, nothing more
+              fit: StackFit.expand,
               children: [
-                // Thumbnail image
                 featured['thumbnail'] != null
                     ? Image.network(
                         featured['thumbnail'],
@@ -578,8 +626,6 @@ class _HomeState extends State<Home> {
                               size: 60, color: Colors.grey),
                         ),
                       ),
-
-                // Dark gradient overlay — bottom to top (no white box)
                 Positioned.fill(
                   child: DecoratedBox(
                     decoration: BoxDecoration(
@@ -595,13 +641,10 @@ class _HomeState extends State<Home> {
                     ),
                   ),
                 ),
-
-                // Featured badge — top left
                 Positioned(
                   top: 12, left: 12,
                   child: Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 8, vertical: 4),
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
                       color: const Color(0xFFEF4444),
                       borderRadius: BorderRadius.circular(6),
@@ -613,8 +656,6 @@ class _HomeState extends State<Home> {
                             color: Colors.white)),
                   ),
                 ),
-
-                // Play button — centre
                 Center(
                   child: Container(
                     width: 56, height: 56,
@@ -624,8 +665,6 @@ class _HomeState extends State<Home> {
                         size: 34, color: Color(0xFF3B82F6)),
                   ),
                 ),
-
-                // Title + channel — bottom, white text on gradient
                 Positioned(
                   bottom: 14, left: 14, right: 14,
                   child: Column(
@@ -656,6 +695,10 @@ class _HomeState extends State<Home> {
           ),
         ),
       ),
+
+      // Materials strip below featured card (if any materials found)
+      if (featuredMaterials.isNotEmpty)
+        _buildMaterialsStrip(featuredMaterials, videoId: featuredId),
     ]);
   }
 
@@ -711,27 +754,236 @@ class _HomeState extends State<Home> {
       const SizedBox(height: 12),
       LayoutBuilder(builder: (context, constraints) {
         int crossAxisCount = 2;
-        double childAspectRatio = 0.75;
         if (constraints.maxWidth > 1200) {
-          crossAxisCount = 4; childAspectRatio = 0.8;
+          crossAxisCount = 4;
         } else if (constraints.maxWidth > 800) {
-          crossAxisCount = 3; childAspectRatio = 0.75;
+          crossAxisCount = 3;
         }
-        return GridView.builder(
+        final videos = _filteredVideos.skip(1).take(12).toList();
+        // Use ListView instead of GridView so each card can have variable height
+        // (materials strip adds height below some cards)
+        return ListView.builder(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
           padding: const EdgeInsets.symmetric(horizontal: 16),
-          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: crossAxisCount,
-            childAspectRatio: childAspectRatio,
-            crossAxisSpacing: 12,
-            mainAxisSpacing: 12,
-          ),
-          itemCount: _filteredVideos.skip(1).take(12).length,
-          itemBuilder: (_, i) => _buildProjectCard(_filteredVideos[i + 1]),
+          itemCount: (videos.length / crossAxisCount).ceil(),
+          itemBuilder: (_, rowIndex) {
+            final rowVideos = videos
+                .skip(rowIndex * crossAxisCount)
+                .take(crossAxisCount)
+                .toList();
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: rowVideos.map((v) {
+                  final vidId = v['videoId']?.toString() ?? '';
+                  if (vidId.isNotEmpty && !_fetchedMaterials.contains(vidId)) {
+                    _fetchVideoMaterials(vidId);
+                  }
+                  return Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.only(right: 12),
+                      child: _buildProjectCard(v),
+                    ),
+                  );
+                }).toList()
+                  ..addAll(List.generate(
+                    crossAxisCount - rowVideos.length,
+                    (_) => const Expanded(child: SizedBox()),
+                  )),
+              ),
+            );
+          },
         );
       }),
     ]);
+  }
+
+  // ── Materials strip ───────────────────────────────────────────────────────
+
+  /// A horizontal scrollable row of materials used in this project.
+  /// Each chip shows the material image/icon, name, price, and optional Amazon link.
+  Widget _buildMaterialsStrip(
+    List<Map<String, dynamic>> materials, {
+    required String videoId,
+  }) {
+    if (materials.isEmpty) return const SizedBox.shrink();
+
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16),
+      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFF8E7),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFFFDC73), width: 1),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(children: [
+            const Text('🛒', style: TextStyle(fontSize: 13)),
+            const SizedBox(width: 4),
+            Text(
+              'Materials used in this project',
+              style: GoogleFonts.nunito(
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                color: const Color(0xFF92400E),
+              ),
+            ),
+            const Spacer(),
+            // Show "Buy all on Amazon" if any material has an ASIN
+            if (materials.any((m) => m['amazonUrl'] != null))
+              GestureDetector(
+                onTap: () => _openAmazonCart(materials),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFF9900),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text(
+                    'Buy all →',
+                    style: GoogleFonts.nunito(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              ),
+          ]),
+          const SizedBox(height: 8),
+          SizedBox(
+            height: 74,
+            child: ListView.builder(
+              scrollDirection: Axis.horizontal,
+              itemCount: materials.length,
+              itemBuilder: (_, i) => _buildMaterialChip(materials[i]),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMaterialChip(Map<String, dynamic> mat) {
+    final name = mat['name']?.toString() ?? 'Material';
+    final icon = mat['icon']?.toString() ?? '🔩';
+    final imageUrl = mat['imageUrl']?.toString();
+    final price = mat['priceEstimate'];
+    final amazonUrl = mat['amazonUrl']?.toString();
+    final unit = mat['unit']?.toString() ?? 'piece';
+    final qty = mat['quantity'] as int? ?? 1;
+
+    final hasPrice = price != null && price > 0;
+    final hasAmazon = amazonUrl != null && amazonUrl.isNotEmpty;
+
+    return GestureDetector(
+      onTap: hasAmazon ? () => _launchUrl(amazonUrl!) : null,
+      child: Container(
+        width: 72,
+        margin: const EdgeInsets.only(right: 8),
+        child: Column(
+          children: [
+            // Image or emoji
+            Container(
+              width: 44, height: 44,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(
+                  color: hasAmazon
+                      ? const Color(0xFFFF9900).withOpacity(0.5)
+                      : const Color(0xFFE5E7EB),
+                  width: 1.5,
+                ),
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(9),
+                child: imageUrl != null && imageUrl.isNotEmpty
+                    ? Image.network(
+                        imageUrl,
+                        fit: BoxFit.contain,
+                        errorBuilder: (_, __, ___) => Center(
+                          child: Text(icon,
+                              style: const TextStyle(fontSize: 22)),
+                        ),
+                      )
+                    : Center(
+                        child: Text(icon,
+                            style: const TextStyle(fontSize: 22))),
+              ),
+            ),
+            const SizedBox(height: 4),
+            // Material name (2 lines max)
+            Text(
+              name,
+              style: GoogleFonts.nunito(
+                fontSize: 9,
+                fontWeight: FontWeight.w600,
+                color: Colors.black87,
+              ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
+            ),
+            // Price or "Free" label
+            if (hasPrice)
+              Text(
+                '₹$price',
+                style: GoogleFonts.nunito(
+                  fontSize: 9,
+                  color: const Color(0xFF059669),
+                  fontWeight: FontWeight.w700,
+                ),
+              )
+            else if (hasAmazon)
+              Text(
+                'Check ↗',
+                style: GoogleFonts.nunito(
+                  fontSize: 9,
+                  color: const Color(0xFFFF9900),
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Build Amazon cart URL for all materials in a project that have ASINs
+  String _buildAmazonCartUrl(List<Map<String, dynamic>> materials) {
+    final amazonItems = materials
+        .where((m) => m['amazonASIN'] != null && m['amazonASIN'].toString().isNotEmpty)
+        .toList();
+    if (amazonItems.isEmpty) return '';
+
+    final params = <String>[];
+    for (int i = 0; i < amazonItems.length && i < 10; i++) {
+      final asin = amazonItems[i]['amazonASIN'].toString();
+      final qty = (amazonItems[i]['quantity'] as int? ?? 1).clamp(1, 10);
+      params.add('ASIN.${i + 1}=$asin&Quantity.${i + 1}=$qty');
+    }
+    return 'https://www.amazon.in/gp/aws/cart/add.html?${params.join('&')}&AssociateTag=miniguru08-21';
+  }
+
+  void _openAmazonCart(List<Map<String, dynamic>> materials) {
+    final url = _buildAmazonCartUrl(materials);
+    if (url.isNotEmpty) _launchUrl(url);
+  }
+
+  Future<void> _launchUrl(String url) async {
+    try {
+      final uri = Uri.parse(url);
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+      }
+    } catch (e) {
+      print('Could not launch $url: $e');
+    }
   }
 
   // ── Video card widgets ────────────────────────────────────────────────────
@@ -760,7 +1012,6 @@ class _HomeState extends State<Home> {
                       child: const Icon(Icons.video_library,
                           size: 40, color: Colors.white54),
                     ),
-              // Gradient
               Positioned.fill(
                 child: DecoratedBox(
                   decoration: BoxDecoration(
@@ -773,7 +1024,6 @@ class _HomeState extends State<Home> {
                   ),
                 ),
               ),
-              // Play
               Center(
                 child: Container(
                   width: 50, height: 50,
@@ -783,7 +1033,6 @@ class _HomeState extends State<Home> {
                       size: 30, color: Color(0xFF3B82F6)),
                 ),
               ),
-              // Info
               Positioned(
                 bottom: 10, left: 12, right: 12,
                 child: Column(
@@ -847,7 +1096,6 @@ class _HomeState extends State<Home> {
                 ),
               ),
             ),
-            // ✅ Tight text below — no Spacer, no Expanded — zero extra gap
             const SizedBox(height: 6),
             Text(video['title'] ?? '',
                 style: GoogleFonts.nunito(
@@ -862,81 +1110,190 @@ class _HomeState extends State<Home> {
     );
   }
 
-  // ✅ FIX: Project card uses Stack/overlay — NO white Expanded section below image
   Widget _buildProjectCard(Map<String, dynamic> video) {
-    return GestureDetector(
-      onTap: () => _openVideo(video),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(12),
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            // Full-bleed thumbnail
-            video['thumbnail'] != null
-                ? Image.network(video['thumbnail'],
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => Container(
-                        color: const Color(0xFFFDE68A),
-                        child: const Icon(Icons.video_library,
-                            size: 40, color: Colors.grey)))
-                : Container(
-                    color: const Color(0xFFFDE68A),
-                    child: const Icon(Icons.video_library,
-                        size: 40, color: Colors.grey)),
+    final videoId = video['videoId']?.toString() ?? '';
+    final materials = _materialCache[videoId] ?? [];
 
-            // Gradient overlay bottom
-            Positioned.fill(
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [
-                      Colors.transparent,
-                      Colors.black.withOpacity(0.72),
-                    ],
-                    stops: const [0.5, 1.0],
-                  ),
-                ),
-              ),
-            ),
-
-            // Play button
-            Center(
-              child: Container(
-                width: 38, height: 38,
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.9),
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(Icons.play_arrow,
-                    size: 22, color: Color(0xFF3B82F6)),
-              ),
-            ),
-
-            // Title + channel at bottom — white text on gradient
-            Positioned(
-              bottom: 8, left: 8, right: 8,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Video thumbnail card
+        GestureDetector(
+          onTap: () => _openVideo(video),
+          child: AspectRatio(
+            aspectRatio: 4 / 3,
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: Stack(
+                fit: StackFit.expand,
                 children: [
-                  Text(video['title'] ?? '',
-                      style: GoogleFonts.nunito(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w700,
-                          color: Colors.white),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis),
-                  const SizedBox(height: 2),
-                  Text('@${video['channelTitle'] ?? 'maker'}',
-                      style: GoogleFonts.nunito(
-                          fontSize: 9, color: Colors.white70)),
+                  video['thumbnail'] != null
+                      ? Image.network(video['thumbnail'],
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => Container(
+                              color: const Color(0xFFFDE68A),
+                              child: const Icon(Icons.video_library,
+                                  size: 40, color: Colors.grey)))
+                      : Container(
+                          color: const Color(0xFFFDE68A),
+                          child: const Icon(Icons.video_library,
+                              size: 40, color: Colors.grey)),
+                  Positioned.fill(
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [
+                            Colors.transparent,
+                            Colors.black.withOpacity(0.72),
+                          ],
+                          stops: const [0.5, 1.0],
+                        ),
+                      ),
+                    ),
+                  ),
+                  Center(
+                    child: Container(
+                      width: 38, height: 38,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.9),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.play_arrow,
+                          size: 22, color: Color(0xFF3B82F6)),
+                    ),
+                  ),
+                  Positioned(
+                    bottom: 8, left: 8, right: 8,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(video['title'] ?? '',
+                            style: GoogleFonts.nunito(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                                color: Colors.white),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis),
+                        const SizedBox(height: 2),
+                        Text('@${video['channelTitle'] ?? 'maker'}',
+                            style: GoogleFonts.nunito(
+                                fontSize: 9, color: Colors.white70)),
+                      ],
+                    ),
+                  ),
                 ],
               ),
             ),
-          ],
+          ),
         ),
+
+        // Materials strip below card (compact version for grid)
+        if (materials.isNotEmpty) ...[
+          const SizedBox(height: 6),
+          _buildCompactMaterialsStrip(materials),
+        ],
+      ],
+    );
+  }
+
+  /// Compact version for the grid — just a row of emoji chips
+  Widget _buildCompactMaterialsStrip(List<Map<String, dynamic>> materials) {
+    // Show max 4 materials to keep compact
+    final shown = materials.take(4).toList();
+    final remaining = materials.length - shown.length;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 5),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFF8E7),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: const Color(0xFFFFDC73), width: 1),
+      ),
+      child: Row(
+        children: [
+          const Text('🛒', style: TextStyle(fontSize: 10)),
+          const SizedBox(width: 4),
+          Expanded(
+            child: Row(
+              children: [
+                ...shown.map((m) {
+                  final icon = m['icon']?.toString() ?? '🔩';
+                  final imageUrl = m['imageUrl']?.toString();
+                  final hasAmazon = m['amazonUrl'] != null &&
+                      m['amazonUrl'].toString().isNotEmpty;
+                  return GestureDetector(
+                    onTap: hasAmazon
+                        ? () => _launchUrl(m['amazonUrl'].toString())
+                        : null,
+                    child: Container(
+                      width: 22, height: 22,
+                      margin: const EdgeInsets.only(right: 3),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(5),
+                        border: Border.all(
+                          color: hasAmazon
+                              ? const Color(0xFFFF9900).withOpacity(0.6)
+                              : const Color(0xFFE5E7EB),
+                        ),
+                      ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(4),
+                        child: imageUrl != null && imageUrl.isNotEmpty
+                            ? Image.network(imageUrl,
+                                fit: BoxFit.contain,
+                                errorBuilder: (_, __, ___) => Center(
+                                    child: Text(icon,
+                                        style: const TextStyle(fontSize: 12))))
+                            : Center(
+                                child: Text(icon,
+                                    style: const TextStyle(fontSize: 12))),
+                      ),
+                    ),
+                  );
+                }).toList(),
+                if (remaining > 0)
+                  Container(
+                    width: 22, height: 22,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFE5E7EB),
+                      borderRadius: BorderRadius.circular(5),
+                    ),
+                    child: Center(
+                      child: Text('+$remaining',
+                          style: GoogleFonts.nunito(
+                              fontSize: 8,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.black54)),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          // Amazon cart button if any have ASINs
+          if (materials.any((m) =>
+              m['amazonUrl'] != null &&
+              m['amazonUrl'].toString().isNotEmpty))
+            GestureDetector(
+              onTap: () => _openAmazonCart(materials),
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFF9900),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Text('Buy',
+                    style: GoogleFonts.nunito(
+                        fontSize: 9,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.white)),
+              ),
+            ),
+        ],
       ),
     );
   }
