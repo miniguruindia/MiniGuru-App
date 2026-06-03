@@ -8,8 +8,6 @@ import { Button } from "@/components/ui/button"
 import { 
   LayoutDashboard, 
   Users, 
-  ShoppingCart, 
-  Package, 
   Video,
   MessageSquare,
   BarChart3,
@@ -18,9 +16,10 @@ import {
   LogOut,
   Menu,
   X,
-  IndianRupee,
   Tag,
-  Coins
+  Coins,
+  Package,
+  ShoppingBag
 } from 'lucide-react'
 import Image from 'next/image'
 
@@ -59,62 +58,50 @@ export function AdminLayout({ children }: AdminLayoutProps) {
       current: pathname.startsWith('/videos'),
       badge: 0
     },
+    // ── Materials (shop) — replaces Products ──────────────
     { 
-      name: 'Orders', 
-      href: '/orders', 
-      icon: ShoppingCart,
-      current: pathname.startsWith('/orders')
-    },
-    { 
-      name: 'Products', 
-      href: '/products', 
+      name: 'Materials', 
+      href: '/materials', 
       icon: Package,
-      current: pathname.startsWith('/products')
+      current: pathname.startsWith('/materials'),
+      description: 'Set ASINs, prices, Goins'
     },
-    { 
-      name: 'Revenue', 
-      href: '/revenue', 
-      icon: IndianRupee,
-      current: pathname.startsWith('/revenue')
-    },
-    { 
-      name: 'Communication', 
-      href: '/communication', 
-      icon: MessageSquare,
-      current: pathname.startsWith('/communication')
-    },
-    { 
-      name: 'Analytics', 
-      href: '/analytics', 
-      icon: BarChart3,
-      current: pathname.startsWith('/analytics')
-    },
-    // ── New additions ──────────────────────────────────────
+    // ── Project categories ─────────────────────────────────
     { 
       name: 'Categories', 
       href: '/categories', 
       icon: Tag,
       current: pathname.startsWith('/categories')
     },
+    // ── Goins ──────────────────────────────────────────────
     { 
-      name: 'Goines', 
+      name: 'Goins', 
       href: '/goins', 
       icon: Coins,
       current: pathname.startsWith('/goins')
     },
+    // ── Communication ──────────────────────────────────────
     { 
-      name: 'Materials', 
-      href: '/materials', 
-      icon: Package,
-      current: pathname.startsWith('/materials')
+      name: 'Communication', 
+      href: '/communication', 
+      icon: MessageSquare,
+      current: pathname.startsWith('/communication')
     },
-    // ───────────────────────────────────────────────────────
+    // ── Analytics ──────────────────────────────────────────
+    { 
+      name: 'Analytics', 
+      href: '/analytics', 
+      icon: BarChart3,
+      current: pathname.startsWith('/analytics')
+    },
+    // ── CMS content ────────────────────────────────────────
     { 
       name: 'Content',
       href: '/content',
       icon: FileEdit,
       current: pathname.startsWith('/content')
     },
+    // ── Settings ───────────────────────────────────────────
     {
       name: 'Settings', 
       href: '/settings', 
@@ -123,105 +110,78 @@ export function AdminLayout({ children }: AdminLayoutProps) {
     },
   ]
 
+  const NavItems = ({ onClick }: { onClick?: () => void }) => (
+    <ul role="list" className="flex flex-1 flex-col gap-y-1">
+      {navigation.map((item) => {
+        const Icon = item.icon
+        return (
+          <li key={item.name}>
+            <Link
+              href={item.href}
+              onClick={onClick}
+              className={cn(
+                item.current
+                  ? 'bg-blue-50 text-blue-600'
+                  : 'text-gray-700 hover:text-blue-600 hover:bg-gray-50',
+                'group flex gap-x-3 rounded-lg p-3 text-sm leading-6 font-medium transition-colors'
+              )}
+            >
+              <Icon className="h-5 w-5 shrink-0" />
+              <span className="flex-1">{item.name}</span>
+              {item.badge !== undefined && item.badge > 0 && (
+                <span className="ml-auto inline-flex items-center rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-600">
+                  {item.badge}
+                </span>
+              )}
+            </Link>
+          </li>
+        )
+      })}
+    </ul>
+  )
+
+  const Logo = () => (
+    <div className="flex items-center gap-3">
+      <Image 
+        src="/MGlogo.png" 
+        alt="MiniGuru Logo" 
+        width={40} 
+        height={40}
+        className="rounded-lg"
+      />
+      <div>
+        <h1 className="font-bold text-gray-900">MiniGuru</h1>
+        <p className="text-xs text-gray-500">Admin Panel</p>
+      </div>
+    </div>
+  )
+
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Sidebar for desktop */}
+      {/* Desktop sidebar */}
       <div className="hidden lg:fixed lg:inset-y-0 lg:flex lg:w-64 lg:flex-col">
         <div className="flex grow flex-col gap-y-5 overflow-y-auto bg-white border-r border-gray-200">
-          {/* Logo */}
           <div className="flex h-16 shrink-0 items-center px-6 border-b border-gray-200">
-            <div className="flex items-center gap-3">
-              <Image 
-                src="/MGlogo.png" 
-                alt="MiniGuru Logo" 
-                width={40} 
-                height={40}
-                className="rounded-lg"
-              />
-              <div>
-                <h1 className="font-bold text-gray-900">MiniGuru</h1>
-                <p className="text-xs text-gray-500">Admin Panel</p>
-              </div>
-            </div>
+            <Logo />
           </div>
-
-          {/* Navigation */}
           <nav className="flex flex-1 flex-col px-4">
-            <ul role="list" className="flex flex-1 flex-col gap-y-1">
-              {navigation.map((item) => {
-                const Icon = item.icon
-                return (
-                  <li key={item.name}>
-                    <Link
-                      href={item.href}
-                      className={cn(
-                        item.current
-                          ? 'bg-blue-50 text-blue-600'
-                          : 'text-gray-700 hover:text-blue-600 hover:bg-gray-50',
-                        'group flex gap-x-3 rounded-lg p-3 text-sm leading-6 font-medium transition-colors'
-                      )}
-                    >
-                      <Icon className="h-5 w-5 shrink-0" />
-                      {item.name}
-                      {item.badge !== undefined && item.badge > 0 && (
-                        <span className="ml-auto inline-flex items-center rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-600">
-                          {item.badge}
-                        </span>
-                      )}
-                    </Link>
-                  </li>
-                )
-              })}
-            </ul>
+            <NavItems />
           </nav>
         </div>
       </div>
 
       {/* Mobile sidebar */}
-      <div className={cn(
-        "fixed inset-0 z-50 lg:hidden",
-        sidebarOpen ? "block" : "hidden"
-      )}>
+      <div className={cn("fixed inset-0 z-50 lg:hidden", sidebarOpen ? "block" : "hidden")}>
         <div className="fixed inset-0 bg-gray-900/80" onClick={() => setSidebarOpen(false)} />
         <div className="fixed inset-y-0 left-0 w-64 bg-white">
           <div className="flex h-16 items-center justify-between px-6 border-b">
-            <div className="flex items-center gap-3">
-              <Image 
-                src="/MGlogo.png" 
-                alt="MiniGuru Logo" 
-                width={40} 
-                height={40}
-                className="rounded-lg"
-              />
-              <span className="font-bold">MiniGuru</span>
-            </div>
+            <Logo />
             <button onClick={() => setSidebarOpen(false)}>
               <X className="h-6 w-6" />
             </button>
           </div>
           <nav className="px-4 py-4">
-            <ul className="space-y-1">
-              {navigation.map((item) => {
-                const Icon = item.icon
-                return (
-                  <li key={item.name}>
-                    <Link
-                      href={item.href}
-                      onClick={() => setSidebarOpen(false)}
-                      className={cn(
-                        item.current
-                          ? 'bg-blue-50 text-blue-600'
-                          : 'text-gray-700 hover:bg-gray-50',
-                        'group flex gap-x-3 rounded-lg p-3 text-sm font-medium'
-                      )}
-                    >
-                      <Icon className="h-5 w-5" />
-                      {item.name}
-                    </Link>
-                  </li>
-                )
-              })}
-            </ul>
+            <NavItems onClick={() => setSidebarOpen(false)} />
           </nav>
         </div>
       </div>
@@ -229,7 +189,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
       {/* Main content */}
       <div className="lg:pl-64">
         {/* Top bar */}
-        <div className="sticky top-0 z-40 flex h-16 shrink-0 items-center gap-x-4 border-b border-gray-200 bg-white px-4 shadow-sm sm:gap-x-6 sm:px-6 lg:px-8">
+        <div className="sticky top-0 z-40 flex h-16 shrink-0 items-center gap-x-4 border-b border-gray-200 bg-white px-4 shadow-sm sm:gap-x-6 sm:px-8">
           <button
             type="button"
             className="-m-2.5 p-2.5 text-gray-700 lg:hidden"
@@ -246,13 +206,12 @@ export function AdminLayout({ children }: AdminLayoutProps) {
                 {navigation.find(item => item.current)?.name || 'Dashboard'}
               </h2>
             </div>
-
             <div className="flex items-center gap-x-4 lg:gap-x-6">
               <div className="hidden lg:block lg:h-6 lg:w-px lg:bg-gray-200" />
               <div className="flex items-center gap-3">
                 <div className="text-right hidden sm:block">
-                  <p className="text-sm font-medium text-gray-900">Admin User</p>
-                  <p className="text-xs text-gray-500">miniguru.in@gmail.com</p>
+                  <p className="text-sm font-medium text-gray-900">Admin</p>
+                  <p className="text-xs text-gray-500">admin@miniguru.in</p>
                 </div>
                 <button
                   onClick={handleLogout}

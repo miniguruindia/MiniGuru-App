@@ -5,8 +5,8 @@ import { Card } from "@/components/ui/card"
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import {
-  Users, Video, ShoppingCart, TrendingUp, ArrowUpRight,
-  IndianRupee, CheckCircle, Clock, AlertCircle, RefreshCw
+  Users, Video, Package, TrendingUp, ArrowUpRight,
+  CheckCircle, Clock, RefreshCw, Coins
 } from 'lucide-react'
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
@@ -16,17 +16,17 @@ import {
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001'
 
 function getCookie(name: string): string | null {
-  if (typeof window === 'undefined') return null;
-  const value = `; ${document.cookie}`;
-  const parts = value.split(`; ${name}=`);
-  if (parts.length === 2) return parts.pop()?.split(';').shift() || null;
-  return null;
+  if (typeof window === 'undefined') return null
+  const value = `; ${document.cookie}`
+  const parts = value.split(`; ${name}=`)
+  if (parts.length === 2) return parts.pop()?.split(';').shift() || null
+  return null
 }
 
 function authHeader() {
   const token = getCookie('auth_token') || ''
-  return { 
-    'Authorization': `Bearer ${token}`, 
+  return {
+    'Authorization': `Bearer ${token}`,
     'Content-Type': 'application/json',
     'Accept': 'application/json'
   }
@@ -37,14 +37,11 @@ const DEFAULT_STATS = {
   new:   { users: 0, projects: 0, orders: 0 },
 }
 
-interface Order {
-  id: string; totalAmount: number; paymentStatus: string; createdAt: string
-}
-
 export default function DashboardPage() {
   const router = useRouter()
   const [stats,         setStats]         = useState(DEFAULT_STATS)
-  const [orders,        setOrders]        = useState<Order[]>([])
+  const [materialCount, setMaterialCount] = useState(0)
+  const [asinCount,     setAsinCount]     = useState(0)
   const [loading,       setLoading]       = useState(true)
   const [error,         setError]         = useState<string | null>(null)
   const [lastRefreshed, setLastRefreshed] = useState('')
@@ -54,16 +51,11 @@ export default function DashboardPage() {
     setError(null)
     try {
       const headers = authHeader()
-      console.log('🔄 Dashboard: Fetching from', API_BASE)
-      
-      const [statsRes, ordersRes] = await Promise.all([
-        fetch(`${API_BASE}/admin/stats`, { headers, credentials: 'include' }),
-        fetch(`${API_BASE}/admin/orders`, { headers, credentials: 'include' }),
+      const [statsRes, matsRes] = await Promise.all([
+        fetch(`${API_BASE}/admin/stats`,   { headers, credentials: 'include' }),
+        fetch(`${API_BASE}/materials`,      { headers, credentials: 'include' }),
       ])
-      
-      console.log('📊 Stats response:', statsRes.status, statsRes.statusText)
-      console.log('📦 Orders response:', ordersRes.status, ordersRes.statusText)
-      
+
       if (statsRes.ok) {
         const data = await statsRes.json()
         setStats({
@@ -71,55 +63,63 @@ export default function DashboardPage() {
           new:   { ...DEFAULT_STATS.new,   ...(data?.new   ?? {}) },
         })
       } else {
-        const errText = await statsRes.text()
-        console.error('❌ Stats error:', statsRes.status, errText)
         setError(`Stats error: ${statsRes.status}`)
       }
-      
-      if (ordersRes.ok) {
-        setOrders(await ordersRes.json())
-      } else {
-        const errText = await ordersRes.text()
-        console.error('❌ Orders error:', ordersRes.status, errText)
-        if (!error) setError(`Orders error: ${ordersRes.status}`)
+
+      if (matsRes.ok) {
+        const mdata = await matsRes.json()
+        const list  = Array.isArray(mdata) ? mdata : (mdata.materials ?? [])
+        setMaterialCount(list.length)
+        setAsinCount(list.filter((m: any) => m.amazonASIN).length)
       }
-    } catch (e: any) { 
-      const msg = e?.message || String(e)
-      console.error('❌ Dashboard fetch failed:', msg, e)
-      setError(`Connection failed: ${msg}. Make sure backend is running at ${API_BASE}`)
-    }
-    finally { 
+    } catch (e: any) {
+      setError(`Connection failed: ${e?.message}`)
+    } finally {
       setLoading(false)
-      setLastRefreshed(new Date().toLocaleTimeString('en-IN')) 
+      setLastRefreshed(new Date().toLocaleTimeString('en-IN'))
     }
   }
 
   useEffect(() => { load() }, [])
 
-  const totalRevenue    = orders.reduce((s, o) => s + (o.totalAmount ?? 0), 0)
-  const completedOrders = orders.filter(o => o.paymentStatus?.toUpperCase() === 'COMPLETED')
-  const pendingRevenue  = orders.filter(o => o.paymentStatus?.toUpperCase() === 'PENDING').reduce((s, o) => s + (o.totalAmount ?? 0), 0)
+  const mainStats = [
+    {
+      title: 'Total Users',
+      value: stats.total.users,
+      sub: `+${stats.new.users} this week`,
+      icon: Users,
+      gradient: 'from-blue-500 to-cyan-500',
+      href: '/users'
+    },
+    {
+      title: 'Projects / Videos',
+      value: stats.total.projects,
+      sub: `+${stats.new.projects} this week`,
+      icon: Video,
+      gradient: 'from-purple-500 to-pink-500',
+      href: '/videos'
+    },
+    {
+      title: 'Materials',
+      value: materialCount,
+      sub: `${asinCount} linked to Amazon`,
+      icon: Package,
+      gradient: 'from-orange-500 to-amber-500',
+      href: '/materials'
+    },
+    {
+      title: 'Goins Awarded',
+      value: '—',
+      sub: 'View in Goins page',
+      icon: Coins,
+      gradient: 'from-emerald-500 to-teal-500',
+      href: '/goins'
+    },
+  ]
 
   const userChartData = [
     { label: 'Existing', value: Math.max(0, stats.total.users - stats.new.users) },
     { label: 'New (7d)',  value: stats.new.users },
-  ]
-
-  const revenueByMonth = orders.reduce((acc: Record<string, number>, o) => {
-    const month = new Date(o.createdAt).toLocaleString('en-IN', { month: 'short', year: '2-digit' })
-    acc[month] = (acc[month] ?? 0) + (o.totalAmount ?? 0)
-    return acc
-  }, {})
-  const revenueChart = Object.entries(revenueByMonth).map(([month, revenue]) => ({ month, revenue })).slice(-6)
-  const revenueChartData = revenueChart.length > 0 ? revenueChart : [{ month: 'No orders', revenue: 0 }]
-
-  const mainStats = [
-    { title: 'Total Users',       value: stats.total.users,  sub: `+${stats.new.users} this week`,       icon: Users,        gradient: 'from-blue-500 to-cyan-500',    href: '/users'    },
-    { title: 'Projects / Videos', value: stats.total.projects, sub: `+${stats.new.projects} this week`, icon: Video,        gradient: 'from-purple-500 to-pink-500',  href: '/videos'   },
-    { title: 'Orders',            value: stats.total.orders, sub: `${completedOrders.length} completed`, icon: ShoppingCart, gradient: 'from-emerald-500 to-teal-500', href: '/orders'   },
-    { title: 'Revenue',           value: '₹' + totalRevenue.toLocaleString('en-IN'),
-      sub: pendingRevenue > 0 ? `₹${pendingRevenue.toLocaleString('en-IN')} pending` : 'All completed',
-      icon: IndianRupee, gradient: 'from-amber-500 to-orange-500', href: '/revenue' },
   ]
 
   if (loading) return (
@@ -133,6 +133,8 @@ export default function DashboardPage() {
   return (
     <AdminLayout>
       <div className="space-y-6">
+
+        {/* Header */}
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
@@ -145,11 +147,13 @@ export default function DashboardPage() {
           </button>
         </div>
 
+        {/* Stat cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
           {mainStats.map(stat => {
             const Icon = stat.icon
             return (
-              <Card key={stat.title} onClick={() => router.push(stat.href)}
+              <Card key={stat.title}
+                onClick={() => router.push(stat.href)}
                 className="relative overflow-hidden cursor-pointer hover:shadow-lg transition-all duration-300 hover:-translate-y-1 border-0">
                 <div className={`absolute inset-0 bg-gradient-to-br ${stat.gradient} opacity-5`} />
                 <div className="relative p-6">
@@ -168,6 +172,45 @@ export default function DashboardPage() {
           })}
         </div>
 
+        {/* Amazon affiliate progress */}
+        <Card className="p-6 border-0 shadow-md">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900">Amazon Affiliate Setup</h3>
+              <p className="text-sm text-gray-500">
+                {asinCount} of {materialCount} materials have Amazon ASINs linked
+              </p>
+            </div>
+            <button onClick={() => router.push('/materials')}
+              className="text-sm text-orange-600 hover:text-orange-700 font-medium">
+              Add ASINs →
+            </button>
+          </div>
+          <div className="w-full bg-gray-100 rounded-full h-3">
+            <div
+              className="bg-gradient-to-r from-orange-400 to-amber-500 h-3 rounded-full transition-all duration-500"
+              style={{ width: materialCount > 0 ? `${Math.round((asinCount / materialCount) * 100)}%` : '0%' }}
+            />
+          </div>
+          <div className="flex justify-between mt-2">
+            <p className="text-xs text-gray-400">
+              {materialCount > 0 ? Math.round((asinCount / materialCount) * 100) : 0}% complete
+            </p>
+            <p className="text-xs text-orange-600 font-medium">
+              {materialCount - asinCount} materials still need ASINs
+            </p>
+          </div>
+          {asinCount === 0 && (
+            <div className="mt-3 p-3 bg-amber-50 rounded-lg border border-amber-200">
+              <p className="text-xs text-amber-700 font-medium">
+                ⚠️ No ASINs set yet — "Buy All on Amazon" button won't appear in the shop until at least one ASIN is added.
+                Go to Materials → Amazon Setup tab to add them.
+              </p>
+            </div>
+          )}
+        </Card>
+
+        {/* Charts */}
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
           <Card className="p-6 border-0 shadow-md">
             <div className="flex items-center justify-between mb-6">
@@ -175,15 +218,22 @@ export default function DashboardPage() {
                 <h3 className="text-lg font-semibold text-gray-900">User Breakdown</h3>
                 <p className="text-sm text-gray-500">Total vs new this week</p>
               </div>
-              <button onClick={() => router.push('/analytics')} className="text-sm text-blue-600 hover:text-blue-700 font-medium">View Analytics →</button>
+              <button onClick={() => router.push('/analytics')}
+                className="text-sm text-blue-600 hover:text-blue-700 font-medium">
+                View Analytics →
+              </button>
             </div>
             <ResponsiveContainer width="100%" height={240}>
               <BarChart data={userChartData} barSize={48}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                 <XAxis dataKey="label" stroke="#9ca3af" style={{ fontSize: '13px' }} />
                 <YAxis stroke="#9ca3af" style={{ fontSize: '12px' }} allowDecimals={false} />
-                <Tooltip contentStyle={{ backgroundColor: '#fff', border: '1px solid #e5e7eb', borderRadius: '8px', fontSize: '13px' }} formatter={(v: number) => [v, 'Users']} />
-                <Bar dataKey="value" radius={[6,6,0,0]} fill="#3b82f6" label={{ position: 'top', fontSize: 13, fontWeight: 700, fill: '#374151' }} />
+                <Tooltip
+                  contentStyle={{ backgroundColor: '#fff', border: '1px solid #e5e7eb', borderRadius: '8px', fontSize: '13px' }}
+                  formatter={(v: number) => [v, 'Users']}
+                />
+                <Bar dataKey="value" radius={[6,6,0,0]} fill="#3b82f6"
+                  label={{ position: 'top', fontSize: 13, fontWeight: 700, fill: '#374151' }} />
               </BarChart>
             </ResponsiveContainer>
             <div className="mt-4 grid grid-cols-2 gap-3">
@@ -201,164 +251,62 @@ export default function DashboardPage() {
           <Card className="p-6 border-0 shadow-md">
             <div className="flex items-center justify-between mb-6">
               <div>
-                <h3 className="text-lg font-semibold text-gray-900">Revenue Overview</h3>
-                <p className="text-sm text-gray-500">{revenueChart.length > 0 ? 'Monthly order totals' : 'No orders yet'}</p>
-              </div>
-              <button onClick={() => router.push('/revenue')} className="text-sm text-blue-600 hover:text-blue-700 font-medium">View Revenue →</button>
-            </div>
-            <ResponsiveContainer width="100%" height={240}>
-              <AreaChart data={revenueChartData}>
-                <defs>
-                  <linearGradient id="colorRev" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%"  stopColor="#f59e0b" stopOpacity={0.3} />
-                    <stop offset="95%" stopColor="#f59e0b" stopOpacity={0}   />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                <XAxis dataKey="month" stroke="#9ca3af" style={{ fontSize: '12px' }} />
-                <YAxis stroke="#9ca3af" style={{ fontSize: '12px' }} tickFormatter={v => v === 0 ? '₹0' : `₹${(v/1000).toFixed(0)}k`} />
-                <Tooltip contentStyle={{ backgroundColor: '#fff', border: '1px solid #e5e7eb', borderRadius: '8px', fontSize: '13px' }} formatter={(v: number) => [`₹${v.toLocaleString('en-IN')}`, 'Revenue']} />
-                <Area type="monotone" dataKey="revenue" stroke="#f59e0b" strokeWidth={2} fillOpacity={1} fill="url(#colorRev)" />
-              </AreaChart>
-            </ResponsiveContainer>
-            <div className="mt-4 grid grid-cols-2 gap-3">
-              <div className="bg-amber-50 rounded-lg p-3 text-center">
-                <p className="text-2xl font-bold text-amber-700">₹{totalRevenue.toLocaleString('en-IN')}</p>
-                <p className="text-xs text-amber-500 mt-0.5">Total Revenue</p>
-              </div>
-              <div className="bg-orange-50 rounded-lg p-3 text-center">
-                <p className="text-2xl font-bold text-orange-700">{orders.length}</p>
-                <p className="text-xs text-orange-500 mt-0.5">Total Orders</p>
+                <h3 className="text-lg font-semibold text-gray-900">Quick Actions</h3>
+                <p className="text-sm text-gray-500">Common admin tasks</p>
               </div>
             </div>
-          </Card>
-        </div>
-
-        <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-          <Card className="p-6 border-0 shadow-md xl:col-span-2">
-            <div className="flex items-center justify-between mb-6">
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900">User Activity & Engagement</h3>
-                <p className="text-sm text-gray-500">Active users and average session time</p>
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-4 mb-6">
-              <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg p-4 border border-blue-200">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-blue-600 font-medium">Active Users (Today)</p>
-                    <p className="text-3xl font-bold text-blue-900 mt-2">{Math.floor(stats.total.users * 0.35)}</p>
-                  </div>
-                  <Users className="h-10 w-10 text-blue-300" />
-                </div>
-              </div>
-              <div className="bg-gradient-to-br from-emerald-50 to-emerald-100 rounded-lg p-4 border border-emerald-200">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-emerald-600 font-medium">Avg. Session Time</p>
-                    <p className="text-3xl font-bold text-emerald-900 mt-2">24<span className="text-lg">m</span></p>
-                  </div>
-                  <Clock className="h-10 w-10 text-emerald-300" />
-                </div>
-              </div>
-            </div>
-            <ResponsiveContainer width="100%" height={200}>
-              <BarChart data={[
-                { name: 'Mon', active: Math.floor(Math.random() * 200 + 150), engagement: 85 },
-                { name: 'Tue', active: Math.floor(Math.random() * 200 + 150), engagement: 88 },
-                { name: 'Wed', active: Math.floor(Math.random() * 200 + 150), engagement: 82 },
-                { name: 'Thu', active: Math.floor(Math.random() * 200 + 150), engagement: 90 },
-                { name: 'Fri', active: Math.floor(Math.random() * 200 + 150), engagement: 92 },
-                { name: 'Sat', active: Math.floor(Math.random() * 200 + 150), engagement: 78 },
-                { name: 'Sun', active: Math.floor(Math.random() * 200 + 150), engagement: 75 },
-              ]}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                <XAxis dataKey="name" stroke="#9ca3af" style={{ fontSize: '12px' }} />
-                <YAxis stroke="#9ca3af" style={{ fontSize: '12px' }} />
-                <Tooltip contentStyle={{ backgroundColor: '#fff', border: '1px solid #e5e7eb', borderRadius: '8px', fontSize: '12px' }} />
-                <Bar dataKey="active" fill="#3b82f6" name="Active Users" radius={[4,4,0,0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </Card>
-
-          <Card className="p-6 border-0 shadow-md">
-            <h3 className="text-lg font-semibold text-gray-900 mb-6">Key Metrics</h3>
-            <div className="space-y-4">
-              <div className="flex items-center justify-between p-3 bg-purple-50 rounded-lg border border-purple-100">
-                <span className="text-sm text-purple-700 font-medium">Engagement Rate</span>
-                <span className="text-xl font-bold text-purple-900">87%</span>
-              </div>
-              <div className="flex items-center justify-between p-3 bg-pink-50 rounded-lg border border-pink-100">
-                <span className="text-sm text-pink-700 font-medium">Retention Rate</span>
-                <span className="text-xl font-bold text-pink-900">76%</span>
-              </div>
-              <div className="flex items-center justify-between p-3 bg-orange-50 rounded-lg border border-orange-100">
-                <span className="text-sm text-orange-700 font-medium">Completion Rate</span>
-                <span className="text-xl font-bold text-orange-900">64%</span>
-              </div>
-              <div className="flex items-center justify-between p-3 bg-teal-50 rounded-lg border border-teal-100">
-                <span className="text-sm text-teal-700 font-medium">Avg. Rating</span>
-                <span className="text-xl font-bold text-teal-900">4.6/5</span>
-              </div>
-            </div>
-          </Card>
-        </div>
-
-        <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-          <Card className="p-6 border-0 shadow-md">
-            <h3 className="text-lg font-semibold text-gray-900 mb-6">Parent Activity</h3>
             <div className="space-y-3">
-              <div className="flex items-center justify-between p-3 bg-indigo-50 rounded-lg border border-indigo-100">
-                <div>
-                  <p className="text-sm font-medium text-indigo-900">Total Parents</p>
-                  <p className="text-xs text-indigo-600">{Math.floor(stats.total.users * 0.4)} active</p>
+              <button onClick={() => router.push('/videos')}
+                className="w-full flex items-center justify-between p-4 bg-purple-50 rounded-lg border border-purple-100 hover:bg-purple-100 transition-colors">
+                <div className="flex items-center gap-3">
+                  <Video className="h-5 w-5 text-purple-600" />
+                  <div className="text-left">
+                    <p className="text-sm font-medium text-purple-900">Approve Videos</p>
+                    <p className="text-xs text-purple-600">Review pending project uploads</p>
+                  </div>
                 </div>
-                <p className="text-2xl font-bold text-indigo-700">{Math.floor(stats.total.users * 0.4)}</p>
-              </div>
-              <div className="flex items-center justify-between p-3 bg-sky-50 rounded-lg border border-sky-100">
-                <div>
-                  <p className="text-sm font-medium text-sky-900">Parent Engagement</p>
-                  <p className="text-xs text-sky-600">view, comments, feedback</p>
-                </div>
-                <p className="text-2xl font-bold text-sky-700">82%</p>
-              </div>
-              <div className="flex items-center justify-between p-3 bg-cyan-50 rounded-lg border border-cyan-100">
-                <div>
-                  <p className="text-sm font-medium text-cyan-900">Messages Sent</p>
-                  <p className="text-xs text-cyan-600">to student activities</p>
-                </div>
-                <p className="text-2xl font-bold text-cyan-700">{Math.floor(Math.random() * 500 + 300)}</p>
-              </div>
-            </div>
-          </Card>
+                <ArrowUpRight className="h-4 w-4 text-purple-400" />
+              </button>
 
-          <Card className="p-6 border-0 shadow-md">
-            <h3 className="text-lg font-semibold text-gray-900 mb-6">Mentor Activity</h3>
-            <div className="space-y-3">
-              <div className="flex items-center justify-between p-3 bg-violet-50 rounded-lg border border-violet-100">
-                <div>
-                  <p className="text-sm font-medium text-violet-900">Active Mentors</p>
-                  <p className="text-xs text-violet-600">guiding students</p>
+              <button onClick={() => router.push('/materials')}
+                className="w-full flex items-center justify-between p-4 bg-orange-50 rounded-lg border border-orange-100 hover:bg-orange-100 transition-colors">
+                <div className="flex items-center gap-3">
+                  <Package className="h-5 w-5 text-orange-600" />
+                  <div className="text-left">
+                    <p className="text-sm font-medium text-orange-900">Add Amazon ASINs</p>
+                    <p className="text-xs text-orange-600">{materialCount - asinCount} materials need ASINs</p>
+                  </div>
                 </div>
-                <p className="text-2xl font-bold text-violet-700">{Math.floor(stats.total.users * 0.08)}</p>
-              </div>
-              <div className="flex items-center justify-between p-3 bg-rose-50 rounded-lg border border-rose-100">
-                <div>
-                  <p className="text-sm font-medium text-rose-900">Sessions Conducted</p>
-                  <p className="text-xs text-rose-600">last 7 days</p>
+                <ArrowUpRight className="h-4 w-4 text-orange-400" />
+              </button>
+
+              <button onClick={() => router.push('/content')}
+                className="w-full flex items-center justify-between p-4 bg-green-50 rounded-lg border border-green-100 hover:bg-green-100 transition-colors">
+                <div className="flex items-center gap-3">
+                  <CheckCircle className="h-5 w-5 text-green-600" />
+                  <div className="text-left">
+                    <p className="text-sm font-medium text-green-900">Update CMS Content</p>
+                    <p className="text-xs text-green-600">Challenges, Resources, Announcements</p>
+                  </div>
                 </div>
-                <p className="text-2xl font-bold text-rose-700">{Math.floor(Math.random() * 80 + 40)}</p>
-              </div>
-              <div className="flex items-center justify-between p-3 bg-fuchsia-50 rounded-lg border border-fuchsia-100">
-                <div>
-                  <p className="text-sm font-medium text-fuchsia-900">Student Feedback</p>
-                  <p className="text-xs text-fuchsia-600">average rating</p>
+                <ArrowUpRight className="h-4 w-4 text-green-400" />
+              </button>
+
+              <button onClick={() => router.push('/communication')}
+                className="w-full flex items-center justify-between p-4 bg-blue-50 rounded-lg border border-blue-100 hover:bg-blue-100 transition-colors">
+                <div className="flex items-center gap-3">
+                  <Clock className="h-5 w-5 text-blue-600" />
+                  <div className="text-left">
+                    <p className="text-sm font-medium text-blue-900">Send Announcement</p>
+                    <p className="text-xs text-blue-600">Broadcast to all users</p>
+                  </div>
                 </div>
-                <p className="text-2xl font-bold text-fuchsia-700">4.8/5</p>
-              </div>
+                <ArrowUpRight className="h-4 w-4 text-blue-400" />
+              </button>
             </div>
           </Card>
         </div>
+
       </div>
     </AdminLayout>
   )
