@@ -162,40 +162,65 @@ router.post('/admin/create', authenticateToken, requireAdmin, async (req: Reques
 // Accepts all Material fields including Amazon affiliate fields added in May 2026 schema:
 //   priceEstimate, amazonASIN, amazonUrl, showInShop, showInPlanning
 // amazonUrl is auto-built from amazonASIN if not supplied directly.
-router.put('/admin/:id', async (req: any, res: any) => {
+router.put('/admin/:id', authenticateToken, requireAdmin, async (req: Request, res: Response) => {
   try {
-    const { id } = req.params;
     const {
-      name, description, imageUrl, icon, category, unit, goinsPrice, isActive,
-      priceEstimate, amazonASIN, showInShop, showInPlanning,
+      name,
+      description,
+      imageUrl,
+      icon,
+      category,
+      unit,
+      goinsPrice,
+      isActive,
+      // ── Amazon / shop fields (May 2026 schema) ──
+      priceEstimate,
+      amazonASIN,
+      amazonUrl,
+      showInShop,
+      showInPlanning,
     } = req.body;
 
-    const asin = amazonASIN !== undefined
-      ? (amazonASIN ? amazonASIN.trim() : null)
-      : undefined;
+    const data: any = {};
 
-    const updated = await (prisma as any).material.update({
-      where: { id },
-      data: {
-        ...(name          !== undefined && { name }),
-        ...(description   !== undefined && { description }),
-        ...(imageUrl      !== undefined && { imageUrl }),
-        ...(icon          !== undefined && { icon }),
-        ...(category      !== undefined && { category }),
-        ...(unit          !== undefined && { unit }),
-        ...(goinsPrice    !== undefined && { goinsPrice: Number(goinsPrice) }),
-        ...(isActive      !== undefined && { isActive }),
-        ...(priceEstimate !== undefined && { priceEstimate: priceEstimate ? Number(priceEstimate) : null }),
-        ...(asin          !== undefined && { amazonASIN: asin }),
-        ...(asin          !== undefined && { amazonUrl: asin ? ('https://www.amazon.in/dp/' + asin + '?tag=miniguru08-21') : null }),
-        ...(showInShop    !== undefined && { showInShop }),
-        ...(showInPlanning !== undefined && { showInPlanning }),
-      },
+    // ── Core fields ──
+    if (name !== undefined)        data.name = String(name).trim();
+    if (description !== undefined) data.description = description ? String(description).trim() : null;
+    if (imageUrl !== undefined)    data.imageUrl = imageUrl ? String(imageUrl).trim() : null;
+    if (icon !== undefined)        data.icon = icon ? String(icon).trim() : null;
+    if (category !== undefined)    data.category = String(category).trim();
+    if (unit !== undefined)        data.unit = String(unit).trim();
+    if (goinsPrice !== undefined)  data.goinsPrice = Number(goinsPrice);
+    if (isActive !== undefined)    data.isActive = Boolean(isActive);
+
+    // ── Amazon / shop fields ──
+    if (priceEstimate !== undefined) {
+      data.priceEstimate = (priceEstimate === null || priceEstimate === '') ? null : Number(priceEstimate);
+    }
+    if (amazonASIN !== undefined) {
+      const asin = amazonASIN ? String(amazonASIN).trim() : null;
+      data.amazonASIN = asin;
+      // Auto-build amazonUrl from ASIN (always overwrite to keep them in sync)
+      // Only use the supplied amazonUrl if there's no ASIN (manual override case)
+      data.amazonUrl = asin
+        ? `https://www.amazon.in/dp/${asin}?tag=miniguru08-21`
+        : null;
+    } else if (amazonUrl !== undefined) {
+      // Allow explicit amazonUrl update without changing ASIN (rare case)
+      data.amazonUrl = amazonUrl ? String(amazonUrl).trim() : null;
+    }
+    if (showInShop !== undefined)     data.showInShop = Boolean(showInShop);
+    if (showInPlanning !== undefined) data.showInPlanning = Boolean(showInPlanning);
+
+    const material = await prisma.material.update({
+      where: { id: req.params.id },
+      data,
     });
-    return res.json(updated);
+    res.json(material);
   } catch (err: any) {
-    console.error('material update error:', err);
-    return res.status(500).json({ error: err.message });
+    if (err?.code === 'P2025') return res.status(404).json({ error: 'Material not found' });
+    console.error('[materials] PUT /admin/:id error:', err);
+    res.status(500).json({ error: 'Failed to update material' });
   }
 });
 
