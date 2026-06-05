@@ -127,29 +127,32 @@ router.post('/admin/create', authenticateToken, requireAdmin, async (req: Reques
 router.put('/admin/:id', authenticateToken, requireAdmin, async (req: any, res: any) => {
   try {
     const { id } = req.params;
-    const { name, description, imageUrl, icon, category, unit, goinsPrice, isActive,
-            priceEstimate, amazonASIN, showInShop, showInPlanning } = req.body;
-    const asin = amazonASIN !== undefined
-      ? (amazonASIN ? String(amazonASIN).trim() : null)
-      : undefined;
-    const updated = await prisma.material.update({
-      where: { id },
-      data: {
-        ...(name          !== undefined && { name }),
-        ...(description   !== undefined && { description }),
-        ...(imageUrl      !== undefined && { imageUrl }),
-        ...(icon          !== undefined && { icon }),
-        ...(category      !== undefined && { category }),
-        ...(unit          !== undefined && { unit }),
-        ...(goinsPrice    !== undefined && { goinsPrice: Number(goinsPrice) }),
-        ...(isActive      !== undefined && { isActive }),
-        ...(priceEstimate !== undefined && { priceEstimate: priceEstimate ? Number(priceEstimate) : null }),
-        ...(asin          !== undefined && { amazonASIN: asin }),
-        ...(asin          !== undefined && { amazonUrl: asin ? ('https://www.amazon.in/dp/' + asin + '?tag=miniguru08-21') : null }),
-        ...(showInShop    !== undefined && { showInShop }),
-        ...(showInPlanning !== undefined && { showInPlanning }),
-      },
-    });
+    const body = req.body || {};
+    console.log('[PUT /admin/:id] id:', id, 'body keys:', Object.keys(body));
+
+    // Build update object — only include keys that are present in body
+    const data: any = {};
+    if ('name'          in body) data.name          = body.name;
+    if ('description'   in body) data.description   = body.description;
+    if ('imageUrl'      in body) data.imageUrl       = body.imageUrl;
+    if ('icon'          in body) data.icon           = body.icon;
+    if ('category'      in body) data.category       = body.category;
+    if ('unit'          in body) data.unit           = body.unit;
+    if ('goinsPrice'    in body) data.goinsPrice     = Number(body.goinsPrice);
+    if ('isActive'      in body) data.isActive       = body.isActive;
+    if ('showInShop'    in body) data.showInShop     = body.showInShop;
+    if ('showInPlanning' in body) data.showInPlanning = body.showInPlanning;
+    if ('priceEstimate' in body) data.priceEstimate  = body.priceEstimate ? Number(body.priceEstimate) : null;
+    if ('amazonASIN'    in body) {
+      const asin = body.amazonASIN ? String(body.amazonASIN).trim() : null;
+      data.amazonASIN = asin;
+      data.amazonUrl  = asin ? ('https://www.amazon.in/dp/' + asin + '?tag=miniguru08-21') : null;
+    }
+
+    console.log('[PUT /admin/:id] data to save:', data);
+
+    const updated = await prisma.material.update({ where: { id }, data });
+    console.log('[PUT /admin/:id] saved amazonASIN:', updated.amazonASIN);
     return res.json(updated);
   } catch (err: any) {
     console.error('material update error:', err);
