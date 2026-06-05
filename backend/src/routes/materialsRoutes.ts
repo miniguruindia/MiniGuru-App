@@ -4,7 +4,6 @@ import { authenticateToken } from '../middleware/authMiddleware';
 
 const router = Router();
 
-// ─── Helper: require ADMIN or SUPERADMIN ─────────────────────────────────────
 function requireAdmin(req: Request, res: Response, next: Function) {
   const role = (req as any).user?.role;
   if (role !== 'ADMIN' && role !== 'SUPERADMIN') {
@@ -13,9 +12,6 @@ function requireAdmin(req: Request, res: Response, next: Function) {
   next();
 }
 
-// ─── Shape mapper: converts DB Material → shape Flutter MaterialItem.fromJson expects ─
-// Flutter reads: id, name, categoryId, categoryName, goinsPerUnit, unit, imageUrl, isAvailable
-// We map: category string → both categoryName AND categoryId (slug)
 function toFlutterShape(m: any) {
   return {
     id: m.id,
@@ -23,48 +19,40 @@ function toFlutterShape(m: any) {
     description: m.description,
     imageUrl: m.imageUrl,
     icon: m.icon,
-    // Flutter reads categoryName and categoryId separately
     categoryName: m.category,
-    categoryId: m.category.toLowerCase().replace(/\s+/g, '_'), // slug — no ObjectId needed
+    categoryId: m.category.toLowerCase().replace(/\s+/g, '_'),
     category: m.category,
     unit: m.unit || 'piece',
-    // Flutter reads goinsPerUnit first, then goinsPrice as fallback
     goinsPerUnit: m.goinsPrice,
     goinsPrice: m.goinsPrice,
-    price: m.goinsPrice, // legacy fallback — MaterialItem.fromJson reads json['price']
+    price: m.goinsPrice,
     isAvailable: m.isActive,
     isActive: m.isActive,
+    priceEstimate: m.priceEstimate,
+    amazonASIN: m.amazonASIN,
+    amazonUrl: m.amazonUrl,
+    showInShop: m.showInShop,
+    showInPlanning: m.showInPlanning,
     createdAt: m.createdAt,
   };
 }
 
-// ════════════════════════════════════════════════════════════════════════════
-// PUBLIC ROUTES — no auth needed (Flutter calls these without a token)
-// ════════════════════════════════════════════════════════════════════════════
+// ── PUBLIC ROUTES ─────────────────────────────────────────────────────────────
 
-// GET /materials
-// Returns all active materials — Flutter material_picker_widget calls this
 router.get('/', async (req: Request, res: Response) => {
   try {
     const { category, categoryId } = req.query;
-
     const where: any = { isActive: true };
-
-    // Support both ?category=Electronics and ?categoryId=electronics (Flutter compat)
     if (category) {
       where.category = String(category);
     } else if (categoryId) {
-      // categoryId in Flutter is the slug e.g. "electronics"
-      // Match case-insensitively by rebuilding from slug
       const slug = String(categoryId).replace(/_/g, ' ');
       where.category = { equals: slug, mode: 'insensitive' };
     }
-
     const materials = await prisma.material.findMany({
       where,
       orderBy: [{ category: 'asc' }, { name: 'asc' }],
     });
-
     res.json(materials.map(toFlutterShape));
   } catch (err) {
     console.error('[materials] GET / error:', err);
@@ -72,9 +60,6 @@ router.get('/', async (req: Request, res: Response) => {
   }
 });
 
-// GET /materials/categories
-// Returns category list in the shape Flutter MaterialCategory.fromJson expects:
-// { id, name, emoji }
 router.get('/categories', async (_req: Request, res: Response) => {
   try {
     const results = await prisma.material.findMany({
@@ -83,14 +68,11 @@ router.get('/categories', async (_req: Request, res: Response) => {
       distinct: ['category'],
       orderBy: { category: 'asc' },
     });
-
-    // Map to MaterialCategory shape: { id (slug), name, emoji }
     const categories = results.map((r) => ({
       id: r.category.toLowerCase().replace(/\s+/g, '_'),
       name: r.category,
-      emoji: r.icon || '📦', // use the first found icon for that category
+      emoji: r.icon || '📦',
     }));
-
     res.json(categories);
   } catch (err) {
     console.error('[materials] GET /categories error:', err);
@@ -98,47 +80,27 @@ router.get('/categories', async (_req: Request, res: Response) => {
   }
 });
 
-// GET /materials/:id
-// Single material detail
-router.get('/:id', async (req: Request, res: Response) => {
-  try {
-    const material = await prisma.material.findUnique({
-      where: { id: req.params.id },
-    });
-    if (!material || !material.isActive) {
-      return res.status(404).json({ message: 'Material not found' });
-    }
-    res.json(toFlutterShape(material));
-  } catch (err) {
-    res.status(500).json({ message: 'Failed to fetch material' });
-  }
-});
+// ── ADMIN ROUTES — must come before /:id ─────────────────────────────────────
 
-// ════════════════════════════════════════════════════════════════════════════
-// ADMIN ROUTES — require auth + admin role
-// ════════════════════════════════════════════════════════════════════════════
-
-// GET /materials/admin/all — includes inactive items
 router.get('/admin/all', authenticateToken, requireAdmin, async (_req: Request, res: Response) => {
   try {
     const materials = await prisma.material.findMany({
       orderBy: [{ category: 'asc' }, { name: 'asc' }],
     });
-    res.json(materials); // raw DB shape for admin panel
+    res.json(materials);
   } catch (err) {
     res.status(500).json({ error: 'Failed to fetch materials' });
   }
 });
 
-// POST /materials/admin/create — single create
 router.post('/admin/create', authenticateToken, requireAdmin, async (req: Request, res: Response) => {
   try {
-    const { name, description, imageUrl, icon, category, unit, goinsPrice } = req.body;
-
+    const { name, description, imageUrl, icon, category, unit, goinsPrice,
+            priceEstimate, amazonASIN, showInShop, showInPlanning } = req.body;
     if (!name || !category || goinsPrice === undefined) {
       return res.status(400).json({ error: 'name, category, and goinsPrice are required' });
     }
-
+    const asin = amazonASIN ? String(amazonASIN).trim() : null;
     const material = await prisma.material.create({
       data: {
         name: String(name).trim(),
@@ -148,9 +110,13 @@ router.post('/admin/create', authenticateToken, requireAdmin, async (req: Reques
         category: String(category).trim(),
         unit: unit ? String(unit).trim() : 'piece',
         goinsPrice: Number(goinsPrice),
+        priceEstimate: priceEstimate ? Number(priceEstimate) : null,
+        amazonASIN: asin,
+        amazonUrl: asin ? ('https://www.amazon.in/dp/' + asin + '?tag=miniguru08-21') : null,
+        showInShop: showInShop !== undefined ? Boolean(showInShop) : true,
+        showInPlanning: showInPlanning !== undefined ? Boolean(showInPlanning) : true,
       },
     });
-
     res.status(201).json(material);
   } catch (err) {
     console.error('[materials] POST /admin/create error:', err);
@@ -158,23 +124,15 @@ router.post('/admin/create', authenticateToken, requireAdmin, async (req: Reques
   }
 });
 
-// PUT /materials/admin/:id — update single material
-// Accepts all Material fields including Amazon affiliate fields added in May 2026 schema:
-//   priceEstimate, amazonASIN, amazonUrl, showInShop, showInPlanning
-// amazonUrl is auto-built from amazonASIN if not supplied directly.
-router.put('/admin/:id', async (req: any, res: any) => {
+router.put('/admin/:id', authenticateToken, requireAdmin, async (req: any, res: any) => {
   try {
     const { id } = req.params;
-    const {
-      name, description, imageUrl, icon, category, unit, goinsPrice, isActive,
-      priceEstimate, amazonASIN, showInShop, showInPlanning,
-    } = req.body;
-
+    const { name, description, imageUrl, icon, category, unit, goinsPrice, isActive,
+            priceEstimate, amazonASIN, showInShop, showInPlanning } = req.body;
     const asin = amazonASIN !== undefined
-      ? (amazonASIN ? amazonASIN.trim() : null)
+      ? (amazonASIN ? String(amazonASIN).trim() : null)
       : undefined;
-
-    const updated = await (prisma as any).material.update({
+    const updated = await prisma.material.update({
       where: { id },
       data: {
         ...(name          !== undefined && { name }),
@@ -199,7 +157,6 @@ router.put('/admin/:id', async (req: any, res: any) => {
   }
 });
 
-// DELETE /materials/admin/:id — soft delete (sets isActive: false)
 router.delete('/admin/:id', authenticateToken, requireAdmin, async (req: Request, res: Response) => {
   try {
     await prisma.material.update({
@@ -213,45 +170,28 @@ router.delete('/admin/:id', authenticateToken, requireAdmin, async (req: Request
   }
 });
 
-// POST /materials/admin/bulk
-// Bulk create from JSON array
-// Body: { materials: [ { name, category, goinsPrice, unit?, description?, imageUrl?, icon? } ] }
-// Returns: { created: N, skipped: N, errors: [ { row, name, error } ] }
 router.post('/admin/bulk', authenticateToken, requireAdmin, async (req: Request, res: Response) => {
   try {
     const { materials } = req.body;
-
     if (!Array.isArray(materials) || materials.length === 0) {
       return res.status(400).json({ error: 'Body must be { materials: [...] }' });
     }
-
-    const results = {
-      created: 0,
-      skipped: 0,
-      errors: [] as { row: number; name: string; error: string }[],
-    };
-
+    const results = { created: 0, skipped: 0, errors: [] as { row: number; name: string; error: string }[] };
     for (let i = 0; i < materials.length; i++) {
       const m = materials[i];
       try {
         if (!m.name || !m.category || m.goinsPrice === undefined) {
           results.errors.push({ row: i + 1, name: m.name || '(unnamed)', error: 'Missing name, category, or goinsPrice' });
-          results.skipped++;
-          continue;
+          results.skipped++; continue;
         }
-
-        // Skip exact duplicates (same name + category)
         const existing = await prisma.material.findFirst({
           where: { name: String(m.name).trim(), category: String(m.category).trim() },
         });
         if (existing) {
           results.errors.push({ row: i + 1, name: m.name, error: 'Already exists — skipped' });
-          results.skipped++;
-          continue;
+          results.skipped++; continue;
         }
-
         const asin = m.amazonASIN ? String(m.amazonASIN).trim() : null;
-
         await prisma.material.create({
           data: {
             name: String(m.name).trim(),
@@ -263,7 +203,7 @@ router.post('/admin/bulk', authenticateToken, requireAdmin, async (req: Request,
             goinsPrice: Number(m.goinsPrice),
             priceEstimate: m.priceEstimate != null ? Number(m.priceEstimate) : null,
             amazonASIN: asin,
-            amazonUrl: asin ? `https://www.amazon.in/dp/${asin}?tag=miniguru08-21` : null,
+            amazonUrl: asin ? ('https://www.amazon.in/dp/' + asin + '?tag=miniguru08-21') : null,
             showInShop: m.showInShop !== undefined ? Boolean(m.showInShop) : true,
             showInPlanning: m.showInPlanning !== undefined ? Boolean(m.showInPlanning) : true,
           },
@@ -274,11 +214,25 @@ router.post('/admin/bulk', authenticateToken, requireAdmin, async (req: Request,
         results.skipped++;
       }
     }
-
     res.status(201).json(results);
   } catch (err) {
     console.error('[materials] POST /admin/bulk error:', err);
     res.status(500).json({ error: 'Bulk upload failed' });
+  }
+});
+
+// ── GET /:id — PUBLIC, must be LAST ──────────────────────────────────────────
+router.get('/:id', async (req: Request, res: Response) => {
+  try {
+    const material = await prisma.material.findUnique({
+      where: { id: req.params.id },
+    });
+    if (!material || !material.isActive) {
+      return res.status(404).json({ message: 'Material not found' });
+    }
+    res.json(toFlutterShape(material));
+  } catch (err) {
+    res.status(500).json({ message: 'Failed to fetch material' });
   }
 });
 
