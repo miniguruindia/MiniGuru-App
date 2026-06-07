@@ -324,4 +324,58 @@ router.post('/children/bulk', authMiddleware_1.authenticateToken, async (req, re
         return res.status(500).json({ message: 'Internal server error', error: err.message });
     }
 });
+// ─── POST /mentor/send-credentials ───────────────────────────────────────────
+router.post('/send-credentials', authMiddleware_1.authenticateToken, async (req, res) => {
+    try {
+        const userId = req.user?.userId;
+        const { results } = req.body;
+        if (!Array.isArray(results) || results.length === 0)
+            return res.status(400).json({ message: 'results array required' });
+        const teacher = await prismaClient_1.default.user.findUnique({
+            where: { id: userId },
+            select: { email: true, name: true },
+        });
+        if (!teacher)
+            return res.status(404).json({ message: 'Teacher not found' });
+        const rows = results.map((r) => `
+      <tr>
+        <td style="padding:8px 12px;border-bottom:1px solid #E8EAFF;">${r.childName}</td>
+        <td style="padding:8px 12px;border-bottom:1px solid #E8EAFF;font-family:monospace;color:#5B6EF5;">${r.loginEmail}</td>
+        <td style="padding:8px 12px;border-bottom:1px solid #E8EAFF;color:#10B981;font-weight:700;">${r.password}</td>
+        <td style="padding:8px 12px;border-bottom:1px solid #E8EAFF;color:#E8A000;font-weight:900;">${r.pin}</td>
+        <td style="padding:8px 12px;border-bottom:1px solid #E8EAFF;">${r.grade || "—"}</td>
+      </tr>`).join("");
+        const html = `<!DOCTYPE html><html><body style="font-family:Arial,sans-serif;background:#F5F7FF;padding:20px;">
+<div style="max-width:700px;margin:0 auto;background:#fff;border-radius:16px;overflow:hidden;">
+<div style="background:linear-gradient(135deg,#5B6EF5,#8B9FF8);padding:28px;text-align:center;">
+<h1 style="color:#fff;margin:8px 0;">${results.length} Student Credentials</h1>
+<p style="color:rgba(255,255,255,0.8);margin:0;">MiniGuru School Registration</p></div>
+<div style="padding:24px;">
+<p style="color:#3D3D5C;">Hi ${teacher.name},<br><br>Share each student their MiniGuru ID + Password. Keep the PIN — it lets you view any student's activities.</p>
+<table style="width:100%;border-collapse:collapse;font-size:13px;">
+<thead><tr style="background:#F0F4FF;">
+<th style="padding:10px;text-align:left;color:#8888AA;font-size:11px;">Name</th>
+<th style="padding:10px;text-align:left;color:#8888AA;font-size:11px;">MiniGuru ID</th>
+<th style="padding:10px;text-align:left;color:#8888AA;font-size:11px;">Password</th>
+<th style="padding:10px;text-align:left;color:#8888AA;font-size:11px;">Your PIN</th>
+<th style="padding:10px;text-align:left;color:#8888AA;font-size:11px;">Grade</th>
+</tr></thead><tbody>${rows}</tbody></table>
+<div style="margin-top:20px;padding:14px;background:#FFF8E1;border-radius:10px;border-left:4px solid #E8A000;">
+<strong>📌 Students login at miniguru.in with their ID + Password. They can change password after first login.</strong>
+</div></div></div></body></html>`;
+        const sgMail = require("@sendgrid/mail");
+        sgMail.setApiKey(process.env.SENDGRID_API_KEY);
+        await sgMail.send({
+            to: teacher.email,
+            from: process.env.FROM_EMAIL || "connect@miniguru.in",
+            subject: `MiniGuru: ${results.length} Student Credentials`,
+            html,
+        });
+        return res.json({ success: true, message: `Sent to ${teacher.email}` });
+    }
+    catch (err) {
+        console.error("send-credentials error:", err);
+        return res.status(500).json({ message: "Failed to send email", error: err.message });
+    }
+});
 exports.default = router;

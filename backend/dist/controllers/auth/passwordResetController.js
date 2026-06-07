@@ -33,7 +33,9 @@ const requestPasswordReset = async (req, res) => {
         // Survives Cloud Run restarts (stateless)
         const resetToken = jsonwebtoken_1.default.sign({ userId: user.id, email: user.email, purpose: 'password-reset' }, JWT_SECRET, { expiresIn: '1h' });
         logger_1.default.info({ email }, '✅ Reset token generated, sending email...');
-        await (0, emailService_1.sendPasswordResetEmail)(user.email, resetToken);
+        // Child accounts: send to guardianEmail, fallback to user.email
+        const resetTarget = user.guardianEmail || user.email;
+        await (0, emailService_1.sendPasswordResetEmail)(resetTarget, resetToken);
         logger_1.default.info({ email }, '✅ Password reset email sent successfully');
         return res.json({ message: 'Password reset instructions have been sent to your email.' });
     }

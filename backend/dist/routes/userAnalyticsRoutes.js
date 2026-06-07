@@ -221,7 +221,7 @@ router.get('/me/profile', authMiddleware_1.authenticateToken, async (req, res) =
             where: { id: userId },
             select: { id: true, name: true, email: true, age: true,
                 parentName: true, parentPhone: true, about: true,
-                grade: true, schoolName: true, city: true, interests: true }
+                grade: true, schoolName: true, city: true, interests: true, guardianEmail: true }
         });
         if (!user)
             return res.status(404).json({ message: 'User not found' });
@@ -235,7 +235,7 @@ router.get('/me/profile', authMiddleware_1.authenticateToken, async (req, res) =
 router.put('/me/profile', authMiddleware_1.authenticateToken, async (req, res) => {
     try {
         const userId = req.user?.userId;
-        const { name, parentName, parentPhone, about, grade, schoolName, city, interests } = req.body;
+        const { name, parentName, parentPhone, about, grade, schoolName, city, interests, guardianEmail } = req.body;
         const data = {};
         if (name !== undefined)
             data.name = String(name).trim();
@@ -253,10 +253,12 @@ router.put('/me/profile', authMiddleware_1.authenticateToken, async (req, res) =
             data.city = city ? String(city).trim() : null;
         if (Array.isArray(interests))
             data.interests = interests;
+        if (guardianEmail !== undefined)
+            data.guardianEmail = guardianEmail ? String(guardianEmail).trim() : null;
         const user = await prismaClient_1.default.user.update({
             where: { id: userId }, data,
             select: { id: true, name: true, parentName: true, parentPhone: true,
-                about: true, grade: true, schoolName: true, city: true, interests: true }
+                about: true, grade: true, schoolName: true, city: true, interests: true, guardianEmail: true }
         });
         return res.json({ message: 'Profile updated', user });
     }

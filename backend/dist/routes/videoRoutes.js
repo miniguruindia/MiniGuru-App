@@ -202,4 +202,92 @@ router.get('/:videoId/likes/stats', videoController_1.getVideoLikesStats);
 router.get('/:videoId/comments', videoController_1.getVideoComments);
 router.post('/:videoId/comments', authMiddleware_1.authenticateToken, videoController_1.postVideoComment);
 router.delete('/comments/:commentId', authMiddleware_1.authenticateToken, videoController_1.deleteVideoComment);
+// GET /api/videos/:videoId/materials
+// Returns enriched materials for the project linked to a YouTube video ID.
+// Used by home screen to show the "Materials used" strip.
+// Always returns 200 — home screen must never break because of this.
+router.get('/:videoId/materials', async (req, res) => {
+    try {
+        const { videoId } = req.params;
+        if (!videoId || videoId === 'undefined') {
+            return res.json({ materials: [] });
+        }
+        // Step 1: find the approved PendingVideo record for this YouTube video ID
+        const pendingVideo = await prismaClient_1.default.pendingVideo.findFirst({
+            where: { youtubeVideoId: videoId },
+            select: { uploadedById: true },
+        });
+        // Step 2: find the Project submitted by that user that has materials
+        // Projects store video URL as an embedded type — we can't do contains filtering,
+        // so we find the most recent approved project from this uploader that has materials.
+        let project = null;
+        if (pendingVideo?.uploadedById) {
+            project = await prismaClient_1.default.project.findFirst({
+                where: {
+                    userId: pendingVideo.uploadedById,
+                    status: 'approved',
+                    NOT: { materials: { isEmpty: true } },
+                },
+                orderBy: { createdAt: 'desc' },
+                select: { materials: true },
+            });
+        }
+        // Fallback: if no pendingVideo record, try matching by video URL string directly
+        if (!project) {
+            const allProjects = await prismaClient_1.default.project.findMany({
+                where: { status: 'approved' },
+                select: { materials: true, video: true },
+                orderBy: { createdAt: 'desc' },
+                take: 200,
+            });
+            const matched = allProjects.find((p) => p.video?.url && p.video.url.includes(videoId));
+            if (matched)
+                project = matched;
+        }
+        if (!project || !project.materials || project.materials.length === 0) {
+            return res.json({ materials: [] });
+        }
+        const enriched = await Promise.all(project.materials
+            .map(async (pm) => {
+            let mat = null;
+            try {
+                mat = await prismaClient_1.default.material.findFirst({
+                    where: {
+                        OR: [
+                            { id: pm.productId },
+                            { name: { equals: pm.name, mode: 'insensitive' } },
+                        ],
+                    },
+                    select: {
+                        id: true,
+                        name: true,
+                        icon: true,
+                        imageUrl: true,
+                        unit: true,
+                        priceEstimate: true,
+                        amazonASIN: true,
+                        amazonUrl: true,
+                    },
+                });
+            }
+            catch (_) { /* ignore */ }
+            return {
+                productId: pm.productId,
+                name: mat?.name ?? pm.name ?? 'Material',
+                quantity: pm.quantity,
+                unit: mat?.unit ?? 'piece',
+                icon: mat?.icon ?? '🔩',
+                imageUrl: mat?.imageUrl ?? null,
+                priceEstimate: mat?.priceEstimate ?? null,
+                amazonASIN: mat?.amazonASIN ?? null,
+                amazonUrl: mat?.amazonUrl ?? null,
+            };
+        }));
+        return res.json({ materials: enriched });
+    }
+    catch (err) {
+        console.error('videoMaterials error:', err);
+        return res.json({ materials: [] });
+    }
+});
 exports.default = router;
