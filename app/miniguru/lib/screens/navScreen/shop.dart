@@ -201,7 +201,26 @@ class _ShopState extends State<Shop>
                   }),
                 );
                 if (res.statusCode == 200) {
-                  _isSending = false; setSt(() { sent = true; sending = false; });
+                  _isSending = false;
+                  setSt(() { sent = true; sending = false; });
+                  await Future.delayed(const Duration(milliseconds: 300));
+                  if (context.mounted) Navigator.pop(context);
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                      content: Row(children: [
+                        const Icon(Icons.check_circle_rounded, color: Colors.white, size: 20),
+                        const SizedBox(width: 10),
+                        Expanded(child: Text(
+                          'Kit email sent to ${emailCtrl.text.trim()} ✓',
+                          style: GoogleFonts.nunito(fontWeight: FontWeight.w700, color: Colors.white),
+                        )),
+                      ]),
+                      backgroundColor: const Color(0xFF2E7D32),
+                      behavior: SnackBarBehavior.floating,
+                      duration: const Duration(seconds: 4),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ));
+                  }
                 } else {
                   _isSending = false; setSt(() { err = 'Failed to send. Try again.'; sending = false; });
                 }
