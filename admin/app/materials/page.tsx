@@ -36,6 +36,91 @@ const EMPTY_MAT = {
   showInShop: true, showInPlanning: true,
 }
 
+
+// ── Inline always-editable ASIN row ──────────────────────────────────────────
+function AsinRow({ material: m, apiBase, onSaved, onFlash }: {
+  material: any
+  apiBase: string
+  onSaved: () => void
+  onFlash: (msg: string, isError?: boolean) => void
+}) {
+  const [asin,  setAsin]  = React.useState(m.amazonASIN  || '')
+  const [price, setPrice] = React.useState(m.priceEstimate != null ? String(m.priceEstimate) : '')
+  const [saving, setSaving] = React.useState(false)
+  const [dirty,  setDirty]  = React.useState(false)
+
+  const save = async () => {
+    setSaving(true)
+    try {
+      const v = `; ${document.cookie}`
+      const p = v.split('; auth_token=')
+      const token = p.length === 2 ? p.pop()!.split(';').shift()! : ''
+      const cleanAsin = asin.trim()
+      const res = await fetch(`${apiBase}/materials/admin/${m.id}`, {
+        method: 'PUT',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          amazonASIN:    cleanAsin || null,
+          priceEstimate: price ? Number(price) : null,
+        }),
+      })
+      if (!res.ok) throw new Error(await res.text())
+      setDirty(false)
+      onFlash('Saved: ' + m.name)
+      onSaved()
+    } catch (e: any) {
+      onFlash('Save failed: ' + e.message, true)
+    } finally { setSaving(false) }
+  }
+
+  return (
+    <tr className="hover:bg-orange-50/30">
+      <td className="px-4 py-2 text-lg">{m.icon || '📦'}</td>
+      <td className="px-4 py-2">
+        <p className="text-sm font-medium text-gray-900">{m.name}</p>
+        <p className="text-xs text-gray-400">{m.category}</p>
+      </td>
+      <td className="px-4 py-2">
+        <input
+          type="text"
+          value={asin}
+          onChange={e => { setAsin(e.target.value); setDirty(true) }}
+          onKeyDown={e => e.key === 'Enter' && save()}
+          placeholder="B0XXXXXXXXX"
+          className={`w-36 px-2 py-1 border rounded text-sm font-mono focus:outline-none focus:ring-1 focus:ring-orange-400 ${
+            asin ? 'border-orange-300 text-orange-700' : 'border-gray-200 text-gray-400'
+          }`}
+        />
+      </td>
+      <td className="px-4 py-2">
+        <input
+          type="number"
+          value={price}
+          onChange={e => { setPrice(e.target.value); setDirty(true) }}
+          onKeyDown={e => e.key === 'Enter' && save()}
+          placeholder="₹"
+          className="w-20 px-2 py-1 border border-gray-200 rounded text-sm focus:outline-none focus:ring-1 focus:ring-orange-400"
+        />
+      </td>
+      <td className="px-4 py-2">
+        {m.amazonUrl ? (
+          <a href={m.amazonUrl} target="_blank" rel="noopener"
+            className="text-xs text-orange-600 hover:underline">View ↗</a>
+        ) : <span className="text-xs text-gray-300">—</span>}
+      </td>
+      <td className="px-4 py-2">
+        <button
+          onClick={save}
+          disabled={saving || !dirty}
+          className="px-3 py-1 bg-orange-500 text-white rounded text-xs font-medium hover:bg-orange-600 disabled:opacity-30 disabled:cursor-not-allowed"
+        >
+          {saving ? '…' : 'Save'}
+        </button>
+      </td>
+    </tr>
+  )
+}
+
 export default function MaterialsPage() {
   const [tab, setTab]             = useState<'materials'|'amazon'|'bulk'>('materials')
   const [materials, setMaterials] = useState<Material[]>([])
@@ -405,69 +490,13 @@ export default function MaterialsPage() {
                   </thead>
                   <tbody className="divide-y divide-gray-50">
                     {amazonList.map(m => (
-                      <tr key={m.id} className="hover:bg-gray-50">
-                        <td className="px-4 py-2 text-lg">{m.icon || '📦'}</td>
-                        <td className="px-4 py-2">
-                          <p className="text-sm font-medium text-gray-900">{m.name}</p>
-                          <p className="text-xs text-gray-400">{m.category}</p>
-                        </td>
-                        <td className="px-4 py-2">
-                          {editingAsin === m.id ? (
-                            <input
-                              type="text"
-                              value={asinValue}
-                              onChange={e => setAsinValue(e.target.value)}
-                              placeholder="B0XXXXXXXXX"
-                              className="w-36 px-2 py-1 border border-indigo-400 rounded text-sm font-mono focus:outline-none"
-                              autoFocus
-                            />
-                          ) : (
-                            <span className={`text-sm font-mono ${m.amazonASIN ? 'text-orange-700' : 'text-gray-300'}`}>
-                              {m.amazonASIN || 'not set'}
-                            </span>
-                          )}
-                        </td>
-                        <td className="px-4 py-2">
-                          {editingAsin === m.id ? (
-                            <input
-                              type="number"
-                              value={priceValue}
-                              onChange={e => setPriceValue(e.target.value)}
-                              placeholder="₹ estimate"
-                              className="w-24 px-2 py-1 border border-indigo-400 rounded text-sm focus:outline-none"
-                            />
-                          ) : (
-                            <span className="text-sm text-gray-600">
-                              {m.priceEstimate ? `₹${m.priceEstimate}` : <span className="text-gray-300">—</span>}
-                            </span>
-                          )}
-                        </td>
-                        <td className="px-4 py-2">
-                          {m.amazonUrl ? (
-                            <a href={m.amazonUrl} target="_blank" rel="noopener"
-                              className="text-xs text-orange-600 hover:underline">View ↗</a>
-                          ) : <span className="text-xs text-gray-300">—</span>}
-                        </td>
-                        <td className="px-4 py-2">
-                          {editingAsin === m.id ? (
-                            <div className="flex gap-2">
-                              <button onClick={() => saveAsin(m.id)} disabled={savingAsin}
-                                className="px-3 py-1 bg-orange-500 text-white rounded text-xs font-medium hover:bg-orange-600 disabled:opacity-50">
-                                {savingAsin ? '…' : 'Save'}
-                              </button>
-                              <button onClick={() => setEditingAsin(null)}
-                                className="px-3 py-1 border border-gray-200 rounded text-xs text-gray-500 hover:bg-gray-50">
-                                Cancel
-                              </button>
-                            </div>
-                          ) : (
-                            <button onClick={() => startAsinEdit(m)}
-                              className="px-3 py-1 border border-orange-200 text-orange-600 rounded text-xs hover:bg-orange-50">
-                              {m.amazonASIN ? 'Edit' : '+ Add ASIN'}
-                            </button>
-                          )}
-                        </td>
-                      </tr>
+                      <AsinRow
+                        key={m.id}
+                        material={m}
+                        apiBase={API_BASE}
+                        onSaved={load}
+                        onFlash={flash}
+                      />
                     ))}
                   </tbody>
                 </table>

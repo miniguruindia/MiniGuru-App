@@ -43,6 +43,7 @@ class _ShopState extends State<Shop>
   String _search  = '';
 
   final Map<String, Map<String, dynamic>> _kit = {};
+  bool _isSending = false; // prevents double-send on parent email
   final TextEditingController _searchCtrl = TextEditingController();
 
   @override bool get wantKeepAlive => true;
@@ -165,11 +166,13 @@ class _ShopState extends State<Shop>
             String? err;
 
             Future<void> doSend() async {
+              if (_isSending) return; // prevent double-send
               final email = emailCtrl.text.trim();
               if (email.isEmpty || !email.contains('@')) {
                 setSt(() => err = 'Please enter a valid email address');
                 return;
               }
+              _isSending = true;
               setSt(() { sending = true; err = null; });
               try {
                 String? token;
@@ -198,12 +201,12 @@ class _ShopState extends State<Shop>
                   }),
                 );
                 if (res.statusCode == 200) {
-                  setSt(() { sent = true; sending = false; });
+                  _isSending = false; setSt(() { sent = true; sending = false; });
                 } else {
-                  setSt(() { err = 'Failed to send. Try again.'; sending = false; });
+                  _isSending = false; setSt(() { err = 'Failed to send. Try again.'; sending = false; });
                 }
               } catch (e) {
-                setSt(() { err = 'Network error. Try again.'; sending = false; });
+                _isSending = false; setSt(() { err = 'Network error. Try again.'; sending = false; });
               }
             }
 
