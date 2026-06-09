@@ -4,10 +4,13 @@
 // CMS-wired: stats strip + happenings + challenges + resources
 //            fetched from GET /cms/community
 
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:http/http.dart' as http;
 import 'package:miniguru/constants.dart';
 import 'package:miniguru/network/MiniguruApi.dart';
+import 'package:miniguru/secrets.dart';
 import 'package:miniguru/screens/loginScreen.dart';
 import 'package:miniguru/screens/registerScreen.dart';
 
@@ -686,15 +689,20 @@ class _ChallengeCard extends StatelessWidget {
 //  TAB 3 — LADDER & BADGES  (unchanged — no CMS wiring needed here yet)
 // ─────────────────────────────────────────────────────────────────────────────
 
-class _LadderTab extends StatelessWidget {
+class _LadderTab extends StatefulWidget {
   const _LadderTab();
+  @override
+  State<_LadderTab> createState() => _LadderTabState();
+}
+
+class _LadderTabState extends State<_LadderTab> {
 
   static const _levels = [
-    _Level('🌱', 'Sprout',   '0–99G',    'Just starting out',   Color(0xFF86EFAC), 0.0),
-    _Level('🔩', 'Tinkerer', '100–299G', 'Getting handy',        Color(0xFF93C5FD), 0.15),
-    _Level('⚙️', 'Builder',  '300–599G', 'Serious maker',        Color(0xFFFDE68A), 0.35),
-    _Level('🔬', 'Inventor', '600–999G', 'Creating new things',  Color(0xFFFCA5A5), 0.60),
-    _Level('🚀', 'Innovator','1000G+',   'Top of the ladder',    Color(0xFFD8B4FE), 1.0),
+    _Level('🌱', 'Sprout',    '0–99G',    'Just starting out',    Color(0xFF86EFAC), 0.0),
+    _Level('🔩', 'Tinkerer',  '100–299G', 'Getting handy',         Color(0xFF93C5FD), 0.15),
+    _Level('⚙️', 'Builder',   '300–599G', 'Serious maker',         Color(0xFFFDE68A), 0.35),
+    _Level('🔬', 'Inventor',  '600–999G', 'Creating new things',   Color(0xFFFCA5A5), 0.60),
+    _Level('🚀', 'Innovator', '1000G+',   'Top of the ladder',     Color(0xFFD8B4FE), 1.0),
   ];
 
   static const _badges = [
@@ -706,39 +714,164 @@ class _LadderTab extends StatelessWidget {
     _Badge('🌏', 'Global',     'Project viewed in 5 countries',  Color(0xFF10B981)),
   ];
 
-  static const _leaderboard = [
-    _Leader(rank: 1, name: 'Aarav M.',  city: 'Mumbai',    score: 1240, badge: '🚀'),
-    _Leader(rank: 2, name: 'Priya K.',  city: 'Bengaluru', score: 980,  badge: '🔬'),
-    _Leader(rank: 3, name: 'Rohan S.',  city: 'Pune',      score: 870,  badge: '🔬'),
-    _Leader(rank: 4, name: 'Diya T.',   city: 'Hyderabad', score: 710,  badge: '⚙️'),
-    _Leader(rank: 5, name: 'Aryan P.',  city: 'Delhi',     score: 650,  badge: '⚙️'),
+  // Fallback data shown before API loads or on error
+  List<_Leader> _leaderboard = const [
+    _Leader(rank: 1, name: 'Aarav M.',  city: '', score: 1240, badge: '🚀'),
+    _Leader(rank: 2, name: 'Priya K.',  city: '', score: 980,  badge: '🔬'),
+    _Leader(rank: 3, name: 'Rohan S.',  city: '', score: 870,  badge: '🔬'),
+    _Leader(rank: 4, name: 'Diya T.',   city: '', score: 710,  badge: '⚙️'),
+    _Leader(rank: 5, name: 'Aryan P.',  city: '', score: 650,  badge: '⚙️'),
   ];
+
+  bool _loading = true;
+
+  // Helper: return level info for a given score
+  String _levelName(int score) => score >= 1000 ? 'Innovator' :
+      score >= 600 ? 'Inventor' : score >= 300 ? 'Builder' :
+      score >= 100 ? 'Tinkerer' : 'Sprout';
+  String _levelEmoji(int score) => score >= 1000 ? '🚀' :
+      score >= 600 ? '🔬' : score >= 300 ? '⚙️' :
+      score >= 100 ? '🔩' : '🌱';
+  int _nextLevelAt(int score) => score >= 1000 ? 9999 :
+      score >= 600 ? 1000 : score >= 300 ? 600 :
+      score >= 100 ? 300 : 100;
+  Color _levelColor(int score) => score >= 1000 ? const Color(0xFFD8B4FE) :
+      score >= 600 ? const Color(0xFFFCA5A5) : score >= 300 ? const Color(0xFFFDE68A) :
+      score >= 100 ? const Color(0xFF93C5FD) : const Color(0xFF86EFAC);
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchLeaderboard();
+  }
+
+  Future<void> _fetchLeaderboard() async {
+    try {
+      final res = await http.get(
+        Uri.parse('$apiBaseUrl/leaderboard'),
+        headers: const {'Content-Type': 'application/json'},
+      ).timeout(const Duration(seconds: 8));
+      if (!mounted) return;
+      if (res.statusCode == 200) {
+        final data = jsonDecode(res.body) as Map<String, dynamic>;
+        final list = (data['leaderboard'] as List<dynamic>? ?? []);
+        if (list.isNotEmpty) {
+          setState(() {
+            _leaderboard = list.map((item) {
+              final m = item as Map<String, dynamic>;
+              final score = m['score'] as int? ?? 0;
+              return _Leader(
+                rank:  m['rank']  as int? ?? 0,
+                name:  m['name']  as String? ?? 'Maker',
+                city:  '',
+                score: score,
+                badge: m['badge'] as String? ?? _levelEmoji(score),
+              );
+            }).toList();
+            _loading = false;
+          });
+          return;
+        }
+      }
+    } catch (_) {}
+    if (mounted) setState(() => _loading = false);
+  }
 
   @override
   Widget build(BuildContext context) {
+    final top3    = _leaderboard.take(3).toList();
+    final rest    = _leaderboard.skip(3).toList();
+
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
       children: [
         const _SectionHeader(
           title: 'Maker Ladder',
-          subtitle: 'Earn Goins → level up → earn badges',
+          subtitle: 'Build projects → earn Goins → climb the ladder!',
           emoji: '🏆',
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 20),
+
+        // ── Top 3 Podium ──────────────────────────────────────────────────
+        if (_loading)
+          const Center(
+            child: Padding(
+              padding: EdgeInsets.symmetric(vertical: 32),
+              child: CircularProgressIndicator(
+                  color: Color(0xFF5B6EF5), strokeWidth: 2),
+            ),
+          )
+        else ...[
+          Text('🥇 Top Makers',
+              style: GoogleFonts.nunito(
+                  fontSize: 14, fontWeight: FontWeight.w800,
+                  color: const Color(0xFF1A1A2E))),
+          const SizedBox(height: 12),
+
+          // Podium row — 2nd | 1st | 3rd
+          if (top3.length >= 3)
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                // 2nd place
+                Expanded(child: _PodiumCard(leader: top3[1], podiumHeight: 80)),
+                const SizedBox(width: 8),
+                // 1st place — tallest
+                Expanded(child: _PodiumCard(leader: top3[0], podiumHeight: 110)),
+                const SizedBox(width: 8),
+                // 3rd place
+                Expanded(child: _PodiumCard(leader: top3[2], podiumHeight: 60)),
+              ],
+            )
+          else
+            ..._leaderboard.take(3).map((l) => Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: _LeaderRow(leader: l, isLast: false),
+            )),
+
+          // Rank 4-10
+          if (rest.isNotEmpty) ...[
+            const SizedBox(height: 16),
+            Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: const Color(0xFFE8EAFF)),
+              ),
+              child: Column(
+                children: rest.asMap().entries.map((e) => _LeaderRow(
+                  leader: e.value,
+                  isLast: e.key == rest.length - 1,
+                )).toList(),
+              ),
+            ),
+          ],
+          const SizedBox(height: 24),
+        ],
+
+        // ── Level Ladder ──────────────────────────────────────────────────
         Text('Progression Levels',
             style: GoogleFonts.nunito(
                 fontSize: 14, fontWeight: FontWeight.w800,
                 color: const Color(0xFF1A1A2E))),
+        const SizedBox(height: 4),
+        Text('Complete projects to earn Goins and level up!',
+            style: GoogleFonts.nunito(fontSize: 11, color: const Color(0xFF8888AA))),
         const SizedBox(height: 10),
         ..._levels.map((l) => Padding(
-              padding: const EdgeInsets.only(bottom: 8),
-              child: _LevelRow(l: l),
-            )),
+          padding: const EdgeInsets.only(bottom: 8),
+          child: _LevelRow(l: l),
+        )),
         const SizedBox(height: 24),
+
+        // ── Badges ────────────────────────────────────────────────────────
         Text('Badge Collection',
             style: GoogleFonts.nunito(
                 fontSize: 14, fontWeight: FontWeight.w800,
                 color: const Color(0xFF1A1A2E))),
+        const SizedBox(height: 4),
+        Text('Earn badges by completing special achievements',
+            style: GoogleFonts.nunito(fontSize: 11, color: const Color(0xFF8888AA))),
         const SizedBox(height: 10),
         GridView.count(
           crossAxisCount: 3,
@@ -750,30 +883,67 @@ class _LadderTab extends StatelessWidget {
           children: _badges.map((b) => _BadgeCard(b: b)).toList(),
         ),
         const SizedBox(height: 24),
-        Text('Top Makers This Month',
-            style: GoogleFonts.nunito(
-                fontSize: 14, fontWeight: FontWeight.w800,
-                color: const Color(0xFF1A1A2E))),
-        const SizedBox(height: 10),
-        Container(
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: const Color(0xFFE8EAFF)),
-          ),
-          child: Column(
-            children: _leaderboard.asMap().entries.map((e) {
-              return _LeaderRow(
-                leader: e.value,
-                isLast: e.key == _leaderboard.length - 1,
-              );
-            }).toList(),
-          ),
-        ),
-        const SizedBox(height: 16),
         const _JoinCTA(
           title: 'Climb the ladder!',
-          subtitle: 'Join free and start earning Goins today.',
+          subtitle: 'Build projects, earn Goins, and reach the top!',
+        ),
+      ],
+    );
+  }
+}
+
+// ── Podium card for top 3 ─────────────────────────────────────────────────────
+class _PodiumCard extends StatelessWidget {
+  final _Leader leader;
+  final double  podiumHeight;
+  const _PodiumCard({required this.leader, required this.podiumHeight});
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = [
+      const Color(0xFFFFD700), // gold
+      const Color(0xFFC0C0C0), // silver
+      const Color(0xFFCD7F32), // bronze
+    ];
+    final medals = ['🥇', '🥈', '🥉'];
+    final idx    = (leader.rank - 1).clamp(0, 2);
+    final color  = colors[idx];
+
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.end,
+      children: [
+        // Badge emoji
+        Text(leader.badge, style: const TextStyle(fontSize: 24)),
+        const SizedBox(height: 4),
+        // Name
+        Text(
+          leader.name.split(' ').first,
+          style: GoogleFonts.nunito(
+              fontSize: 11, fontWeight: FontWeight.w800,
+              color: const Color(0xFF1A1A2E)),
+          textAlign: TextAlign.center,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+        // Score
+        Text(
+          '${leader.score}G',
+          style: GoogleFonts.nunito(
+              fontSize: 10, fontWeight: FontWeight.w700,
+              color: const Color(0xFF8B6800)),
+        ),
+        const SizedBox(height: 4),
+        // Podium block
+        Container(
+          height: podiumHeight,
+          decoration: BoxDecoration(
+            color: color.withOpacity(0.2),
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(10)),
+            border: Border.all(color: color.withOpacity(0.5)),
+          ),
+          child: Center(
+            child: Text(medals[idx], style: const TextStyle(fontSize: 28)),
+          ),
         ),
       ],
     );
