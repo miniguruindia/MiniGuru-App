@@ -1185,7 +1185,7 @@ class _KitItem extends StatelessWidget {
               style: GoogleFonts.nunito(
                 fontSize: 13, fontWeight: FontWeight.w700, color: _ink),
               maxLines: 1, overflow: TextOverflow.ellipsis),
-            Text('Qty: \${picked.quantity}  •  \${picked.item.unit ?? "piece"}',
+            Text('Qty: ${picked.quantity}  •  ${picked.item.unit ?? "piece"}',
               style: GoogleFonts.nunito(fontSize: 11, color: _muted)),
           ]),
         ),
