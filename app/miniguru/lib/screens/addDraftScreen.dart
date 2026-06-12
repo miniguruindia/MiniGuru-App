@@ -7,6 +7,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:http/http.dart' as http;
 import 'package:miniguru/models/MaterialItem.dart';
 import 'package:miniguru/models/ProjectCategory.dart';
 import 'package:miniguru/repository/draftsRepository.dart';
@@ -15,6 +16,7 @@ import 'package:miniguru/repository/GoinsRepository.dart';
 import 'package:miniguru/widgets/material_picker_widget.dart';
 import 'package:miniguru/widgets/goins_wallet_widget.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:miniguru/secrets.dart';
 import 'homeScreen.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -313,6 +315,137 @@ class _AddDraftScreenState extends State<AddDraftScreen>
     } finally {
       if (mounted) setState(() => _submitting = false);
     }
+  }
+
+  bool _isSendingKit = false;
+
+  void _showSendKitToParent() {
+    if (_pickedMaterials.isEmpty) return;
+    final emailCtrl = TextEditingController();
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Padding(
+        padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
+        child: Container(
+          decoration: const BoxDecoration(
+            color: Color(0xFF1E293B),
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
+          child: StatefulBuilder(builder: (ctx2, setSt) {
+            bool sending = false;
+            bool sent    = false;
+            String? err;
+
+            Future<void> doSend() async {
+              if (_isSendingKit) return;
+              final email = emailCtrl.text.trim();
+              if (email.isEmpty || !email.contains('@')) {
+                setSt(() => err = 'Please enter a valid email address');
+                return;
+              }
+              _isSendingKit = true;
+              setSt(() { sending = true; err = null; });
+              try {
+                final items = _pickedMaterials.map((p) => {
+                  'name':    p.item.name,
+                  'qty':     p.quantity,
+                  'unit':    p.item.unit,
+                  'icon':    p.item.icon ?? '🔩',
+                  'amazonASIN': p.item.amazonUrl ?? '',
+                  'amazonUrl':  p.item.amazonUrl ?? '',
+                  'imageUrl':   p.item.imageUrl  ?? '',
+                  'priceEstimate': null,
+                }).toList();
+                final res = await http.post(
+                  Uri.parse('$apiBaseUrl/shop/send-to-parent'),
+                  headers: {'Content-Type': 'application/json'},
+                  body: jsonEncode({
+                    'parentEmail': email,
+                    'childName':   'Your child',
+                    'items':       items,
+                    'cartUrl':     '',
+                  }),
+                );
+                _isSendingKit = false;
+                if (res.statusCode == 200) {
+                  setSt(() { sent = true; sending = false; });
+                  await Future.delayed(const Duration(milliseconds: 300));
+                  if (ctx2.mounted) Navigator.pop(ctx2);
+                  if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                    content: Text('Materials sent to $email ✓',
+                        style: GoogleFonts.poppins(color: Colors.white, fontWeight: FontWeight.w700)),
+                    backgroundColor: const Color(0xFF10B981),
+                    behavior: SnackBarBehavior.floating,
+                    duration: const Duration(seconds: 4),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ));
+                } else {
+                  setSt(() { err = 'Failed to send. Try again.'; sending = false; });
+                }
+              } catch (e) {
+                _isSendingKit = false;
+                setSt(() { err = 'Network error. Try again.'; sending = false; });
+              }
+            }
+
+            return Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Center(child: Container(width: 40, height: 4,
+                  decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(2)))),
+              const SizedBox(height: 16),
+              Row(children: [
+                const Text('🛒', style: TextStyle(fontSize: 22)),
+                const SizedBox(width: 10),
+                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text('Send Materials to Parent',
+                      style: GoogleFonts.poppins(fontSize: 17, fontWeight: FontWeight.bold, color: Colors.white)),
+                  Text('${_pickedMaterials.length} items — parent gets Amazon buy link',
+                      style: GoogleFonts.poppins(fontSize: 12, color: Colors.white54)),
+                ])),
+                IconButton(icon: const Icon(Icons.close_rounded, color: Colors.white54),
+                    onPressed: () => Navigator.pop(ctx2)),
+              ]),
+              const Divider(color: Colors.white12, height: 24),
+              Text("Parent's email address",
+                  style: GoogleFonts.poppins(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.white)),
+              const SizedBox(height: 8),
+              TextField(
+                controller: emailCtrl,
+                keyboardType: TextInputType.emailAddress,
+                style: GoogleFonts.poppins(fontSize: 14, color: Colors.white),
+                decoration: InputDecoration(
+                  hintText: 'parent@example.com',
+                  hintStyle: GoogleFonts.poppins(color: Colors.white38, fontSize: 14),
+                  prefixIcon: const Icon(Icons.email_outlined, color: Colors.white38, size: 20),
+                  filled: true, fillColor: const Color(0xFF0F172A),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                  errorText: err,
+                  errorStyle: GoogleFonts.poppins(color: const Color(0xFFEF4444)),
+                ),
+              ),
+              const SizedBox(height: 16),
+              SizedBox(width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: (sending || sent) ? null : doSend,
+                  icon: sending
+                      ? const SizedBox(width: 16, height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                      : const Text('🛒', style: TextStyle(fontSize: 16)),
+                  label: Text(sending ? 'Sending...' : 'Send to Parent',
+                      style: GoogleFonts.poppins(fontWeight: FontWeight.w700, fontSize: 14)),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: sending ? Colors.grey : const Color(0xFFFF9900),
+                    foregroundColor: Colors.white,
+                    minimumSize: const Size(double.infinity, 50),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))),
+                )),
+            ]);
+          }),
+        ),
+      ),
+    );
   }
 
   void _showSnack(String msg, {bool isError = false}) {

@@ -3,6 +3,7 @@
 // All content fetched from GET /cms/legal_* and GET /cms/faq
 // Falls back to hardcoded defaults if backend unavailable
 
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -42,7 +43,7 @@ class _LegalScreenState extends State<LegalScreen>
   // ── Hardcoded fallbacks ─────────────────────────────────────────────
   static const _defaultPrivacy = '''
 # Privacy Policy
-**Last updated: March 2025 · MiniGuru India Private Limited**
+**Last updated: June 2026 · MiniGuru Innovation Private Limited**
 
 ## 1. Introduction
 MiniGuru is built for children. Protecting their privacy is our highest responsibility. This policy explains what we collect, why, and how — in compliance with India's **Digital Personal Data Protection Act, 2023 (DPDPA)**.
@@ -68,18 +69,18 @@ Under DPDPA 2023, we require verifiable consent from a parent or guardian before
 - **Access** — request a copy of your data
 - **Correct** — update inaccurate information
 - **Erase** — request deletion of your account and data
-- **Withdraw consent** — at any time, contact privacy@miniguru.in
+- **Withdraw consent** — at any time, contact connect@miniguru.in
 
 ## 6. Data Security
 All data is encrypted in transit (TLS) and at rest. Access is restricted to authorised MiniGuru staff only.
 
 ## 7. Contact
-privacy@miniguru.in · +91 93997 56846
+connect@miniguru.in · +91 93997 56846
 ''';
 
   static const _defaultTerms = '''
 # Terms & Conditions
-**Last updated: March 2025 · MiniGuru India Private Limited**
+**Last updated: June 2026 · MiniGuru Innovation Private Limited**
 
 ## 1. Acceptance
 By using MiniGuru you agree to these Terms. Parents and guardians agree on behalf of children under 18.
@@ -101,7 +102,7 @@ MiniGuru is designed for children aged 8–14. An account requires a parent or g
 ## 5. Payments & Refunds
 - Real-money transactions are processed via Razorpay.
 - Refund requests must be made within 7 days of purchase.
-- Contact orders@miniguru.in for refund queries.
+- Contact connect@miniguru.in for refund queries.
 
 ## 6. Prohibited Conduct
 - Sharing personal contact details publicly
@@ -112,12 +113,12 @@ MiniGuru is designed for children aged 8–14. An account requires a parent or g
 Governed by Indian law. Disputes subject to courts in Ujjain, Madhya Pradesh.
 
 ## 8. Contact
-legal@miniguru.in
+connect@miniguru.in
 ''';
 
   static const _defaultCookie = '''
 # Cookie Policy
-**Last updated: March 2025 · MiniGuru India Private Limited**
+**Last updated: June 2026 · MiniGuru Innovation Private Limited**
 
 ## 1. What Are Cookies?
 Cookies are small text files stored on your device when you use a website or app. They help us remember your preferences and keep you logged in.
@@ -145,7 +146,7 @@ MiniGuru does **not** use advertising cookies. We do not track children for comm
 You can clear cookies at any time through your device settings. Note that clearing essential cookies will log you out.
 
 ## 5. Contact
-privacy@miniguru.in
+connect@miniguru.in
 ''';
 
   static const _defaultFaqs = [
@@ -162,12 +163,12 @@ privacy@miniguru.in
       'answer':   'Goins are MiniGuru\'s virtual currency. Your child earns Goins by uploading project videos, getting likes and comments. Goins can be spent in the MiniGuru shop on STEAM materials.',
     },
     {
-      'question': 'How does a parent top up the wallet?',
-      'answer':   'Go to your child\'s Profile → Wallet → Add Money. You can add any amount via Razorpay (UPI, card, or net banking). The balance is then available for your child to spend in the shop.',
+      'question': 'How does the shop work?',
+      'answer':   'Your child browses 200+ STEAM materials, adds them to a kit, then taps "Send to Parent". You receive an email with the full list and a one-tap Amazon buy link. No account needed — pay with UPI, COD, or card on Amazon.',
     },
     {
-      'question': 'How does ordering from the shop work?',
-      'answer':   'Your child browses the shop, adds items to cart, and checks out using their wallet balance. You receive a confirmation and the materials are physically dispatched to your delivery address.',
+      'question': 'How does my child earn Goins?',
+      'answer':   'Goins are earned by completing projects and uploading videos. Goins are a motivation tracker — they show your child\'s progress and dedication. They are never used to buy anything.',
     },
     {
       'question': 'Is my child\'s data safe?',
@@ -179,7 +180,7 @@ privacy@miniguru.in
     },
     {
       'question': 'Can I delete my child\'s account?',
-      'answer':   'Yes. Email privacy@miniguru.in with your registered phone number and we will delete all data within 30 days, as required by DPDPA 2023.',
+      'answer':   'Yes. Email connect@miniguru.in with your registered phone number and we will delete all data within 30 days, as required by DPDPA 2023.',
     },
   ];
 
@@ -235,7 +236,36 @@ privacy@miniguru.in
 
   String _extractString(Map<String, dynamic>? data, String fallback) {
     if (data == null) return fallback;
+    // Direct content string
     if (data['content'] is String) return data['content'] as String;
+    // CMS stores value as JSON string with sections array — convert to markdown
+    final value = data['value'];
+    if (value != null) {
+      try {
+        // value may be a Map or a JSON string
+        Map<String, dynamic> parsed;
+        if (value is String) {
+          parsed = Map<String, dynamic>.from(
+              const JsonDecoder().convert(value) as Map);
+        } else {
+          parsed = Map<String, dynamic>.from(value as Map);
+        }
+        final sections = parsed['sections'] as List<dynamic>?;
+        if (sections != null && sections.isNotEmpty) {
+          final sb = StringBuffer();
+          sb.writeln('# ${parsed['title'] ?? ''}');
+          sb.writeln('**Last updated: ${parsed['lastUpdated'] ?? ''}**');
+          sb.writeln();
+          for (final s in sections) {
+            final m = s as Map<String, dynamic>;
+            sb.writeln('## ${m['heading'] ?? ''}');
+            sb.writeln(m['body'] ?? '');
+            sb.writeln();
+          }
+          return sb.toString();
+        }
+      } catch (_) {}
+    }
     return fallback;
   }
 
@@ -426,7 +456,7 @@ privacy@miniguru.in
                 Expanded(child: _helpBtn(
                   icon: Icons.email_outlined,
                   label: 'Email Us',
-                  onTap: () => _launch('mailto:hello@miniguru.in'),
+                  onTap: () => _launch('mailto:connect@miniguru.in'),
                 )),
                 const SizedBox(width: 10),
                 Expanded(child: _helpBtn(
@@ -482,7 +512,7 @@ privacy@miniguru.in
                           fontSize: 13,
                           fontWeight: FontWeight.w800,
                           color: const Color(0xFF065F46))),
-                  Text('Email hello@miniguru.in and we\'ll sort it out.',
+                  Text('Email connect@miniguru.in and we\'ll sort it out.',
                       style: GoogleFonts.nunito(
                           fontSize: 12, color: const Color(0xFF065F46))),
                 ],
