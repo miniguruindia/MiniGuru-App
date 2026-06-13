@@ -894,7 +894,7 @@ class MiniguruApi {
       );
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body) as Map<String, dynamic>;
-        return data['value'] as Map<String, dynamic>?;
+        final v = data['value']; if (v is String) { try { return Map<String, dynamic>.from(jsonDecode(v) as Map); } catch(_) {} } if (v is Map) return Map<String, dynamic>.from(v as Map); return null;
       }
       print('⚠️  getCmsContent($key): ${response.statusCode}');
     } catch (e) {
