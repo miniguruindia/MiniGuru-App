@@ -214,8 +214,28 @@ connect@miniguru.in
         _cookie  = _extractString(results[2], _defaultCookie);
 
         final faqData = results[3];
-        if (faqData != null && faqData['items'] is List) {
-          _faqs = List<Map<String, dynamic>>.from(faqData['items']);
+        if (faqData != null) {
+          // FAQ CMS has 'sections' array with items containing question/answer
+          List<dynamic>? items;
+          if (faqData['items'] is List) {
+            items = faqData['items'] as List;
+          } else if (faqData['sections'] is List) {
+            // sections format: [{heading, items:[{question,answer}]}]
+            final allItems = <Map<String, dynamic>>[];
+            for (final s in faqData['sections'] as List) {
+              final sMap = s as Map<String, dynamic>;
+              final sItems = sMap['items'];
+              if (sItems is List) {
+                allItems.addAll(sItems.map((i) => Map<String, dynamic>.from(i as Map)));
+              }
+            }
+            items = allItems.isNotEmpty ? allItems : null;
+          }
+          if (items != null && items.isNotEmpty) {
+            _faqs = items.map((i) => Map<String, dynamic>.from(i as Map)).toList();
+          } else {
+            _faqs = List<Map<String, dynamic>>.from(_defaultFaqs);
+          }
         } else {
           _faqs = List<Map<String, dynamic>>.from(_defaultFaqs);
         }
@@ -238,34 +258,28 @@ connect@miniguru.in
     if (data == null) return fallback;
     // Direct content string
     if (data['content'] is String) return data['content'] as String;
-    // CMS stores value as JSON string with sections array — convert to markdown
-    final value = data['value'];
-    if (value != null) {
-      try {
-        // value may be a Map or a JSON string
-        Map<String, dynamic> parsed;
-        if (value is String) {
-          parsed = Map<String, dynamic>.from(
-              const JsonDecoder().convert(value) as Map);
-        } else {
-          parsed = Map<String, dynamic>.from(value as Map);
+    // getCmsContent now returns the parsed map: {title, lastUpdated, sections}
+    // Build markdown from sections array
+    try {
+      final sections = data['sections'] as List<dynamic>?;
+      if (sections != null && sections.isNotEmpty) {
+        final sb = StringBuffer();
+        if (data['title'] != null) {
+          sb.writeln('# \${data['title']}');
         }
-        final sections = parsed['sections'] as List<dynamic>?;
-        if (sections != null && sections.isNotEmpty) {
-          final sb = StringBuffer();
-          sb.writeln('# ${parsed['title'] ?? ''}');
-          sb.writeln('**Last updated: ${parsed['lastUpdated'] ?? ''}**');
+        if (data['lastUpdated'] != null) {
+          sb.writeln('Last updated: \${data['lastUpdated']}');
           sb.writeln();
-          for (final s in sections) {
-            final m = s as Map<String, dynamic>;
-            sb.writeln('## ${m['heading'] ?? ''}');
-            sb.writeln(m['body'] ?? '');
-            sb.writeln();
-          }
-          return sb.toString();
         }
-      } catch (_) {}
-    }
+        for (final s in sections) {
+          final m = s as Map<String, dynamic>;
+          sb.writeln('## \${m['heading'] ?? ''}');
+          sb.writeln('\${m['body'] ?? ''}');
+          sb.writeln();
+        }
+        return sb.toString();
+      }
+    } catch (_) {}
     return fallback;
   }
 
@@ -303,7 +317,7 @@ connect@miniguru.in
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator(color: _accent))
-          : TabBarView(
+          : SelectionArea(child: TabBarView(
               controller: _tabController,
               children: [
                 _buildMarkdownTab(_privacy, Icons.lock_outline, const Color(0xFF5B6EF5)),
