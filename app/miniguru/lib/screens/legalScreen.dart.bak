@@ -91,8 +91,8 @@ MiniGuru is designed for children aged 8–14. An account requires a parent or g
 ## 3. Goins — Virtual Currency
 - Goins are MiniGuru's virtual currency earned by completing projects, uploading videos, and community participation.
 - Goins have **no real monetary value** and cannot be exchanged for cash.
-- Goins are a motivation tracker — earned by building, never deducted.
-- Materials are purchased via Amazon affiliate links — no MiniGuru payment needed.
+- Goins can be spent in the MiniGuru shop on STEAM materials.
+- Parents top up the wallet balance via Razorpay for shop purchases.
 
 ## 4. Your Content
 - Children retain ownership of their project ideas.
@@ -256,21 +256,25 @@ connect@miniguru.in
 
   String _extractString(Map<String, dynamic>? data, String fallback) {
     if (data == null) return fallback;
+    // Direct content string
     if (data['content'] is String) return data['content'] as String;
+    // getCmsContent now returns the parsed map: {title, lastUpdated, sections}
+    // Build markdown from sections array
     try {
       final sections = data['sections'] as List<dynamic>?;
       if (sections != null && sections.isNotEmpty) {
         final sb = StringBuffer();
-        final title   = (data['title']       ?? '').toString();
-        final updated = (data['lastUpdated']  ?? '').toString();
-        if (title.isNotEmpty)   sb.writeln('# ' + title);
-        if (updated.isNotEmpty) { sb.writeln('Last updated: ' + updated); sb.writeln(); }
+        if (data['title'] != null) {
+          sb.writeln('# \${data['title']}');
+        }
+        if (data['lastUpdated'] != null) {
+          sb.writeln('Last updated: \${data['lastUpdated']}');
+          sb.writeln();
+        }
         for (final s in sections) {
-          final m       = Map<String, dynamic>.from(s as Map);
-          final heading = (m['heading'] ?? '').toString();
-          final body    = (m['body']    ?? '').toString();
-          if (heading.isNotEmpty) sb.writeln('## ' + heading);
-          if (body.isNotEmpty)    sb.writeln(body);
+          final m = s as Map<String, dynamic>;
+          sb.writeln('## \${m['heading'] ?? ''}');
+          sb.writeln('\${m['body'] ?? ''}');
           sb.writeln();
         }
         return sb.toString();
@@ -313,16 +317,14 @@ connect@miniguru.in
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator(color: _accent))
-          : SelectionArea(
-              child: TabBarView(
-                controller: _tabController,
-                children: [
-                  _buildMarkdownTab(_privacy, Icons.lock_outline, const Color(0xFF5B6EF5)),
-                  _buildMarkdownTab(_terms,   Icons.description_outlined, const Color(0xFF10B981)),
-                  _buildMarkdownTab(_cookie,  Icons.cookie_outlined, const Color(0xFFF59E0B)),
-                  _buildFaqTab(),
-                ],
-              ),
+          : SelectionArea(child: TabBarView(
+              controller: _tabController,
+              children: [
+                _buildMarkdownTab(_privacy, Icons.lock_outline, const Color(0xFF5B6EF5)),
+                _buildMarkdownTab(_terms,   Icons.description_outlined, const Color(0xFF10B981)),
+                _buildMarkdownTab(_cookie,  Icons.cookie_outlined, const Color(0xFFF59E0B)),
+                _buildFaqTab(),
+              ],
             ),
     );
   }
