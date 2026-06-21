@@ -11,7 +11,6 @@ import {
   Video,
   MessageSquare,
   BarChart3,
-  Settings,
   FileEdit,
   LogOut,
   Menu,
@@ -108,13 +107,6 @@ export function AdminLayout({ children }: AdminLayoutProps) {
       href: '/content',
       icon: FileEdit,
       current: pathname.startsWith('/content')
-    },
-    // ── Settings ───────────────────────────────────────────
-    {
-      name: 'Settings', 
-      href: '/settings', 
-      icon: Settings,
-      current: pathname.startsWith('/settings')
     },
   ]
 

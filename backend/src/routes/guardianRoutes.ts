@@ -30,6 +30,7 @@ router.post('/register', async (req: Request, res: Response) => {
         phoneNumber,
         passwordHash,
         age: age ?? 25,
+        score: 100,
         isMentor: true,
         mentorType,
         guardianInfo: {
