@@ -33,6 +33,7 @@ import cmsRouter from './routes/cmsRoutes';
 import guardianRouter from './routes/guardianRoutes';
 import communicationRouter from './routes/communicationRoutes';   // ← NEW
 import goinsRouter from './routes/goinsRoutes';           // ← NEW
+import schoolAccountRouter from './routes/schoolAccountRoutes';   // ← NEW: school/T-LAB admin accounts
 
 // YouTube Upload Setup (optional)
 let youtubeService: any = null;
@@ -295,6 +296,7 @@ try {
   app.use('/me', userRouter);
   app.use('/project', projectRouter);
   app.use('/admin', adminRouter);
+  app.use('/admin', schoolAccountRouter);   // ← NEW: school/T-LAB admin accounts
   app.use('/payment', paymentRouter);
   app.use('/api/videos', videoRoutes);
   app.use('/api/videos', videoRatingRouter);

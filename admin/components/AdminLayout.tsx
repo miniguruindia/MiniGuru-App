@@ -17,6 +17,7 @@ import {
   Menu,
   X,
   Tag,
+  School,
   Coins,
   Package,
   ShoppingBag
@@ -72,6 +73,13 @@ export function AdminLayout({ children }: AdminLayoutProps) {
       href: '/categories', 
       icon: Tag,
       current: pathname.startsWith('/categories')
+    },
+    // ── Schools & T-LABs ─────────────────────────────────────
+    { 
+      name: 'Schools', 
+      href: '/schools', 
+      icon: School,
+      current: pathname.startsWith('/schools')
     },
     // ── Goins ──────────────────────────────────────────────
     { 

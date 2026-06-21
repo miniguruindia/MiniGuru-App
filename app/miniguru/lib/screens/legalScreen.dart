@@ -160,7 +160,7 @@ connect@miniguru.in
     },
     {
       'question': 'What are Goins?',
-      'answer':   'Goins are MiniGuru\'s virtual currency. Your child earns Goins by uploading project videos, getting likes and comments. Goins can be spent in the MiniGuru shop on STEAM materials.',
+      'answer':   'Goins are MiniGuru\'s motivation and consistency tracker. Your child earns Goins by uploading project videos, and from likes and comments on their projects. Goins celebrate your child\'s creative journey — the more they build, the more they earn. Goins are never spent or used to buy materials; materials are bought by parents directly through Amazon.',
     },
     {
       'question': 'How does the shop work?',

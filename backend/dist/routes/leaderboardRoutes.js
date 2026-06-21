@@ -15,6 +15,7 @@ router.get('/', async (_req, res) => {
         const topUsers = await prismaClient_1.default.user.findMany({
             where: {
                 score: { gt: 0 },
+                role: 'USER', // exclude admins from leaderboard
             },
             orderBy: { score: 'desc' },
             take: 10,

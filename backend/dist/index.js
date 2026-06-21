@@ -36,6 +36,7 @@ const cmsRoutes_1 = __importDefault(require("./routes/cmsRoutes"));
 const guardianRoutes_1 = __importDefault(require("./routes/guardianRoutes"));
 const communicationRoutes_1 = __importDefault(require("./routes/communicationRoutes")); // ← NEW
 const goinsRoutes_1 = __importDefault(require("./routes/goinsRoutes")); // ← NEW
+const schoolAccountRoutes_1 = __importDefault(require("./routes/schoolAccountRoutes")); // ← NEW: school/T-LAB admin accounts
 // YouTube Upload Setup (optional)
 let youtubeService = null;
 try {
@@ -281,6 +282,7 @@ try {
     app.use('/me', userRoutes_1.default);
     app.use('/project', projectRoutes_1.default);
     app.use('/admin', adminRoutes_1.default);
+    app.use('/admin', schoolAccountRoutes_1.default); // ← NEW: school/T-LAB admin accounts
     app.use('/payment', paymentRoutes_1.default);
     app.use('/api/videos', videoRoutes_1.default);
     app.use('/api/videos', videoRatingRoutes_1.default);
