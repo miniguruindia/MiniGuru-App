@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { AdminLayout } from '@/components/AdminLayout'
 import { Card } from '@/components/ui/card'
 import {
@@ -110,6 +111,7 @@ function CredentialsModal({ creds, onClose }: { creds: Credentials; onClose: () 
 }
 
 export default function SchoolsPage() {
+  const router = useRouter()
   const [schools, setSchools]   = useState<SchoolAccount[]>([])
   const [loading, setLoading]   = useState(true)
   const [search, setSearch]     = useState('')
@@ -258,7 +260,11 @@ export default function SchoolsPage() {
                     No school or T-LAB accounts yet. Add one to get started.
                   </td></tr>
                 ) : filtered.map(s => (
-                  <tr key={s.id} className="hover:bg-indigo-50/30">
+                  <tr
+                    key={s.id}
+                    onClick={() => router.push(`/schools/${s.id}`)}
+                    className="hover:bg-indigo-50/30 cursor-pointer"
+                  >
                     <td className="px-3 py-2.5">
                       <div className="font-medium text-gray-900">{s.institutionName || s.name}</div>
                       {s.phoneNumber && <div className="text-xs text-gray-400">{s.phoneNumber}</div>}
@@ -276,14 +282,22 @@ export default function SchoolsPage() {
                     </td>
                     <td className="px-3 py-2.5 text-gray-600">{s.studentCount}</td>
                     <td className="px-3 py-2.5 text-right">
-                      <button
-                        onClick={() => handleResetPassword(s)}
-                        disabled={resettingId === s.id}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-gray-200 text-gray-600 rounded-lg text-xs hover:bg-gray-50 disabled:opacity-40"
-                      >
-                        {resettingId === s.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <KeyRound className="h-3.5 w-3.5" />}
-                        Reset Password
-                      </button>
+                      <div className="inline-flex items-center gap-2">
+                        <button
+                          onClick={(e) => { e.stopPropagation(); router.push(`/schools/${s.id}`) }}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-gray-200 text-gray-600 rounded-lg text-xs hover:bg-gray-50"
+                        >
+                          Manage
+                        </button>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); handleResetPassword(s) }}
+                          disabled={resettingId === s.id}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-gray-200 text-gray-600 rounded-lg text-xs hover:bg-gray-50 disabled:opacity-40"
+                        >
+                          {resettingId === s.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <KeyRound className="h-3.5 w-3.5" />}
+                          Reset Password
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
