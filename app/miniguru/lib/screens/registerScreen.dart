@@ -142,8 +142,56 @@ class _RegisterScreenState extends State<RegisterScreen> {
       );
       if (!mounted) return;
       if (response.statusCode == 201) {
-        _snack('Account created successfully!', Colors.green);
-        await Future.delayed(const Duration(seconds: 1));
+        final body = jsonDecode(response.body);
+        final loginEmail = body['user']?['email'] as String?;
+        final typedEmail = _emailCtrl.text.trim();
+
+        if (mentorType == 'SCHOOL' && loginEmail != null && loginEmail != typedEmail) {
+          await showDialog(
+            context: context,
+            barrierDismissible: false,
+            builder: (_) => AlertDialog(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+              title: Text('Account Created! 🎉',
+                  style: GoogleFonts.nunito(fontWeight: FontWeight.w900)),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Your school login ID is:',
+                      style: GoogleFonts.nunito(fontSize: 14)),
+                  const SizedBox(height: 8),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF0F2FF),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: SelectableText(loginEmail,
+                        style: GoogleFonts.nunito(
+                            fontWeight: FontWeight.w900, fontSize: 16)),
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    'Save this — you will log in with this ID, not your email.',
+                    style: GoogleFonts.nunito(fontSize: 12, color: Colors.grey[600]),
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: Text('Got it',
+                      style: GoogleFonts.nunito(fontWeight: FontWeight.w800)),
+                ),
+              ],
+            ),
+          );
+        } else {
+          _snack('Account created successfully!', Colors.green);
+          await Future.delayed(const Duration(seconds: 1));
+        }
         if (mounted) Navigator.of(context).pushNamedAndRemoveUntil(LoginScreen.id, (r) => false);
       } else {
         final body = jsonDecode(response.body);

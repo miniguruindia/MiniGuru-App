@@ -8,6 +8,23 @@ const bcryptjs_1 = __importDefault(require("bcryptjs"));
 const prismaClient_1 = __importDefault(require("../utils/prismaClient"));
 const authMiddleware_1 = require("../middleware/authMiddleware");
 const router = (0, express_1.Router)();
+// ── Helpers — institutional login ID generation (mirrors schoolAccountRoutes.ts) ──
+function slugWord(w) {
+    return (w || '').toLowerCase().replace(/[^a-z0-9]+/g, '');
+}
+async function buildUniqueSchoolEmail(institutionName, city) {
+    const firstWord = slugWord(institutionName.trim().split(/\s+/)[0]) || 'school';
+    const cityWord = city ? slugWord(city.trim().split(/\s+/)[0]) : '';
+    const base = cityWord ? `${firstWord}.${cityWord}` : firstWord;
+    let email = `${base}@miniguru.in`;
+    let suffix = 1;
+    // eslint-disable-next-line no-await-in-loop
+    while (await prismaClient_1.default.user.findUnique({ where: { email } })) {
+        suffix += 1;
+        email = `${base}${suffix}@miniguru.in`;
+    }
+    return email;
+}
 // ─── POST /mentor/register ───────────────────────────────────────────────────
 router.post('/register', async (req, res) => {
     try {
@@ -15,8 +32,17 @@ router.post('/register', async (req, res) => {
         if (!name || !email || !phoneNumber || !password || !mentorType) {
             return res.status(400).json({ message: 'name, email, phoneNumber, password, mentorType are required' });
         }
+        // Schools/T-LABs get an institutional login ID (firstword.city@miniguru.in) — same
+        // pattern as the admin-created flow and the child self-registration ID. The email
+        // they actually typed is kept as guardianEmail for password recovery / contact.
+        let loginEmail = email;
+        let guardianEmail = null;
+        if ((mentorType === 'SCHOOL' || mentorType === 'TLAB') && institutionName) {
+            loginEmail = await buildUniqueSchoolEmail(institutionName, city);
+            guardianEmail = email;
+        }
         const existing = await prismaClient_1.default.user.findFirst({
-            where: { OR: [{ email }, { phoneNumber }] }
+            where: { OR: [{ email: loginEmail }, { phoneNumber }] }
         });
         if (existing) {
             return res.status(409).json({ message: 'Email or phone already registered' });
@@ -25,7 +51,8 @@ router.post('/register', async (req, res) => {
         const user = await prismaClient_1.default.user.create({
             data: {
                 name,
-                email,
+                email: loginEmail,
+                guardianEmail,
                 phoneNumber,
                 passwordHash,
                 age: age ?? 25,
@@ -41,7 +68,7 @@ router.post('/register', async (req, res) => {
                 },
             },
             select: {
-                id: true, name: true, email: true, phoneNumber: true,
+                id: true, name: true, email: true, phoneNumber: true, guardianEmail: true,
                 isMentor: true, mentorType: true, guardianInfo: true,
                 score: true, role: true, createdAt: true,
             }

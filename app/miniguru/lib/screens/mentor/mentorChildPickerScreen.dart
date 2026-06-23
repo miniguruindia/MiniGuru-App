@@ -6,6 +6,7 @@ import 'package:miniguru/network/MiniguruApi.dart';
 import 'package:miniguru/models/User.dart';
 import 'package:miniguru/screens/homeScreen.dart';
 import 'package:miniguru/screens/mentor/addChildScreen.dart';
+import 'package:miniguru/screens/mentor/bulkAddStudentsScreen.dart';
 import 'package:miniguru/screens/mentor/pinEntryScreen.dart';
 import 'package:miniguru/state/sessionState.dart';
 
@@ -55,6 +56,60 @@ class _MentorChildPickerScreenState extends State<MentorChildPickerScreen> {
     if (hour < 12) return 'Good morning';
     if (hour < 17) return 'Good afternoon';
     return 'Good evening';
+  }
+
+  void _showAddOptions() {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (_) => Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Text('Add Learners', style: GoogleFonts.nunito(
+              fontSize: 18, fontWeight: FontWeight.w900)),
+          const SizedBox(height: 20),
+          ListTile(
+            leading: Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: pastelBlueText.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(12)),
+              child: const Icon(Icons.person_add, color: pastelBlueText)),
+            title: Text('Add One Child',
+                style: GoogleFonts.nunito(fontWeight: FontWeight.w800)),
+            subtitle: Text('Enter details manually',
+                style: GoogleFonts.nunito(fontSize: 12, color: Colors.grey)),
+            onTap: () async {
+              Navigator.pop(context);
+              await Navigator.push(context,
+                  MaterialPageRoute(builder: (_) => const AddChildScreen()));
+              _loadData();
+            },
+          ),
+          const SizedBox(height: 8),
+          ListTile(
+            leading: Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: Colors.green.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(12)),
+              child: const Icon(Icons.table_chart, color: Colors.green)),
+            title: Text('Bulk Add (School)',
+                style: GoogleFonts.nunito(fontWeight: FontWeight.w800)),
+            subtitle: Text('Paste from Excel — add entire class at once',
+                style: GoogleFonts.nunito(fontSize: 12, color: Colors.grey)),
+            onTap: () async {
+              Navigator.pop(context);
+              await Navigator.push(context,
+                  MaterialPageRoute(builder: (_) => const BulkAddStudentsScreen()));
+              _loadData();
+            },
+          ),
+          const SizedBox(height: 12),
+        ]),
+      ),
+    );
   }
 
   @override
@@ -275,13 +330,7 @@ class _MentorChildPickerScreenState extends State<MentorChildPickerScreen> {
 
   Widget _buildAddCard() {
     return GestureDetector(
-      onTap: () async {
-        await Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => const AddChildScreen()),
-        );
-        _loadData();
-      },
+      onTap: _showAddOptions,
       child: Container(
         decoration: BoxDecoration(
           color: Colors.white,
@@ -338,11 +387,7 @@ class _MentorChildPickerScreenState extends State<MentorChildPickerScreen> {
               style: GoogleFonts.nunito(fontSize: 14, color: Colors.grey[500])),
           const SizedBox(height: 24),
           ElevatedButton.icon(
-            onPressed: () async {
-              await Navigator.push(
-                  context, MaterialPageRoute(builder: (_) => const AddChildScreen()));
-              _loadData();
-            },
+            onPressed: _showAddOptions,
             icon: const Icon(Icons.add),
             label: Text('Add Child',
                 style: GoogleFonts.nunito(fontWeight: FontWeight.w800)),
