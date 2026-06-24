@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:miniguru/screens/legalScreen.dart';
 import 'package:miniguru/screens/navScreen/consultancy.dart';
+import 'package:miniguru/network/MiniguruApi.dart';
 
 // ─── COLOURS ────────────────────────────────────────────────────────────────
 class _AC {
@@ -41,8 +42,31 @@ void _goConsultancy(BuildContext context, int tab) {
 // ═══════════════════════════════════════════════════════════════════════════
 // MAIN SCREEN
 // ═══════════════════════════════════════════════════════════════════════════
-class AboutScreen extends StatelessWidget {
+class AboutScreen extends StatefulWidget {
   const AboutScreen({super.key});
+
+  @override
+  State<AboutScreen> createState() => _AboutScreenState();
+}
+
+class _AboutScreenState extends State<AboutScreen> {
+  final _api = MiniguruApi();
+  Map<String, dynamic>? _cms;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadCms();
+  }
+
+  Future<void> _loadCms() async {
+    try {
+      final data = await _api.getCmsContent('about');
+      if (data != null && mounted) setState(() => _cms = data);
+    } catch (e) {
+      debugPrint('About CMS load error: $e');
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -60,7 +84,11 @@ class AboutScreen extends StatelessWidget {
               const _OfferingsSection(),
               const _TLabNetworkSection(),
               const _AwardsSection(),
-              const _ContactSection(),
+              _ContactSection(
+                email:   _cms?['contactEmail']?.toString(),
+                phone:   _cms?['contactPhone']?.toString(),
+                address: _cms?['address']?.toString(),
+              ),
               const _FooterSection(),
             ],
           ),
@@ -1209,12 +1237,16 @@ class _AwardCard extends StatelessWidget {
 // SECTION 8 — CONTACT
 // ═══════════════════════════════════════════════════════════════════════════
 class _ContactSection extends StatelessWidget {
-  const _ContactSection();
+  final String? email, phone, address;
+  const _ContactSection({this.email, this.phone, this.address});
 
   @override
   Widget build(BuildContext context) {
     final w = MediaQuery.of(context).size.width;
     final isMobile = w < 700;
+    final ce = (email   != null && email!.trim().isNotEmpty)   ? email!   : 'connect@miniguru.in';
+    final cp = (phone   != null && phone!.trim().isNotEmpty)   ? phone!   : '+91 93997 56846';
+    final ca = (address != null && address!.trim().isNotEmpty) ? address! : 'Ujjain, Madhya Pradesh, India';
 
     return Container(
       color: _AC.deepGreen,
@@ -1237,23 +1269,22 @@ class _ContactSection extends StatelessWidget {
               ? Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _CItem(Icons.email_outlined, 'connect@miniguru.in'),
+                    _CItem(Icons.email_outlined, ce),
                     const SizedBox(height: 12),
-                    _CItem(Icons.phone_outlined, '+91 93997 56846'),
+                    _CItem(Icons.phone_outlined, cp),
                     const SizedBox(height: 12),
                     _CItem(Icons.language_outlined, 'miniguru.in'),
                     const SizedBox(height: 12),
-                    _CItem(Icons.place_outlined,
-                        'Ujjain, Madhya Pradesh, India'),
+                    _CItem(Icons.place_outlined, ca),
                   ])
               : Row(children: [
-                  _CItem(Icons.email_outlined, 'connect@miniguru.in'),
+                  _CItem(Icons.email_outlined, ce),
                   const SizedBox(width: 36),
-                  _CItem(Icons.phone_outlined, '+91 93997 56846'),
+                  _CItem(Icons.phone_outlined, cp),
                   const SizedBox(width: 36),
                   _CItem(Icons.language_outlined, 'miniguru.in'),
                   const SizedBox(width: 36),
-                  _CItem(Icons.place_outlined, 'Ujjain, MP'),
+                  _CItem(Icons.place_outlined, ca),
                 ]),
         ],
       ),
