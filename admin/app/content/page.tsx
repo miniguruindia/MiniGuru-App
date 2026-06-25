@@ -271,6 +271,34 @@ function ConsultancyEditor({ data, onChange }: { data: any; onChange: (d: any) =
         <button onClick={() => onChange({ ...data, faqs: [...(data.faqs || []), { question: '', answer: '' }] })}
           className="flex items-center gap-2 text-sm text-blue-600 font-medium"><Plus className="h-4 w-4" /> Add FAQ</button>
       </SectionCard>
+      <SectionCard title="🖼️ T-LAB Room Photos">
+        <p className="text-xs text-gray-500 mb-2">Paste image URLs (e.g. Firebase Storage links). Shown as a photo strip on the School T-LAB tab.</p>
+        {(data.tlabImages || []).map((url: string, i: number) => (
+          <div key={i} className="flex items-center gap-2 mb-2">
+            <input className={inp} value={url} placeholder="https://..."
+              onChange={e => {
+                const imgs = [...(data.tlabImages || [])]; imgs[i] = e.target.value; onChange({ ...data, tlabImages: imgs })
+              }} />
+            <button onClick={() => onChange({ ...data, tlabImages: (data.tlabImages || []).filter((_: any, j: number) => j !== i) })}
+              className="text-red-400 hover:text-red-600"><Trash2 className="h-4 w-4" /></button>
+          </div>
+        ))}
+        <button onClick={() => onChange({ ...data, tlabImages: [...(data.tlabImages || []), ''] })}
+          className="flex items-center gap-2 text-sm text-blue-600 font-medium"><Plus className="h-4 w-4" /> Add Photo URL</button>
+      </SectionCard>
+      <SectionCard title="📦 Materials & Corner Profiles">
+        <Field label="Materials & Tools description" hint="Overrides the 'Materials & Tools' card on the School T-LAB tab">
+          <textarea className={ta} rows={3} value={data.materialsBody || ''} onChange={e => set('materialsBody', e.target.value)} />
+        </Field>
+        <Field label="⚡ Circuits & Electronics"><textarea className={ta} rows={2} value={data.profileBodies?.p1 || ''}
+          onChange={e => onChange({ ...data, profileBodies: { ...(data.profileBodies || {}), p1: e.target.value } })} /></Field>
+        <Field label="🎨 Clay, Craft & Making"><textarea className={ta} rows={2} value={data.profileBodies?.p2 || ''}
+          onChange={e => onChange({ ...data, profileBodies: { ...(data.profileBodies || {}), p2: e.target.value } })} /></Field>
+        <Field label="🪵 Wood & Mechanics"><textarea className={ta} rows={2} value={data.profileBodies?.p3 || ''}
+          onChange={e => onChange({ ...data, profileBodies: { ...(data.profileBodies || {}), p3: e.target.value } })} /></Field>
+        <Field label="🔬 Science & Experiment"><textarea className={ta} rows={2} value={data.profileBodies?.p4 || ''}
+          onChange={e => onChange({ ...data, profileBodies: { ...(data.profileBodies || {}), p4: e.target.value } })} /></Field>
+      </SectionCard>
       <SectionCard title="📞 Contact">
         <div className="grid grid-cols-2 gap-3">
           <Field label="Email"><input className={inp} value={data.contactEmail || ''} onChange={e => set('contactEmail', e.target.value)} /></Field>

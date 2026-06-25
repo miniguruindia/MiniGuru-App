@@ -477,35 +477,6 @@ class MiniguruApi {
     return response;
   }
 
-  Future<Map<String, dynamic>?> deductGoinsForMaterials({
-    required String projectId,
-    required List<Map<String, dynamic>> materials,
-    required int totalGoins,
-  }) async {
-    try {
-      final authToken = await _getValidToken();
-      if (authToken == null) {
-        print('⚠️  Cannot deduct goins — user not logged in');
-        return null;
-      }
-      final response = await http.post(
-        Uri.parse('$_baseUrl/goins/deduct'),
-        headers: _buildHeaders(authToken.accessToken),
-        body: jsonEncode({'projectId': projectId, 'materials': materials, 'totalGoins': totalGoins, 'reason': 'material_deduction'}),
-      );
-      if (response.statusCode == 200 || response.statusCode == 201) {
-        final data = jsonDecode(response.body);
-        print('✅ Goins deducted: -$totalGoins | New balance: ${data['newBalance']}');
-        return data;
-      }
-      print('❌ Goins deduction failed: ${response.statusCode} ${response.body}');
-      return null;
-    } catch (e) {
-      print('❌ Goins deduction error: $e');
-      return null;
-    }
-  }
-
   Future<Map<String, dynamic>?> awardGoinsForVideoUpload({required String projectId}) async {
     try {
       final authToken = await _getValidToken();

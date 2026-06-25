@@ -75,47 +75,6 @@ router.get('/history', authMiddleware_1.authenticateToken, resolveSubject_1.reso
         return res.status(500).json({ message: 'Failed to fetch Goins history.' });
     }
 });
-// ─── POST /goins/deduct ──────────────────────────────────────────────────────
-// Deducts from user.score — called when materials are picked for a project
-router.post('/deduct', authMiddleware_1.authenticateToken, async (req, res) => {
-    try {
-        const userId = req.user?.userId;
-        const { totalGoins } = req.body;
-        if (!totalGoins || totalGoins <= 0) {
-            return res.status(400).json({ message: 'Invalid Goins amount.' });
-        }
-        const current = await getScore(userId);
-        if (current < totalGoins) {
-            return res.status(400).json({
-                message: 'Insufficient Goins balance.',
-                balance: current,
-            });
-        }
-        const updated = await prismaClient_1.default.user.update({
-            where: { id: userId },
-            data: { score: { decrement: totalGoins } },
-            select: { score: true },
-        });
-        // Log to GoinsTransaction if table exists
-        try {
-            await prismaClient_1.default.goinsTransaction.create({
-                data: {
-                    userId,
-                    amount: totalGoins,
-                    type: 'DEBIT',
-                    description: req.body.description ?? 'Materials deducted',
-                },
-            });
-        }
-        catch { /* table not yet migrated — silent */ }
-        logger_1.default.info(`Goins deducted: -${totalGoins} for user ${userId}, new score: ${updated.score}`);
-        return res.json({ success: true, deducted: totalGoins, newBalance: updated.score });
-    }
-    catch (error) {
-        logger_1.default.error(`POST /goins/deduct error: ${error.message}`);
-        return res.status(500).json({ message: 'Failed to deduct Goins.' });
-    }
-});
 // ─── POST /goins/award/video-upload ─────────────────────────────────────────
 // Awards 50 Goins to user.score when a project video is uploaded
 router.post('/award/video-upload', authMiddleware_1.authenticateToken, async (req, res) => {

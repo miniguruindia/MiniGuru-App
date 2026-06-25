@@ -8,6 +8,8 @@ import 'package:miniguru/screens/loginScreen.dart';
 import 'package:miniguru/screens/mentor/mentorChildPickerScreen.dart';
 import 'package:miniguru/screens/walletPage.dart';
 import 'package:miniguru/state/sessionState.dart';
+import 'package:miniguru/screens/editProfileScreen.dart';
+import 'package:miniguru/screens/legalScreen.dart';
 
 class MentorProfileTab extends StatefulWidget {
   const MentorProfileTab({super.key});
@@ -337,6 +339,85 @@ class _MentorProfileTabState extends State<MentorProfileTab> {
     );
   }
 
+  Future<void> _changePassword() async {
+    final curCtrl = TextEditingController();
+    final newCtrl = TextEditingController();
+    final conCtrl = TextEditingController();
+    bool changing = false;
+
+    await showDialog(
+      context: context,
+      builder: (dlg) => StatefulBuilder(
+        builder: (ctx, setDlg) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: Text('Change Password',
+              style: GoogleFonts.nunito(fontSize: 18, fontWeight: FontWeight.w800)),
+          content: Column(mainAxisSize: MainAxisSize.min, children: [
+            TextField(
+              controller: curCtrl,
+              obscureText: true,
+              decoration: const InputDecoration(labelText: 'Current Password'),
+            ),
+            const SizedBox(height: 10),
+            TextField(
+              controller: newCtrl,
+              obscureText: true,
+              decoration: const InputDecoration(labelText: 'New Password'),
+            ),
+            const SizedBox(height: 10),
+            TextField(
+              controller: conCtrl,
+              obscureText: true,
+              decoration: const InputDecoration(labelText: 'Confirm New Password'),
+            ),
+          ]),
+          actions: [
+            TextButton(
+              onPressed: changing ? null : () => Navigator.pop(ctx),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: changing
+                  ? null
+                  : () async {
+                      if (newCtrl.text.length < 6) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('New password must be at least 6 characters')));
+                        return;
+                      }
+                      if (newCtrl.text != conCtrl.text) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Passwords do not match')));
+                        return;
+                      }
+                      setDlg(() => changing = true);
+                      final res = await _api.changePassword(curCtrl.text, newCtrl.text);
+                      if (res.statusCode == 200 || res.statusCode == 201) {
+                        if (mounted) Navigator.pop(ctx);
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('Password changed successfully')));
+                        }
+                      } else {
+                        setDlg(() => changing = false);
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('Failed to change password — check current password')));
+                        }
+                      }
+                    },
+              child: changing
+                  ? const SizedBox(
+                      width: 18, height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                  : const Text('Update'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildActions() {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -351,6 +432,42 @@ class _MentorProfileTabState extends State<MentorProfileTab> {
               MaterialPageRoute(builder: (_) => const MentorChildPickerScreen()),
               (route) => false,
             ),
+          ),
+          const SizedBox(height: 10),
+          _actionTile(
+            icon: Icons.edit_outlined,
+            label: 'Edit Profile',
+            subtitle: 'Update your account details',
+            color: const Color(0xFF5B6EF5),
+            onTap: () => Navigator.push(context,
+                MaterialPageRoute(builder: (_) => const EditProfileScreen()))
+                .then((v) { if (v == true && mounted) _loadData(); }),
+          ),
+          const SizedBox(height: 10),
+          _actionTile(
+            icon: Icons.lock_reset,
+            label: 'Change Password',
+            subtitle: 'Update your login password',
+            color: const Color(0xFF5B6EF5),
+            onTap: _changePassword,
+          ),
+          const SizedBox(height: 10),
+          _actionTile(
+            icon: Icons.privacy_tip_outlined,
+            label: 'Privacy Policy',
+            subtitle: 'How we handle your data',
+            color: const Color(0xFF60A5FA),
+            onTap: () => Navigator.push(context,
+                MaterialPageRoute(builder: (_) => const LegalScreen(initialTab: 0))),
+          ),
+          const SizedBox(height: 10),
+          _actionTile(
+            icon: Icons.description_outlined,
+            label: 'Terms & Conditions',
+            subtitle: 'Platform terms of use',
+            color: const Color(0xFF60A5FA),
+            onTap: () => Navigator.push(context,
+                MaterialPageRoute(builder: (_) => const LegalScreen(initialTab: 1))),
           ),
           const SizedBox(height: 10),
           _actionTile(

@@ -41,6 +41,10 @@ class _ConsultancyPageState extends State<ConsultancyPage> {
   String _wsBannerParticipants = '800+';
   String _wsBannerProjects     = '1500+';
 
+  List<String> _tlabImages = [];
+  String? _materialsBody;
+  Map<String, String> _profileBodies = {};
+
   // ── FAQ / ACCORDION STATE ──────────────────────────────────────────────
   final Map<String, bool> _faqOpen = {
     'faq1': false, 'faq2': false, 'faq3': false,
@@ -90,6 +94,21 @@ class _ConsultancyPageState extends State<ConsultancyPage> {
           _wsBannerDone         = wsStats['done']?.toString()         ?? _wsBannerDone;
           _wsBannerParticipants = wsStats['participants']?.toString() ?? _wsBannerParticipants;
           _wsBannerProjects     = wsStats['projects']?.toString()     ?? _wsBannerProjects;
+        }
+        final images = data['tlabImages'] as List<dynamic>?;
+        if (images != null) {
+          _tlabImages = images
+              .map((e) => e.toString())
+              .where((s) => s.trim().isNotEmpty)
+              .toList();
+        }
+        if (data['materialsBody'] != null &&
+            data['materialsBody'].toString().trim().isNotEmpty) {
+          _materialsBody = data['materialsBody'].toString();
+        }
+        final profiles = data['profileBodies'] as Map<String, dynamic>?;
+        if (profiles != null) {
+          _profileBodies = profiles.map((k, v) => MapEntry(k, v.toString()));
         }
       });
     } catch (e) {
@@ -294,6 +313,7 @@ class _ConsultancyPageState extends State<ConsultancyPage> {
         ),
 
         // ── WHAT MAKES T-LAB DIFFERENT ───────────────────────────────────
+        if (_tlabImages.isNotEmpty) _tlabImageStrip(),
         _sectionTitle('What Makes T-LAB Different', Icons.compare_arrows_outlined),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -344,7 +364,7 @@ class _ConsultancyPageState extends State<ConsultancyPage> {
             _offerCard(
               icon: Icons.construction_outlined,
               title: 'Materials & Tools',
-              body: 'A curated kit across five domains: Electricity & Electronics, '
+              body: _materialsBody ?? 'A curated kit across five domains: Electricity & Electronics, '
                   'Mechanics, Soft Cutting (craft and art), Hard Cutting (wood and '
                   'fabrication), and General Science (Chem/Bio). Includes storage for '
                   'scrap materials.',
@@ -976,19 +996,19 @@ class _ConsultancyPageState extends State<ConsultancyPage> {
               ),
               const SizedBox(height: 12),
               _profileAccordion('p1', '⚡ Circuits & Electronics',
-                  'Copper wire, LEDs, AA batteries and holders, small switches, a basic '
+                  _profileBodies['p1'] ?? 'Copper wire, LEDs, AA batteries and holders, small switches, a basic '
                   'motor, and a multimeter. Starts with simple circuits. Grows toward '
                   'sensors and Arduino as confidence builds.'),
               _profileAccordion('p2', '🎨 Clay, Craft & Making',
-                  'Air-dry clay, cardboard, scissors, paints, fabric scraps, hot glue '
+                  _profileBodies['p2'] ?? 'Air-dry clay, cardboard, scissors, paints, fabric scraps, hot glue '
                   '(with safety guidance), and wire for armatures. Starts with free '
                   'modelling. Grows toward structured and mixed-media projects.'),
               _profileAccordion('p3', '🪵 Wood & Mechanics',
-                  'Scrap wood offcuts, bamboo, ice cream sticks, sandpaper, hammer, '
+                  _profileBodies['p3'] ?? 'Scrap wood offcuts, bamboo, ice cream sticks, sandpaper, hammer, '
                   'nails, rubber bands, and pulleys. Starts with simple structures. '
                   'Grows toward working mechanical models.'),
               _profileAccordion('p4', '🔬 Science & Experiment',
-                  'Measuring tools, pH strips, magnifying glass, small containers, '
+                  _profileBodies['p4'] ?? 'Measuring tools, pH strips, magnifying glass, small containers, '
                   'plant pots and seeds, and basic chemistry materials (vinegar, '
                   'baking soda, turmeric). Starts with observation. Grows toward '
                   'designed investigations.'),
@@ -1442,6 +1462,35 @@ class _ConsultancyPageState extends State<ConsultancyPage> {
                 fontSize: 11, color: Colors.black38,
                 fontStyle: FontStyle.italic)),
       ]),
+    );
+  }
+
+  Widget _tlabImageStrip() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+      child: SizedBox(
+        height: 160,
+        child: ListView.builder(
+          scrollDirection: Axis.horizontal,
+          itemCount: _tlabImages.length,
+          itemBuilder: (context, i) => Container(
+            width: 220,
+            margin: const EdgeInsets.only(right: 12),
+            clipBehavior: Clip.antiAlias,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(14),
+              color: const Color(0xFFE8F5E9),
+            ),
+            child: Image.network(
+              _tlabImages[i],
+              fit: BoxFit.cover,
+              errorBuilder: (_, __, ___) => const Center(
+                child: Icon(Icons.broken_image_outlined, color: Color(0xFF1B5E20)),
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 

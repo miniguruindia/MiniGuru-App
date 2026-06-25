@@ -216,7 +216,9 @@ class _HomeScreenState extends State<HomeScreen> {
             BottomNavigationBarItem(
               icon: Icon(_isAuthenticated ? Icons.work_outline : Icons.people_outline),
               activeIcon: Icon(_isAuthenticated ? Icons.work : Icons.people),
-              label: _isAuthenticated ? 'Projects' : 'Community',
+              label: _user?.isMentor == true && !SessionState.isChildSession
+                  ? "Children's Activity"
+                  : _isAuthenticated ? 'Projects' : 'Community',
             ),
             BottomNavigationBarItem(
               icon: Icon(_user?.isMentor == true && !SessionState.isChildSession ? Icons.supervisor_account_outlined : _isAuthenticated ? Icons.person_outline : Icons.info_outline),

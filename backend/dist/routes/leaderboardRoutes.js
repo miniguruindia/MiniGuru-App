@@ -16,6 +16,7 @@ router.get('/', async (_req, res) => {
             where: {
                 score: { gt: 0 },
                 role: 'USER', // exclude admins from leaderboard
+                isMentor: false, // exclude parents/schools/T-LABs — students only
             },
             orderBy: { score: 'desc' },
             take: 10,
