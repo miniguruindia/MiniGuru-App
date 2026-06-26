@@ -240,12 +240,17 @@ function DirectTab() {
 
   useEffect(() => {
     fetch(`${API_BASE}/admin/communication/users`, { headers: authHeader() as any })
-      .then(r => r.json()).then(setUsers).catch(() => {})
+      .then(r => r.json())
+      .then((data: any) => {
+        const list = Array.isArray(data) ? data : (Array.isArray(data?.users) ? data.users : [])
+        setUsers(list)
+      })
+      .catch(() => setUsers([]))
   }, [])
 
-  const filtered = users.filter(u =>
-    u.name.toLowerCase().includes(query.toLowerCase()) ||
-    u.email.toLowerCase().includes(query.toLowerCase())
+  const filtered = (Array.isArray(users) ? users : []).filter(u =>
+    (u.name || '').toLowerCase().includes(query.toLowerCase()) ||
+    (u.email || '').toLowerCase().includes(query.toLowerCase())
   ).slice(0, 8)
 
   const send = async () => {

@@ -9,6 +9,14 @@ import { sendPasswordResetEmail } from '../../services/email/emailService';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'miniguru-reset-secret';
 
+// Masks an email for safe display, e.g. "pramod.maithil@sahyadrischool.org" -> "pr***l@sahyadrischool.org"
+function maskEmail(email: string): string {
+  const [local, domain] = email.split('@');
+  if (!domain) return email;
+  if (local.length <= 2) return `${local[0] || ''}***@${domain}`;
+  return `${local.slice(0, 2)}***${local.slice(-1)}@${domain}`;
+}
+
 /**
  * @route  POST /auth/forgot-password
  * @access Public
@@ -47,7 +55,10 @@ export const requestPasswordReset = async (req: Request, res: Response) => {
     await sendPasswordResetEmail(resetTarget, resetToken);
 
     logger.info({ email }, '✅ Password reset email sent successfully');
-    return res.json({ message: 'Password reset instructions have been sent to your email.' });
+    return res.json({
+        message: 'Password reset instructions have been sent to your email.',
+        maskedEmail: maskEmail(resetTarget),
+      });
 
   } catch (error: any) {
     logger.error({ error: error.message }, '❌ Password reset request error');

@@ -10,6 +10,15 @@ const prismaClient_1 = __importDefault(require("../../utils/prismaClient"));
 const logger_1 = __importDefault(require("../../logger"));
 const emailService_1 = require("../../services/email/emailService");
 const JWT_SECRET = process.env.JWT_SECRET || 'miniguru-reset-secret';
+// Masks an email for safe display, e.g. "pramod.maithil@sahyadrischool.org" -> "pr***l@sahyadrischool.org"
+function maskEmail(email) {
+    const [local, domain] = email.split('@');
+    if (!domain)
+        return email;
+    if (local.length <= 2)
+        return `${local[0] || ''}***@${domain}`;
+    return `${local.slice(0, 2)}***${local.slice(-1)}@${domain}`;
+}
 /**
  * @route  POST /auth/forgot-password
  * @access Public
@@ -37,7 +46,10 @@ const requestPasswordReset = async (req, res) => {
         const resetTarget = user.guardianEmail || user.email;
         await (0, emailService_1.sendPasswordResetEmail)(resetTarget, resetToken);
         logger_1.default.info({ email }, '✅ Password reset email sent successfully');
-        return res.json({ message: 'Password reset instructions have been sent to your email.' });
+        return res.json({
+            message: 'Password reset instructions have been sent to your email.',
+            maskedEmail: maskEmail(resetTarget),
+        });
     }
     catch (error) {
         logger_1.default.error({ error: error.message }, '❌ Password reset request error');

@@ -168,16 +168,16 @@ class _LoginScreenState extends State<LoginScreen> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Enter your email address to reset your password.',
+                Text('Enter your email or MiniGuru ID to reset your password.',
                     style: GoogleFonts.poppins(
                         fontSize: 13, color: Colors.grey[600])),
                 const SizedBox(height: 20),
                 TextFormField(
                   controller: resetEmailController,
-                  keyboardType: TextInputType.emailAddress,
+                  keyboardType: TextInputType.text,
                   style: GoogleFonts.poppins(fontSize: 14),
                   decoration: InputDecoration(
-                    labelText: 'Email',
+                    labelText: 'Email or MiniGuru ID',
                     labelStyle:
                         GoogleFonts.poppins(color: Colors.grey[600]),
                     prefixIcon:
@@ -227,7 +227,9 @@ class _LoginScreenState extends State<LoginScreen> {
                                   body['tempPassword']);
                             } else {
                               _showSnackBar(
-                                  '✉️ Password reset instructions sent!',
+                                  body['maskedEmail'] != null
+                                      ? 'Reset link sent to ${body['maskedEmail']}'
+                                      : 'Password reset instructions sent!',
                                   Colors.green);
                             }
                           } else {

@@ -6,6 +6,7 @@ import 'package:miniguru/screens/loginScreen.dart';
 import 'package:miniguru/screens/registerScreen.dart';
 import 'package:miniguru/screens/splashScreen.dart';
 import 'package:miniguru/screens/getStartedScreen.dart';
+import 'package:miniguru/screens/resetPasswordScreen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -30,6 +31,20 @@ class MyApp extends StatelessWidget {
 
       onGenerateRoute: (settings) {
         print('📍 Navigating to: ${settings.name}');
+
+        // Password reset deep link — check the real browser URL directly
+        // (Uri.base) since settings.name may not carry the query string
+        // depending on URL strategy. Safe: only activates when a token
+        // is actually present, otherwise falls through unchanged below.
+        final browserUri = Uri.base;
+        final resetToken = browserUri.queryParameters['token'];
+        if (resetToken != null &&
+            resetToken.isNotEmpty &&
+            ((settings.name?.contains('reset-password') ?? false) ||
+                browserUri.path.contains('reset-password'))) {
+          return MaterialPageRoute(
+              builder: (_) => ResetPasswordScreen(token: resetToken));
+        }
 
         switch (settings.name) {
           case SplashScreen.id:
