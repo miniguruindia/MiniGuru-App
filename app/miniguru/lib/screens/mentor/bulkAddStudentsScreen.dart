@@ -509,9 +509,12 @@ class _BulkAddStudentsScreenState extends State<BulkAddStudentsScreen>
 
   // ── Paste tab ─────────────────────────────────────────────────────────────
   Widget _buildPasteEntry() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+    return Column(
+      children: [
+        Expanded(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(16),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         // Instructions
         Container(
           padding: const EdgeInsets.all(14),
@@ -634,9 +637,14 @@ class _BulkAddStudentsScreenState extends State<BulkAddStudentsScreen>
               }).toList(),
             ),
           ),
-          const SizedBox(height: 80), // space for submit bar
+          const SizedBox(height: 12),
         ],
       ]),
+            ),
+          ),
+          if (_parsed && _parsedRows.isNotEmpty)
+            _buildSubmitBar(onTap: () => _submit(fromPaste: true)),
+        ],
     );
   }
 
