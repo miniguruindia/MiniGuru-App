@@ -2,7 +2,7 @@
 // COMPLETE FILE - Replace entire file with this
 
 import express from 'express';
-import { login, refreshToken, logout, register, changePassword } from '../controllers/auth/authController';
+import { login, refreshToken, logout, register, changePassword, changeLoginId } from '../controllers/auth/authController';
 import { requestPasswordReset, resetPassword } from '../controllers/auth/passwordResetController';
 import { registerValidationRules } from '../middleware/validationMiddleware';
 import { authenticateToken } from '../middleware/authMiddleware';
@@ -63,6 +63,13 @@ authRouter.post('/reset-password', resetPassword);
  * ✅ FIXED: Use authenticateToken to verify JWT and populate req.user
  */
 authRouter.post('/change-password', authenticateToken, changePassword);
+
+/**
+ * @route   POST /auth/change-login-id
+ * @desc    Self-service MiniGuru ID change for the logged-in user
+ * @access  Private (requires authentication + current password)
+ */
+authRouter.post('/change-login-id', authenticateToken, changeLoginId);
 
 authRouter.post('/generate-id', generateId);
 authRouter.post('/send-otp', sendOtp);

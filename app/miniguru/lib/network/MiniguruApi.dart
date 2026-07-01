@@ -93,6 +93,19 @@ class MiniguruApi {
     return response;
   }
 
+  Future<http.Response> changeLoginId(String currentPassword, String newLoginId) async {
+    final authToken = await _getValidToken();
+    if (authToken == null) throw Exception('User not logged in');
+    final url = Uri.parse('$_baseUrl/auth/change-login-id');
+    final response = await http.post(
+      url,
+      headers: _buildHeaders(authToken.accessToken),
+      body: jsonEncode({'currentPassword': currentPassword, 'newLoginId': newLoginId}),
+    );
+    print('📦 Change Login ID Status: ${response.statusCode}');
+    return response;
+  }
+
   Future<AuthToken?> refreshToken() async {
     try {
       print("🔄 Refreshing tokens...");
@@ -910,7 +923,7 @@ class MiniguruApi {
     }
   }
 
-  Future<bool> emailBulkCredentials(
+  Future<Map<String, dynamic>?> emailBulkCredentials(
       List<Map<String, dynamic>> results) async {
     try {
       final authToken = await _db!.getAuthToken();
@@ -919,10 +932,12 @@ class MiniguruApi {
         headers: _buildHeaders(authToken?.accessToken ?? ''),
         body: jsonEncode({'results': results}),
       );
-      return response.statusCode == 200;
+      final body = jsonDecode(response.body) as Map<String, dynamic>;
+      body['_ok'] = response.statusCode == 200;
+      return body;
     } catch (e) {
       print('emailBulkCredentials exception: \$e');
-      return false;
+      return null;
     }
   }
 

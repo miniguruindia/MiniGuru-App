@@ -122,13 +122,14 @@ const updateUserDetails = async (req: Request, res: Response) => {
 // List all users with pagination
 const listUsers = async (req: Request, res: Response) => {
     const page = parseInt(req.query.page as string, 10) || 1;
-    const limit = parseInt(req.query.limit as string, 10) || 10;
+    const limit = parseInt(req.query.limit as string, 10) || 500;
     const skip = (page - 1) * limit;
 
     try {
         const users = await prisma.user.findMany({
             skip,
             take: limit,
+            orderBy: { createdAt: 'desc' },
             select: {
                 name: true,
                 email: true,
@@ -139,6 +140,9 @@ const listUsers = async (req: Request, res: Response) => {
     mentorType: true,
                 age: true,
                 id: true,
+                score: true,
+                createdAt: true,
+                wallet: { select: { balance: true } },
             },
         });
 

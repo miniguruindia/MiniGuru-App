@@ -452,6 +452,68 @@ const changePassword = async (req: AuthRequest, res: Response) => {
 };
 
 
+/**
+* @route POST /auth/change-login-id
+* @access Private (requires authentication)
+* Self-service MiniGuru ID change — for child accounts whose login isn't a real
+* email anyway. New ID must keep the @miniguru.in suffix and be available.
+*/
+const changeLoginId = async (req: AuthRequest, res: Response) => {
+   const { currentPassword, newLoginId } = req.body;
+   const userId = req.user?.userId;
+
+   try {
+       if (!currentPassword || !newLoginId) {
+           return res.status(400).json({ message: 'Current password and new MiniGuru ID are required' });
+       }
+
+       if (!userId) {
+           return res.status(401).json({ message: 'User not authenticated' });
+       }
+
+       const cleanId = String(newLoginId).trim().toLowerCase();
+       if (!/^[a-z0-9._-]+@miniguru\.in$/.test(cleanId)) {
+           return res.status(400).json({
+               message: 'MiniGuru ID must end with @miniguru.in and can only use letters, numbers, dots or hyphens before that',
+           });
+       }
+
+       const user = await prisma.user.findUnique({ where: { id: userId } });
+       if (!user) {
+           return res.status(404).json({ message: 'User not found' });
+       }
+
+       const isPasswordValid = await bcrypt.compare(currentPassword, user.passwordHash);
+       if (!isPasswordValid) {
+           logger.warn({ userId }, '❌ Current password is incorrect (change-login-id)');
+           return res.status(401).json({ message: 'Current password is incorrect' });
+       }
+
+       if (cleanId === user.email) {
+           return res.status(200).json({ message: 'That is already your MiniGuru ID', loginId: cleanId });
+       }
+
+       const taken = await prisma.user.findUnique({ where: { email: cleanId } });
+       if (taken) {
+           return res.status(409).json({ message: 'That MiniGuru ID is already taken — try another' });
+       }
+
+       await prisma.user.update({
+           where: { id: userId },
+           data: { email: cleanId },
+       });
+
+       logger.info({ userId, oldId: user.email, newId: cleanId }, '✅ MiniGuru ID changed successfully');
+
+       res.status(200).json({ message: 'MiniGuru ID changed successfully', loginId: cleanId });
+
+   } catch (error: any) {
+       logger.error({ userId, error: error.message }, '❌ MiniGuru ID change error');
+       res.status(500).json({ message: 'Failed to change MiniGuru ID' });
+   }
+};
+
+
 // ============================================================================
 // EXPORTS
 // ============================================================================
@@ -464,5 +526,6 @@ export {
    register,
    forgotPassword,
    resetPassword,
-   changePassword
+   changePassword,
+   changeLoginId
 };

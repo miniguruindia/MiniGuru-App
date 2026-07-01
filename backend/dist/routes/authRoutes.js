@@ -57,6 +57,12 @@ authRouter.post('/reset-password', passwordResetController_1.resetPassword);
  * ✅ FIXED: Use authenticateToken to verify JWT and populate req.user
  */
 authRouter.post('/change-password', authMiddleware_1.authenticateToken, authController_1.changePassword);
+/**
+ * @route   POST /auth/change-login-id
+ * @desc    Self-service MiniGuru ID change for the logged-in user
+ * @access  Private (requires authentication + current password)
+ */
+authRouter.post('/change-login-id', authMiddleware_1.authenticateToken, authController_1.changeLoginId);
 authRouter.post('/generate-id', registrationController_1.generateId);
 authRouter.post('/send-otp', registrationController_1.sendOtp);
 authRouter.post('/verify-otp', registrationController_1.verifyOtp);

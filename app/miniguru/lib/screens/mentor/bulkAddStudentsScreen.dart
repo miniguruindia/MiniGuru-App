@@ -255,18 +255,24 @@ class _BulkAddStudentsScreenState extends State<BulkAddStudentsScreen>
   Future<void> _emailToTeacher() async {
     setState(() { _emailSending = true; });
     try {
-      final success = await _api.emailBulkCredentials(_results.map((r) => {
+      final result = await _api.emailBulkCredentials(_results.map((r) => {
         'childName':  r.childName,
         'loginEmail': r.loginEmail,
         'password':   r.password,
         'pin':        r.pin,
         'grade':      r.grade,
       }).toList());
-      setState(() => _emailSent = success);
-      if (success) {
-        _snack('Credentials emailed to you! Check your inbox.');
+      final ok = result != null && result['_ok'] == true;
+      setState(() => _emailSent = ok);
+      if (ok) {
+        final sentTo = (result?['sentTo'] ?? '').toString();
+        _snack(sentTo.isNotEmpty
+            ? 'Sent to $sentTo — check that inbox!'
+            : 'Credentials emailed! Check your inbox.');
       } else {
-        _snack('Email failed. Use Copy to get credentials.', isError: true);
+        final msg = (result?['message'] ?? '').toString();
+        _snack(msg.isNotEmpty ? msg : 'Email failed. Use Copy to get credentials.',
+            isError: true);
       }
     } catch (e) {
       _snack('Email error: $e', isError: true);

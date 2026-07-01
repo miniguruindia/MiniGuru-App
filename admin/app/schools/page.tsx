@@ -35,6 +35,7 @@ const EMPTY_FORM = {
   mentorType: 'SCHOOL' as 'SCHOOL' | 'TLAB',
   contactName: '',
   contactPhone: '',
+  contactEmail: '',
   city: '',
   state: '',
   pincode: '',
@@ -357,6 +358,20 @@ export default function SchoolsPage() {
                     className="mt-1 w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
                   />
                 </div>
+              </div>
+
+              <div>
+                <label className="text-xs font-medium text-gray-500">Contact email (real inbox)</label>
+                <input
+                  value={form.contactEmail}
+                  onChange={e => setForm({ ...form, contactEmail: e.target.value })}
+                  placeholder="teacher's real email — needed to send credentials"
+                  className="mt-1 w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                />
+                <p className="mt-1 text-[11px] text-gray-400">
+                  The login ID below will be auto-generated and isn't a real inbox — this is where
+                  student credentials actually get emailed.
+                </p>
               </div>
 
               <div className="grid grid-cols-3 gap-3">

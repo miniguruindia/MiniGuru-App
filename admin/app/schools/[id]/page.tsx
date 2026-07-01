@@ -165,6 +165,7 @@ export default function SchoolDetailPage() {
         name: data.name || '',
         email: data.email || '',
         phoneNumber: data.phoneNumber || '',
+        contactEmail: data.contactEmail || '',
         city: data.city || '',
         state: data.state || '',
         pincode: data.pincode || '',
@@ -355,6 +356,17 @@ export default function SchoolDetailPage() {
                   <input
                     value={form.phoneNumber}
                     onChange={e => setForm({ ...form, phoneNumber: e.target.value })}
+                    className="mt-1 w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-gray-500">
+                    Contact email (real inbox — credential emails go here)
+                  </label>
+                  <input
+                    value={form.contactEmail}
+                    onChange={e => setForm({ ...form, contactEmail: e.target.value })}
+                    placeholder="teacher's real email"
                     className="mt-1 w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
                   />
                 </div>

@@ -312,6 +312,98 @@ class _ProfileState extends State<Profile>
     curCtrl.dispose(); newCtrl.dispose(); conCtrl.dispose();
   }
 
+  // ── Change MiniGuru ID ──────────────────────────────────────────────────
+  Future<void> _changeLoginId() async {
+    final currentId = _user?.email ?? '';
+    final pwCtrl = TextEditingController();
+    final idCtrl = TextEditingController(
+        text: currentId.contains('@') ? currentId.split('@').first : '');
+    final formKey = GlobalKey<FormState>();
+    bool changing = false;
+    bool oPw = true;
+
+    await showDialog(
+      context: context,
+      builder: (dlg) => StatefulBuilder(
+        builder: (ctx, setDlg) => AlertDialog(
+          shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20)),
+          title: Text('Change MiniGuru ID',
+              style: GoogleFonts.nunito(
+                  fontSize: 18, fontWeight: FontWeight.w800)),
+          content: Form(
+            key: formKey,
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+              Text('Your ID is currently:\n$currentId',
+                  style: GoogleFonts.nunito(fontSize: 12, color: Colors.black54)),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: idCtrl,
+                style: GoogleFonts.nunito(fontSize: 14),
+                decoration: InputDecoration(
+                  labelText: 'New ID (before @miniguru.in)',
+                  suffixText: '@miniguru.in',
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                ),
+                validator: (v) {
+                  final s = (v ?? '').trim();
+                  if (s.isEmpty) return 'Required';
+                  if (!RegExp(r'^[a-zA-Z0-9._-]+$').hasMatch(s)) {
+                    return 'Letters, numbers, dots, hyphens only';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 10),
+              _pwField('Current Password', pwCtrl, oPw,
+                  (v) => setDlg(() => oPw = !v),
+                  (v) => v!.isEmpty ? 'Required' : null),
+            ]),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(dlg),
+                child: Text('Cancel', style: GoogleFonts.nunito())),
+            ElevatedButton(
+              onPressed: changing ? null : () async {
+                if (!formKey.currentState!.validate()) return;
+                setDlg(() => changing = true);
+                try {
+                  final newId = '${idCtrl.text.trim().toLowerCase()}@miniguru.in';
+                  final r = await _api.changeLoginId(pwCtrl.text, newId);
+                  if (dlg.mounted) Navigator.pop(dlg);
+                  if (r.statusCode == 200) {
+                    final body = jsonDecode(r.body);
+                    final confirmedId = body['loginId'] ?? newId;
+                    _snack('Your new ID is $confirmedId — use it next time you log in!',
+                        const Color(0xFF10B981));
+                    await Future.delayed(const Duration(seconds: 2));
+                    if (mounted) _logout();
+                  } else {
+                    final err = jsonDecode(r.body);
+                    _snack(err['message'] ?? 'Failed',
+                        const Color(0xFFEF4444));
+                  }
+                } catch (e) {
+                  if (dlg.mounted) Navigator.pop(dlg);
+                  _snack('Error: $e', const Color(0xFFEF4444));
+                }
+              },
+              child: changing
+                  ? const SizedBox(width: 16, height: 16,
+                      child: CircularProgressIndicator(
+                          color: Colors.white, strokeWidth: 2))
+                  : Text('Change',
+                      style: GoogleFonts.nunito(
+                          color: Colors.white, fontWeight: FontWeight.w700)),
+            ),
+          ],
+        ),
+      ),
+    );
+    pwCtrl.dispose(); idCtrl.dispose();
+  }
+
   Widget _pwField(String label, TextEditingController ctrl, bool obscure,
       void Function(bool) onToggle, String? Function(String?) validator) {
     return TextFormField(
@@ -434,6 +526,9 @@ class _ProfileState extends State<Profile>
         const SizedBox(height: 8),
         _tile(Icons.lock_reset, 'Change Password',
                             const Color(0xFF5B6EF5), _changePassword),
+                        const SizedBox(height: 8),
+                        _tile(Icons.badge_outlined, 'Change MiniGuru ID',
+                            const Color(0xFF5B6EF5), _changeLoginId),
                         const SizedBox(height: 8),
                         _tile(Icons.privacy_tip_outlined, 'Privacy Policy',
                             const Color(0xFF60A5FA),

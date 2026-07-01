@@ -397,9 +397,19 @@ router.post('/send-credentials', authenticateToken, async (req: any, res: Respon
 
     const teacher = await prisma.user.findUnique({
       where: { id: userId },
-      select: { email: true, name: true },
+      select: { email: true, name: true, guardianEmail: true },
     });
     if (!teacher) return res.status(404).json({ message: 'Teacher not found' });
+
+    const sendTo = teacher.guardianEmail || teacher.email;
+    const loginLooksFake = /@miniguru\.in$/i.test(teacher.email || '');
+    if (!teacher.guardianEmail && loginLooksFake) {
+      return res.status(400).json({
+        success: false,
+        message: 'No real contact email is on file for this account, so we can\'t send anything — '
+          + 'add one in Admin → Schools → (this school) → Edit → Contact Email, then try again.',
+      });
+    }
 
     const rows = results.map((r: any) => `
       <tr>
@@ -416,7 +426,11 @@ router.post('/send-credentials', authenticateToken, async (req: any, res: Respon
 <h1 style="color:#fff;margin:8px 0;">${results.length} Student Credentials</h1>
 <p style="color:rgba(255,255,255,0.8);margin:0;">MiniGuru School Registration</p></div>
 <div style="padding:24px;">
-<p style="color:#3D3D5C;">Hi ${teacher.name},<br><br>Share each student their MiniGuru ID + Password. Keep the PIN — it lets you view any student's activities.</p>
+<p style="color:#3D3D5C;">Hi ${teacher.name},</p>
+<div style="margin:14px 0;padding:14px;background:#F0F4FF;border-radius:10px;font-size:13px;color:#3D3D5C;">
+<strong>MiniGuru ID + Password</strong> — give these to the student. This is their own personal login. They can change the password themselves after logging in once.<br><br>
+<strong>Your PIN</strong> — this one is yours, not the student's. Use it inside the app whenever you want to check in on that specific student's activity. It always stays the same.
+</div>
 <table style="width:100%;border-collapse:collapse;font-size:13px;">
 <thead><tr style="background:#F0F4FF;">
 <th style="padding:10px;text-align:left;color:#8888AA;font-size:11px;">Name</th>
@@ -426,19 +440,19 @@ router.post('/send-credentials', authenticateToken, async (req: any, res: Respon
 <th style="padding:10px;text-align:left;color:#8888AA;font-size:11px;">Grade</th>
 </tr></thead><tbody>${rows}</tbody></table>
 <div style="margin-top:20px;padding:14px;background:#FFF8E1;border-radius:10px;border-left:4px solid #E8A000;">
-<strong>📌 Students login at miniguru.in with their ID + Password. They can change password after first login.</strong>
+<strong>📌 Students log in at miniguru.in with their own ID + Password — not yours, and not the PIN.</strong>
 </div></div></div></body></html>`;
 
     const sgMail = require("@sendgrid/mail");
     sgMail.setApiKey(process.env.SENDGRID_API_KEY);
     await sgMail.send({
-      to: teacher.email,
+      to: sendTo,
       from: process.env.FROM_EMAIL || "connect@miniguru.in",
       subject: `MiniGuru: ${results.length} Student Credentials`,
       html,
     });
 
-    return res.json({ success: true, message: `Sent to ${teacher.email}` });
+    return res.json({ success: true, message: `Sent to ${sendTo}`, sentTo: sendTo });
   } catch (err: any) {
     console.error("send-credentials error:", err);
     return res.status(500).json({ message: "Failed to send email", error: err.message });

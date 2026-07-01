@@ -58,7 +58,7 @@ router.get('/schools', async (req: Request, res: Response) => {
     const schools = await prisma.user.findMany({
       where: { isMentor: true, mentorType: { in: ['SCHOOL', 'TLAB'] } },
       select: {
-        id: true, name: true, email: true, phoneNumber: true,
+        id: true, name: true, email: true, phoneNumber: true, guardianEmail: true,
         mentorType: true, guardianInfo: true, score: true, createdAt: true,
         children: { select: { id: true } },
       },
@@ -70,6 +70,7 @@ router.get('/schools', async (req: Request, res: Response) => {
         id: s.id,
         name: s.name,
         email: s.email,
+        contactEmail: s.guardianEmail ?? null,
         phoneNumber: s.phoneNumber,
         mentorType: s.mentorType,
         institutionName: s.guardianInfo?.institutionName ?? null,
@@ -93,7 +94,7 @@ router.get('/schools/:id', async (req: Request, res: Response) => {
     const s = await prisma.user.findUnique({
       where: { id },
       select: {
-        id: true, name: true, email: true, phoneNumber: true,
+        id: true, name: true, email: true, phoneNumber: true, guardianEmail: true,
         mentorType: true, guardianInfo: true, score: true, createdAt: true,
         children: { select: { id: true } },
       },
@@ -106,6 +107,7 @@ router.get('/schools/:id', async (req: Request, res: Response) => {
       id: s.id,
       name: s.name,
       email: s.email,
+      contactEmail: s.guardianEmail ?? null,
       phoneNumber: s.phoneNumber,
       mentorType: s.mentorType,
       institutionName: gi.institutionName ?? null,
@@ -125,7 +127,7 @@ router.get('/schools/:id', async (req: Request, res: Response) => {
 router.post('/create-school-account', async (req: Request, res: Response) => {
   try {
     const {
-      institutionName, mentorType, contactName, contactPhone, city, state, pincode,
+      institutionName, mentorType, contactName, contactPhone, contactEmail, city, state, pincode,
     } = req.body;
 
     if (!institutionName || !mentorType) {
@@ -144,6 +146,7 @@ router.post('/create-school-account', async (req: Request, res: Response) => {
         name: contactName || institutionName,
         email,
         phoneNumber: contactPhone || null,
+        guardianEmail: contactEmail || null,
         passwordHash,
         age: 30,
         role: 'USER',
@@ -158,11 +161,13 @@ router.post('/create-school-account', async (req: Request, res: Response) => {
           isVerified: true,
         },
       },
-      select: { id: true, name: true, email: true, mentorType: true, createdAt: true },
+      select: { id: true, name: true, email: true, guardianEmail: true, mentorType: true, createdAt: true },
     });
 
     return res.status(201).json({
-      message: 'School account created',
+      message: contactEmail
+        ? 'School account created'
+        : 'School account created — no contact email set yet, so credential emails cannot be sent until one is added via Edit',
       account: user,
       credentials: { email, password: plainPassword },
     });
@@ -198,6 +203,8 @@ router.put('/schools/:id', async (req: Request, res: Response) => {
       userData.passwordHash = await bcrypt.hash(body.password, 10);
     }
 
+    if ('contactEmail' in body) userData.guardianEmail = body.contactEmail || null;
+
     const currentGi: any = existing.guardianInfo ?? {};
     const guardianInfo = {
       institutionName: 'institutionName' in body ? body.institutionName : currentGi.institutionName ?? null,
@@ -211,7 +218,7 @@ router.put('/schools/:id', async (req: Request, res: Response) => {
     const updated = await prisma.user.update({
       where: { id },
       data: userData,
-      select: { id: true, name: true, email: true, phoneNumber: true, guardianInfo: true },
+      select: { id: true, name: true, email: true, phoneNumber: true, guardianEmail: true, guardianInfo: true },
     });
 
     return res.json({ message: 'Account updated', account: updated });
