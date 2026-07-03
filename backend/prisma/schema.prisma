@@ -287,6 +287,10 @@ model Project {
   likes       Like[]
   comments    Comment[]
   status      String            @default("pending")
+  aiVerdict   String?
+  aiReason    String?
+  aiConfidence Float?
+  aiReviewedAt DateTime?
   createdAt   DateTime          @default(now())
   updatedAt   DateTime          @updatedAt
 

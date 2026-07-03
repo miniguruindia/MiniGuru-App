@@ -1,5 +1,6 @@
 {
   "dependencies": {
+    "@google/genai": "^2.10.0",
     "@prisma/client": "^5.22.0",
     "@sendgrid/mail": "^8.1.6",
     "@types/jsonwebtoken": "^9.0.10",
