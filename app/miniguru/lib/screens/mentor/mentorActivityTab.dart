@@ -73,6 +73,7 @@ class _MentorActivityTabState extends State<MentorActivityTab> {
       backgroundColor: Colors.transparent,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setSheet) => Container(
+          height: MediaQuery.of(ctx).size.height * 0.85,
           decoration: const BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
@@ -82,7 +83,6 @@ class _MentorActivityTabState extends State<MentorActivityTab> {
             bottom: MediaQuery.of(ctx).viewInsets.bottom + 24,
           ),
           child: Column(
-            mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Center(
@@ -103,92 +103,98 @@ class _MentorActivityTabState extends State<MentorActivityTab> {
                   style: GoogleFonts.nunito(
                       fontSize: 13, color: Colors.grey[500])),
               const SizedBox(height: 16),
-              if (_children.isEmpty)
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  child: Text('No children added yet.',
-                      style: GoogleFonts.nunito(color: Colors.grey[400])),
-                )
-              else
-                ..._children.map((child) {
-                  final isSelected = selected.contains(child.id);
-                  return GestureDetector(
-                    onTap: () => setSheet(() {
-                      if (isSelected) {
-                        selected.remove(child.id);
-                      } else {
-                        selected.add(child.id);
-                      }
-                    }),
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 150),
-                      margin: const EdgeInsets.only(bottom: 10),
-                      padding: const EdgeInsets.all(14),
-                      decoration: BoxDecoration(
-                        color: isSelected
-                            ? pastelBlueText.withOpacity(0.08)
-                            : Colors.grey[50],
-                        borderRadius: BorderRadius.circular(14),
-                        border: Border.all(
-                          color: isSelected
-                              ? pastelBlueText
-                              : Colors.grey[200]!,
-                          width: isSelected ? 2 : 1,
-                        ),
-                      ),
-                      child: Row(
-                        children: [
-                          CircleAvatar(
-                            radius: 20,
-                            backgroundColor:
-                                pastelBlueText.withOpacity(0.15),
-                            child: Text(child.name[0].toUpperCase(),
-                                style: GoogleFonts.nunito(
-                                    fontWeight: FontWeight.w900,
-                                    color: pastelBlueText)),
-                          ),
-                          const SizedBox(width: 12),
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(child.name,
-                                  style: GoogleFonts.nunito(
-                                      fontSize: 15,
-                                      fontWeight: FontWeight.w800)),
-                              if (child.grade != null)
-                                Text('Grade ${child.grade}',
-                                    style: GoogleFonts.nunito(
-                                        fontSize: 12,
-                                        color: Colors.grey[500])),
-                            ],
-                          ),
-                          const Spacer(),
-                          AnimatedContainer(
-                            duration: const Duration(milliseconds: 150),
-                            width: 24,
-                            height: 24,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: isSelected
-                                  ? pastelBlueText
-                                  : Colors.transparent,
-                              border: Border.all(
+              Expanded(
+                child: _children.isEmpty
+                    ? Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        child: Text('No children added yet.',
+                            style: GoogleFonts.nunito(color: Colors.grey[400])),
+                      )
+                    : ListView.builder(
+                        itemCount: _children.length,
+                        itemBuilder: (context, index) {
+                          final child = _children[index];
+                          final isSelected = selected.contains(child.id);
+                          return GestureDetector(
+                            onTap: () => setSheet(() {
+                              if (isSelected) {
+                                selected.remove(child.id);
+                              } else {
+                                selected.add(child.id);
+                              }
+                            }),
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 150),
+                              margin: const EdgeInsets.only(bottom: 10),
+                              padding: const EdgeInsets.all(14),
+                              decoration: BoxDecoration(
                                 color: isSelected
-                                    ? pastelBlueText
-                                    : Colors.grey[300]!,
-                                width: 2,
+                                    ? pastelBlueText.withOpacity(0.08)
+                                    : Colors.grey[50],
+                                borderRadius: BorderRadius.circular(14),
+                                border: Border.all(
+                                  color: isSelected
+                                      ? pastelBlueText
+                                      : Colors.grey[200]!,
+                                  width: isSelected ? 2 : 1,
+                                ),
+                              ),
+                              child: Row(
+                                children: [
+                                  CircleAvatar(
+                                    radius: 20,
+                                    backgroundColor:
+                                        pastelBlueText.withOpacity(0.15),
+                                    child: Text(child.name[0].toUpperCase(),
+                                        style: GoogleFonts.nunito(
+                                            fontWeight: FontWeight.w900,
+                                            color: pastelBlueText)),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(child.name,
+                                          style: GoogleFonts.nunito(
+                                              fontSize: 15,
+                                              fontWeight: FontWeight.w800)),
+                                      if (child.grade != null)
+                                        Text('Grade ${child.grade}',
+                                            style: GoogleFonts.nunito(
+                                                fontSize: 12,
+                                                color: Colors.grey[500])),
+                                    ],
+                                  ),
+                                  const Spacer(),
+                                  AnimatedContainer(
+                                    duration: const Duration(milliseconds: 150),
+                                    width: 24,
+                                    height: 24,
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      color: isSelected
+                                          ? pastelBlueText
+                                          : Colors.transparent,
+                                      border: Border.all(
+                                        color: isSelected
+                                            ? pastelBlueText
+                                            : Colors.grey[300]!,
+                                        width: 2,
+                                      ),
+                                    ),
+                                    child: isSelected
+                                        ? const Icon(Icons.check,
+                                            color: Colors.white, size: 14)
+                                        : null,
+                                  ),
+                                ],
                               ),
                             ),
-                            child: isSelected
-                                ? const Icon(Icons.check,
-                                    color: Colors.white, size: 14)
-                                : null,
-                          ),
-                        ],
+                          );
+                        },
                       ),
-                    ),
-                  );
-                }),
+              ),
               const SizedBox(height: 16),
               SizedBox(
                 width: double.infinity,
