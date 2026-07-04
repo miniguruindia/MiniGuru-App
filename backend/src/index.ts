@@ -33,6 +33,7 @@ import cmsRouter from './routes/cmsRoutes';
 import guardianRouter from './routes/guardianRoutes';
 import communicationRouter from './routes/communicationRoutes';   // ← NEW
 import goinsRouter from './routes/goinsRoutes';           // ← NEW
+import goinsTopupRouter from './routes/goinsTopupRoutes';
 import schoolAccountRouter from './routes/schoolAccountRoutes';   // ← NEW: school/T-LAB admin accounts
 
 // YouTube Upload Setup (optional)
@@ -304,6 +305,7 @@ try {
   app.use('/leaderboard', leaderboardRouter);   // ← NEW: STEM materials for Goins exchange
   app.use('/shop', shopRoutes);
   app.use('/goins', goinsRouter);
+  app.use('/goins', goinsTopupRouter);
   app.use('/users', userAnalyticsRouter);
   app.use('/cms', cmsRouter);
 app.use('/mentor', guardianRouter);

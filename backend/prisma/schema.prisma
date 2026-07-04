@@ -363,9 +363,9 @@ model Product {
   brand            String?
   size             String?
   howToUse         String?
-  amazonUrl        String?           // Amazon affiliate link — use tag=miniguru08-21
-  flipkartUrl      String?           // Flipkart link (optional backup)
-  sourceType       String            @default("OWN")  // OWN | AMAZON | FLIPKART
+  amazonUrl        String?
+  flipkartUrl      String?
+  sourceType       String            @default("OWN")
   createdAt        DateTime          @default(now())
   updatedAt        DateTime          @updatedAt
   projectMaterials ProjectMaterial[]
@@ -466,8 +466,6 @@ model ContactMessage {
 
   @@map("contact_messages")
 }
-// ─── ADD THIS TO THE END OF schema.prisma ────────────────────────────────────
-// Run `npx prisma generate` from /workspaces/MiniGuru-App/backend/ after saving
 
 model Material {
   id             String   @id @default(auto()) @map("_id") @db.ObjectId
@@ -517,6 +515,7 @@ model PendingRegistration {
   createdAt     DateTime @default(now())
   @@map("pending_registrations")
 }
+
 model VideoRating {
   id            String   @id @default(auto()) @map("_id") @db.ObjectId
   videoId       String   @db.ObjectId
@@ -533,4 +532,23 @@ model VideoRating {
 
   @@unique([videoId, raterId])
   @@map("video_ratings")
+}
+
+model GoinTopUpRequest {
+  id                  String    @id @default(auto()) @map("_id") @db.ObjectId
+  requesterId         String    @db.ObjectId
+  requesterName       String
+  amount              Int
+  reason              String?
+  projectDraftContext String?
+  status              String    @default("PENDING")
+  decidedById         String?   @db.ObjectId
+  decidedByRole       String?
+  decidedAt           DateTime?
+  denialReason        String?
+  createdAt           DateTime  @default(now())
+
+  @@index([requesterId])
+  @@index([status])
+  @@map("goin_topup_requests")
 }
