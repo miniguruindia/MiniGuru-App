@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:miniguru/models/MaterialItem.dart';
 import 'package:miniguru/repository/GoinsRepository.dart';
+import 'package:miniguru/network/MiniguruApi.dart';
 
 // ─── Light theme colours ──────────────────────────────────────────────────────
 const _blue     = Color(0xFF5B6EF5);
@@ -53,6 +54,7 @@ class MaterialPickerSheet extends StatefulWidget {
 
 class _MaterialPickerSheetState extends State<MaterialPickerSheet> {
   final _repo = GoinsRepository();
+  final _api = MiniguruApi();
 
   List<MaterialCategory> _categories  = [];
   List<MaterialItem>     _allMaterials = [];
@@ -61,6 +63,10 @@ class _MaterialPickerSheetState extends State<MaterialPickerSheet> {
   String                 _activeCategoryId = 'all';
   String                 _searchQuery  = '';
   bool                   _loading      = true;
+
+  // ─── Goins top-up request state ──────────────────────────────
+  bool _requestSent = false;   // true once child taps "Request" for current shortfall
+  bool _requesting  = false;   // true while the network call is in flight
 
   @override
   void initState() {
@@ -94,6 +100,7 @@ class _MaterialPickerSheetState extends State<MaterialPickerSheet> {
 
   int get _remainingBalance => widget.currentGoinsBalance - _totalGoins;
   bool get _overBudget      => _remainingBalance < 0;
+  int get _shortfall        => _overBudget ? _remainingBalance.abs() : 0;
 
   List<PickedMaterial> get _pickedList {
     return _allMaterials
@@ -128,16 +135,48 @@ class _MaterialPickerSheetState extends State<MaterialPickerSheet> {
       } else {
         _quantities[materialId] = newQty;
       }
+      // Any change to the picked list means a previous request no longer
+      // applies to the current shortfall — reset so they can request again.
+      _requestSent = false;
     });
+  }
+
+  // ─── Goins top-up request ──────────────────────────────────
+  Future<void> _sendTopUpRequest() async {
+    if (_shortfall <= 0 || _requesting) return;
+    setState(() => _requesting = true);
+
+    final result = await _api.requestGoinsTopUp(
+      amount: _shortfall,
+      reason: 'Materials for a MiniGuru project',
+      projectDraftContext: _pickedList.map((p) => p.item.name).join(', '),
+    );
+
+    setState(() {
+      _requesting = false;
+      _requestSent = result != null;
+    });
+
+    if (result == null && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('Could not send request — check your connection and try again.',
+            style: GoogleFonts.nunito(fontWeight: FontWeight.w700)),
+        backgroundColor: _red,
+      ));
+    }
   }
 
   // ─── Confirm ──────────────────────────────────────────────
   void _confirm() {
-    if (false) { // Goins no longer limit material selection
+    if (_overBudget) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('Not enough Goins! Remove some materials.',
-            style: GoogleFonts.nunito(fontWeight: FontWeight.w900)),
-        backgroundColor: _red,
+        content: Text(
+          _requestSent
+              ? 'Waiting for approval — close and reopen this later to check.'
+              : 'You need $_shortfall more Goins. Tap "Request" below first.',
+          style: GoogleFonts.nunito(fontWeight: FontWeight.w900),
+        ),
+        backgroundColor: _amber,
       ));
       return;
     }
@@ -159,6 +198,7 @@ class _MaterialPickerSheetState extends State<MaterialPickerSheet> {
           _buildHandle(),
           _buildHeader(),
           _buildGoinsBar(),
+          if (_overBudget) _buildShortfallBanner(),
           _buildSearch(),
           _buildCategoryRow(),
           Expanded(child: _loading ? _buildLoader() : _buildMaterialGrid()),
@@ -227,16 +267,64 @@ class _MaterialPickerSheetState extends State<MaterialPickerSheet> {
     );
   }
 
-  Widget _goinsStat(String label, String value, Color valueColor) {
-    return Column(crossAxisAlignment: CrossAxisAlignment.center, children: [
-      Text(label,
-          style: GoogleFonts.nunito(
-              color: _muted, fontSize: 10, fontWeight: FontWeight.w500)),
-      const SizedBox(height: 2),
-      Text(value,
-          style: GoogleFonts.nunito(
-              color: valueColor, fontSize: 14, fontWeight: FontWeight.bold)),
-    ]);
+  // ─── NEW: Shortfall banner ──────────────────────────────────
+  Widget _buildShortfallBanner() {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 0, 16, 6),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFF7E6),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: _amber.withOpacity(0.4)),
+      ),
+      child: Row(
+        children: [
+          const Text('🪙', style: TextStyle(fontSize: 20)),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'You need $_shortfall more Goins for this',
+                  style: GoogleFonts.nunito(
+                      color: _ink, fontSize: 12, fontWeight: FontWeight.w800),
+                ),
+                if (_requestSent)
+                  Text(
+                    'Requested — waiting for your teacher or parent to approve',
+                    style: GoogleFonts.nunito(
+                        color: _muted, fontSize: 10, fontWeight: FontWeight.w600),
+                  ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          GestureDetector(
+            onTap: (_requestSent || _requesting) ? null : _sendTopUpRequest,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+              decoration: BoxDecoration(
+                color: _requestSent ? _border : _amber,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: _requesting
+                  ? const SizedBox(
+                      width: 14, height: 14,
+                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                    )
+                  : Text(
+                      _requestSent ? 'Requested ✓' : 'Request',
+                      style: GoogleFonts.nunito(
+                          color: _requestSent ? _muted : Colors.white,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w800),
+                    ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   Widget _buildSearch() {
@@ -467,6 +555,7 @@ class _MaterialPickerSheetState extends State<MaterialPickerSheet> {
 
   Widget _buildConfirmBar() {
     final count = _pickedList.length;
+    final locked = _overBudget;
     return SafeArea(
       child: Container(
         padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
@@ -492,7 +581,7 @@ class _MaterialPickerSheetState extends State<MaterialPickerSheet> {
                   Text(
                     'Total: $_totalGoins Goins',
                     style: GoogleFonts.nunito(
-                        color: _amber,
+                        color: locked ? _red : _amber,
                         fontSize: 13,
                         fontWeight: FontWeight.bold),
                   ),
@@ -502,7 +591,10 @@ class _MaterialPickerSheetState extends State<MaterialPickerSheet> {
           // Clear
           if (count > 0) ...[
             GestureDetector(
-              onTap: () => setState(() => _quantities.clear()),
+              onTap: () => setState(() {
+                _quantities.clear();
+                _requestSent = false;
+              }),
               child: Container(
                 padding: const EdgeInsets.symmetric(
                     horizontal: 14, vertical: 10),
@@ -527,14 +619,15 @@ class _MaterialPickerSheetState extends State<MaterialPickerSheet> {
               padding: const EdgeInsets.symmetric(
                   horizontal: 20, vertical: 10),
               decoration: BoxDecoration(
-                color: _blue,
+                color: locked ? _muted : _blue,
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Row(mainAxisSize: MainAxisSize.min, children: [
-                const Icon(Icons.check_rounded, color: Colors.white, size: 16),
+                Icon(locked ? Icons.lock_outline : Icons.check_rounded,
+                    color: Colors.white, size: 16),
                 const SizedBox(width: 6),
                 Text(
-                  'Confirm',
+                  locked ? 'Locked' : 'Confirm',
                   style: GoogleFonts.nunito(
                       color: Colors.white,
                       fontSize: 13,

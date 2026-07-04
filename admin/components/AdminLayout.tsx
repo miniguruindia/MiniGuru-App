@@ -19,7 +19,8 @@ import {
   School,
   Coins,
   Package,
-  ShoppingBag
+  ShoppingBag,
+  Inbox
 } from 'lucide-react'
 import Image from 'next/image'
 
@@ -86,6 +87,13 @@ export function AdminLayout({ children }: AdminLayoutProps) {
       href: '/goins', 
       icon: Coins,
       current: pathname.startsWith('/goins')
+    },
+    // ── Goin Top-Up Requests ─────────────────────────────────
+    { 
+      name: 'Goin Requests', 
+      href: '/goin-requests', 
+      icon: Inbox,
+      current: pathname.startsWith('/goin-requests')
     },
     // ── Communication ──────────────────────────────────────
     { 

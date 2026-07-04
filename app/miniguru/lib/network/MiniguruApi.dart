@@ -560,7 +560,93 @@ class MiniguruApi {
       return null;
     }
   }
+// ─── Goins Top-Up Requests ─────────────────────────────────────
 
+  Future<Map<String, dynamic>?> requestGoinsTopUp({
+    required int amount,
+    String? reason,
+    String? projectDraftContext,
+  }) async {
+    try {
+      final authToken = await _getValidToken();
+      if (authToken == null) return null;
+      final response = await http.post(
+        Uri.parse('$_baseUrl/goins/topup/request'),
+        headers: _buildHeaders(authToken.accessToken),
+        body: jsonEncode({
+          'amount': amount,
+          'reason': reason,
+          'projectDraftContext': projectDraftContext,
+        }),
+      );
+      if (response.statusCode == 200) return jsonDecode(response.body);
+      print('❌ Failed to request Goins top-up: ${response.statusCode}');
+      return null;
+    } catch (e) {
+      print('❌ Goins top-up request error: $e');
+      return null;
+    }
+  }
+
+  Future<List<dynamic>> getMyGoinsTopUpRequests() async {
+    try {
+      final authToken = await _getValidToken();
+      if (authToken == null) return [];
+      final response = await http.get(
+        Uri.parse('$_baseUrl/goins/topup/mine'),
+        headers: _buildHeaders(authToken.accessToken),
+      );
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return data['requests'] as List<dynamic>? ?? [];
+      }
+      return [];
+    } catch (e) {
+      print('❌ Get my Goins top-up requests error: $e');
+      return [];
+    }
+  }
+
+  Future<List<dynamic>> getMentorPendingTopUpRequests() async {
+    try {
+      final authToken = await _getValidToken();
+      if (authToken == null) return [];
+      final response = await http.get(
+        Uri.parse('$_baseUrl/goins/mentor/topup/pending'),
+        headers: _buildHeaders(authToken.accessToken),
+      );
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return data['requests'] as List<dynamic>? ?? [];
+      }
+      return [];
+    } catch (e) {
+      print('❌ Get mentor pending top-up requests error: $e');
+      return [];
+    }
+  }
+
+  Future<bool> decideGoinsTopUp({
+    required String requestId,
+    required bool approve,
+    String? denialReason,
+  }) async {
+    try {
+      final authToken = await _getValidToken();
+      if (authToken == null) return false;
+      final action = approve ? 'approve' : 'deny';
+      final response = await http.post(
+        Uri.parse('$_baseUrl/goins/admin/topup/$requestId/$action'),
+        headers: _buildHeaders(authToken.accessToken),
+        body: jsonEncode({'denialReason': denialReason}),
+      );
+      return response.statusCode == 200;
+    } catch (e) {
+      print('❌ Decide Goins top-up error: $e');
+      return false;
+    }
+  }
+  
   // ========================= VIDEO INTERACTION =========================
 
   Future<void> trackVideoView(String videoId) async {
