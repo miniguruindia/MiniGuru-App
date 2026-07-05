@@ -7,7 +7,6 @@ exports.deleteProjectByID = exports.getAllProjects = exports.getAllProjectsForUs
 const project_1 = __importDefault(require("../../services/project/project"));
 const error_1 = require("../../utils/error");
 const upload_1 = require("../../middleware/upload");
-const score_1 = require("../../services/project/score");
 const logger_1 = __importDefault(require("../../logger"));
 // ✅ Import YouTube upload service (optional)
 let uploadToYouTube = null;
@@ -93,7 +92,11 @@ const createProject = async (req, res) => {
             thumbnailPath,
             videoUrl, // ✅ Now a YouTube URL, stored in project.video.url
         });
-        await (0, score_1.increaseScoreByProjectId)(project.id, 100);
+        // NOTE: Goins are awarded ONLY on admin approval (see approveProject in
+        // videoApprovalController.ts) — never at upload time. Previously this
+        // line awarded +100 Goins immediately on upload, which double-paid
+        // every child (once here, again on approval) and paid out even for
+        // videos that were later rejected. Removed — do not re-add.
         res.status(201).json(project);
     }
     catch (error) {

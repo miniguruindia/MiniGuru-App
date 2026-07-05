@@ -2,7 +2,6 @@ import { Request, Response } from "express";
 import ProjectService from "../../services/project/project";
 import { NotFoundError } from "../../utils/error";
 import { uploadThumbnail } from "../../middleware/upload";
-import { increaseScoreByProjectId } from "../../services/project/score";
 import logger from "../../logger";
 
 // ✅ Import YouTube upload service (optional)
@@ -104,7 +103,11 @@ export const createProject = async (req: Request, res: Response) => {
       videoUrl, // ✅ Now a YouTube URL, stored in project.video.url
     });
 
-    await increaseScoreByProjectId(project.id, 100);
+    // NOTE: Goins are awarded ONLY on admin approval (see approveProject in
+    // videoApprovalController.ts) — never at upload time. Previously this
+    // line awarded +100 Goins immediately on upload, which double-paid
+    // every child (once here, again on approval) and paid out even for
+    // videos that were later rejected. Removed — do not re-add.
     res.status(201).json(project);
   } catch (error) {
     if (error instanceof NotFoundError) {
