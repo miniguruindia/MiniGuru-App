@@ -10,6 +10,7 @@ import 'package:miniguru/screens/projectDetailsScreen.dart';
 import 'package:miniguru/screens/uploadVideoScreen.dart';
 import 'package:miniguru/state/sessionState.dart';
 import 'package:miniguru/screens/homeScreen.dart';
+import 'package:miniguru/screens/mentor/goinsTopUpRequestsScreen.dart';
 
 class MentorActivityTab extends StatefulWidget {
   const MentorActivityTab({super.key});
@@ -26,6 +27,7 @@ class _MentorActivityTabState extends State<MentorActivityTab> {
   User? _user;
   bool _isLoading = true;
   String? _selectedChildId; // null = all children
+  int _pendingTopUpCount = 0;
 
   @override
   void initState() {
@@ -42,11 +44,13 @@ class _MentorActivityTabState extends State<MentorActivityTab> {
       final childrenResult = await _api.getMentorChildren();
       await _projectRepo.fetchAndStoreProjectsForUser();
       final projectsResult = await _projectRepo.getProjects();
+      final topUpRequests = await _api.getMentorPendingTopUpRequests();
       if (mounted) {
         setState(() {
           _user = userResult;
           _children = childrenResult;
           _projects = projectsResult;
+          _pendingTopUpCount = topUpRequests.length;
           _isLoading = false;
         });
       }
@@ -267,21 +271,29 @@ class _MentorActivityTabState extends State<MentorActivityTab> {
                     borderRadius:
                         BorderRadius.vertical(bottom: Radius.circular(24)),
                   ),
-                  child: Column(
+                  child: Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Children\'s Activity',
-                          style: GoogleFonts.nunito(
-                              fontSize: 24,
-                              fontWeight: FontWeight.w900,
-                              color: Colors.white)),
-                      const SizedBox(height: 4),
-                      Text(
-                        '${_projects.length} project${_projects.length == 1 ? '' : 's'} total',
-                        style: GoogleFonts.nunito(
-                            fontSize: 14,
-                            color: Colors.white.withOpacity(0.85)),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('Children\'s Activity',
+                                style: GoogleFonts.nunito(
+                                    fontSize: 24,
+                                    fontWeight: FontWeight.w900,
+                                    color: Colors.white)),
+                            const SizedBox(height: 4),
+                            Text(
+                              '${_projects.length} project${_projects.length == 1 ? '' : 's'} total',
+                              style: GoogleFonts.nunito(
+                                  fontSize: 14,
+                                  color: Colors.white.withOpacity(0.85)),
+                            ),
+                          ],
+                        ),
                       ),
+                      _buildTopUpBell(),
                     ],
                   ),
                 ),
@@ -367,6 +379,50 @@ class _MentorActivityTabState extends State<MentorActivityTab> {
         label: Text('Upload Video',
             style: GoogleFonts.nunito(
                 color: Colors.white, fontWeight: FontWeight.w800)),
+      ),
+    );
+  }
+
+  Widget _buildTopUpBell() {
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const GoinsTopUpRequestsScreen()),
+        ).then((_) => _loadData());
+      },
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.18),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(Icons.inbox_rounded, color: Colors.white, size: 22),
+          ),
+          if (_pendingTopUpCount > 0)
+            Positioned(
+              right: -2,
+              top: -2,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFF5C5C),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: Colors.white, width: 1.5),
+                ),
+                constraints: const BoxConstraints(minWidth: 18, minHeight: 18),
+                alignment: Alignment.center,
+                child: Text(
+                  _pendingTopUpCount > 9 ? '9+' : '$_pendingTopUpCount',
+                  style: GoogleFonts.nunito(
+                      fontSize: 10, fontWeight: FontWeight.w900, color: Colors.white),
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }
