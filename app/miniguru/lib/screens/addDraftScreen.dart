@@ -11,6 +11,7 @@ import 'package:http/http.dart' as http;
 import 'package:miniguru/models/MaterialItem.dart';
 import 'package:miniguru/models/ProjectCategory.dart';
 import 'package:miniguru/repository/draftsRepository.dart';
+import 'package:miniguru/network/MiniguruApi.dart';
 import 'package:miniguru/repository/projectRepository.dart';
 import 'package:miniguru/repository/GoinsRepository.dart';
 import 'package:miniguru/widgets/material_picker_widget.dart';
@@ -49,6 +50,12 @@ class _AddDraftScreenState extends State<AddDraftScreen>
 
   List<String>         _categories         = [];
   List<PickedMaterial> _pickedMaterials     = [];
+  // Shared/group projects — collaborators added while planning only.
+  // Confirmed product decision: planning-only, instant-add, equal Goins
+  // split on approval. Each entry: {'id': userId, 'name': displayName}.
+  final List<Map<String, String>> _collaborators = [];
+  bool _collabSearching = false;
+  final TextEditingController _collabCtrl = TextEditingController();
   int                  _currentGoinsBalance = 0;
   bool                 _goinsLoading        = true;
   bool                 _loading             = true;
@@ -89,6 +96,7 @@ class _AddDraftScreenState extends State<AddDraftScreen>
     _descCtrl.dispose();
     _categoryCtrl.dispose();
     _fadeCtrl.dispose();
+    _collabCtrl.dispose();
     super.dispose();
   }
 
@@ -285,6 +293,7 @@ class _AddDraftScreenState extends State<AddDraftScreen>
           'endDate':     _endDate,
           'category':    _categoryCtrl.text,
           'materials':   materialsMap,
+          'collaboratorIds': _collaborators.map((c) => c['id']!).toList(),
         },
         _video!,
         _thumbnail,
@@ -496,6 +505,8 @@ class _AddDraftScreenState extends State<AddDraftScreen>
                               child: _buildMedia()),
                           const SizedBox(height: 12),
                           _buildMaterials(),
+                          const SizedBox(height: 12),
+                          _buildCollaborators(),
                         ]),
                       ),
                     ),
@@ -755,6 +766,126 @@ class _AddDraftScreenState extends State<AddDraftScreen>
           ]),
         ),
       );
+
+  Future<void> _addCollaborator(String miniguruId) async {
+    if (miniguruId.trim().isEmpty) return;
+    if (_collaborators.any((c) => c['id'] == miniguruId.trim())) return;
+    setState(() => _collabSearching = true);
+    final result = await MiniguruApi().findCollaborator(miniguruId.trim());
+    if (!mounted) return;
+    setState(() => _collabSearching = false);
+    if (result == null) {
+      _showSnack('No MiniGuru account found with that ID.', isError: true);
+      return;
+    }
+    final id = result['id'] as String;
+    if (_collaborators.any((c) => c['id'] == id)) {
+      _showSnack('Already added.', isError: true);
+      return;
+    }
+    setState(() {
+      _collaborators.add({'id': id, 'name': result['name'] as String});
+    });
+  }
+
+  Widget _buildCollaborators() {
+    return Container(
+      decoration: BoxDecoration(
+        color:        _card,
+        borderRadius: BorderRadius.circular(16),
+        border:       Border.all(color: _cardBorder),
+        boxShadow: [
+          BoxShadow(
+            color:      Colors.black.withOpacity(0.04),
+            blurRadius: 8,
+            offset:     const Offset(0, 2),
+          ),
+        ],
+      ),
+      padding: const EdgeInsets.all(16),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          const Text('🤝', style: TextStyle(fontSize: 16)),
+          const SizedBox(width: 8),
+          Text('Working with a friend? (optional)',
+              style: GoogleFonts.nunito(
+                  color: _ink, fontWeight: FontWeight.w900, fontSize: 14)),
+        ]),
+        const SizedBox(height: 4),
+        Text(
+          'Add their MiniGuru ID — Goins from this project will be split '
+          'equally between everyone added. Can only be added before you submit.',
+          style: GoogleFonts.nunito(color: _muted, fontSize: 12),
+        ),
+        const SizedBox(height: 12),
+        if (_collaborators.isNotEmpty) ...[
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: _collaborators
+                .map((c) => Chip(
+                      label: Text(c['name']!,
+                          style: GoogleFonts.nunito(
+                              fontSize: 12, fontWeight: FontWeight.w700)),
+                      backgroundColor: const Color(0xFFF0F4FF),
+                      deleteIcon: const Icon(Icons.close, size: 16),
+                      onDeleted: () =>
+                          setState(() => _collaborators.remove(c)),
+                    ))
+                .toList(),
+          ),
+          const SizedBox(height: 12),
+        ],
+        Row(children: [
+          Expanded(
+            child: TextField(
+              controller: _collabCtrl,
+              style: GoogleFonts.nunito(fontSize: 13),
+              decoration: InputDecoration(
+                hintText: 'e.g. aarav.ujjain@miniguru.in',
+                hintStyle: GoogleFonts.nunito(fontSize: 12, color: _muted),
+                isDense: true,
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: BorderSide(color: _cardBorder)),
+              ),
+              onSubmitted: (v) {
+                _addCollaborator(v);
+                _collabCtrl.clear();
+              },
+            ),
+          ),
+          const SizedBox(width: 8),
+          SizedBox(
+            height: 40,
+            child: ElevatedButton(
+              onPressed: _collabSearching
+                  ? null
+                  : () {
+                      _addCollaborator(_collabCtrl.text);
+                      _collabCtrl.clear();
+                    },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: _blue,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10)),
+              ),
+              child: _collabSearching
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(
+                          strokeWidth: 2, color: Colors.white),
+                    )
+                  : const Icon(Icons.add, color: Colors.white, size: 20),
+            ),
+          ),
+        ]),
+      ]),
+    );
+  }
 
   Widget _buildMaterials() {
     final totalGoins = _totalGoins;

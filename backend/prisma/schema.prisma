@@ -291,6 +291,12 @@ model Project {
   aiReason    String?
   aiConfidence Float?
   aiReviewedAt DateTime?
+  // Shared/group projects — additional children working on this project
+  // alongside the owner (userId above). Set only at upload time (never
+  // editable afterward — collaborators can only be added while planning,
+  // before the video is uploaded). Goins split equally across owner +
+  // all collaborators on admin approval — see approveProject().
+  collaborators ProjectCollaborator[]
   createdAt   DateTime          @default(now())
   updatedAt   DateTime          @updatedAt
 
@@ -298,6 +304,11 @@ model Project {
   @@index([categoryId])
   @@index([status])
   @@map("projects")
+}
+
+type ProjectCollaborator {
+  userId String @db.ObjectId
+  name   String // snapshot at time of upload, for display without an extra join
 }
 
 type Video {

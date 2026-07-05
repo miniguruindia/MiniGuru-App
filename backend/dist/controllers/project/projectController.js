@@ -3,7 +3,8 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.deleteProjectByID = exports.getAllProjects = exports.getAllProjectsForUser = exports.getProjectById = exports.updateProject = exports.createProject = void 0;
+exports.findCollaborator = exports.deleteProjectByID = exports.getAllProjects = exports.getAllProjectsForUser = exports.getProjectById = exports.updateProject = exports.createProject = void 0;
+const prismaClient_1 = __importDefault(require("../../utils/prismaClient"));
 const project_1 = __importDefault(require("../../services/project/project"));
 const error_1 = require("../../utils/error");
 const upload_1 = require("../../middleware/upload");
@@ -23,9 +24,36 @@ const createProject = async (req, res) => {
     const userId = req.user?.userId;
     if (!userId)
         return res.status(401).json({ error: "Unauthorized" });
-    const { title, description, startDate, endDate, materials, categoryName } = req.body;
+    const { title, description, startDate, endDate, materials, categoryName, collaboratorIds } = req.body;
     if (!title || !description || !startDate || !endDate || !materials || !categoryName) {
         return res.status(400).json({ error: "All fields are required" });
+    }
+    // ── Shared/group projects — collaborators (optional) ────────────────
+    // Collaborators can ONLY be set here, at upload time. There is no
+    // endpoint to add one after the Project exists — this is intentional
+    // (confirmed product decision: planning-only, instant-add, equal split).
+    let collaborators = [];
+    if (collaboratorIds) {
+        let parsedIds = [];
+        try {
+            parsedIds = typeof collaboratorIds === "string"
+                ? JSON.parse(collaboratorIds)
+                : collaboratorIds;
+            if (!Array.isArray(parsedIds))
+                parsedIds = [];
+        }
+        catch {
+            parsedIds = [];
+        }
+        // de-dupe, drop the owner if they somehow added themselves
+        parsedIds = [...new Set(parsedIds)].filter((cid) => cid !== userId);
+        if (parsedIds.length > 0) {
+            const collaboratorUsers = await prismaClient_1.default.user.findMany({
+                where: { id: { in: parsedIds } },
+                select: { id: true, name: true },
+            });
+            collaborators = collaboratorUsers.map((u) => ({ userId: u.id, name: u.name }));
+        }
     }
     let parsedMaterials = [];
     try {
@@ -91,6 +119,7 @@ const createProject = async (req, res) => {
             categoryName,
             thumbnailPath,
             videoUrl, // ✅ Now a YouTube URL, stored in project.video.url
+            collaborators,
         });
         // NOTE: Goins are awarded ONLY on admin approval (see approveProject in
         // videoApprovalController.ts) — never at upload time. Previously this
@@ -210,3 +239,32 @@ const deleteProjectByID = async (req, res) => {
     }
 };
 exports.deleteProjectByID = deleteProjectByID;
+// GET /project/find-collaborator/:miniguruId
+// Looks up another user by their MiniGuru ID (login email) so a child can
+// add them as a project collaborator while planning. Returns only id+name —
+// never anything sensitive. Excludes the requester themselves.
+const findCollaborator = async (req, res) => {
+    const requesterId = req.user?.userId;
+    if (!requesterId)
+        return res.status(401).json({ error: "Unauthorized" });
+    const { miniguruId } = req.params;
+    if (!miniguruId)
+        return res.status(400).json({ error: "MiniGuru ID is required" });
+    try {
+        const user = await prismaClient_1.default.user.findUnique({
+            where: { email: miniguruId.trim().toLowerCase() },
+            select: { id: true, name: true },
+        });
+        if (!user) {
+            return res.status(404).json({ error: "No MiniGuru account found with that ID" });
+        }
+        if (user.id === requesterId) {
+            return res.status(400).json({ error: "You can't add yourself as a collaborator" });
+        }
+        return res.status(200).json({ id: user.id, name: user.name });
+    }
+    catch (error) {
+        return res.status(500).json({ error: error.message });
+    }
+};
+exports.findCollaborator = findCollaborator;

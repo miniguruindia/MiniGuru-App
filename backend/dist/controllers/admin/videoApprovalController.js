@@ -89,23 +89,32 @@ const approveProject = async (req, res) => {
         const materialRefund = Math.round(materialGoins * 2);
         const totalGoins = BASE_REWARD + materialRefund;
         // ─────────────────────────────────────────────────────────────
+        // ── Shared/group projects — split equally across owner + collaborators ──
+        // Confirmed product decision: always equal split, no custom percentages.
+        // Owner absorbs any rounding remainder so Goins are never lost.
+        const collaborators = project.collaborators || [];
+        const recipientIds = [project.userId, ...collaborators.map((c) => c.userId)];
+        const shareEach = Math.floor(totalGoins / recipientIds.length);
+        const remainder = totalGoins - shareEach * recipientIds.length;
         const [updated] = await prismaClient_1.default.$transaction([
             prismaClient_1.default.project.update({
                 where: { id },
                 data: { status: 'published' },
             }),
-            prismaClient_1.default.user.update({
-                where: { id: project.userId },
-                data: { score: { increment: totalGoins } },
-            }),
+            ...recipientIds.map((recipientId, idx) => prismaClient_1.default.user.update({
+                where: { id: recipientId },
+                data: { score: { increment: idx === 0 ? shareEach + remainder : shareEach } },
+            })),
         ]);
-        logger_1.default.info(`Project ${id} approved. Awarded ${totalGoins} Goins to user ${project.userId} ` +
+        logger_1.default.info(`Project ${id} approved. ${totalGoins} Goins split across ${recipientIds.length} ` +
+            `recipient(s) (${shareEach} each${remainder > 0 ? `, +${remainder} rounding to owner` : ''}) ` +
             `(base: ${BASE_REWARD}, material refund 2x${Math.round(materialGoins)}: ${materialRefund})`);
         return res.status(200).json({
             message: 'Project approved and published on YouTube.',
             project: updated,
             goinsAwarded: totalGoins,
             breakdown: { base: BASE_REWARD, materialRefund },
+            recipients: recipientIds.length,
         });
     }
     catch (error) {

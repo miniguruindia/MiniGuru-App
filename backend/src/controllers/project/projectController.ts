@@ -1,4 +1,5 @@
 import { Request, Response } from "express";
+import prisma from "../../utils/prismaClient";
 import ProjectService from "../../services/project/project";
 import { NotFoundError } from "../../utils/error";
 import { uploadThumbnail } from "../../middleware/upload";
@@ -21,11 +22,37 @@ export const createProject = async (req: Request, res: Response) => {
   if (!userId) return res.status(401).json({ error: "Unauthorized" });
 
   const {
-    title, description, startDate, endDate, materials, categoryName
+    title, description, startDate, endDate, materials, categoryName, collaboratorIds
   } = req.body;
 
   if (!title || !description || !startDate || !endDate || !materials || !categoryName) {
     return res.status(400).json({ error: "All fields are required" });
+  }
+
+  // ── Shared/group projects — collaborators (optional) ────────────────
+  // Collaborators can ONLY be set here, at upload time. There is no
+  // endpoint to add one after the Project exists — this is intentional
+  // (confirmed product decision: planning-only, instant-add, equal split).
+  let collaborators: { userId: string; name: string }[] = [];
+  if (collaboratorIds) {
+    let parsedIds: string[] = [];
+    try {
+      parsedIds = typeof collaboratorIds === "string"
+        ? JSON.parse(collaboratorIds)
+        : collaboratorIds;
+      if (!Array.isArray(parsedIds)) parsedIds = [];
+    } catch {
+      parsedIds = [];
+    }
+    // de-dupe, drop the owner if they somehow added themselves
+    parsedIds = [...new Set(parsedIds)].filter((cid) => cid !== userId);
+    if (parsedIds.length > 0) {
+      const collaboratorUsers = await prisma.user.findMany({
+        where: { id: { in: parsedIds } },
+        select: { id: true, name: true },
+      });
+      collaborators = collaboratorUsers.map((u) => ({ userId: u.id, name: u.name }));
+    }
   }
 
   let parsedMaterials: { id: string; quantity: number }[] = [];
@@ -101,6 +128,7 @@ export const createProject = async (req: Request, res: Response) => {
       categoryName,
       thumbnailPath,
       videoUrl, // ✅ Now a YouTube URL, stored in project.video.url
+      collaborators,
     });
 
     // NOTE: Goins are awarded ONLY on admin approval (see approveProject in
@@ -227,5 +255,35 @@ export const deleteProjectByID = async (req: Request, res: Response) => {
       return res.status(404).json({ error: error.message });
     }
     res.status(500).json({ error: (error as Error).message });
+  }
+};
+
+// GET /project/find-collaborator/:miniguruId
+// Looks up another user by their MiniGuru ID (login email) so a child can
+// add them as a project collaborator while planning. Returns only id+name —
+// never anything sensitive. Excludes the requester themselves.
+export const findCollaborator = async (req: Request, res: Response) => {
+  const requesterId = req.user?.userId;
+  if (!requesterId) return res.status(401).json({ error: "Unauthorized" });
+
+  const { miniguruId } = req.params;
+  if (!miniguruId) return res.status(400).json({ error: "MiniGuru ID is required" });
+
+  try {
+    const user = await prisma.user.findUnique({
+      where: { email: miniguruId.trim().toLowerCase() },
+      select: { id: true, name: true },
+    });
+
+    if (!user) {
+      return res.status(404).json({ error: "No MiniGuru account found with that ID" });
+    }
+    if (user.id === requesterId) {
+      return res.status(400).json({ error: "You can't add yourself as a collaborator" });
+    }
+
+    return res.status(200).json({ id: user.id, name: user.name });
+  } catch (error) {
+    return res.status(500).json({ error: (error as Error).message });
   }
 };

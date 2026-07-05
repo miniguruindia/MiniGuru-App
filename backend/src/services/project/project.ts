@@ -40,6 +40,7 @@ class ProjectService {
       categoryName,
       thumbnailPath,
       videoUrl,
+      collaborators,
     } = projectData;
 
     const category = await prisma.projectCategory.findUnique({
@@ -60,6 +61,7 @@ class ProjectService {
         materials: enrichedMaterials,
         userId,
         categoryId: category.id,
+        collaborators: collaborators && collaborators.length > 0 ? collaborators : undefined,
       },
     });
   }

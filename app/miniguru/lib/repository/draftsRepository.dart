@@ -110,6 +110,9 @@ class DraftRepository {
       'categoryName': project['category'],
       'videoId': project['videoId'],
       'materials': transformedMaterials,
+      // Shared/group projects — list of collaborator user IDs, if any
+      // were added while planning. Empty/absent for a normal solo project.
+      'collaboratorIds': project['collaboratorIds'] ?? [],
     };
 
     return transformedProject;

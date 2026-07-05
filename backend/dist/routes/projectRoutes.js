@@ -22,6 +22,10 @@ projectRouter.put('/categories/:id', authMiddleware_1.authenticateToken, categor
 projectRouter.delete('/categories/:id', authMiddleware_1.authenticateToken, categoryController_1.deleteProjectCategory);
 // List projects by category
 projectRouter.get('/categories/:categoryName/', categoryController_1.getProjectsByCategory);
+// Shared/group projects — look up a friend by MiniGuru ID to add as collaborator.
+// MUST be registered before get('/:id') below (Rule 28) or Express will
+// match 'find-collaborator' as the :id param instead.
+projectRouter.get('/find-collaborator/:miniguruId', authMiddleware_1.authenticateToken, projectController_1.findCollaborator);
 // Update a project
 projectRouter.put('/:id', authMiddleware_1.authenticateToken, validationMiddleware_1.validateProject, upload_1.uploadThumbnailAndVideoMiddleware, projectController_1.updateProject);
 projectRouter.get('/all', authMiddleware_1.authenticateToken, projectController_1.getAllProjects);

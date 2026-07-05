@@ -88,19 +88,31 @@ export const approveProject = async (req: Request, res: Response) => {
     const totalGoins     = BASE_REWARD + materialRefund;
     // ─────────────────────────────────────────────────────────────
 
+    // ── Shared/group projects — split equally across owner + collaborators ──
+    // Confirmed product decision: always equal split, no custom percentages.
+    // Owner absorbs any rounding remainder so Goins are never lost.
+    const collaborators = ((project as any).collaborators as
+      Array<{ userId: string; name: string }> | null) || [];
+    const recipientIds = [project.userId, ...collaborators.map((c) => c.userId)];
+    const shareEach   = Math.floor(totalGoins / recipientIds.length);
+    const remainder   = totalGoins - shareEach * recipientIds.length;
+
     const [updated] = await prisma.$transaction([
       prisma.project.update({
         where: { id },
         data: { status: 'published' },
       }),
-      prisma.user.update({
-        where: { id: project.userId },
-        data: { score: { increment: totalGoins } },
-      }),
+      ...recipientIds.map((recipientId, idx) =>
+        prisma.user.update({
+          where: { id: recipientId },
+          data: { score: { increment: idx === 0 ? shareEach + remainder : shareEach } },
+        })
+      ),
     ]);
 
     logger.info(
-      `Project ${id} approved. Awarded ${totalGoins} Goins to user ${project.userId} ` +
+      `Project ${id} approved. ${totalGoins} Goins split across ${recipientIds.length} ` +
+      `recipient(s) (${shareEach} each${remainder > 0 ? `, +${remainder} rounding to owner` : ''}) ` +
       `(base: ${BASE_REWARD}, material refund 2x${Math.round(materialGoins)}: ${materialRefund})`
     );
 
@@ -109,6 +121,7 @@ export const approveProject = async (req: Request, res: Response) => {
       project: updated,
       goinsAwarded: totalGoins,
       breakdown: { base: BASE_REWARD, materialRefund },
+      recipients: recipientIds.length,
     });
   } catch (error) {
     logger.error(`Error approving project ${id}: ${(error as Error).message}`);

@@ -289,6 +289,12 @@ class MiniguruApi {
     request.fields['endDate']      = data['endDate'];
     request.fields['categoryName'] = data['categoryName'];
     request.fields['materials']    = jsonEncode(data['materials']);
+    // Shared/group projects — only ever set at upload time (see product
+    // decision: planning-only, instant-add, equal Goins split on approval).
+    if (data['collaboratorIds'] != null &&
+        (data['collaboratorIds'] as List).isNotEmpty) {
+      request.fields['collaboratorIds'] = jsonEncode(data['collaboratorIds']);
+    }
 
     request.headers.addAll(_buildHeaders(authToken.accessToken));
 
@@ -330,6 +336,26 @@ class MiniguruApi {
     final response = await http.Response.fromStream(streamedResponse);
     _handleResponse(response);
     return response;
+  }
+
+  /// Looks up another user by their MiniGuru ID (login email) so a child
+  /// can add them as a project collaborator while planning. Returns
+  /// {'id':..., 'name':...} on success, or null if not found / any error.
+  Future<Map<String, dynamic>?> findCollaborator(String miniguruId) async {
+    final authToken = await _getValidToken();
+    if (authToken == null) return null;
+    try {
+      final response = await http.get(
+        Uri.parse('$_baseUrl/project/find-collaborator/${Uri.encodeComponent(miniguruId.trim())}'),
+        headers: _buildHeaders(authToken.accessToken),
+      );
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body) as Map<String, dynamic>;
+      }
+      return null;
+    } catch (e) {
+      return null;
+    }
   }
 
   Future<http.Response?> addComment(String projectId, String content) async {

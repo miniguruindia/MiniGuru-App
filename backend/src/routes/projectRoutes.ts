@@ -1,5 +1,5 @@
 import express from 'express';
-import { createProject, updateProject, getProjectById, getAllProjectsForUser , getAllProjects} from '../controllers/project/projectController';
+import { createProject, updateProject, getProjectById, getAllProjectsForUser , getAllProjects, findCollaborator} from '../controllers/project/projectController';
 import { uploadThumbnailAndVideoMiddleware } from '../middleware/upload';
 import { getProjectsByCategory, getAllProjectCategories, createProjectCategory, updateProjectCategory, deleteProjectCategory } from '../controllers/project/categoryController';
 import { authenticateToken } from '../middleware/authMiddleware';
@@ -23,6 +23,11 @@ projectRouter.delete('/categories/:id', authenticateToken, deleteProjectCategory
 
 // List projects by category
 projectRouter.get('/categories/:categoryName/', getProjectsByCategory);
+
+// Shared/group projects — look up a friend by MiniGuru ID to add as collaborator.
+// MUST be registered before get('/:id') below (Rule 28) or Express will
+// match 'find-collaborator' as the :id param instead.
+projectRouter.get('/find-collaborator/:miniguruId', authenticateToken, findCollaborator);
 
 
 // Update a project

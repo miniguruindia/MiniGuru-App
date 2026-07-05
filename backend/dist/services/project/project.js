@@ -28,7 +28,7 @@ class ProjectService {
         };
     }
     async create(userId, projectData) {
-        const { title, description, startDate, endDate, materials, categoryName, thumbnailPath, videoUrl, } = projectData;
+        const { title, description, startDate, endDate, materials, categoryName, thumbnailPath, videoUrl, collaborators, } = projectData;
         const category = await prismaClient_1.default.projectCategory.findUnique({
             where: { name: categoryName },
         });
@@ -46,6 +46,7 @@ class ProjectService {
                 materials: enrichedMaterials,
                 userId,
                 categoryId: category.id,
+                collaborators: collaborators && collaborators.length > 0 ? collaborators : undefined,
             },
         });
     }
