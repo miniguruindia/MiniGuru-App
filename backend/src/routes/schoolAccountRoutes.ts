@@ -462,4 +462,89 @@ router.delete('/children/:childId', async (req: Request, res: Response) => {
   }
 });
 
+// ── GET /admin/schools/:id/leaderboard — this school's students ranked by Goins ──
+router.get('/schools/:id/leaderboard', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const children = await prisma.childProfile.findMany({
+      where: { guardianId: id, isActive: true },
+      select: { id: true, name: true, linkedUserId: true },
+    });
+
+    const linkedIds = children.map((c: any) => c.linkedUserId).filter(Boolean) as string[];
+    if (linkedIds.length === 0) return res.json({ leaderboard: [] });
+
+    const users = await prisma.user.findMany({
+      where: { id: { in: linkedIds } },
+      select: { id: true, score: true },
+    });
+    const scoreMap = new Map<string, number>(users.map((u: any) => [u.id, u.score]));
+
+    const leaderboard = children
+      .filter((c: any) => c.linkedUserId && scoreMap.has(c.linkedUserId))
+      .map((c: any) => ({
+        childId: c.id,
+        name: c.name,
+        score: scoreMap.get(c.linkedUserId) ?? 0,
+      }))
+      .sort((a: any, b: any) => b.score - a.score)
+      .map((c: any, i: number) => ({ rank: i + 1, ...c }));
+
+    res.json({ leaderboard });
+  } catch (e) {
+    console.error('School leaderboard error:', e);
+    res.status(500).json({ message: 'Failed to fetch leaderboard' });
+  }
+});
+
+// ── GET /admin/schools/:id/projects — all uploaded projects by this school's students ──
+// NOTE: only shows projects that have actually been uploaded (video submitted).
+// A child's saved-but-not-yet-uploaded plan lives only in local on-device
+// storage and is never sent to the backend, so it cannot appear here — there
+// is no server record of it until upload happens. "status" reflects that:
+// "pending" = uploaded, awaiting admin review. "published" = approved & live.
+router.get('/schools/:id/projects', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const children = await prisma.childProfile.findMany({
+      where: { guardianId: id, isActive: true },
+      select: { id: true, name: true, linkedUserId: true },
+    });
+
+    const linkedIds = children.map((c: any) => c.linkedUserId).filter(Boolean) as string[];
+    if (linkedIds.length === 0) return res.json({ projects: [] });
+
+    const nameMap = new Map<string, string>(
+      children.filter((c: any) => c.linkedUserId).map((c: any) => [c.linkedUserId, c.name])
+    );
+
+    const projects = await prisma.project.findMany({
+      where: { userId: { in: linkedIds } },
+      select: {
+        id: true,
+        title: true,
+        status: true,
+        createdAt: true,
+        userId: true,
+        category: { select: { name: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    res.json({
+      projects: projects.map((p: any) => ({
+        id: p.id,
+        title: p.title,
+        status: p.status, // "pending" | "published"
+        category: p.category?.name ?? null,
+        studentName: nameMap.get(p.userId) ?? 'Unknown',
+        createdAt: p.createdAt,
+      })),
+    });
+  } catch (e) {
+    console.error('School projects error:', e);
+    res.status(500).json({ message: 'Failed to fetch projects' });
+  }
+});
+
 export default router;

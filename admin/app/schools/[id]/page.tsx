@@ -6,7 +6,7 @@ import { AdminLayout } from '@/components/AdminLayout'
 import { Card } from '@/components/ui/card'
 import {
   ArrowLeft, School, KeyRound, Copy, Check, X, Plus, Trash2, Pencil,
-  Loader2, RefreshCw, Hash,
+  Loader2, RefreshCw, Hash, Trophy, FileVideo,
 } from 'lucide-react'
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || ''
@@ -34,6 +34,22 @@ interface StudentRow {
   loginEmail: string | null
   phoneNumber: string | null
   hasLogin: boolean
+  createdAt: string
+}
+
+interface LeaderboardRow {
+  rank: number
+  childId: string
+  name: string
+  score: number
+}
+
+interface ProjectRow {
+  id: string
+  title: string
+  status: string // "pending" | "published"
+  category: string | null
+  studentName: string
   createdAt: string
 }
 
@@ -139,6 +155,12 @@ export default function SchoolDetailPage() {
   const [students, setStudents]     = useState<StudentRow[]>([])
   const [loadingStudents, setLoadingStudents] = useState(true)
 
+  const [leaderboard, setLeaderboard] = useState<LeaderboardRow[]>([])
+  const [loadingLeaderboard, setLoadingLeaderboard] = useState(true)
+
+  const [projects, setProjects] = useState<ProjectRow[]>([])
+  const [loadingProjects, setLoadingProjects] = useState(true)
+
   const [showAddStudent, setShowAddStudent] = useState(false)
   const [addForm, setAddForm] = useState(EMPTY_STUDENT_FORM)
   const [addSaving, setAddSaving] = useState(false)
@@ -186,7 +208,32 @@ export default function SchoolDetailPage() {
     } finally { setLoadingStudents(false) }
   }
 
-  useEffect(() => { loadSchool(); loadStudents() }, [schoolId])
+  const loadLeaderboard = async () => {
+    setLoadingLeaderboard(true)
+    try {
+      const data = await authedFetch(`/admin/schools/${schoolId}/leaderboard`)
+      setLeaderboard(Array.isArray(data.leaderboard) ? data.leaderboard : [])
+    } catch (e: any) {
+      flash(e.message, true)
+    } finally { setLoadingLeaderboard(false) }
+  }
+
+  const loadProjects = async () => {
+    setLoadingProjects(true)
+    try {
+      const data = await authedFetch(`/admin/schools/${schoolId}/projects`)
+      setProjects(Array.isArray(data.projects) ? data.projects : [])
+    } catch (e: any) {
+      flash(e.message, true)
+    } finally { setLoadingProjects(false) }
+  }
+
+  useEffect(() => {
+    loadSchool()
+    loadStudents()
+    loadLeaderboard()
+    loadProjects()
+  }, [schoolId])
 
   const handleSaveSchool = async () => {
     setSaving(true)
@@ -504,6 +551,106 @@ export default function SchoolDetailPage() {
                             </button>
                           </div>
                         </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </Card>
+
+            {/* ── Leaderboard ──────────────────────────────────────────── */}
+            <Card className="p-5">
+              <div className="flex items-center justify-between mb-3">
+                <h2 className="text-sm font-semibold text-gray-900 flex items-center gap-1.5">
+                  <Trophy className="h-4 w-4 text-amber-500" /> Leaderboard ({leaderboard.length})
+                </h2>
+                <button onClick={loadLeaderboard} className="flex items-center gap-1.5 px-3 py-1.5 border border-gray-200 rounded-lg text-xs hover:bg-gray-50">
+                  <RefreshCw className="h-3.5 w-3.5" /> Refresh
+                </button>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="bg-gray-50 border-b">
+                    <tr>
+                      <th className="text-left px-3 py-2 font-medium text-gray-500">Rank</th>
+                      <th className="text-left px-3 py-2 font-medium text-gray-500">Name</th>
+                      <th className="text-left px-3 py-2 font-medium text-gray-500">Goins</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y">
+                    {loadingLeaderboard ? (
+                      <tr><td colSpan={3} className="text-center py-8">
+                        <Loader2 className="h-6 w-6 animate-spin text-indigo-600 mx-auto" />
+                      </td></tr>
+                    ) : leaderboard.length === 0 ? (
+                      <tr><td colSpan={3} className="text-center py-8 text-gray-400">
+                        No students with Goins yet
+                      </td></tr>
+                    ) : leaderboard.map((row) => (
+                      <tr key={row.childId}>
+                        <td className="px-3 py-2">
+                          {row.rank === 1 ? '🥇' : row.rank === 2 ? '🥈' : row.rank === 3 ? '🥉' : `#${row.rank}`}
+                        </td>
+                        <td className="px-3 py-2 font-medium text-gray-900">{row.name}</td>
+                        <td className="px-3 py-2">
+                          <span className="px-2 py-0.5 bg-amber-50 text-amber-700 rounded-full text-xs font-medium">
+                            {row.score} 🪙
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </Card>
+
+            {/* ── Student projects ────────────────────────────────────────── */}
+            <Card className="p-5">
+              <div className="flex items-center justify-between mb-1">
+                <h2 className="text-sm font-semibold text-gray-900 flex items-center gap-1.5">
+                  <FileVideo className="h-4 w-4 text-indigo-500" /> Student Projects ({projects.length})
+                </h2>
+                <button onClick={loadProjects} className="flex items-center gap-1.5 px-3 py-1.5 border border-gray-200 rounded-lg text-xs hover:bg-gray-50">
+                  <RefreshCw className="h-3.5 w-3.5" /> Refresh
+                </button>
+              </div>
+              <p className="text-xs text-gray-400 mb-3">
+                Only shows projects a student has actually uploaded. A saved-but-not-yet-uploaded
+                plan lives only on the child's own device and won't appear here until they upload.
+              </p>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="bg-gray-50 border-b">
+                    <tr>
+                      <th className="text-left px-3 py-2 font-medium text-gray-500">Student</th>
+                      <th className="text-left px-3 py-2 font-medium text-gray-500">Project</th>
+                      <th className="text-left px-3 py-2 font-medium text-gray-500">Category</th>
+                      <th className="text-left px-3 py-2 font-medium text-gray-500">Status</th>
+                      <th className="text-left px-3 py-2 font-medium text-gray-500">Uploaded</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y">
+                    {loadingProjects ? (
+                      <tr><td colSpan={5} className="text-center py-8">
+                        <Loader2 className="h-6 w-6 animate-spin text-indigo-600 mx-auto" />
+                      </td></tr>
+                    ) : projects.length === 0 ? (
+                      <tr><td colSpan={5} className="text-center py-8 text-gray-400">
+                        No projects uploaded yet
+                      </td></tr>
+                    ) : projects.map((p) => (
+                      <tr key={p.id}>
+                        <td className="px-3 py-2 font-medium text-gray-900">{p.studentName}</td>
+                        <td className="px-3 py-2">{p.title}</td>
+                        <td className="px-3 py-2 text-gray-500">{p.category ?? '—'}</td>
+                        <td className="px-3 py-2">
+                          {p.status === 'published' ? (
+                            <span className="px-2 py-0.5 bg-green-50 text-green-700 rounded-full text-xs font-medium">Published</span>
+                          ) : (
+                            <span className="px-2 py-0.5 bg-amber-50 text-amber-700 rounded-full text-xs font-medium">Pending Review</span>
+                          )}
+                        </td>
+                        <td className="px-3 py-2 text-gray-500">{new Date(p.createdAt).toLocaleDateString()}</td>
                       </tr>
                     ))}
                   </tbody>
