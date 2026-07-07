@@ -17,3 +17,4 @@ logs/
 
 # Backups
 *.backup*
+!src/services/youtubeUploadService.js
