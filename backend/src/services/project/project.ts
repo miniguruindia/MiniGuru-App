@@ -41,6 +41,12 @@ class ProjectService {
       thumbnailPath,
       videoUrl,
       collaborators,
+      // AI first-pass video review result (optional — undefined when the
+      // review was never run, e.g. GEMINI_API_KEY not configured).
+      aiVerdict,
+      aiReason,
+      aiConfidence,
+      aiReviewedAt,
     } = projectData;
 
     const category = await prisma.projectCategory.findUnique({
@@ -62,6 +68,10 @@ class ProjectService {
         userId,
         categoryId: category.id,
         collaborators: collaborators && collaborators.length > 0 ? collaborators : undefined,
+        aiVerdict: aiVerdict ?? undefined,
+        aiReason: aiReason ?? undefined,
+        aiConfidence: typeof aiConfidence === "number" ? aiConfidence : undefined,
+        aiReviewedAt: aiReviewedAt ?? undefined,
       },
     });
   }

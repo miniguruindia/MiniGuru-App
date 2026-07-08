@@ -9,6 +9,12 @@ const project_1 = __importDefault(require("../../services/project/project"));
 const error_1 = require("../../utils/error");
 const upload_1 = require("../../middleware/upload");
 const logger_1 = __importDefault(require("../../logger"));
+const aiVideoReviewService_1 = require("../../services/aiVideoReviewService");
+const videoApprovalController_1 = require("../admin/videoApprovalController");
+const emailService_1 = require("../../services/emailService");
+// Admin inbox that gets alerted whenever the AI reviewer can't make a
+// confident call — kept as one constant so it's easy to change later.
+const AI_UNSURE_ALERT_EMAIL = "miniguru.in@gmail.com";
 // ✅ Import YouTube upload service (optional)
 let uploadToYouTube = null;
 try {
@@ -82,7 +88,21 @@ const createProject = async (req, res) => {
     }
     // ✅ Upload thumbnail as before (local storage)
     const thumbnailPath = thumbnailFile ? await (0, upload_1.uploadThumbnail)(thumbnailFile) : "";
+    // ── AI first-pass video review ──────────────────────────────────────
+    // MUST run here, BEFORE uploadToYouTube() below — youtubeUploadService.js
+    // deletes the local video file (fs.unlinkSync) immediately after its
+    // upload call, win or lose. reviewVideoFile() never throws: any failure
+    // (missing GEMINI_API_KEY, quota exhausted, network error, malformed
+    // response) resolves to UNSURE so a human always gets the final say.
+    const aiReview = await (0, aiVideoReviewService_1.reviewVideoFile)(videoFile.path, videoFile.mimetype);
+    const aiReviewedAt = new Date();
+    logger_1.default.info(`AI review for "${title}": ${aiReview.verdict} (confidence ${aiReview.confidence}) — ${aiReview.reason}`);
     // ✅ Upload video to YouTube as UNLISTED (optional - falls back to local if unavailable)
+    // NOTE: this always runs regardless of the AI verdict above. Cloud Run's
+    // local disk is ephemeral (containers restart on their own) — a video
+    // flagged by AI but never uploaded to YouTube could simply vanish before
+    // a human ever reviews it. The AI verdict decides what happens *after*
+    // the upload, not whether the upload happens at all.
     let videoUrl = "";
     if (uploadToYouTube) {
         try {
@@ -120,12 +140,57 @@ const createProject = async (req, res) => {
             thumbnailPath,
             videoUrl, // ✅ Now a YouTube URL, stored in project.video.url
             collaborators,
+            aiVerdict: aiReview.verdict,
+            aiReason: aiReview.reason,
+            aiConfidence: aiReview.confidence,
+            aiReviewedAt,
         });
         // NOTE: Goins are awarded ONLY on admin approval (see approveProject in
         // videoApprovalController.ts) — never at upload time. Previously this
         // line awarded +100 Goins immediately on upload, which double-paid
         // every child (once here, again on approval) and paid out even for
         // videos that were later rejected. Removed — do not re-add.
+        // ── Route the project based on the AI verdict ──────────────────────
+        // APPROVE: the service itself only returns APPROVE when confidence is
+        //   already >= MIN_CONFIDENCE_FOR_APPROVE (0.85) — that check lives in
+        //   aiVideoReviewService.ts, not duplicated here. Auto-publish uses the
+        //   SAME publishAndAwardProject() function the admin "Approve" button
+        //   calls, so both paths always stay in sync.
+        // REJECT: video stays uploaded (Unlisted) and project stays 'pending' —
+        //   admin sees a red badge with the AI's reason and has final say.
+        // UNSURE: same as REJECT, plus an email alert so nothing sits unnoticed.
+        if (aiReview.verdict === "APPROVE" && videoUrl) {
+            try {
+                await (0, videoApprovalController_1.publishAndAwardProject)(project.id);
+                logger_1.default.info(`🤖 AI auto-approved + published project ${project.id}`);
+            }
+            catch (publishError) {
+                // Never fail the upload response over this — the project already
+                // exists and sits in the normal admin queue as a safe fallback.
+                logger_1.default.error(`AI auto-approve failed for project ${project.id}, left pending for manual review: ` +
+                    `${publishError.message}`);
+            }
+        }
+        else if (aiReview.verdict === "UNSURE") {
+            try {
+                await (0, emailService_1.sendEmail)({
+                    to: AI_UNSURE_ALERT_EMAIL,
+                    subject: `MiniGuru: AI review UNSURE — "${title}"`,
+                    html: `
+            <p>The AI first-pass reviewer could not confidently APPROVE or REJECT a new project video.</p>
+            <p><strong>Project:</strong> ${title}</p>
+            <p><strong>Reason:</strong> ${aiReview.reason}</p>
+            <p><strong>Confidence:</strong> ${aiReview.confidence}</p>
+            <p>Please review it in the admin panel: <a href="https://admin.miniguru.in/videos">admin.miniguru.in/videos</a></p>
+          `,
+                });
+            }
+            catch (emailError) {
+                // Non-fatal — the project still sits correctly in the pending
+                // queue with its AI badge even if this alert email fails to send.
+                logger_1.default.warn(`Failed to send AI-UNSURE alert email (non-fatal): ${emailError.message}`);
+            }
+        }
         res.status(201).json(project);
     }
     catch (error) {

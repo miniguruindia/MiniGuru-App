@@ -28,7 +28,10 @@ class ProjectService {
         };
     }
     async create(userId, projectData) {
-        const { title, description, startDate, endDate, materials, categoryName, thumbnailPath, videoUrl, collaborators, } = projectData;
+        const { title, description, startDate, endDate, materials, categoryName, thumbnailPath, videoUrl, collaborators, 
+        // AI first-pass video review result (optional — undefined when the
+        // review was never run, e.g. GEMINI_API_KEY not configured).
+        aiVerdict, aiReason, aiConfidence, aiReviewedAt, } = projectData;
         const category = await prismaClient_1.default.projectCategory.findUnique({
             where: { name: categoryName },
         });
@@ -47,6 +50,10 @@ class ProjectService {
                 userId,
                 categoryId: category.id,
                 collaborators: collaborators && collaborators.length > 0 ? collaborators : undefined,
+                aiVerdict: aiVerdict ?? undefined,
+                aiReason: aiReason ?? undefined,
+                aiConfidence: typeof aiConfidence === "number" ? aiConfidence : undefined,
+                aiReviewedAt: aiReviewedAt ?? undefined,
             },
         });
     }

@@ -13,11 +13,41 @@ interface PendingProject {
   id: string; title: string; description: string; status: string
   thumbnail: string; video: { url: string; uploadedAt?: string }
   user: ProjectUser; category: ProjectCategory | null; createdAt: string
+  aiVerdict?: 'APPROVE' | 'REJECT' | 'UNSURE' | null
+  aiReason?: string | null
+  aiConfidence?: number | null
 }
 
 async function authHeader() {
   const token = (() => { const v = `; ${document.cookie}`; const p = v.split('; auth_token='); return p.length === 2 ? p.pop()!.split(';').shift()! : '' })()
   return { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }
+}
+
+// AI review only ever reaches this admin queue for REJECT/UNSURE — a
+// confident APPROVE (confidence >= 0.85) auto-publishes and never shows up
+// here at all. Still handled below (green badge) in case one is ever seen,
+// e.g. if auto-publish itself failed and left the project pending.
+function AiVerdictBadge({ p }: { p: PendingProject }) {
+  if (!p.aiVerdict) {
+    return <span className="text-xs text-gray-300">—</span>
+  }
+  const confidencePct = typeof p.aiConfidence === 'number' ? `${Math.round(p.aiConfidence * 100)}%` : null
+  const styles: Record<string, string> = {
+    REJECT:  'bg-red-50 text-red-600',
+    UNSURE:  'bg-amber-50 text-amber-700',
+    APPROVE: 'bg-green-50 text-green-700',
+  }
+  const icons: Record<string, string> = { REJECT: '🚫', UNSURE: '🤔', APPROVE: '✅' }
+  return (
+    <div className="text-left" title={p.aiReason || ''}>
+      <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${styles[p.aiVerdict]}`}>
+        {icons[p.aiVerdict]} {p.aiVerdict}{confidencePct ? ` · ${confidencePct}` : ''}
+      </span>
+      {p.aiReason && (
+        <p className="text-xs text-gray-400 mt-1 line-clamp-2 max-w-[220px]">{p.aiReason}</p>
+      )}
+    </div>
+  )
 }
 
 const MOCK_PROJECTS: PendingProject[] = [
@@ -197,6 +227,7 @@ export default function VideoApprovalsPage() {
                   <th className="text-left text-xs font-semibold text-gray-500 uppercase px-5 py-3">Student</th>
                   <th className="text-left text-xs font-semibold text-gray-500 uppercase px-5 py-3">Project</th>
                   <th className="text-left text-xs font-semibold text-gray-500 uppercase px-5 py-3 hidden md:table-cell">Category</th>
+                  <th className="text-left text-xs font-semibold text-gray-500 uppercase px-5 py-3">AI Review</th>
                   <th className="text-center text-xs font-semibold text-gray-500 uppercase px-5 py-3 hidden md:table-cell">Video</th>
                   <th className="text-center text-xs font-semibold text-gray-500 uppercase px-5 py-3 hidden lg:table-cell">Submitted</th>
                   <th className="text-center text-xs font-semibold text-gray-500 uppercase px-5 py-3">Actions</th>
@@ -204,11 +235,11 @@ export default function VideoApprovalsPage() {
               </thead>
               <tbody className="divide-y divide-gray-50">
                 {loading ? (
-                  <tr><td colSpan={6} className="text-center py-12">
+                  <tr><td colSpan={7} className="text-center py-12">
                     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto" />
                   </td></tr>
                 ) : projects.length === 0 ? (
-                  <tr><td colSpan={6} className="text-center py-16">
+                  <tr><td colSpan={7} className="text-center py-16">
                     <div className="text-5xl mb-3">🎉</div>
                     <p className="text-gray-500 font-medium">No pending projects — all caught up!</p>
                   </td></tr>
@@ -226,6 +257,9 @@ export default function VideoApprovalsPage() {
                       <span className="px-2 py-1 bg-blue-50 text-blue-700 text-xs rounded-full font-medium">
                         {p.category?.name || '—'}
                       </span>
+                    </td>
+                    <td className="px-5 py-4">
+                      <AiVerdictBadge p={p} />
                     </td>
                     <td className="px-5 py-4 hidden md:table-cell text-center">
                       {p.video?.url ? (
