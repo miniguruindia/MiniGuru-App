@@ -28,6 +28,34 @@ export const createProject = async (req: Request, res: Response) => {
   const userId = req.user?.userId;
   if (!userId) return res.status(401).json({ error: "Unauthorized" });
 
+  // ── Child session awareness ─────────────────────────────────────────
+  // req.subject is set by resolveSubject (wired into this route). When a
+  // mentor is inside a child's PIN session, req.subject.isChild is true and
+  // the project (and its eventual Goins on approval) must be attributed to
+  // the CHILD's own account — req.subject.linkedUserId — not the mentor's
+  // JWT-holding userId above. Project.userId is a foreign key to User, and
+  // every child has an independent User login via ChildProfile.linkedUserId
+  // (see resolveSubject.ts), so that's the correct id to use here.
+  //
+  // If somehow no PIN session is active (or resolveSubject wasn't run —
+  // defensive fallback), ownerUserId is just the normal logged-in user,
+  // identical to the old behaviour.
+  let ownerUserId = userId;
+  if (req.subject?.isChild) {
+    if (!req.subject.linkedUserId) {
+      // A legacy/incompletely-provisioned ChildProfile with no independent
+      // login yet. Fail loudly rather than silently crediting the mentor —
+      // losing Goins into the wrong account is worse than a clear error.
+      return res.status(400).json({
+        error:
+          "This child profile doesn't have an independent login set up yet, " +
+          "so their project can't be attributed correctly. Ask an admin to " +
+          "complete the child's account setup (linkedUserId) before uploading.",
+      });
+    }
+    ownerUserId = req.subject.linkedUserId;
+  }
+
   const {
     title, description, startDate, endDate, materials, categoryName, collaboratorIds
   } = req.body;
@@ -52,7 +80,7 @@ export const createProject = async (req: Request, res: Response) => {
       parsedIds = [];
     }
     // de-dupe, drop the owner if they somehow added themselves
-    parsedIds = [...new Set(parsedIds)].filter((cid) => cid !== userId);
+    parsedIds = [...new Set(parsedIds)].filter((cid) => cid !== ownerUserId);
     if (parsedIds.length > 0) {
       const collaboratorUsers = await prisma.user.findMany({
         where: { id: { in: parsedIds } },
@@ -143,7 +171,7 @@ export const createProject = async (req: Request, res: Response) => {
   }
 
   try {
-    const project = await projectService.create(userId, {
+    const project = await projectService.create(ownerUserId, {
       title,
       description,
       startDate,
@@ -279,8 +307,14 @@ export const getAllProjectsForUser = async (req: Request, res: Response) => {
   const userId = req.user?.userId;
   if (!userId) return res.status(401).json({ error: "Unauthorized" });
 
+  // Same reasoning as createProject: during a child PIN session, "my
+  // projects" must mean the CHILD's projects (their linked User.id), not
+  // the mentor's own. Falls back to the mentor/normal user otherwise.
+  const effectiveUserId =
+    req.subject?.isChild && req.subject.linkedUserId ? req.subject.linkedUserId : userId;
+
   try {
-    const projects = await projectService.getAllForUser(userId);
+    const projects = await projectService.getAllForUser(effectiveUserId);
     res.json(projects);
   } catch (error) {
     res.status(500).json({ error: (error as Error).message });

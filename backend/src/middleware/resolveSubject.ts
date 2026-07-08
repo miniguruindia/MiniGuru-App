@@ -57,6 +57,16 @@ export interface SubjectPayload {
   isChild: boolean;
   /** guardianId — only set when isChild is true */
   guardianId?: string;
+  /**
+   * Only set when isChild is true. Every child gets an independent
+   * User login (ChildProfile.linkedUserId) — routes that need to own/attribute
+   * a real database record to "whoever is active" (e.g. creating a Project)
+   * MUST use this User.id, never subjectId, since foreign keys like
+   * Project.userId point at User, not ChildProfile. subjectId is only safe
+   * for ChildProfile-scoped reads/writes (e.g. this middleware's own score
+   * lookup above).
+   */
+  linkedUserId?: string | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -118,6 +128,7 @@ export async function resolveSubject(
         age: true,
         grade: true,
         avatar: true,
+        linkedUserId: true,
       },
     });
 
@@ -145,6 +156,7 @@ export async function resolveSubject(
       avatar: child.avatar ?? null,
       isChild: true,
       guardianId: child.guardianId,
+      linkedUserId: child.linkedUserId ?? null,
     };
 
     next();

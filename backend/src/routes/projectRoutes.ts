@@ -3,6 +3,7 @@ import { createProject, updateProject, getProjectById, getAllProjectsForUser , g
 import { uploadThumbnailAndVideoMiddleware } from '../middleware/upload';
 import { getProjectsByCategory, getAllProjectCategories, createProjectCategory, updateProjectCategory, deleteProjectCategory } from '../controllers/project/categoryController';
 import { authenticateToken } from '../middleware/authMiddleware';
+import { resolveSubject } from '../middleware/resolveSubject';
 import { validateProject } from '../middleware/validationMiddleware';
 import { likeProject } from '../controllers/project/likeController';
 import { addProjectComment } from '../controllers/project/commentController';
@@ -14,7 +15,12 @@ import { validateRequest } from '../middleware/validateRequest';
 const projectRouter = express.Router();
 
 // Create a project
-projectRouter.post('/', authenticateToken, validateProject, uploadThumbnailAndVideoMiddleware, createProject);
+// resolveSubject: when a mentor is inside a child's PIN session
+// (X-Child-Profile-Id header set), attributes the project — and eventually
+// its Goins on approval — to the CHILD's own account, not the mentor's.
+// Previously missing here (only wired into goinsRoutes/userAnalyticsRoutes),
+// which silently misattributed every upload made during a PIN session.
+projectRouter.post('/', authenticateToken, resolveSubject, validateProject, uploadThumbnailAndVideoMiddleware, createProject);
 
 projectRouter.get('/categories', getAllProjectCategories);
 projectRouter.post('/categories', authenticateToken, createProjectCategory);
@@ -38,8 +44,9 @@ projectRouter.get('/all',authenticateToken,getAllProjects);
 // Get project details
 projectRouter.get('/:id', authenticateToken, getProjectById);
 
-// Get all projects for a user
-projectRouter.get('/', authenticateToken, getAllProjectsForUser);
+// Get all projects for a user — same reasoning as POST '/' above: during a
+// child PIN session this must list the CHILD's projects, not the mentor's.
+projectRouter.get('/', authenticateToken, resolveSubject, getAllProjectsForUser);
 
 projectRouter.post('/:id/comment', authenticateToken, idValidationRules(), validateRequest, addProjectComment);
 projectRouter.post('/:id/like', authenticateToken, idValidationRules(), validateRequest, likeProject);

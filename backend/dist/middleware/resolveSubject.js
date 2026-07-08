@@ -75,6 +75,7 @@ async function resolveSubject(req, res, next) {
                 age: true,
                 grade: true,
                 avatar: true,
+                linkedUserId: true,
             },
         });
         // 3a. Child must exist
@@ -99,6 +100,7 @@ async function resolveSubject(req, res, next) {
             avatar: child.avatar ?? null,
             isChild: true,
             guardianId: child.guardianId,
+            linkedUserId: child.linkedUserId ?? null,
         };
         next();
     }
