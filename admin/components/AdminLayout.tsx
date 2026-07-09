@@ -20,7 +20,9 @@ import {
   Coins,
   Package,
   ShoppingBag,
-  Inbox
+  Inbox,
+  Lightbulb,
+  ShieldAlert
 } from 'lucide-react'
 import Image from 'next/image'
 
@@ -115,6 +117,20 @@ export function AdminLayout({ children }: AdminLayoutProps) {
       href: '/content',
       icon: FileEdit,
       current: pathname.startsWith('/content')
+    },
+    // ── Product Suggestions ─────────────────────────────────
+    { 
+      name: 'Suggestions',
+      href: '/product-suggestions',
+      icon: Lightbulb,
+      current: pathname.startsWith('/product-suggestions')
+    },
+    // ── Contact Change Approval Queue ───────────────────────
+    { 
+      name: 'Contact Changes',
+      href: '/contact-changes',
+      icon: ShieldAlert,
+      current: pathname.startsWith('/contact-changes')
     },
   ]
 

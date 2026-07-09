@@ -12,6 +12,7 @@
     "express": "^4.22.1",
     "express-rate-limit": "^7.4.1",
     "express-validator": "^7.3.2",
+    "firebase-admin": "^14.1.0",
     "googleapis": "^171.4.0",
     "helmet": "^8.0.0",
     "jsonwebtoken": "^9.0.3",

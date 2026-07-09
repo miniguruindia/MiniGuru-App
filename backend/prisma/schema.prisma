@@ -81,6 +81,21 @@ model User {
   parentPhone  String?
   guardianEmail String?
   emailVerified Boolean  @default(false)
+  // ── Contact verification (email + phone), on-demand, not blocking ──────
+  // Verification is never required at registration — it can be requested
+  // any time by the account holder. Changing a contact that is currently
+  // VERIFIED requires approval (OTP sent to the OLD verified contact, or
+  // manual admin approval if that's unreachable) before it takes effect.
+  // Changing an UNVERIFIED contact applies immediately — nothing to protect.
+  phoneVerified            Boolean   @default(false)
+  verificationOtpHash      String?
+  verificationOtpExpiry    DateTime?
+  verificationOtpTarget    String?   // 'email' | 'phone' — which field the pending OTP is for
+  pendingEmail             String?   // new email awaiting old-contact confirmation
+  pendingPhone             String?   // new phone awaiting old-contact confirmation
+  contactChangeApprovalFor String?   // 'email' | 'phone' | null — set when the old contact
+                                      // is unreachable and an admin must manually approve
+  contactChangeRequestedAt DateTime?
   about        String?
   grade        String?
   schoolName   String?
@@ -501,12 +516,21 @@ model Material {
 }
 
 model ProductSuggestion {
-  id         String   @id @default(auto()) @map("_id") @db.ObjectId
-  childName  String?
-  userId     String?  @db.ObjectId
-  suggestion String
-  category   String?
-  createdAt  DateTime @default(now())
+  id                  String    @id @default(auto()) @map("_id") @db.ObjectId
+  childName           String?
+  userId              String?   @db.ObjectId
+  suggestion          String
+  category            String?
+  requestedGoinsPrice Int?
+  // pending: just submitted, not yet looked at
+  // approved: admin liked it, plans to add as a real Material
+  // added: admin actually created the Material — resolvedMaterialId links to it
+  // rejected: admin decided not to add it — adminNotes explains why
+  status             String    @default("pending")
+  resolvedMaterialId String?   @db.ObjectId
+  adminNotes         String?
+  resolvedAt         DateTime?
+  createdAt          DateTime  @default(now())
 
   @@map("product_suggestions")
 }

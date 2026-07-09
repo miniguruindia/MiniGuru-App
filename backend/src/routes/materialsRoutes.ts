@@ -1,8 +1,23 @@
 import { Router, Request, Response } from 'express';
+import multer from 'multer';
 import prisma from '../utils/prismaClient';
 import { authenticateToken } from '../middleware/authMiddleware';
+import { uploadMaterialImage, deleteMaterialImage } from '../services/firebaseStorageService';
 
 const router = Router();
+
+// Memory storage (not disk) — we hand the buffer straight to Firebase
+// Storage, never touching Cloud Run's ephemeral local disk for this.
+const imageUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB — plenty for a material photo
+  fileFilter: (_req, file, cb) => {
+    if (!file.mimetype.startsWith('image/')) {
+      return cb(new Error('Only image files are allowed.'));
+    }
+    cb(null, true);
+  },
+});
 
 function requireAdmin(req: Request, res: Response, next: Function) {
   const role = (req as any).user?.role;
@@ -172,6 +187,64 @@ router.delete('/admin/:id', authenticateToken, requireAdmin, async (req: Request
     res.status(500).json({ error: 'Failed to deactivate material' });
   }
 });
+
+// ── Direct image upload/replace/delete ───────────────────────────────────────
+// Replaces the old manual "download from Drive → resize → drag into
+// Firebase Console" workflow. Uploads straight to the same Firebase Storage
+// bucket every existing material image already lives in.
+
+router.post(
+  '/admin/:id/image',
+  authenticateToken,
+  requireAdmin,
+  imageUpload.single('image'),
+  async (req: Request, res: Response) => {
+    try {
+      const { id } = req.params;
+      if (!req.file) return res.status(400).json({ error: 'No image file provided (field name: image).' });
+
+      const existing = await prisma.material.findUnique({ where: { id } });
+      if (!existing) return res.status(404).json({ error: 'Material not found' });
+
+      // Replacing an existing image? Clean up the old file in Storage so we
+      // don't silently accumulate orphaned images every time someone updates
+      // a photo (each upload gets a fresh timestamped filename).
+      if (existing.imageUrl) {
+        await deleteMaterialImage(existing.imageUrl).catch((err) =>
+          console.warn('[materials] old image cleanup failed (non-fatal):', err.message)
+        );
+      }
+
+      const imageUrl = await uploadMaterialImage(req.file.buffer, req.file.mimetype, id);
+      const updated = await prisma.material.update({ where: { id }, data: { imageUrl } });
+      return res.status(200).json({ message: 'Image uploaded.', imageUrl, material: updated });
+    } catch (err: any) {
+      console.error('[materials] image upload error:', err);
+      return res.status(500).json({ error: err.message || 'Image upload failed.' });
+    }
+  }
+);
+
+router.delete(
+  '/admin/:id/image',
+  authenticateToken,
+  requireAdmin,
+  async (req: Request, res: Response) => {
+    try {
+      const { id } = req.params;
+      const existing = await prisma.material.findUnique({ where: { id } });
+      if (!existing) return res.status(404).json({ error: 'Material not found' });
+      if (!existing.imageUrl) return res.status(200).json({ message: 'No image to remove.' });
+
+      await deleteMaterialImage(existing.imageUrl);
+      const updated = await prisma.material.update({ where: { id }, data: { imageUrl: null } });
+      return res.status(200).json({ message: 'Image removed.', material: updated });
+    } catch (err: any) {
+      console.error('[materials] image delete error:', err);
+      return res.status(500).json({ error: err.message || 'Image delete failed.' });
+    }
+  }
+);
 
 router.post('/admin/bulk', authenticateToken, requireAdmin, async (req: Request, res: Response) => {
   try {

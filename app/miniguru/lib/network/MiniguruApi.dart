@@ -106,6 +106,57 @@ class MiniguruApi {
     return response;
   }
 
+  // ── Contact verification (email/phone) — optional, on-demand ─────────────
+  // See backend/src/controllers/auth/contactVerificationController.ts for
+  // the full design: unverified contacts just show "Unverified" and can be
+  // verified whenever the person wants; changing a VERIFIED contact needs
+  // an OTP confirmation to the OLD contact (or admin approval if that's
+  // unreachable), changing an UNVERIFIED one applies immediately.
+
+  Future<http.Response> sendVerificationOtp(String target) async {
+    final authToken = await _getValidToken();
+    if (authToken == null) throw Exception('User not logged in');
+    final url = Uri.parse('$_baseUrl/auth/verification/send-otp');
+    return await http.post(
+      url,
+      headers: _buildHeaders(authToken.accessToken),
+      body: jsonEncode({'target': target}),
+    );
+  }
+
+  Future<http.Response> confirmVerificationOtp(String otp) async {
+    final authToken = await _getValidToken();
+    if (authToken == null) throw Exception('User not logged in');
+    final url = Uri.parse('$_baseUrl/auth/verification/confirm-otp');
+    return await http.post(
+      url,
+      headers: _buildHeaders(authToken.accessToken),
+      body: jsonEncode({'otp': otp}),
+    );
+  }
+
+  Future<http.Response> requestContactChange(String target, String newValue) async {
+    final authToken = await _getValidToken();
+    if (authToken == null) throw Exception('User not logged in');
+    final url = Uri.parse('$_baseUrl/auth/verification/request-change');
+    return await http.post(
+      url,
+      headers: _buildHeaders(authToken.accessToken),
+      body: jsonEncode({'target': target, 'newValue': newValue}),
+    );
+  }
+
+  Future<http.Response> confirmContactChangeOtp(String otp) async {
+    final authToken = await _getValidToken();
+    if (authToken == null) throw Exception('User not logged in');
+    final url = Uri.parse('$_baseUrl/auth/verification/confirm-change-otp');
+    return await http.post(
+      url,
+      headers: _buildHeaders(authToken.accessToken),
+      body: jsonEncode({'otp': otp}),
+    );
+  }
+
   Future<AuthToken?> refreshToken() async {
     try {
       print("🔄 Refreshing tokens...");

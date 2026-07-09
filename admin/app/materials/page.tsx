@@ -136,6 +136,7 @@ export default function MaterialsPage() {
   const [editingMat, setEditingMat] = useState<Material | null>(null)
   const [form, setForm]           = useState(EMPTY_MAT)
   const [saving, setSaving]       = useState(false)
+  const [uploadingImage, setUploadingImage] = useState(false)
 
   // Inline ASIN editing
   const [editingAsin, setEditingAsin]   = useState<string | null>(null)
@@ -240,6 +241,55 @@ export default function MaterialsPage() {
       await load()
     } catch (e: any) { flash('Save failed: ' + e.message, true) }
     finally { setSaving(false) }
+  }
+
+  // ── Direct image upload/remove — only available once the material exists ──
+  const uploadImageFile = async (file: File) => {
+    if (!editingMat) {
+      flash('Save the material first, then reopen it to upload a photo.', true)
+      return
+    }
+    setUploadingImage(true)
+    try {
+      const token = await authToken()
+      const fd = new FormData()
+      fd.append('image', file)
+      const res = await fetch(`${API_BASE}/materials/admin/${editingMat.id}/image`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` }, // no Content-Type — browser sets multipart boundary
+        body: fd,
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Upload failed')
+      setForm(f => ({ ...f, imageUrl: data.imageUrl }))
+      flash('Image uploaded!')
+      await load()
+    } catch (e: any) {
+      flash('Image upload failed: ' + e.message, true)
+    } finally {
+      setUploadingImage(false)
+    }
+  }
+
+  const removeImage = async () => {
+    if (!editingMat) return
+    if (!confirm('Remove this image? This deletes it from storage.')) return
+    setUploadingImage(true)
+    try {
+      const token = await authToken()
+      const res = await fetch(`${API_BASE}/materials/admin/${editingMat.id}/image`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      if (!res.ok) throw new Error(await res.text())
+      setForm(f => ({ ...f, imageUrl: '' }))
+      flash('Image removed.')
+      await load()
+    } catch (e: any) {
+      flash('Remove failed: ' + e.message, true)
+    } finally {
+      setUploadingImage(false)
+    }
   }
 
   // ── Inline ASIN save ────────────────────────────────────────────────────
@@ -595,12 +645,39 @@ export default function MaterialsPage() {
 
               {/* Image URL */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Image URL</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Image</label>
                 <input type="text" value={form.imageUrl} onChange={e => setForm(f => ({...f, imageUrl: e.target.value}))}
-                  placeholder="Firebase Storage URL"
+                  placeholder="Firebase Storage URL (or upload directly below)"
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400" />
                 {form.imageUrl && (
                   <img src={form.imageUrl} alt="preview" className="mt-2 h-14 w-14 object-contain rounded border bg-white" />
+                )}
+                <div className="flex items-center gap-2 mt-2">
+                  <label className={`px-3 py-1.5 text-xs font-medium rounded-lg border cursor-pointer ${
+                    editingMat ? 'border-indigo-300 text-indigo-700 hover:bg-indigo-50' : 'border-gray-200 text-gray-400 cursor-not-allowed'
+                  }`}>
+                    {uploadingImage ? 'Uploading…' : '📤 Upload photo'}
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      disabled={!editingMat || uploadingImage}
+                      onChange={e => { const f = e.target.files?.[0]; if (f) uploadImageFile(f); e.target.value = '' }}
+                    />
+                  </label>
+                  {form.imageUrl && (
+                    <button
+                      type="button"
+                      disabled={uploadingImage}
+                      onClick={removeImage}
+                      className="px-3 py-1.5 text-xs font-medium rounded-lg border border-red-200 text-red-600 hover:bg-red-50"
+                    >
+                      🗑️ Remove image
+                    </button>
+                  )}
+                </div>
+                {!editingMat && (
+                  <p className="text-xs text-gray-400 mt-1">Save this material first, then reopen it to upload a photo directly.</p>
                 )}
               </div>
 

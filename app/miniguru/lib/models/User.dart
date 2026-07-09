@@ -5,6 +5,8 @@ class User {
   final String name;
   final String email;
   final String? guardianEmail;
+  final bool emailVerified;
+  final bool phoneVerified;
   final int age;
   final int score;
   final double walletBalance;
@@ -19,6 +21,8 @@ class User {
     required this.name,
     required this.email,
     this.guardianEmail,
+    this.emailVerified = false,
+    this.phoneVerified = false,
     required this.age,
     required this.score,
     required this.walletBalance,
@@ -36,6 +40,8 @@ class User {
       'name': name,
       'email': email,
       'guardianEmail': guardianEmail,
+      'emailVerified': emailVerified,
+      'phoneVerified': phoneVerified,
       'age': age,
       'score': score,
       'walletBalance': walletBalance,
@@ -52,6 +58,8 @@ class User {
         name: map['name'],
         email: map['email'],
         guardianEmail: map['guardianEmail'],
+        emailVerified: map['emailVerified'] ?? false,
+        phoneVerified: map['phoneVerified'] ?? false,
         age: map['age'],
         score: map['score'],
         walletBalance: map['walletBalance'].toDouble(),

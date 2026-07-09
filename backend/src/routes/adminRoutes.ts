@@ -10,6 +10,12 @@ import { listUsers, getUserById , deleteUserById, updateUserDetails } from '../c
 import { getAllOrdersController } from '../controllers/ecom/orderController';
 import { fetchStats } from '../controllers/admin/statsController';
 import { getPendingProjects, approveProject, rejectProject, getAllDrafts } from '../controllers/admin/videoApprovalController';
+import {
+  getPendingContactChangeRequests,
+  approveContactChange,
+  rejectContactChange,
+} from '../controllers/auth/contactVerificationController';
+import { listProductSuggestions, updateProductSuggestion } from '../controllers/admin/productSuggestionController';
 import prisma from '../utils/prismaClient';
 
 const adminRouter = express.Router();
@@ -218,5 +224,16 @@ adminRouter.get('/amazon/product', authenticateToken, authorizeAdmin, async (req
     });
   }
 });
+
+// ==================== CONTACT-CHANGE APPROVAL QUEUE ====================
+// Only ever populated when a verified email/phone change couldn't be
+// auto-confirmed via OTP to the old contact (old contact unreachable).
+adminRouter.get('/contact-change-requests', authenticateToken, authorizeAdmin, getPendingContactChangeRequests);
+adminRouter.post('/contact-change-requests/:userId/approve', authenticateToken, authorizeAdmin, approveContactChange);
+adminRouter.post('/contact-change-requests/:userId/reject', authenticateToken, authorizeAdmin, rejectContactChange);
+
+// ==================== PRODUCT SUGGESTIONS ====================
+adminRouter.get('/product-suggestions', authenticateToken, authorizeAdmin, listProductSuggestions);
+adminRouter.put('/product-suggestions/:id', authenticateToken, authorizeAdmin, updateProductSuggestion);
 
 export default adminRouter;

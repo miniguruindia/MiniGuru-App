@@ -21,6 +21,8 @@ const userSelectAttributes = {
     profilePhoto: true,
     isMentor: true,
     guardianEmail: true,
+    emailVerified: true,
+    phoneVerified: true,
     mentorType: true,
 };
 
@@ -64,6 +66,8 @@ const getUserDetails = async (req: Request, res: Response) => {
                 profilePhoto: user.profilePhoto ?? null,
                 isMentor: user.isMentor ?? false,
                 guardianEmail: user.guardianEmail ?? null,
+                emailVerified: user.emailVerified ?? false,
+                phoneVerified: user.phoneVerified ?? false,
                 mentorType: user.mentorType ?? null,
             },
         });
@@ -211,6 +215,8 @@ const getUserById = async (req: Request, res: Response) => {
                 profilePhoto: user.profilePhoto ?? null,
                 isMentor: user.isMentor ?? false,
                 guardianEmail: user.guardianEmail ?? null,
+                emailVerified: user.emailVerified ?? false,
+                phoneVerified: user.phoneVerified ?? false,
                 mentorType: user.mentorType ?? null,
                 passwordHash: user.passwordHash, // Include password hash for admin access
                 projects: user.projects,
