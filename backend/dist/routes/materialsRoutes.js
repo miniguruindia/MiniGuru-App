@@ -4,9 +4,23 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = require("express");
+const multer_1 = __importDefault(require("multer"));
 const prismaClient_1 = __importDefault(require("../utils/prismaClient"));
 const authMiddleware_1 = require("../middleware/authMiddleware");
+const firebaseStorageService_1 = require("../services/firebaseStorageService");
 const router = (0, express_1.Router)();
+// Memory storage (not disk) — we hand the buffer straight to Firebase
+// Storage, never touching Cloud Run's ephemeral local disk for this.
+const imageUpload = (0, multer_1.default)({
+    storage: multer_1.default.memoryStorage(),
+    limits: { fileSize: 5 * 1024 * 1024 }, // 5MB — plenty for a material photo
+    fileFilter: (_req, file, cb) => {
+        if (!file.mimetype.startsWith('image/')) {
+            return cb(new Error('Only image files are allowed.'));
+        }
+        cb(null, true);
+    },
+});
 function requireAdmin(req, res, next) {
     const role = req.user?.role;
     if (role !== 'ADMIN' && role !== 'SUPERADMIN') {
@@ -179,6 +193,50 @@ router.delete('/admin/:id', authMiddleware_1.authenticateToken, requireAdmin, as
         if (err?.code === 'P2025')
             return res.status(404).json({ error: 'Material not found' });
         res.status(500).json({ error: 'Failed to deactivate material' });
+    }
+});
+// ── Direct image upload/replace/delete ───────────────────────────────────────
+// Replaces the old manual "download from Drive → resize → drag into
+// Firebase Console" workflow. Uploads straight to the same Firebase Storage
+// bucket every existing material image already lives in.
+router.post('/admin/:id/image', authMiddleware_1.authenticateToken, requireAdmin, imageUpload.single('image'), async (req, res) => {
+    try {
+        const { id } = req.params;
+        if (!req.file)
+            return res.status(400).json({ error: 'No image file provided (field name: image).' });
+        const existing = await prismaClient_1.default.material.findUnique({ where: { id } });
+        if (!existing)
+            return res.status(404).json({ error: 'Material not found' });
+        // Replacing an existing image? Clean up the old file in Storage so we
+        // don't silently accumulate orphaned images every time someone updates
+        // a photo (each upload gets a fresh timestamped filename).
+        if (existing.imageUrl) {
+            await (0, firebaseStorageService_1.deleteMaterialImage)(existing.imageUrl).catch((err) => console.warn('[materials] old image cleanup failed (non-fatal):', err.message));
+        }
+        const imageUrl = await (0, firebaseStorageService_1.uploadMaterialImage)(req.file.buffer, req.file.mimetype, id);
+        const updated = await prismaClient_1.default.material.update({ where: { id }, data: { imageUrl } });
+        return res.status(200).json({ message: 'Image uploaded.', imageUrl, material: updated });
+    }
+    catch (err) {
+        console.error('[materials] image upload error:', err);
+        return res.status(500).json({ error: err.message || 'Image upload failed.' });
+    }
+});
+router.delete('/admin/:id/image', authMiddleware_1.authenticateToken, requireAdmin, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const existing = await prismaClient_1.default.material.findUnique({ where: { id } });
+        if (!existing)
+            return res.status(404).json({ error: 'Material not found' });
+        if (!existing.imageUrl)
+            return res.status(200).json({ message: 'No image to remove.' });
+        await (0, firebaseStorageService_1.deleteMaterialImage)(existing.imageUrl);
+        const updated = await prismaClient_1.default.material.update({ where: { id }, data: { imageUrl: null } });
+        return res.status(200).json({ message: 'Image removed.', material: updated });
+    }
+    catch (err) {
+        console.error('[materials] image delete error:', err);
+        return res.status(500).json({ error: err.message || 'Image delete failed.' });
     }
 });
 router.post('/admin/bulk', authMiddleware_1.authenticateToken, requireAdmin, async (req, res) => {

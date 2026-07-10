@@ -14,6 +14,7 @@ import 'package:miniguru/repository/userDataRepository.dart';
 import 'package:miniguru/screens/loginScreen.dart';
 import 'package:miniguru/screens/walletPage.dart';
 import 'package:miniguru/screens/editProfileScreen.dart';
+import 'package:miniguru/widgets/contactVerificationCard.dart';
 
 class Profile extends StatefulWidget {
   const Profile({super.key});
@@ -510,6 +511,17 @@ class _ProfileState extends State<Profile>
                         _label('🪙 My Goins'),
                         const SizedBox(height: 10),
                         _buildGoinsOnlyCard(),
+
+                        // ── Contact verification ──
+                        const SizedBox(height: 24),
+                        ContactVerificationCard(
+                          email: _user?.email,
+                          guardianEmail: _user?.guardianEmail,
+                          phoneNumber: _user?.phoneNumber,
+                          emailVerified: _user?.emailVerified ?? false,
+                          phoneVerified: _user?.phoneVerified ?? false,
+                          onChanged: _fetchUser,
+                        ),
 
                         // ── Analytics with count-up ──
                         const SizedBox(height: 24),

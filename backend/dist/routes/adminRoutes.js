@@ -15,6 +15,8 @@ const userController_1 = require("../controllers/auth/userController");
 const orderController_1 = require("../controllers/ecom/orderController");
 const statsController_1 = require("../controllers/admin/statsController");
 const videoApprovalController_1 = require("../controllers/admin/videoApprovalController");
+const contactVerificationController_1 = require("../controllers/auth/contactVerificationController");
+const productSuggestionController_1 = require("../controllers/admin/productSuggestionController");
 const prismaClient_1 = __importDefault(require("../utils/prismaClient"));
 const adminRouter = express_1.default.Router();
 // ==================== PRODUCTS ====================
@@ -218,4 +220,13 @@ adminRouter.get('/amazon/product', authMiddleware_1.authenticateToken, authMiddl
         });
     }
 });
+// ==================== CONTACT-CHANGE APPROVAL QUEUE ====================
+// Only ever populated when a verified email/phone change couldn't be
+// auto-confirmed via OTP to the old contact (old contact unreachable).
+adminRouter.get('/contact-change-requests', authMiddleware_1.authenticateToken, authMiddleware_1.authorizeAdmin, contactVerificationController_1.getPendingContactChangeRequests);
+adminRouter.post('/contact-change-requests/:userId/approve', authMiddleware_1.authenticateToken, authMiddleware_1.authorizeAdmin, contactVerificationController_1.approveContactChange);
+adminRouter.post('/contact-change-requests/:userId/reject', authMiddleware_1.authenticateToken, authMiddleware_1.authorizeAdmin, contactVerificationController_1.rejectContactChange);
+// ==================== PRODUCT SUGGESTIONS ====================
+adminRouter.get('/product-suggestions', authMiddleware_1.authenticateToken, authMiddleware_1.authorizeAdmin, productSuggestionController_1.listProductSuggestions);
+adminRouter.put('/product-suggestions/:id', authMiddleware_1.authenticateToken, authMiddleware_1.authorizeAdmin, productSuggestionController_1.updateProductSuggestion);
 exports.default = adminRouter;

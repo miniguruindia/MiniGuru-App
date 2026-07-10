@@ -11,6 +11,7 @@ const passwordResetController_1 = require("../controllers/auth/passwordResetCont
 const validationMiddleware_1 = require("../middleware/validationMiddleware");
 const authMiddleware_1 = require("../middleware/authMiddleware");
 const registrationController_1 = require("../controllers/auth/registrationController"); // ✅ CHANGED: Use authenticateToken instead of authenticateUser
+const contactVerificationController_1 = require("../controllers/auth/contactVerificationController");
 const authRouter = express_1.default.Router();
 // ========================= AUTHENTICATION ROUTES =========================
 /**
@@ -66,4 +67,14 @@ authRouter.post('/change-login-id', authMiddleware_1.authenticateToken, authCont
 authRouter.post('/generate-id', registrationController_1.generateId);
 authRouter.post('/send-otp', registrationController_1.sendOtp);
 authRouter.post('/verify-otp', registrationController_1.verifyOtp);
+// ========================= CONTACT VERIFICATION =========================
+// On-demand, never blocking. Any account holder can request verification
+// of their current email/phone whenever they want, and can change either
+// contact at any time — a VERIFIED contact requires approval to change
+// (OTP to the old contact, or manual admin approval), an UNVERIFIED one
+// changes immediately. See contactVerificationController.ts for the design.
+authRouter.post('/verification/send-otp', authMiddleware_1.authenticateToken, contactVerificationController_1.sendVerificationOtp);
+authRouter.post('/verification/confirm-otp', authMiddleware_1.authenticateToken, contactVerificationController_1.confirmVerificationOtp);
+authRouter.post('/verification/request-change', authMiddleware_1.authenticateToken, contactVerificationController_1.requestContactChange);
+authRouter.post('/verification/confirm-change-otp', authMiddleware_1.authenticateToken, contactVerificationController_1.confirmContactChangeOtp);
 exports.default = authRouter;

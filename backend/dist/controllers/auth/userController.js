@@ -24,6 +24,8 @@ const userSelectAttributes = {
     profilePhoto: true,
     isMentor: true,
     guardianEmail: true,
+    emailVerified: true,
+    phoneVerified: true,
     mentorType: true,
 };
 // FIXED: Get user details with proper wallet structure
@@ -62,6 +64,8 @@ const getUserDetails = async (req, res) => {
                 profilePhoto: user.profilePhoto ?? null,
                 isMentor: user.isMentor ?? false,
                 guardianEmail: user.guardianEmail ?? null,
+                emailVerified: user.emailVerified ?? false,
+                phoneVerified: user.phoneVerified ?? false,
                 mentorType: user.mentorType ?? null,
             },
         });
@@ -199,6 +203,8 @@ const getUserById = async (req, res) => {
                 profilePhoto: user.profilePhoto ?? null,
                 isMentor: user.isMentor ?? false,
                 guardianEmail: user.guardianEmail ?? null,
+                emailVerified: user.emailVerified ?? false,
+                phoneVerified: user.phoneVerified ?? false,
                 mentorType: user.mentorType ?? null,
                 passwordHash: user.passwordHash, // Include password hash for admin access
                 projects: user.projects,

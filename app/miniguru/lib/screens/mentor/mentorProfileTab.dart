@@ -10,6 +10,7 @@ import 'package:miniguru/screens/walletPage.dart';
 import 'package:miniguru/state/sessionState.dart';
 import 'package:miniguru/screens/editProfileScreen.dart';
 import 'package:miniguru/screens/legalScreen.dart';
+import 'package:miniguru/widgets/contactVerificationCard.dart';
 
 class MentorProfileTab extends StatefulWidget {
   const MentorProfileTab({super.key});
@@ -86,6 +87,15 @@ class _MentorProfileTabState extends State<MentorProfileTab> {
               _buildWalletCard(),
               const SizedBox(height: 16),
               _buildFamilyGoins(),
+              const SizedBox(height: 16),
+              ContactVerificationCard(
+                email: _mentor?.email,
+                guardianEmail: _mentor?.guardianEmail,
+                phoneNumber: _mentor?.phoneNumber,
+                emailVerified: _mentor?.emailVerified ?? false,
+                phoneVerified: _mentor?.phoneVerified ?? false,
+                onChanged: _loadData,
+              ),
               const SizedBox(height: 16),
               _buildChildrenSummary(),
               const SizedBox(height: 16),
