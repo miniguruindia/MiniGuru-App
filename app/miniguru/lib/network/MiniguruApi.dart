@@ -106,6 +106,25 @@ class MiniguruApi {
     return response;
   }
 
+  // ── Public video feed (home screen) ───────────────────────────────────────
+  // Reads from MiniGuru's own database via GET /project/feed — replaces the
+  // old direct-YouTube-API approach in youtube_service.dart, which burned
+  // shared YouTube quota on every home-screen load and silently fell back
+  // to placeholder videos on any failure. No auth needed — public feed.
+  Future<List<Map<String, dynamic>>> getVideoFeed({int limit = 50}) async {
+    final url = Uri.parse('$_baseUrl/project/feed?limit=$limit');
+    final response = await http.get(url, headers: _buildHeaders());
+    if (response.statusCode != 200) {
+      throw Exception('Failed to load video feed (${response.statusCode})');
+    }
+    final data = jsonDecode(response.body);
+    final videos = data['videos'];
+    if (videos is List) {
+      return videos.map((v) => Map<String, dynamic>.from(v)).toList();
+    }
+    return [];
+  }
+
   // ── Contact verification (email/phone) — optional, on-demand ─────────────
   // See backend/src/controllers/auth/contactVerificationController.ts for
   // the full design: unverified contacts just show "Unverified" and can be

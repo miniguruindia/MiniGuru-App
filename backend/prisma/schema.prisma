@@ -337,6 +337,26 @@ type ProjectMaterial {
   quantity  Int
 }
 
+// In-app notifications — used to REPLACE email for anything that isn't a
+// literal OTP or a message to someone with no login (password reset, shop
+// send-to-parent). Admin broadcasts and AI-review alerts write here instead
+// of sending an email to every recipient. Surfaced via GET /users/me/notifications
+// (child/mentor) and GET /admin/notifications (admin), merged with the
+// existing computed comment/like feed — no separate UI needed.
+model Notification {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId    String   @db.ObjectId // who sees this notification
+  type      String   // 'broadcast' | 'ai_review_unsure' | 'announcement' | ...
+  emoji     String   @default("🔔")
+  message   String
+  link      String?  // optional deep-link, e.g. a project id or admin queue path
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@map("notifications")
+}
+
 model Comment {
   id            String   @id @default(auto()) @map("_id") @db.ObjectId
   commentedBy   User     @relation(fields: [commentedById], references: [id], onDelete: Cascade)

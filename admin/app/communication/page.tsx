@@ -168,22 +168,31 @@ function BroadcastTab() {
   const [subject, setSubject] = useState('')
   const [message, setMessage] = useState('')
   const [preview, setPreview] = useState('')
+  const [alsoEmail, setAlsoEmail] = useState(false)
   const [sending, setSending] = useState(false)
   const [flash,   setFlash]   = useState('')
   const [flashErr,setFlashErr]= useState('')
-  const [result,  setResult]  = useState<{ sent: number; failed: number; total: number } | null>(null)
+  const [result,  setResult]  = useState<{ notified: number; emailed: number; emailFailed: number; total: number } | null>(null)
 
   const send = async () => {
     if (!subject.trim() || !message.trim()) { setFlashErr('Subject and message are required'); return }
-    if (!confirm('Send this email to ALL users? This cannot be undone.')) return
+    const confirmMsg = alsoEmail
+      ? 'Send an in-app notification AND an email to ALL users? This cannot be undone.'
+      : 'Send an in-app notification to ALL users? (No email will be sent — check "Also email everyone" below if you need that too.)'
+    if (!confirm(confirmMsg)) return
     setSending(true); setFlashErr(''); setResult(null)
     try {
       const res = await fetch(`${API_BASE}/admin/communication/broadcast`, {
-        method: 'POST', headers: await authHeader(), body: JSON.stringify({ subject, message, previewText: preview })
+        method: 'POST', headers: await authHeader(), body: JSON.stringify({ subject, message, previewText: preview, alsoEmail })
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.message)
-      setResult(data); setFlash(`Broadcast complete — ${data.sent} sent, ${data.failed} failed`)
+      setResult(data)
+      setFlash(
+        alsoEmail
+          ? `Broadcast complete — ${data.notified} notified in-app, ${data.emailed} emailed (${data.emailFailed} failed)`
+          : `Broadcast complete — ${data.notified} users notified in-app (no email sent)`
+      )
       setTimeout(() => setFlash(''), 6000)
       setSubject(''); setMessage(''); setPreview('')
     } catch (e: any) { setFlashErr(e.message || 'Broadcast failed') }
@@ -197,7 +206,7 @@ function BroadcastTab() {
       {result && (
         <Card className="border-0 shadow-sm p-5 bg-green-50">
           <div className="flex gap-6 text-center">
-            {[['Sent',result.sent,'text-green-700'],['Failed',result.failed,'text-red-600'],['Total',result.total,'text-gray-700']].map(([l,v,c]) => (
+            {[['Notified',result.notified,'text-blue-700'],['Emailed',result.emailed,'text-green-700'],['Email failed',result.emailFailed,'text-red-600'],['Total',result.total,'text-gray-700']].map(([l,v,c]) => (
               <div key={l as string}><p className={`text-2xl font-bold ${c}`}>{v}</p><p className="text-xs text-gray-500">{l}</p></div>
             ))}
           </div>
@@ -215,11 +224,19 @@ function BroadcastTab() {
           <textarea className={ta} rows={10} placeholder="Write your message here..." value={message} onChange={e => setMessage(e.target.value)} /></div>
         <div><label className="block text-sm font-medium text-gray-700 mb-1">Footer note <span className="text-gray-400 font-normal">(optional)</span></label>
           <input className={inp} placeholder="e.g. Questions? Reply to this email." value={preview} onChange={e => setPreview(e.target.value)} /></div>
+        <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+          <input type="checkbox" checked={alsoEmail} onChange={e => setAlsoEmail(e.target.checked)} />
+          Also email everyone (uses SendGrid quota — leave off for routine announcements)
+        </label>
         <button onClick={send} disabled={sending}
           className="flex items-center gap-2 px-6 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 disabled:opacity-50">
           <Send className="h-4 w-4" />{sending ? 'Sending...' : 'Send to All Users'}
         </button>
-        <p className="text-xs text-gray-400">⚠️ This will send an email to every registered user. Double-check before sending.</p>
+        <p className="text-xs text-gray-400">
+          {alsoEmail
+            ? '⚠️ This will send an in-app notification AND an email to every registered user. Double-check before sending.'
+            : 'This sends an in-app notification only (shows in everyone\'s notification bell) — no email, no quota used.'}
+        </p>
       </Card>
     </div>
   )
@@ -233,6 +250,7 @@ function DirectTab() {
   const [selected, setSelected] = useState<User | null>(null)
   const [subject,  setSubject]  = useState('')
   const [message,  setMessage]  = useState('')
+  const [alsoEmail,setAlsoEmail]= useState(false)
   const [sending,  setSending]  = useState(false)
   const [flash,    setFlash]    = useState('')
   const [flashErr, setFlashErr] = useState('')
@@ -259,11 +277,16 @@ function DirectTab() {
     setSending(true); setFlashErr('')
     try {
       const res = await fetch(`${API_BASE}/admin/communication/send`, {
-        method: 'POST', headers: await authHeader(), body: JSON.stringify({ userId: selected.id, subject, message })
+        method: 'POST', headers: await authHeader(), body: JSON.stringify({ userId: selected.id, subject, message, alsoEmail })
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.message)
-      setFlash(`Email sent to ${selected.name} (${data.sentTo})`); setTimeout(() => setFlash(''), 5000)
+      setFlash(
+        data.emailed
+          ? `Notified ${selected.name} in-app and emailed ${data.sentTo}`
+          : `Notified ${selected.name} in-app (no email sent)`
+      )
+      setTimeout(() => setFlash(''), 5000)
       setSubject(''); setMessage(''); setSelected(null); setQuery('')
     } catch (e: any) { setFlashErr(e.message || 'Failed to send') }
     finally { setSending(false) }
@@ -309,9 +332,13 @@ function DirectTab() {
           <input className={inp} placeholder="Subject line" value={subject} onChange={e => setSubject(e.target.value)} /></div>
         <div><label className="block text-sm font-medium text-gray-700 mb-1">Message</label>
           <textarea className={ta} rows={8} placeholder="Write your message..." value={message} onChange={e => setMessage(e.target.value)} /></div>
+        <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+          <input type="checkbox" checked={alsoEmail} onChange={e => setAlsoEmail(e.target.checked)} />
+          Also email this person (uses SendGrid quota)
+        </label>
         <button onClick={send} disabled={sending || !selected}
           className="flex items-center gap-2 px-6 py-2.5 bg-purple-600 text-white rounded-lg text-sm font-semibold hover:bg-purple-700 disabled:opacity-50">
-          <Send className="h-4 w-4" />{sending ? 'Sending...' : 'Send Email'}
+          <Send className="h-4 w-4" />{sending ? 'Sending...' : 'Send'}
         </button>
       </Card>
     </div>

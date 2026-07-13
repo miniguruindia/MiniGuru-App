@@ -132,20 +132,18 @@ router.get('/me/badges', authenticateToken, resolveSubject, async (req: any, res
 });
 
 // ─── GET /users/me/notifications ─────────────────────────────────────────────
-// Comments and likes received on the user's own projects
+// Comments/likes on the user's own projects, merged with persisted
+// notifications (admin broadcasts, direct messages, AI-review alerts).
 router.get('/me/notifications', authenticateToken, resolveSubject, async (req: any, res) => {
   try {
     const userId = req.user?.userId;
 
-    // Get user's project IDs + titles
+    // Get user's project IDs + titles — may be empty for a brand-new
+    // account, but that shouldn't hide persisted notifications below.
     const userProjects = await prisma.project.findMany({
       where:  { userId },
       select: { id: true, title: true },
     });
-
-    if (userProjects.length === 0) {
-      return res.json({ notifications: [] });
-    }
 
     const projectIds    = userProjects.map((p) => p.id);
     const projectTitles = Object.fromEntries(
@@ -176,6 +174,14 @@ router.get('/me/notifications', authenticateToken, resolveSubject, async (req: a
       include: { likedBy: { select: { name: true } } },
     });
 
+    // Persisted notifications — admin broadcasts, direct messages, AI-review
+    // alerts (for admins). These replace what used to be separate emails.
+    const persisted = await prisma.notification.findMany({
+      where: { userId },
+      orderBy: { createdAt: 'desc' },
+      take: 20,
+    });
+
     const notifications = [
       ...recentComments.map((c) => ({
         id:        c.id,
@@ -193,6 +199,15 @@ router.get('/me/notifications', authenticateToken, resolveSubject, async (req: a
         projectId: l.projectId,
         createdAt: l.createdAt,
       })),
+      ...persisted.map((n) => ({
+        id:        n.id,
+        type:      n.type,
+        emoji:     n.emoji,
+        message:   n.message,
+        link:      n.link,
+        read:      n.read,
+        createdAt: n.createdAt,
+      })),
     ]
       .sort((a, b) =>
         new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
@@ -203,6 +218,27 @@ router.get('/me/notifications', authenticateToken, resolveSubject, async (req: a
   } catch (error) {
     logger.error(`GET /users/me/notifications: ${(error as Error).message}`);
     return res.status(500).json({ message: 'Failed to fetch notifications.' });
+  }
+});
+
+// ─── PUT /users/me/notifications/:id/read ─────────────────────────────────────
+// Marks one persisted notification (broadcast/direct/AI-alert) as read.
+// Comment/like feed items aren't stored notifications, so this only applies
+// to ids that actually exist in the Notification collection — silently
+// no-ops otherwise rather than erroring, since the caller can't easily tell
+// which kind of id it's holding.
+router.put('/me/notifications/:id/read', authenticateToken, async (req: any, res) => {
+  try {
+    const userId = req.user?.userId;
+    const { id } = req.params;
+    const result = await prisma.notification.updateMany({
+      where: { id, userId }, // userId check — can only mark your own as read
+      data: { read: true },
+    });
+    return res.json({ success: true, updated: result.count });
+  } catch (error) {
+    logger.error(`PUT /users/me/notifications/:id/read: ${(error as Error).message}`);
+    return res.status(500).json({ message: 'Failed to mark notification as read.' });
   }
 });
 

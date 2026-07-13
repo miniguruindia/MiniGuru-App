@@ -32,6 +32,12 @@ projectRouter.get('/categories/:categoryName/', categoryController_1.getProjects
 // MUST be registered before get('/:id') below (Rule 28) or Express will
 // match 'find-collaborator' as the :id param instead.
 projectRouter.get('/find-collaborator/:miniguruId', authMiddleware_1.authenticateToken, projectController_1.findCollaborator);
+// Public video feed for the home screen — reads from MiniGuru's own DB,
+// zero YouTube API calls (see getPublishedVideoFeed for why this replaced
+// the old direct-YouTube-API approach). No auth required — same content a
+// logged-out visitor could already see embedded from YouTube anyway.
+// MUST be registered before get('/:id') below (Rule 28).
+projectRouter.get('/feed', projectController_1.getPublishedVideoFeed);
 // Update a project
 projectRouter.put('/:id', authMiddleware_1.authenticateToken, validationMiddleware_1.validateProject, upload_1.uploadThumbnailAndVideoMiddleware, projectController_1.updateProject);
 projectRouter.get('/all', authMiddleware_1.authenticateToken, projectController_1.getAllProjects);

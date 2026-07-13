@@ -5,12 +5,8 @@ import { NotFoundError } from "../../utils/error";
 import { uploadThumbnail } from "../../middleware/upload";
 import logger from "../../logger";
 import { reviewVideoFile } from "../../services/aiVideoReviewService";
-import { publishAndAwardProject } from "../admin/videoApprovalController";
-import { sendEmail } from "../../services/emailService";
-
-// Admin inbox that gets alerted whenever the AI reviewer can't make a
-// confident call — kept as one constant so it's easy to change later.
-const AI_UNSURE_ALERT_EMAIL = "miniguru.in@gmail.com";
+import { publishAndAwardProject, extractYouTubeId } from "../admin/videoApprovalController";
+import { notifyAllAdmins } from "../../services/notificationService";
 
 // ✅ Import YouTube upload service (optional)
 let uploadToYouTube: any = null;
@@ -216,21 +212,19 @@ export const createProject = async (req: Request, res: Response) => {
       }
     } else if (aiReview.verdict === "UNSURE") {
       try {
-        await sendEmail({
-          to: AI_UNSURE_ALERT_EMAIL,
-          subject: `MiniGuru: AI review UNSURE — "${title}"`,
-          html: `
-            <p>The AI first-pass reviewer could not confidently APPROVE or REJECT a new project video.</p>
-            <p><strong>Project:</strong> ${title}</p>
-            <p><strong>Reason:</strong> ${aiReview.reason}</p>
-            <p><strong>Confidence:</strong> ${aiReview.confidence}</p>
-            <p>Please review it in the admin panel: <a href="https://admin.miniguru.in/videos">admin.miniguru.in/videos</a></p>
-          `,
+        // In-app notification, not email — admin already sees this project
+        // with its AI badge on admin.miniguru.in/videos; this just makes
+        // sure it doesn't sit unnoticed without adding to email quota.
+        await notifyAllAdmins({
+          type: "ai_review_unsure",
+          emoji: "🤔",
+          message: `AI review UNSURE on "${title}" — ${aiReview.reason}`,
+          link: "/videos",
         });
-      } catch (emailError) {
+      } catch (notifyError) {
         // Non-fatal — the project still sits correctly in the pending
-        // queue with its AI badge even if this alert email fails to send.
-        logger.warn(`Failed to send AI-UNSURE alert email (non-fatal): ${(emailError as Error).message}`);
+        // queue with its AI badge even if this in-app notification fails.
+        logger.warn(`Failed to create AI-UNSURE admin notification (non-fatal): ${(notifyError as Error).message}`);
       }
     }
 
@@ -342,6 +336,66 @@ export const getAllProjects = async (req: Request, res: Response) => {
     });
   } catch (error) {
     res.status(500).json({ error: (error as Error).message });
+  }
+};
+
+// GET /project/feed — public, no auth required
+//
+// Replaces the old approach of the Flutter app calling YouTube's own API
+// directly from the client (YouTubeService.getChannelVideos in
+// youtube_service.dart) to build the home screen's video list. That
+// approach had two real problems:
+//   1. It hit YouTube Data API v3 quota on EVERY home-screen load, by every
+//      user, with zero caching — burning the same shared 10,000 units/day
+//      pool that video uploads use, and silently falling back to a fake
+//      "placeholder" video list on any failure (network blip, quota hit,
+//      timeout) — this is what caused videos to intermittently not load or
+//      show placeholders "at times".
+//   2. It depended on YouTube's own playlist-indexing catching up after a
+//      video went Public, adding avoidable delay right after approval.
+//
+// This endpoint reads directly from MiniGuru's own database instead —
+// zero YouTube API calls, zero quota cost, always consistent the moment a
+// video is approved. Field names match exactly what home.dart already
+// expects from YouTubeService.getChannelVideos() (videoId, id, title,
+// description, channelTitle, viewCount, thumbnail) so the Flutter-side
+// change is just swapping which method is called, not the data shape.
+export const getPublishedVideoFeed = async (req: Request, res: Response) => {
+  try {
+    const limit = Math.min(50, parseInt(req.query.limit as string) || 50);
+
+    const projects = await prisma.project.findMany({
+      where: { status: "published" },
+      orderBy: { updatedAt: "desc" },
+      take: limit,
+      include: {
+        user: { select: { name: true } },
+      },
+    });
+
+    const videos = projects
+      .filter((p) => p.video?.url) // defensive — skip any malformed record rather than 500
+      .map((p) => {
+        const videoId = extractYouTubeId(p.video!.url);
+        return {
+          id: p.id,
+          projectId: p.id,
+          videoId,
+          title: p.title,
+          description: p.description,
+          channelTitle: p.user?.name || "MiniGuru Maker",
+          viewCount: 0, // view tracking lives in /api/videos/:id/views — not duplicated here
+          // Prefer our own stored thumbnail (set at upload time); fall back
+          // to YouTube's own free, no-API-call thumbnail CDN URL — never
+          // an empty/broken image.
+          thumbnail: p.thumbnail || `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`,
+        };
+      });
+
+    return res.status(200).json({ videos });
+  } catch (error) {
+    logger.error(`getPublishedVideoFeed error: ${(error as Error).message}`);
+    return res.status(500).json({ error: "Failed to load video feed." });
   }
 };
 

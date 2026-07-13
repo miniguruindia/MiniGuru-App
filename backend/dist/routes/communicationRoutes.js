@@ -9,6 +9,7 @@ const prismaClient_1 = __importDefault(require("../utils/prismaClient"));
 const logger_1 = __importDefault(require("../logger"));
 const authMiddleware_1 = require("../middleware/authMiddleware");
 const emailService_1 = require("../services/email/emailService");
+const notificationService_1 = require("../services/notificationService");
 const router = express_1.default.Router();
 const FROM_EMAIL = process.env.FROM_EMAIL || 'connect@miniguru.in';
 function htmlWrap(title, body) {
@@ -91,27 +92,42 @@ router.delete('/inbox/:id', authMiddleware_1.authenticateToken, authMiddleware_1
 });
 // ── ADMIN: POST /admin/communication/broadcast ─────────────────────────────
 // Send email to ALL users
+// ── ADMIN: POST /admin/communication/broadcast ──────────────────────────────
+// In-app notification to EVERY user by default — no email, no quota risk.
+// Pass alsoEmail: true to also send a real email to everyone (previous
+// version always emailed everyone AND had a bug where subject/message were
+// never actually included in the email body — fixed here too, in case
+// alsoEmail is ever used for something genuinely urgent).
 router.post('/broadcast', authMiddleware_1.authenticateToken, authMiddleware_1.authorizeAdmin, async (req, res) => {
     try {
-        const { subject, message, previewText } = req.body;
+        const { subject, message, alsoEmail } = req.body;
         if (!subject || !message)
             return res.status(400).json({ message: 'subject and message required' });
-        const users = await prismaClient_1.default.user.findMany({ select: { email: true, name: true } });
+        const users = await prismaClient_1.default.user.findMany({ select: { id: true, email: true, name: true } });
         if (users.length === 0)
             return res.status(400).json({ message: 'No users found' });
+        await (0, notificationService_1.notifyManyUsers)({
+            userIds: users.map((u) => u.id),
+            type: 'broadcast',
+            emoji: '📣',
+            message: `${subject} — ${message}`,
+        });
         let sent = 0;
         let failed = 0;
-        for (const user of users) {
-            try {
-                await (0, emailService_1.sendEmail)({ to: user.email, subject: "", html: "" });
-                sent++;
-            }
-            catch {
-                failed++;
+        if (alsoEmail === true) {
+            for (const user of users) {
+                try {
+                    await (0, emailService_1.sendEmail)({ to: user.email, subject, html: htmlWrap(subject, `<p>${message}</p>`) });
+                    sent++;
+                }
+                catch {
+                    failed++;
+                }
             }
         }
-        logger_1.default.info(`Broadcast: ${sent} sent, ${failed} failed`);
-        return res.json({ success: true, sent, failed, total: users.length });
+        logger_1.default.info(`Broadcast: ${users.length} in-app notifications created` +
+            (alsoEmail ? `, ${sent} emailed (${failed} failed)` : ' — no email sent (in-app only)'));
+        return res.json({ success: true, notified: users.length, emailed: sent, emailFailed: failed, total: users.length });
     }
     catch (error) {
         logger_1.default.error(`Broadcast error: ${error.message}`);
@@ -119,10 +135,11 @@ router.post('/broadcast', authMiddleware_1.authenticateToken, authMiddleware_1.a
     }
 });
 // ── ADMIN: POST /admin/communication/send ──────────────────────────────────
-// Send email to a specific user by userId or email
+// In-app notification to one user by default. Pass alsoEmail: true to also
+// send a real email (e.g. reaching someone who doesn't check the app often).
 router.post('/send', authMiddleware_1.authenticateToken, authMiddleware_1.authorizeAdmin, async (req, res) => {
     try {
-        const { userId, email: toEmail, subject, message } = req.body;
+        const { userId, email: toEmail, subject, message, alsoEmail } = req.body;
         if (!subject || !message)
             return res.status(400).json({ message: 'subject and message required' });
         if (!userId && !toEmail)
@@ -130,23 +147,33 @@ router.post('/send', authMiddleware_1.authenticateToken, authMiddleware_1.author
         let recipient = null;
         if (userId) {
             recipient = await prismaClient_1.default.user.findUnique({
-                where: { id: userId }, select: { email: true, name: true }
+                where: { id: userId }, select: { id: true, email: true, name: true }
             });
         }
         else {
             recipient = await prismaClient_1.default.user.findUnique({
-                where: { email: toEmail }, select: { email: true, name: true }
+                where: { email: toEmail }, select: { id: true, email: true, name: true }
             });
         }
         if (!recipient)
             return res.status(404).json({ message: 'User not found' });
-        await (0, emailService_1.sendEmail)({ to: recipient.email, subject: "", html: "" });
-        logger_1.default.info(`Direct email sent to ${recipient.email}`);
-        return res.json({ success: true, sentTo: recipient.email });
+        await (0, notificationService_1.notifyUser)({
+            userId: recipient.id,
+            type: 'direct',
+            emoji: '✉️',
+            message: `${subject} — ${message}`,
+        });
+        let emailed = false;
+        if (alsoEmail === true) {
+            await (0, emailService_1.sendEmail)({ to: recipient.email, subject, html: htmlWrap(subject, `<p>${message}</p>`) });
+            emailed = true;
+        }
+        logger_1.default.info(`Direct message sent to ${recipient.email} (in-app${emailed ? ' + email' : ' only'})`);
+        return res.json({ success: true, sentTo: recipient.email, emailed });
     }
     catch (error) {
         logger_1.default.error(`Direct send error: ${error.message}`);
-        return res.status(500).json({ message: 'Failed to send email' });
+        return res.status(500).json({ message: 'Failed to send message' });
     }
 });
 // ── ADMIN: GET /admin/communication/users ──────────────────────────────────

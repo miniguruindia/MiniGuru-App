@@ -5,6 +5,7 @@ import prisma from '../utils/prismaClient';
 import logger from '../logger';
 import { authenticateToken, authorizeAdmin } from '../middleware/authMiddleware';
 import { sendEmail } from '../services/email/emailService';
+import { notifyUser, notifyManyUsers } from '../services/notificationService';
 
 const router = express.Router();
 
@@ -90,23 +91,43 @@ router.delete('/inbox/:id', authenticateToken, authorizeAdmin, async (req, res) 
 
 // ── ADMIN: POST /admin/communication/broadcast ─────────────────────────────
 // Send email to ALL users
+// ── ADMIN: POST /admin/communication/broadcast ──────────────────────────────
+// In-app notification to EVERY user by default — no email, no quota risk.
+// Pass alsoEmail: true to also send a real email to everyone (previous
+// version always emailed everyone AND had a bug where subject/message were
+// never actually included in the email body — fixed here too, in case
+// alsoEmail is ever used for something genuinely urgent).
 router.post('/broadcast', authenticateToken, authorizeAdmin, async (req, res) => {
   try {
-    const { subject, message, previewText } = req.body;
+    const { subject, message, alsoEmail } = req.body;
     if (!subject || !message) return res.status(400).json({ message: 'subject and message required' });
 
-    const users = await prisma.user.findMany({ select: { email: true, name: true } });
+    const users = await prisma.user.findMany({ select: { id: true, email: true, name: true } });
     if (users.length === 0) return res.status(400).json({ message: 'No users found' });
 
-    let sent = 0; let failed = 0;
-    for (const user of users) {
-      try {
-        await sendEmail({ to: user.email, subject: "", html: "" });
-        sent++;
-      } catch { failed++; }
+    await notifyManyUsers({
+      userIds: users.map((u) => u.id),
+      type: 'broadcast',
+      emoji: '📣',
+      message: `${subject} — ${message}`,
+    });
+
+    let sent = 0;
+    let failed = 0;
+    if (alsoEmail === true) {
+      for (const user of users) {
+        try {
+          await sendEmail({ to: user.email, subject, html: htmlWrap(subject, `<p>${message}</p>`) });
+          sent++;
+        } catch { failed++; }
+      }
     }
-    logger.info(`Broadcast: ${sent} sent, ${failed} failed`);
-    return res.json({ success: true, sent, failed, total: users.length });
+
+    logger.info(
+      `Broadcast: ${users.length} in-app notifications created` +
+      (alsoEmail ? `, ${sent} emailed (${failed} failed)` : ' — no email sent (in-app only)')
+    );
+    return res.json({ success: true, notified: users.length, emailed: sent, emailFailed: failed, total: users.length });
   } catch (error) {
     logger.error(`Broadcast error: ${(error as Error).message}`);
     return res.status(500).json({ message: 'Broadcast failed' });
@@ -114,31 +135,43 @@ router.post('/broadcast', authenticateToken, authorizeAdmin, async (req, res) =>
 });
 
 // ── ADMIN: POST /admin/communication/send ──────────────────────────────────
-// Send email to a specific user by userId or email
+// In-app notification to one user by default. Pass alsoEmail: true to also
+// send a real email (e.g. reaching someone who doesn't check the app often).
 router.post('/send', authenticateToken, authorizeAdmin, async (req, res) => {
   try {
-    const { userId, email: toEmail, subject, message } = req.body;
+    const { userId, email: toEmail, subject, message, alsoEmail } = req.body;
     if (!subject || !message) return res.status(400).json({ message: 'subject and message required' });
     if (!userId && !toEmail) return res.status(400).json({ message: 'userId or email required' });
 
-    let recipient: { email: string; name: string } | null = null;
+    let recipient: { id: string; email: string; name: string } | null = null;
     if (userId) {
       recipient = await prisma.user.findUnique({
-        where: { id: userId }, select: { email: true, name: true }
+        where: { id: userId }, select: { id: true, email: true, name: true }
       });
     } else {
       recipient = await prisma.user.findUnique({
-        where: { email: toEmail }, select: { email: true, name: true }
+        where: { email: toEmail }, select: { id: true, email: true, name: true }
       });
     }
     if (!recipient) return res.status(404).json({ message: 'User not found' });
 
-    await sendEmail({ to: recipient.email, subject: "", html: "" });
-    logger.info(`Direct email sent to ${recipient.email}`);
-    return res.json({ success: true, sentTo: recipient.email });
+    await notifyUser({
+      userId: recipient.id,
+      type: 'direct',
+      emoji: '✉️',
+      message: `${subject} — ${message}`,
+    });
+
+    let emailed = false;
+    if (alsoEmail === true) {
+      await sendEmail({ to: recipient.email, subject, html: htmlWrap(subject, `<p>${message}</p>`) });
+      emailed = true;
+    }
+    logger.info(`Direct message sent to ${recipient.email} (in-app${emailed ? ' + email' : ' only'})`);
+    return res.json({ success: true, sentTo: recipient.email, emailed });
   } catch (error) {
     logger.error(`Direct send error: ${(error as Error).message}`);
-    return res.status(500).json({ message: 'Failed to send email' });
+    return res.status(500).json({ message: 'Failed to send message' });
   }
 });
 

@@ -4,6 +4,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.getAllDrafts = exports.rejectProject = exports.approveProject = exports.ApprovalError = exports.getPendingProjects = void 0;
+exports.extractYouTubeId = extractYouTubeId;
 exports.publishAndAwardProject = publishAndAwardProject;
 const prismaClient_1 = __importDefault(require("../../utils/prismaClient"));
 const logger_1 = __importDefault(require("../../logger"));

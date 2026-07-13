@@ -1,5 +1,6 @@
 // lib/screens/navScreen/home.dart
 import 'package:flutter/material.dart';
+import 'package:flutter/gestures.dart';
 import 'package:miniguru/models/User.dart';
 import 'package:miniguru/network/MiniguruApi.dart';
 import 'package:miniguru/screens/loginScreen.dart';
@@ -8,6 +9,22 @@ import 'package:miniguru/services/youtube_service.dart';
 import 'package:miniguru/screens/unifiedVideoPlayer.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:url_launcher/url_launcher.dart';
+
+// Flutter Web only allows touch/trackpad swipe on horizontal lists by
+// default — a plain desktop/laptop mouse (no trackpad) has literally no
+// way to drag a horizontal ListView, which is exactly why "Continue
+// Watching" / "For You" rows looked unscrollable with cut-off thumbnails
+// and no visible way to see the rest. This makes mouse click-drag work too.
+class _MouseDragScrollBehavior extends MaterialScrollBehavior {
+  @override
+  Set<PointerDeviceKind> get dragDevices => {
+        PointerDeviceKind.touch,
+        PointerDeviceKind.mouse,
+        PointerDeviceKind.trackpad,
+        PointerDeviceKind.stylus,
+        PointerDeviceKind.unknown,
+      };
+}
 
 class Home extends StatefulWidget {
   const Home({super.key});
@@ -79,7 +96,14 @@ class _HomeState extends State<Home> {
   Future<void> _loadYouTubeVideos() async {
     setState(() => _isLoadingVideos = true);
     try {
-      final videos = await YouTubeService.getChannelVideos(maxResults: 50);
+      // Sourced from MiniGuru's own database now — GET /project/feed —
+      // not a live YouTube API call. See MiniguruApi.getVideoFeed() /
+      // getPublishedVideoFeed() (backend) for why this replaced the old
+      // YouTubeService.getChannelVideos() approach: that call hit YouTube's
+      // quota on every single home load with zero caching, and silently
+      // fell back to fake placeholder videos on any failure — which is
+      // what caused videos to intermittently not load or show placeholders.
+      final videos = await _miniguruApi.getVideoFeed(limit: 50);
       if (mounted) {
         setState(() {
           _allVideos = videos;
@@ -357,53 +381,107 @@ class _HomeState extends State<Home> {
   Widget _buildContinueWatching() {
     if (_filteredVideos.isEmpty) return const SizedBox.shrink();
     return _buildHorizontalSection(
-        'Continue Watching', _filteredVideos.take(5).toList(), height: 180, cardWidth: 280);
+        'Continue Watching', _filteredVideos.take(5).toList(),
+        fullList: _filteredVideos, height: 180, cardWidth: 280);
   }
 
   Widget _buildForYou() {
     if (_filteredVideos.length < 6) return const SizedBox.shrink();
     return _buildHorizontalSection(
-        'For You', _filteredVideos.skip(5).take(5).toList(), height: 140, cardWidth: 120);
+        'For You', _filteredVideos.skip(5).take(5).toList(),
+        fullList: _filteredVideos.skip(5).toList(), height: 140, cardWidth: 120);
   }
 
   Widget _buildTrendingNow() {
     if (_filteredVideos.length < 11) return const SizedBox.shrink();
     return _buildHorizontalSection(
         '🔥 Trending Now', _filteredVideos.skip(10).take(5).toList(),
-        height: 140, cardWidth: 120);
+        fullList: _filteredVideos.skip(10).toList(), height: 140, cardWidth: 120);
+  }
+
+  // Full-screen "See All" grid — reused by every horizontal section.
+  void _openSeeAll(String title, List<Map<String, dynamic>> videos) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => Scaffold(
+          appBar: AppBar(
+            title: Text(title, style: GoogleFonts.nunito(fontWeight: FontWeight.w800)),
+            backgroundColor: Colors.white,
+            foregroundColor: Colors.black87,
+            elevation: 0.5,
+          ),
+          backgroundColor: Colors.white,
+          body: GridView.builder(
+            padding: const EdgeInsets.all(16),
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 2,
+              crossAxisSpacing: 12,
+              mainAxisSpacing: 12,
+              mainAxisExtent: 210,
+            ),
+            itemCount: videos.length,
+            itemBuilder: (_, i) {
+              final vid = videos[i];
+              final vidId = vid['videoId']?.toString() ?? '';
+              if (vidId.isNotEmpty && !_fetchedMaterials.contains(vidId)) {
+                _fetchVideoMaterials(vidId);
+              }
+              return _buildVideoCard(vid, width: double.infinity);
+            },
+          ),
+        ),
+      ),
+    );
   }
 
   Widget _buildHorizontalSection(
     String title,
     List<Map<String, dynamic>> videos, {
+    required List<Map<String, dynamic>> fullList,
     required double height,
     required double cardWidth,
   }) {
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16),
-        child: Text(title,
-            style: GoogleFonts.nunito(
-                fontSize: 18, fontWeight: FontWeight.w800, color: Colors.black87)),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(title,
+                style: GoogleFonts.nunito(
+                    fontSize: 18, fontWeight: FontWeight.w800, color: Colors.black87)),
+            if (fullList.length > videos.length)
+              TextButton(
+                onPressed: () => _openSeeAll(title, fullList),
+                child: Text('See All →',
+                    style: GoogleFonts.nunito(
+                        fontSize: 12, color: const Color(0xFF3B82F6))),
+              ),
+          ],
+        ),
       ),
       const SizedBox(height: 12),
       SizedBox(
         height: height,
-        child: ListView.builder(
-          scrollDirection: Axis.horizontal,
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          itemCount: videos.length,
-          itemBuilder: (_, i) {
-            // Lazily fetch materials when card is built
-            final vid = videos[i];
-            final vidId = vid['videoId']?.toString() ?? '';
-            if (vidId.isNotEmpty && !_fetchedMaterials.contains(vidId)) {
-              _fetchVideoMaterials(vidId);
-            }
-            return cardWidth >= 200
-                ? _buildVideoCard(vid, width: cardWidth)
-                : _buildSmallVideoCard(vid);
-          },
+        child: ScrollConfiguration(
+          behavior: _MouseDragScrollBehavior(),
+          child: ListView.builder(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            itemCount: videos.length,
+            itemBuilder: (_, i) {
+              // Lazily fetch materials when card is built
+              final vid = videos[i];
+              final vidId = vid['videoId']?.toString() ?? '';
+              if (vidId.isNotEmpty && !_fetchedMaterials.contains(vidId)) {
+                _fetchVideoMaterials(vidId);
+              }
+              return cardWidth >= 200
+                  ? _buildVideoCard(vid, width: cardWidth)
+                  : _buildSmallVideoCard(vid);
+            },
+          ),
         ),
       ),
     ]);
@@ -587,7 +665,7 @@ class _HomeState extends State<Home> {
                     fontWeight: FontWeight.w700,
                     color: Colors.black87)),
             TextButton(
-              onPressed: () {},
+              onPressed: () => _openSeeAll('Featured', _filteredVideos),
               child: Text('See All →',
                   style: GoogleFonts.nunito(
                       fontSize: 12, color: const Color(0xFF3B82F6))),
@@ -857,10 +935,13 @@ class _HomeState extends State<Home> {
           const SizedBox(height: 8),
           SizedBox(
             height: 74,
-            child: ListView.builder(
-              scrollDirection: Axis.horizontal,
-              itemCount: materials.length,
-              itemBuilder: (_, i) => _buildMaterialChip(materials[i]),
+            child: ScrollConfiguration(
+              behavior: _MouseDragScrollBehavior(),
+              child: ListView.builder(
+                scrollDirection: Axis.horizontal,
+                itemCount: materials.length,
+                itemBuilder: (_, i) => _buildMaterialChip(materials[i]),
+              ),
             ),
           ),
         ],
