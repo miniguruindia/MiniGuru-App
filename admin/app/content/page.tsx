@@ -7,7 +7,7 @@ import { Card } from '@/components/ui/card'
 import {
   Save, RefreshCw, CheckCircle, AlertCircle, Globe, Users,
   BookOpen, Shield, FileText, Baby, ChevronDown, ChevronUp,
-  Plus, Trash2, Edit3, HelpCircle
+  Plus, Trash2, Edit3, HelpCircle, Video
 } from 'lucide-react'
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || ''
@@ -33,7 +33,7 @@ async function saveContent(key: string, value: any) {
   return res.json()
 }
 
-type Tab = 'community' | 'about' | 'consultancy' | 'legal' | 'faq'
+type Tab = 'community' | 'about' | 'consultancy' | 'legal' | 'faq' | 'external'
 
 const TABS: { id: Tab; label: string; icon: React.ReactNode; color: string }[] = [
   { id: 'community',   label: 'Community',   icon: <Globe       className="h-4 w-4" />, color: 'blue'   },
@@ -41,6 +41,7 @@ const TABS: { id: Tab; label: string; icon: React.ReactNode; color: string }[] =
   { id: 'consultancy', label: 'Consultancy', icon: <BookOpen    className="h-4 w-4" />, color: 'green'  },
   { id: 'legal',       label: 'Legal',       icon: <Shield      className="h-4 w-4" />, color: 'red'    },
   { id: 'faq',         label: 'FAQ & Help',  icon: <HelpCircle  className="h-4 w-4" />, color: 'indigo' },
+  { id: 'external',    label: 'Outside Videos', icon: <Video   className="h-4 w-4" />, color: 'pink'   },
 ]
 
 const inp = "w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -430,6 +431,75 @@ function FaqEditor({ data, onChange }: {
   )
 }
 
+// ── EXTERNAL / OUTSIDE VIDEOS ───────────────────────────────────────────────
+// "More Ideas From Outside" row on the home screen — admin-curated videos
+// NOT uploaded through the MiniGuru app (pre-app MiniGuru content, or other
+// inspiring project videos). Kept clearly separate from the app-uploaded
+// student video feed, which is sourced from Project records, not this.
+function ExternalVideosEditor({ data, onChange }: { data: any; onChange: (d: any) => void }) {
+  const videos: any[] = data?.videos || []
+
+  const extractVideoId = (input: string): string => {
+    const trimmed = input.trim()
+    // Accept a bare video ID (11 chars, no slashes) OR a full URL
+    if (/^[a-zA-Z0-9_-]{11}$/.test(trimmed)) return trimmed
+    const match = trimmed.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/)
+    return match ? match[1] : trimmed
+  }
+
+  const addVideo = () => {
+    onChange({
+      ...data,
+      videos: [...videos, { videoId: '', title: '', description: '', addedAt: new Date().toISOString().slice(0, 10) }],
+    })
+  }
+  const updateVideo = (i: number, field: string, val: string) => {
+    const next = [...videos]
+    next[i] = { ...next[i], [field]: field === 'videoId' ? extractVideoId(val) : val }
+    onChange({ ...data, videos: next })
+  }
+  const removeVideo = (i: number) => {
+    onChange({ ...data, videos: videos.filter((_, idx) => idx !== i) })
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="p-4 bg-pink-50 border border-pink-100 rounded-xl text-sm text-pink-700">
+        <p className="font-semibold mb-1">💡 What this is for</p>
+        <p>Videos shown in a separate "More Ideas From Outside" row on the home screen — clearly
+           distinct from student-uploaded projects. Good for pre-app MiniGuru content, or any
+           inspiring project video you want to showcase that wasn't uploaded through the app.</p>
+      </div>
+      <SectionCard title={`Outside Videos (${videos.length})`}>
+        {videos.map((v, i) => (
+          <div key={i} className="p-4 border border-gray-100 rounded-lg space-y-3 relative">
+            <button onClick={() => removeVideo(i)} className="absolute top-3 right-3 text-red-400 hover:text-red-600">
+              <Trash2 className="h-4 w-4" />
+            </button>
+            <Field label="YouTube video ID or full URL" hint="Paste either — a full youtube.com/youtu.be link or just the 11-character ID">
+              <input className={inp} placeholder="e.g. dQw4w9WgXcQ or https://youtu.be/dQw4w9WgXcQ"
+                value={v.videoId || ''} onChange={e => updateVideo(i, 'videoId', e.target.value)} />
+            </Field>
+            {v.videoId && /^[a-zA-Z0-9_-]{11}$/.test(v.videoId) && (
+              <img src={`https://img.youtube.com/vi/${v.videoId}/hqdefault.jpg`} alt="thumbnail preview"
+                className="h-24 rounded border border-gray-200" />
+            )}
+            <Field label="Title">
+              <input className={inp} value={v.title || ''} onChange={e => updateVideo(i, 'title', e.target.value)} />
+            </Field>
+            <Field label="Description">
+              <textarea className={ta} rows={2} value={v.description || ''} onChange={e => updateVideo(i, 'description', e.target.value)} />
+            </Field>
+          </div>
+        ))}
+        <button onClick={addVideo} className="flex items-center gap-1 text-sm text-pink-600 font-medium">
+          <Plus className="h-4 w-4" /> Add outside video
+        </button>
+      </SectionCard>
+    </div>
+  )
+}
+
 // ── MAIN PAGE ─────────────────────────────────────────────────────────────────
 export default function ContentPage() {
   const [activeTab,   setActiveTab]   = useState<Tab>('community')
@@ -446,6 +516,7 @@ export default function ContentPage() {
   const [childSafety, setChildSafety] = useState('')
   const [cookie,      setCookie]      = useState('')
   const [faqs,        setFaqs]        = useState<{id:string; question:string; answer:string}[]>([])
+  const [externalVideos, setExternalVideos] = useState<any>({ videos: [] })
 
   const flash = (msg: string, isError = false) => {
     if (isError) { setError(msg); setTimeout(() => setError(''), 5000) }
@@ -455,10 +526,10 @@ export default function ContentPage() {
   const loadAll = useCallback(async () => {
     setLoading(true); setError('')
     try {
-      const [c, a, co, p, t, cs, ck, faqData] = await Promise.all([
+      const [c, a, co, p, t, cs, ck, faqData, ext] = await Promise.all([
         fetchContent('community'), fetchContent('about'), fetchContent('consultancy'),
         fetchContent('legal_privacy'), fetchContent('legal_terms'), fetchContent('legal_child_safety'),
-        fetchContent('legal_cookie'), fetchContent('faq'),
+        fetchContent('legal_cookie'), fetchContent('faq'), fetchContent('external_videos'),
       ])
       setCommunity(c); setAbout(a); setConsultancy(co)
       setPrivacy(typeof p === 'string' ? p : JSON.stringify(p, null, 2))
@@ -466,6 +537,7 @@ export default function ContentPage() {
       setChildSafety(typeof cs === 'string' ? cs : JSON.stringify(cs, null, 2))
       setCookie(typeof ck === 'string' ? ck : JSON.stringify(ck, null, 2))
       setFaqs(faqData?.items || [])
+      setExternalVideos(ext || { videos: [] })
     } catch { flash('Could not load from backend — showing defaults', true) }
     finally { setLoading(false) }
   }, [])
@@ -487,6 +559,7 @@ export default function ContentPage() {
         ])
       }
       if (activeTab === 'faq') await saveContent('faq', { items: faqs })
+      if (activeTab === 'external') await saveContent('external_videos', externalVideos)
       setLastSaved(prev => ({ ...prev, [activeTab]: new Date().toLocaleTimeString('en-IN') }))
       flash(`${activeTab.charAt(0).toUpperCase() + activeTab.slice(1)} saved ✅`)
     } catch { flash('Save failed — check backend connection', true) }
@@ -499,6 +572,7 @@ export default function ContentPage() {
     consultancy: 'bg-green-600',
     legal:       'bg-red-600',
     faq:         'bg-indigo-600',
+    external:    'bg-pink-600',
   }
   const tabActive: Record<Tab, string> = {
     community:   'bg-blue-600 text-white border-transparent',
@@ -506,6 +580,7 @@ export default function ContentPage() {
     consultancy: 'bg-green-600 text-white border-transparent',
     legal:       'bg-red-600 text-white border-transparent',
     faq:         'bg-indigo-600 text-white border-transparent',
+    external:    'bg-pink-600 text-white border-transparent',
   }
 
   return (
@@ -555,6 +630,7 @@ export default function ContentPage() {
               onChangePrivacy={setPrivacy} onChangeTerms={setTerms}
               onChangeChildSafety={setChildSafety} onChangeCookie={setCookie} />}
             {activeTab === 'faq'         && <FaqEditor data={faqs} onChange={setFaqs} />}
+            {activeTab === 'external'    && <ExternalVideosEditor data={externalVideos} onChange={setExternalVideos} />}
           </>
         )}
 

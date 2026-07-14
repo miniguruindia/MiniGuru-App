@@ -775,7 +775,12 @@ class _AddDraftScreenState extends State<AddDraftScreen>
     if (!mounted) return;
     setState(() => _collabSearching = false);
     if (result == null) {
-      _showSnack('No MiniGuru account found with that ID.', isError: true);
+      _showSnack(
+        "Couldn't find that account. Ask your friend to open their own "
+        "Profile page, tap their MiniGuru ID to copy it, and send you the "
+        "exact text — it's easy to mistype or misremember.",
+        isError: true,
+      );
       return;
     }
     final id = result['id'] as String;

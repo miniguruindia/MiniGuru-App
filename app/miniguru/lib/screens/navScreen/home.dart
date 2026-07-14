@@ -56,12 +56,17 @@ class _HomeState extends State<Home> {
 
   List<Map<String, dynamic>> _allVideos = [];
   List<Map<String, dynamic>> _filteredVideos = [];
+  // Admin-curated videos NOT uploaded through the app (e.g. pre-app MiniGuru
+  // content) — shown in a clearly separate "More Ideas From Outside" row.
+  // Sourced from CMS key 'external_videos', edited via admin.miniguru.in/content.
+  List<Map<String, dynamic>> _externalVideos = [];
 
   @override
   void initState() {
     super.initState();
     _checkAuthAndLoadData();
     _loadYouTubeVideos();
+    _loadExternalVideos();
   }
 
   @override
@@ -116,6 +121,44 @@ class _HomeState extends State<Home> {
     } catch (e) {
       if (mounted) setState(() => _isLoadingVideos = false);
     }
+  }
+
+  // "More Ideas From Outside" — admin-curated videos not uploaded through
+  // the app. CMS-driven, edited via admin.miniguru.in/content → Outside
+  // Videos tab. Falls back to an empty list silently on any error — this
+  // row just doesn't show rather than breaking the rest of the home screen.
+  Future<void> _loadExternalVideos() async {
+    try {
+      final content = await _miniguruApi.getCmsContent('external_videos');
+      final rawList = content?['videos'];
+      if (rawList is! List) return;
+      if (mounted) {
+        setState(() {
+          _externalVideos = rawList.map<Map<String, dynamic>>((v) {
+            final videoId = v['videoId']?.toString() ?? '';
+            return {
+              'id': videoId,
+              'projectId': videoId,
+              'videoId': videoId,
+              'title': v['title']?.toString() ?? '',
+              'description': v['description']?.toString() ?? '',
+              'channelTitle': 'MiniGuru',
+              'viewCount': 0,
+              'thumbnail': 'https://img.youtube.com/vi/$videoId/hqdefault.jpg',
+            };
+          }).where((v) => (v['videoId'] as String).isNotEmpty).toList();
+        });
+      }
+    } catch (_) {
+      // Silent — this row is optional; the rest of the home screen must not break.
+    }
+  }
+
+  Widget _buildMoreIdeasFromOutside() {
+    if (_externalVideos.isEmpty) return const SizedBox.shrink();
+    return _buildHorizontalSection(
+        '💡 More Ideas From Outside', _externalVideos.take(5).toList(),
+        fullList: _externalVideos, height: 140, cardWidth: 120);
   }
 
   /// Fetch materials for a list of videos without blocking UI
@@ -303,6 +346,8 @@ class _HomeState extends State<Home> {
         _buildForYou(),
         const SizedBox(height: 24),
         _buildTrendingNow(),
+        const SizedBox(height: 24),
+        _buildMoreIdeasFromOutside(),
         const SizedBox(height: 24),
       ]),
     );

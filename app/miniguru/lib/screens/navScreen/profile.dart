@@ -4,6 +4,7 @@
 import 'dart:convert';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:miniguru/screens/legalScreen.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
@@ -661,10 +662,33 @@ class _ProfileState extends State<Profile>
                         fontSize: 20, fontWeight: FontWeight.w900,
                         color: Colors.white)),
                 const SizedBox(height: 2),
-                Text(email,
-                    style: GoogleFonts.nunito(
-                        fontSize: 12,
-                        color: Colors.white.withOpacity(0.8))),
+                // Tappable to copy — friends need this EXACT string to add
+                // each other as project collaborators, and the ID format
+                // varies (self-registered vs mentor-added vs school bulk
+                // registration all generate different-looking IDs), so
+                // reading it off by memory/verbally is error-prone.
+                InkWell(
+                  onTap: () {
+                    Clipboard.setData(ClipboardData(text: email));
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('MiniGuru ID copied — share it with a friend to team up on a project!'),
+                        duration: Duration(seconds: 2),
+                      ),
+                    );
+                  },
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(email,
+                          style: GoogleFonts.nunito(
+                              fontSize: 12,
+                              color: Colors.white.withOpacity(0.8))),
+                      const SizedBox(width: 4),
+                      Icon(Icons.copy_rounded, size: 12, color: Colors.white.withOpacity(0.8)),
+                    ],
+                  ),
+                ),
                 if (_user?.age != null) ...[
                   const SizedBox(height: 6),
                   Container(

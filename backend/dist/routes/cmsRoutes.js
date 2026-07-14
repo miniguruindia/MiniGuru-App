@@ -85,6 +85,17 @@ const DEFAULTS = {
         ]
     },
     // ── END NEW ────────────────────────────────────────────────────────────────
+    // "More Ideas From Outside" — admin-curated videos NOT uploaded through the
+    // MiniGuru app (e.g. pre-app MiniGuru content, inspiring project videos
+    // found elsewhere). Shown as a separate labeled row on the home screen,
+    // clearly distinct from the app-uploaded student video feed. Each entry
+    // just needs a YouTube video ID — thumbnail is derived automatically from
+    // YouTube's free thumbnail CDN (img.youtube.com), no API call needed.
+    external_videos: {
+        videos: [
+        // { videoId: 'dQw4w9WgXcQ', title: 'Example title', description: 'Example description', addedAt: '2026-07-01' },
+        ],
+    },
 };
 // Public GET
 router.get('/:key', async (req, res) => {
