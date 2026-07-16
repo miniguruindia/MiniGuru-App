@@ -1,11 +1,12 @@
 class Draft {
-  int? id; // 👈 removed 'final' so it can be updated
+  int? id;
   final String title;
   final String description;
   final DateTime? startDate;
   final DateTime? endDate;
   final String category;
   final Map<String, int> materials;
+  final String? childKey; // NEW — which child (or 'self') this draft belongs to
 
   Draft({
     this.id,
@@ -15,6 +16,7 @@ class Draft {
     this.endDate,
     required this.category,
     required this.materials,
+    this.childKey,
   });
 
   Map<String, dynamic> toMap() {
@@ -26,6 +28,7 @@ class Draft {
       'endDate': endDate?.toIso8601String(),
       'category': category,
       'materials': materials.isNotEmpty ? _serializeMaterials(materials) : null,
+      'childKey': childKey,
     };
   }
 
@@ -38,6 +41,7 @@ class Draft {
           map['startDate'] != null ? DateTime.parse(map['startDate']) : null,
       endDate: map['endDate'] != null ? DateTime.parse(map['endDate']) : null,
       category: map['category'],
+      childKey: map['childKey'],
       materials: map['materials'] != null
           ? _deserializeMaterials(map['materials'])
           : {},

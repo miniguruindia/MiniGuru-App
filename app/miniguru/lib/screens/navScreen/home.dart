@@ -545,6 +545,8 @@ class _HomeState extends State<Home> {
         const SizedBox(height: 24),
         _buildAllProjects(),
         const SizedBox(height: 24),
+        _buildMoreIdeasFromOutside(),
+        const SizedBox(height: 24),
       ]),
     );
   }

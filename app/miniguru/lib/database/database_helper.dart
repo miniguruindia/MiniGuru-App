@@ -70,6 +70,14 @@ class DatabaseHelper {
           await _createGoinsTables(db);
         }
       },
+      onOpen: (db) async {
+        // Safe additive migration for existing SQLite installs (mobile only —
+        // web never reaches this file's SQLite path at all). Ignored if the
+        // column already exists.
+        try {
+          await db.execute('ALTER TABLE drafts ADD COLUMN childKey TEXT');
+        } catch (_) {}
+      },
     );
   }
 
@@ -163,7 +171,8 @@ class DatabaseHelper {
         startDate TEXT,
         endDate TEXT,
         category TEXT NOT NULL,
-        materials TEXT
+        materials TEXT,
+        childKey TEXT
       )
     ''');
     await _createGoinsTables(db);

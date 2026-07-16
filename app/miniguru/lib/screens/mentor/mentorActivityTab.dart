@@ -7,7 +7,8 @@ import 'package:miniguru/network/MiniguruApi.dart';
 import 'package:miniguru/models/User.dart';
 import 'package:miniguru/repository/projectRepository.dart';
 import 'package:miniguru/screens/projectDetailsScreen.dart';
-import 'package:miniguru/screens/uploadVideoScreen.dart';
+import 'package:miniguru/repository/draftsRepository.dart';
+import 'package:miniguru/screens/addDraftScreen.dart';
 import 'package:miniguru/state/sessionState.dart';
 import 'package:miniguru/screens/homeScreen.dart';
 import 'package:miniguru/screens/mentor/goinsTopUpRequestsScreen.dart';
@@ -22,6 +23,7 @@ class MentorActivityTab extends StatefulWidget {
 class _MentorActivityTabState extends State<MentorActivityTab> {
   late MiniguruApi _api;
   late ProjectRepository _projectRepo;
+  final _draftRepo = DraftRepository();
   List<ChildProfile> _children = [];
   List<Project> _projects = [];
   User? _user;
@@ -71,6 +73,7 @@ class _MentorActivityTabState extends State<MentorActivityTab> {
 
   void _showUploadDialog() {
     final Set<String> selected = {};
+    String searchQuery = '';
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -107,6 +110,20 @@ class _MentorActivityTabState extends State<MentorActivityTab> {
                   style: GoogleFonts.nunito(
                       fontSize: 13, color: Colors.grey[500])),
               const SizedBox(height: 16),
+              TextField(
+                onChanged: (q) => setSheet(() => searchQuery = q),
+                decoration: InputDecoration(
+                  hintText: 'Search learner by name...',
+                  prefixIcon: const Icon(Icons.search, size: 20),
+                  filled: true,
+                  fillColor: Colors.grey[50],
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide.none,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
               Expanded(
                 child: _children.isEmpty
                     ? Padding(
@@ -114,10 +131,26 @@ class _MentorActivityTabState extends State<MentorActivityTab> {
                         child: Text('No children added yet.',
                             style: GoogleFonts.nunito(color: Colors.grey[400])),
                       )
-                    : ListView.builder(
-                        itemCount: _children.length,
+                    : Builder(builder: (context) {
+                        final visibleChildren = searchQuery.isEmpty
+                            ? _children
+                            : _children
+                                .where((c) => c.name
+                                    .toLowerCase()
+                                    .contains(searchQuery.toLowerCase()))
+                                .toList();
+                        if (visibleChildren.isEmpty) {
+                          return Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            child: Text('No learner matches "$searchQuery".',
+                                style:
+                                    GoogleFonts.nunito(color: Colors.grey[400])),
+                          );
+                        }
+                        return ListView.builder(
+                        itemCount: visibleChildren.length,
                         itemBuilder: (context, index) {
-                          final child = _children[index];
+                          final child = visibleChildren[index];
                           final isSelected = selected.contains(child.id);
                           return GestureDetector(
                             onTap: () => setSheet(() {
@@ -197,7 +230,8 @@ class _MentorActivityTabState extends State<MentorActivityTab> {
                             ),
                           );
                         },
-                      ),
+                        );
+                      }),
               ),
               const SizedBox(height: 16),
               SizedBox(
@@ -233,17 +267,71 @@ class _MentorActivityTabState extends State<MentorActivityTab> {
     );
   }
 
-  void _proceedToUpload(List<String> childIds) {
-    // Set session to first selected child, then navigate to upload
+  Future<void> _proceedToUpload(List<String> childIds) async {
+    // Set session to first selected child
     final child = _children.firstWhere((c) => childIds.contains(c.id));
     SessionState.setChild(child.id, child.name, child.avatar);
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => const UploadVideoScreen()),
-    ).then((_) {
+
+    // Offer this child's existing local drafts (if any exist on THIS
+    // device) alongside starting a fresh project. Drafts are local-storage
+    // only and never synced to the backend, so this only finds drafts the
+    // child made on this same device/browser.
+    final drafts = await _draftRepo.getDrafts(childKey: child.id);
+
+    if (!mounted) {
       SessionState.clearChild();
-      _loadData();
-    });
+      return;
+    }
+
+    final choice = await showModalBottomSheet<int?>(
+      context: context,
+      isScrollControlled: true,
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            Text('Upload for ${child.name}',
+                style:
+                    GoogleFonts.nunito(fontSize: 18, fontWeight: FontWeight.w900)),
+            const SizedBox(height: 12),
+            ListTile(
+              leading: const Icon(Icons.add_circle_outline),
+              title: const Text('Start a new project'),
+              onTap: () => Navigator.pop(ctx, -1),
+            ),
+            if (drafts.isNotEmpty) const Divider(),
+            if (drafts.isNotEmpty)
+              Text('Or continue an existing draft on this device:',
+                  style: GoogleFonts.nunito(fontSize: 12, color: Colors.grey[500])),
+            ...drafts.map((d) => ListTile(
+                  leading: const Icon(Icons.description_outlined),
+                  title: Text(d.title),
+                  subtitle: Text(d.category),
+                  onTap: () => Navigator.pop(ctx, d.id),
+                )),
+          ]),
+        ),
+      ),
+    );
+
+    if (choice == null) {
+      SessionState.clearChild();
+      return;
+    }
+
+    if (!mounted) {
+      SessionState.clearChild();
+      return;
+    }
+
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => AddDraftScreen(draftId: choice == -1 ? null : choice),
+      ),
+    );
+    SessionState.clearChild();
+    _loadData();
   }
 
   @override

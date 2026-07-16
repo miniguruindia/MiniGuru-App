@@ -7,6 +7,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:miniguru/state/sessionState.dart';
 import 'package:http/http.dart' as http;
 import 'package:miniguru/models/MaterialItem.dart';
 import 'package:miniguru/models/ProjectCategory.dart';
@@ -270,6 +271,9 @@ class _AddDraftScreenState extends State<AddDraftScreen>
         startDate:   _startDate,
         endDate:     _endDate,
         materials:   materialsMap,
+        childKey:    SessionState.isChildSession
+            ? SessionState.activeChildProfileId
+            : 'self',
       );
       _showSnack('Saved as draft! ✅');
       if (mounted) {

@@ -14,7 +14,8 @@ class DraftRepository {
       {String? videoId,
       Map<String, int>? materials,
       DateTime? startDate,
-      DateTime? endDate}) async {
+      DateTime? endDate,
+      String? childKey}) async {
     final draft = Draft(
       title: title,
       description: description,
@@ -22,12 +23,19 @@ class DraftRepository {
       materials: materials ?? {},
       startDate: startDate,
       endDate: endDate,
+      childKey: childKey,
     );
     return await _db.insertDraft(draft);
   }
 
-  Future<List<Draft>> getDrafts() async {
-    return await _db.drafts();
+  /// Pass [childKey] to only get drafts tagged for a specific child (or
+  /// 'self' for the logged-in user's own drafts). Drafts saved before this
+  /// tagging existed have no childKey yet and are always included, rather
+  /// than silently disappearing.
+  Future<List<Draft>> getDrafts({String? childKey}) async {
+    final all = await _db.drafts();
+    if (childKey == null) return all;
+    return all.where((d) => d.childKey == childKey || d.childKey == null).toList();
   }
 
   Future<void> updateDraft(
@@ -35,7 +43,8 @@ class DraftRepository {
       {String? videoId,
       Map<String, int>? materials,
       DateTime? startDate,
-      DateTime? endDate}) async {
+      DateTime? endDate,
+      String? childKey}) async {
     final draft = Draft(
       id: id,
       title: title,
@@ -44,6 +53,7 @@ class DraftRepository {
       materials: materials ?? {},
       startDate: startDate,
       endDate: endDate,
+      childKey: childKey,
     );
     await _db.updateDraft(draft);
   }
@@ -59,13 +69,20 @@ class DraftRepository {
       required String category,
       Map<String, int>? materials,
       DateTime? startDate,
-      DateTime? endDate}) async {
+      DateTime? endDate,
+      String? childKey}) async {
     if (id == null) {
       return await saveDraft(title, description, category,
-          materials: materials, startDate: startDate, endDate: endDate);
+          materials: materials,
+          startDate: startDate,
+          endDate: endDate,
+          childKey: childKey);
     } else {
       await updateDraft(id, title, description, category,
-          materials: materials, startDate: startDate, endDate: endDate);
+          materials: materials,
+          startDate: startDate,
+          endDate: endDate,
+          childKey: childKey);
       return -1;
     }
   }
@@ -78,13 +95,13 @@ class DraftRepository {
       Map<String, dynamic> project, XFile video, XFile? thumbnail) async {
     final data = transformProject(project);
     final response = await _api.uploadProjectWithMedia(data, video, thumbnail);
-    
-    // ✅ NULL SAFETY FIX
+
+    // NULL SAFETY FIX
     if (response != null && response.statusCode == 201) {
       jsonDecode(response.body);
       return response.statusCode;
     } else {
-      print('❌ Failed to upload project: ${response?.statusCode}');
+      print('Failed to upload project: ${response?.statusCode}');
       throw Exception("Error uploading video");
     }
   }
