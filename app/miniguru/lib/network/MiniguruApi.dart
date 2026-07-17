@@ -366,7 +366,19 @@ class MiniguruApi {
       request.fields['collaboratorIds'] = jsonEncode(data['collaboratorIds']);
     }
 
-    request.headers.addAll(_buildHeaders(authToken.accessToken));
+    // IMPORTANT: do NOT include our own 'Content-Type' header here.
+    // MultipartRequest sets its own Content-Type (with a unique boundary
+    // marker) right before sending. _buildHeaders() always includes
+    // 'Content-Type': 'application/json' — harmless for normal requests,
+    // but on a MultipartRequest it becomes a SECOND, conflicting
+    // Content-Type header (Dart Maps are case-sensitive, so 'Content-Type'
+    // and MultipartRequest's own lowercase 'content-type' both survive).
+    // That duplicate/conflicting header is what was silently breaking
+    // this upload with "Failed to fetch" before the request ever left
+    // the browser.
+    final uploadHeaders = _buildHeaders(authToken.accessToken);
+    uploadHeaders.remove('Content-Type');
+    request.headers.addAll(uploadHeaders);
 
     if (kIsWeb) {
       final videoBytes = await video.readAsBytes();
