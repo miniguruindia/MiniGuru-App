@@ -171,6 +171,7 @@ router.get('/children', authenticateToken, async (req: Request, res: Response) =
       select: {
         id: true, name: true, age: true, grade: true,
         avatar: true, score: true, isActive: true, createdAt: true,
+        linkedUserId: true,
       },
       orderBy: { createdAt: 'asc' },
     });

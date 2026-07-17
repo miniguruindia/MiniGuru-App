@@ -5,7 +5,7 @@ import logger from '../../logger';
 const { setVideoPublic, deleteVideo } = require('../../services/youtubeUploadService');
 
 export function extractYouTubeId(videoUrl: string): string {
-  const match = videoUrl.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
+  const match = videoUrl.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/shorts\/)([a-zA-Z0-9_-]{11})/);
   return match ? match[1] : videoUrl;
 }
 

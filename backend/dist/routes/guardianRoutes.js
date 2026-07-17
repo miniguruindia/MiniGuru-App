@@ -157,6 +157,7 @@ router.get('/children', authMiddleware_1.authenticateToken, async (req, res) => 
             select: {
                 id: true, name: true, age: true, grade: true,
                 avatar: true, score: true, isActive: true, createdAt: true,
+                linkedUserId: true,
             },
             orderBy: { createdAt: 'asc' },
         });

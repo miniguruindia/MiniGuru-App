@@ -6,6 +6,8 @@ class ChildProfile {
   final String? avatar;
   final int score;
   final bool isActive;
+  final String? linkedUserId; // the child's own independent-login User id —
+                               // required to add them as a project collaborator
 
   ChildProfile({
     required this.id,
@@ -15,6 +17,7 @@ class ChildProfile {
     this.avatar,
     required this.score,
     this.isActive = true,
+    this.linkedUserId,
   });
 
   factory ChildProfile.fromMap(Map<String, dynamic> map) {
@@ -26,6 +29,7 @@ class ChildProfile {
       avatar: map['avatar'] as String?,
       score: map['score'] as int? ?? 0,
       isActive: map['isActive'] as bool? ?? true,
+      linkedUserId: map['linkedUserId'] as String?,
     );
   }
 }

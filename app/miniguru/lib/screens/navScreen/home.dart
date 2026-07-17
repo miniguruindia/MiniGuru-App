@@ -157,7 +157,7 @@ class _HomeState extends State<Home> {
   Widget _buildMoreIdeasFromOutside() {
     if (_externalVideos.isEmpty) return const SizedBox.shrink();
     return _buildHorizontalSection(
-        '💡 More Ideas From Outside', _externalVideos.take(5).toList(),
+        '💡 More Ideas From Outside', _externalVideos.take(10).toList(),
         fullList: _externalVideos, height: 140, cardWidth: 120);
   }
 
@@ -341,6 +341,10 @@ class _HomeState extends State<Home> {
       delegate: SliverChildListDelegate([
         _buildStatsCards(),
         const SizedBox(height: 24),
+        _buildSearchBar(),
+        const SizedBox(height: 16),
+        _buildCategories(),
+        const SizedBox(height: 24),
         _buildContinueWatching(),
         const SizedBox(height: 24),
         _buildForYou(),
@@ -426,22 +430,32 @@ class _HomeState extends State<Home> {
   Widget _buildContinueWatching() {
     if (_filteredVideos.isEmpty) return const SizedBox.shrink();
     return _buildHorizontalSection(
-        'Continue Watching', _filteredVideos.take(5).toList(),
+        'Continue Watching', _filteredVideos.take(10).toList(),
         fullList: _filteredVideos, height: 180, cardWidth: 280);
   }
 
   Widget _buildForYou() {
-    if (_filteredVideos.length < 6) return const SizedBox.shrink();
+    if (_filteredVideos.isEmpty) return const SizedBox.shrink();
+    // Once there are enough real videos to make a genuinely different
+    // second row, skip past what Continue Watching already showed. Until
+    // then (small catalog, e.g. right after launch), just show what
+    // exists rather than hiding this whole row until 6+ uploads exist.
+    final source = _filteredVideos.length > 5
+        ? _filteredVideos.skip(5).toList()
+        : _filteredVideos;
     return _buildHorizontalSection(
-        'For You', _filteredVideos.skip(5).take(5).toList(),
-        fullList: _filteredVideos.skip(5).toList(), height: 140, cardWidth: 120);
+        'For You', source.take(10).toList(),
+        fullList: source, height: 140, cardWidth: 120);
   }
 
   Widget _buildTrendingNow() {
-    if (_filteredVideos.length < 11) return const SizedBox.shrink();
+    if (_filteredVideos.isEmpty) return const SizedBox.shrink();
+    final source = _filteredVideos.length > 10
+        ? _filteredVideos.skip(10).toList()
+        : _filteredVideos;
     return _buildHorizontalSection(
-        '🔥 Trending Now', _filteredVideos.skip(10).take(5).toList(),
-        fullList: _filteredVideos.skip(10).toList(), height: 140, cardWidth: 120);
+        '🔥 Trending Now', source.take(10).toList(),
+        fullList: source, height: 140, cardWidth: 120);
   }
 
   // Full-screen "See All" grid — reused by every horizontal section.

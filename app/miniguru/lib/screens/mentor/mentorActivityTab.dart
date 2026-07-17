@@ -272,6 +272,19 @@ class _MentorActivityTabState extends State<MentorActivityTab> {
     final child = _children.firstWhere((c) => childIds.contains(c.id));
     SessionState.setChild(child.id, child.name, child.avatar);
 
+    // Any OTHER selected children become real collaborators on this project
+    // (equal Goins split on approval — same mechanism a child uses when
+    // adding a friend themselves). Children without an independent login
+    // yet (no linkedUserId) can't be added this way — skipped with a note.
+    final extraChildren =
+        _children.where((c) => childIds.contains(c.id) && c.id != child.id).toList();
+    final presetCollaborators = extraChildren
+        .where((c) => c.linkedUserId != null)
+        .map((c) => {'id': c.linkedUserId!, 'name': c.name})
+        .toList();
+    final skippedChildren =
+        extraChildren.where((c) => c.linkedUserId == null).map((c) => c.name).toList();
+
     // Offer this child's existing local drafts (if any exist on THIS
     // device) alongside starting a fresh project. Drafts are local-storage
     // only and never synced to the backend, so this only finds drafts the
@@ -324,10 +337,21 @@ class _MentorActivityTabState extends State<MentorActivityTab> {
       return;
     }
 
+    if (skippedChildren.isNotEmpty && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(
+            "${skippedChildren.join(', ')} could not be added as a collaborator "
+            "(no independent login set up yet) — ask an admin to complete their account."),
+      ));
+    }
+
     await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => AddDraftScreen(draftId: choice == -1 ? null : choice),
+        builder: (_) => AddDraftScreen(
+          draftId: choice == -1 ? null : choice,
+          presetCollaborators: presetCollaborators,
+        ),
       ),
     );
     SessionState.clearChild();

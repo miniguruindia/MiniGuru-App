@@ -78,11 +78,20 @@ export const createProject = async (req: Request, res: Response) => {
     // de-dupe, drop the owner if they somehow added themselves
     parsedIds = [...new Set(parsedIds)].filter((cid) => cid !== ownerUserId);
     if (parsedIds.length > 0) {
-      const collaboratorUsers = await prisma.user.findMany({
-        where: { id: { in: parsedIds } },
-        select: { id: true, name: true },
-      });
-      collaborators = collaboratorUsers.map((u) => ({ userId: u.id, name: u.name }));
+      try {
+        const collaboratorUsers = await prisma.user.findMany({
+          where: { id: { in: parsedIds } },
+          select: { id: true, name: true },
+        });
+        collaborators = collaboratorUsers.map((u) => ({ userId: u.id, name: u.name }));
+      } catch (collabError) {
+        // Non-fatal — an upload should never hang or fail just because the
+        // collaborator lookup had a hiccup. Proceed as a solo project.
+        logger.warn(
+          `Collaborator lookup failed, proceeding without them: ${(collabError as Error).message}`
+        );
+        collaborators = [];
+      }
     }
   }
 
@@ -116,16 +125,35 @@ export const createProject = async (req: Request, res: Response) => {
     return res.status(400).json({ error: "Video file is required" });
   }
 
-  // ✅ Upload thumbnail as before (local storage)
-  const thumbnailPath = thumbnailFile ? await uploadThumbnail(thumbnailFile) : "";
+  // ✅ Upload thumbnail as before (local storage). Guarded — a failed
+  // thumbnail write (disk hiccup, permissions, etc.) must never hang the
+  // whole upload request; the project can exist without a custom thumbnail
+  // (the YouTube-CDN fallback in getPublishedVideoFeed covers this).
+  let thumbnailPath = "";
+  if (thumbnailFile) {
+    try {
+      thumbnailPath = await uploadThumbnail(thumbnailFile);
+    } catch (thumbError) {
+      logger.warn(`Thumbnail upload failed, continuing without it: ${(thumbError as Error).message}`);
+      thumbnailPath = "";
+    }
+  }
 
   // ── AI first-pass video review ──────────────────────────────────────
   // MUST run here, BEFORE uploadToYouTube() below — youtubeUploadService.js
   // deletes the local video file (fs.unlinkSync) immediately after its
-  // upload call, win or lose. reviewVideoFile() never throws: any failure
-  // (missing GEMINI_API_KEY, quota exhausted, network error, malformed
-  // response) resolves to UNSURE so a human always gets the final say.
-  const aiReview = await reviewVideoFile(videoFile.path, videoFile.mimetype);
+  // upload call, win or lose. reviewVideoFile() is documented to never
+  // throw (any failure resolves to UNSURE) — but this outer try/catch is a
+  // belt-and-suspenders guarantee: NOTHING in this handler may hang the
+  // request without a response, since that's exactly what happened before
+  // (the browser reports the resulting timeout as a false "CORS" error).
+  let aiReview: { verdict: string; reason: string; confidence: number };
+  try {
+    aiReview = await reviewVideoFile(videoFile.path, videoFile.mimetype);
+  } catch (aiError) {
+    logger.error(`AI review threw unexpectedly (should never happen): ${(aiError as Error).message}`);
+    aiReview = { verdict: "UNSURE", reason: "AI review failed unexpectedly — needs human review.", confidence: 0 };
+  }
   const aiReviewedAt = new Date();
   logger.info(
     `AI review for "${title}": ${aiReview.verdict} (confidence ${aiReview.confidence}) — ${aiReview.reason}`

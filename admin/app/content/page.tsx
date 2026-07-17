@@ -443,7 +443,7 @@ function ExternalVideosEditor({ data, onChange }: { data: any; onChange: (d: any
     const trimmed = input.trim()
     // Accept a bare video ID (11 chars, no slashes) OR a full URL
     if (/^[a-zA-Z0-9_-]{11}$/.test(trimmed)) return trimmed
-    const match = trimmed.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/)
+    const match = trimmed.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/shorts\/)([a-zA-Z0-9_-]{11})/)
     return match ? match[1] : trimmed
   }
 

@@ -16,7 +16,6 @@ import 'package:miniguru/network/MiniguruApi.dart';
 import 'package:miniguru/repository/projectRepository.dart';
 import 'package:miniguru/repository/GoinsRepository.dart';
 import 'package:miniguru/widgets/material_picker_widget.dart';
-import 'package:miniguru/widgets/goins_wallet_widget.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:miniguru/secrets.dart';
 import 'homeScreen.dart';
@@ -37,7 +36,8 @@ const _accent    = Color(0xFF5B6EF5);   // appbar — was _navy 0xFF1E3A8A
 
 class AddDraftScreen extends StatefulWidget {
   final int? draftId;
-  const AddDraftScreen({super.key, this.draftId});
+  final List<Map<String, String>>? presetCollaborators;
+  const AddDraftScreen({super.key, this.draftId, this.presetCollaborators});
   @override
   State<AddDraftScreen> createState() => _AddDraftScreenState();
 }
@@ -57,8 +57,6 @@ class _AddDraftScreenState extends State<AddDraftScreen>
   final List<Map<String, String>> _collaborators = [];
   bool _collabSearching = false;
   final TextEditingController _collabCtrl = TextEditingController();
-  int                  _currentGoinsBalance = 0;
-  bool                 _goinsLoading        = true;
   bool                 _loading             = true;
   bool                 _submitting          = false;
   int                  _draftId             = -1;
@@ -78,15 +76,14 @@ class _AddDraftScreenState extends State<AddDraftScreen>
     'Robotics', 'Mechanics', 'ArtCraft', 'Science'
   ];
 
-  int  get _totalGoins => _pickedMaterials.fold(0, (s, m) => s + m.totalGoins);
-  int  get _goinsAfter => _currentGoinsBalance - _totalGoins;
-  bool get _overBudget => _goinsAfter < 0;
-
   @override
   void initState() {
     super.initState();
     if (widget.draftId != null && widget.draftId! > 0) {
       _draftId = widget.draftId!;
+    }
+    if (widget.presetCollaborators != null) {
+      _collaborators.addAll(widget.presetCollaborators!);
     }
     _loadInitialData();
   }
@@ -106,17 +103,9 @@ class _AddDraftScreenState extends State<AddDraftScreen>
       _loadCategories().catchError((_) {
         if (mounted) setState(() { _categories = _defaultCategories; _loading = false; });
       }),
-      _loadGoinsBalance().catchError((_) {
-        if (mounted) setState(() { _currentGoinsBalance = 500; _goinsLoading = false; });
-      }),
       if (_draftId > 0) _loadExistingDraft(_draftId),
     ]);
     if (mounted) _fadeCtrl.forward();
-  }
-
-  Future<void> _loadGoinsBalance() async {
-    final b = await _goinsRepo.getGoinsBalance();
-    if (mounted) setState(() { _currentGoinsBalance = b; _goinsLoading = false; });
   }
 
   Future<void> _loadCategories() async {
@@ -232,7 +221,12 @@ class _AddDraftScreenState extends State<AddDraftScreen>
   Future<void> _openMaterialPicker() async {
     final result = await showMaterialPicker(
         context: context,
-        currentGoinsBalance: _currentGoinsBalance,
+        // MaterialPickerWidget still requires this param, but its own
+        // internal balance/budget UI was already removed in the June 2
+        // architecture change (Rule 25 — Goins are never spent/blocked).
+        // A large constant here is the least-risky fix: it keeps that
+        // widget's constructor untouched rather than reworking it too.
+        currentGoinsBalance: 999999,
         existingPicked: _pickedMaterials);
     if (result != null) setState(() => _pickedMaterials = result);
   }
@@ -256,10 +250,6 @@ class _AddDraftScreenState extends State<AddDraftScreen>
   Future<void> _handleSubmit({required bool isDraft}) async {
     final error = isDraft ? _validateDraft() : _validateFinal();
     if (error != null) { _showSnack(error, isError: true); return; }
-    if (!isDraft && _overBudget) {
-      _showSnack('Not enough Goins!', isError: true); return;
-    }
-
     final materialsMap = {for (final m in _pickedMaterials) m.item.id: m.quantity};
 
     if (isDraft) {
@@ -537,18 +527,7 @@ class _AddDraftScreenState extends State<AddDraftScreen>
               fontWeight: FontWeight.w900,
               fontSize: 18),
         ),
-        actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 14),
-            child: _goinsLoading
-                ? const SizedBox(
-                    width: 24,
-                    height: 24,
-                    child: CircularProgressIndicator(
-                        color: Colors.white54, strokeWidth: 2))
-                : GoinsBalanceBadge(balance: _currentGoinsBalance),
-          ),
-        ],
+        actions: const [],
       );
 
   Widget _section(
@@ -897,7 +876,6 @@ class _AddDraftScreenState extends State<AddDraftScreen>
   }
 
   Widget _buildMaterials() {
-    final totalGoins = _totalGoins;
     return Container(
       decoration: BoxDecoration(
         color:        _card,
@@ -919,20 +897,6 @@ class _AddDraftScreenState extends State<AddDraftScreen>
           Text('Materials',
               style: GoogleFonts.nunito(
                   color: _ink, fontWeight: FontWeight.w900, fontSize: 14)),
-          const Spacer(),
-          if (totalGoins > 0)
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-              decoration: BoxDecoration(
-                color:        const Color(0xFFFFF3CC),
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: Text('$totalGoins G total',
-                  style: GoogleFonts.nunito(
-                      color:      const Color(0xFFE8A000),
-                      fontSize:   12,
-                      fontWeight: FontWeight.w800)),
-            ),
         ]),
         const SizedBox(height: 14),
         if (_pickedMaterials.isEmpty)
@@ -996,19 +960,6 @@ class _AddDraftScreenState extends State<AddDraftScreen>
                                   color: _muted, fontSize: 11)),
                         ]),
                   ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 8, vertical: 3),
-                    decoration: BoxDecoration(
-                      color:        const Color(0xFFFFF3CC),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text('${pm.totalGoins} G',
-                        style: GoogleFonts.nunito(
-                            color:      const Color(0xFFE8A000),
-                            fontSize:   11,
-                            fontWeight: FontWeight.w800)),
-                  ),
                 ]),
               )),
           const SizedBox(height: 8),
@@ -1054,21 +1005,22 @@ class _AddDraftScreenState extends State<AddDraftScreen>
             ],
           ),
           child: Row(children: [
-            // Goins summary
+            // Materials summary — Goins are earned only on admin approval,
+            // never spent here (Rule 25). This is informational only.
             Expanded(
               child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisSize:       MainAxisSize.min,
                   children: [
-                    Text('Balance after selection',
+                    Text('Materials selected',
                         style: GoogleFonts.nunito(
                             color: _muted, fontSize: 11)),
                     Text(
-                      _overBudget
-                          ? '⛔ Not enough Goins!'
-                          : '🪙 ${_goinsAfter} G remaining',
+                      _pickedMaterials.isEmpty
+                          ? 'None yet'
+                          : '${_pickedMaterials.length} item${_pickedMaterials.length > 1 ? 's' : ''}',
                       style: GoogleFonts.nunito(
-                          color:      _overBudget ? _red : _green,
+                          color:      _blue,
                           fontSize:   13,
                           fontWeight: FontWeight.w800),
                     ),
@@ -1100,14 +1052,12 @@ class _AddDraftScreenState extends State<AddDraftScreen>
                 padding: const EdgeInsets.symmetric(
                     horizontal: 18, vertical: 10),
                 decoration: BoxDecoration(
-                  color:        _overBudget ? _red : _blue,
+                  color:        _blue,
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Row(mainAxisSize: MainAxisSize.min, children: [
-                  Icon(
-                    _overBudget
-                        ? Icons.warning_rounded
-                        : Icons.upload_rounded,
+                  const Icon(
+                    Icons.upload_rounded,
                     color: Colors.white,
                     size:  16,
                   ),

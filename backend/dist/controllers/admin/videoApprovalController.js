@@ -10,7 +10,7 @@ const prismaClient_1 = __importDefault(require("../../utils/prismaClient"));
 const logger_1 = __importDefault(require("../../logger"));
 const { setVideoPublic, deleteVideo } = require('../../services/youtubeUploadService');
 function extractYouTubeId(videoUrl) {
-    const match = videoUrl.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
+    const match = videoUrl.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/shorts\/)([a-zA-Z0-9_-]{11})/);
     return match ? match[1] : videoUrl;
 }
 // GET /admin/projects/pending

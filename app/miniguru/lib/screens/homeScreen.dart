@@ -126,19 +126,9 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    if (!_authChecked) {
-      return const Scaffold(
-        backgroundColor: Colors.white,
-        body: Center(
-          child: CircularProgressIndicator(color: Color(0xFF3B82F6)),
-        ),
-      );
-    }
-
-    return Scaffold(
-      appBar: SessionState.isChildSession ? PreferredSize(
+  PreferredSizeWidget? _buildTopBar() {
+    if (SessionState.isChildSession) {
+      return PreferredSize(
         preferredSize: const Size.fromHeight(36),
         child: Container(
           color: const Color(0xFF5B6EF5),
@@ -164,7 +154,61 @@ class _HomeScreenState extends State<HomeScreen> {
             ],
           ),
         ),
-      ) : null,
+      );
+    }
+    // Always-visible "My Account" shortcut for mentors/teachers — previously
+    // only reachable via the last (right-most) bottom-nav icon.
+    if (_user?.isMentor == true) {
+      return PreferredSize(
+        preferredSize: const Size.fromHeight(40),
+        child: SafeArea(
+          bottom: false,
+          child: Container(
+            color: Colors.white,
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            height: 40,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                InkWell(
+                  onTap: () => _onNavBarTap(4),
+                  borderRadius: BorderRadius.circular(8),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: const [
+                        Icon(Icons.supervisor_account, size: 18, color: Color(0xFF3B82F6)),
+                        SizedBox(width: 6),
+                        Text('My Account',
+                            style: TextStyle(
+                                fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF3B82F6))),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+    return null;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!_authChecked) {
+      return const Scaffold(
+        backgroundColor: Colors.white,
+        body: Center(
+          child: CircularProgressIndicator(color: Color(0xFF3B82F6)),
+        ),
+      );
+    }
+
+    return Scaffold(
+      appBar: _buildTopBar(),
       body: IndexedStack(
         index: _currentIndex,
         children: [
