@@ -101,6 +101,12 @@ const configureDynamicStorage = multer.diskStorage({
 
 export const uploadThumbnailAndVideoMiddleware = multer({
   storage: configureDynamicStorage,
+  // 300MB matches the AI review service's own safety cap (aiVideoReviewService.ts).
+  // Cloud Run's writable filesystem is backed by container RAM, not real disk —
+  // an unbounded upload can consume enough memory to get the whole container
+  // killed with no response at all (which the browser then misreports as a
+  // CORS error). This limit turns that into a fast, clear error instead.
+  limits: { fileSize: 300 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
     if (file.fieldname === "thumbnail") {
       return imageFileFilter(req, file, cb); // Apply image file filter for thumbnail

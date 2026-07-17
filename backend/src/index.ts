@@ -1,5 +1,6 @@
 // backend/src/index.ts
 import express from 'express';
+import multer from 'multer';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import path from 'path';
@@ -344,6 +345,15 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
     url: req.url,
     method: req.method
   }, '❌ Request error');
+
+  // Multer's own size-limit rejection — give it a clear, actionable message
+  // instead of a generic 500. This is the fast, readable failure mode that
+  // should now happen BEFORE any risk of the container running low on memory.
+  if (err instanceof multer.MulterError && err.code === 'LIMIT_FILE_SIZE') {
+    return res.status(413).json({
+      error: 'Video is too large. Please keep uploads under 300MB — try a shorter clip or lower recording quality.',
+    });
+  }
 
   const isDevelopment = process.env.NODE_ENV === 'development';
   res.status(err.status || 500).json({

@@ -6,6 +6,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.prisma = exports.app = void 0;
 // backend/src/index.ts
 const express_1 = __importDefault(require("express"));
+const multer_1 = __importDefault(require("multer"));
 const dotenv_1 = __importDefault(require("dotenv"));
 const path_1 = __importDefault(require("path"));
 const prismaClient_1 = __importDefault(require("./utils/prismaClient"));
@@ -325,6 +326,14 @@ app.use((err, req, res, next) => {
         url: req.url,
         method: req.method
     }, '❌ Request error');
+    // Multer's own size-limit rejection — give it a clear, actionable message
+    // instead of a generic 500. This is the fast, readable failure mode that
+    // should now happen BEFORE any risk of the container running low on memory.
+    if (err instanceof multer_1.default.MulterError && err.code === 'LIMIT_FILE_SIZE') {
+        return res.status(413).json({
+            error: 'Video is too large. Please keep uploads under 300MB — try a shorter clip or lower recording quality.',
+        });
+    }
     const isDevelopment = process.env.NODE_ENV === 'development';
     res.status(err.status || 500).json({
         error: err.message || 'Internal Server Error',
