@@ -21,7 +21,11 @@ const projectRouter = express_1.default.Router();
 // its Goins on approval — to the CHILD's own account, not the mentor's.
 // Previously missing here (only wired into goinsRoutes/userAnalyticsRoutes),
 // which silently misattributed every upload made during a PIN session.
-projectRouter.post('/', authMiddleware_1.authenticateToken, resolveSubject_1.resolveSubject, validationMiddleware_1.validateProject, upload_1.uploadThumbnailAndVideoMiddleware, projectController_1.createProject);
+projectRouter.post('/', authMiddleware_1.authenticateToken, resolveSubject_1.resolveSubject, validationMiddleware_1.validateProject, projectController_1.createProject);
+// Signed direct-to-Firebase-Storage upload URL — bypasses Cloud Run's
+// hard 32MB request body limit for the actual video/thumbnail bytes.
+// MUST be registered before get('/:id') below (Rule 28).
+projectRouter.post('/request-upload-url', authMiddleware_1.authenticateToken, projectController_1.requestUploadUrl);
 projectRouter.get('/categories', categoryController_1.getAllProjectCategories);
 projectRouter.post('/categories', authMiddleware_1.authenticateToken, categoryController_1.createProjectCategory);
 projectRouter.put('/categories/:id', authMiddleware_1.authenticateToken, categoryController_1.updateProjectCategory);

@@ -23,6 +23,9 @@
 
 import { initializeApp, cert, getApps, type App } from 'firebase-admin/app';
 import { getStorage } from 'firebase-admin/storage';
+import * as path from 'path';
+import * as os from 'os';
+import { randomUUID } from 'crypto';
 
 const BUCKET_NAME = 'miniguru-prod.firebasestorage.app';
 let app: App | null = null;
@@ -59,7 +62,7 @@ function extensionFromMime(mimeType: string): string {
   return map[mimeType] || 'jpg';
 }
 
-function publicUrlFor(storagePath: string): string {
+export function publicUrlFor(storagePath: string): string {
   const encoded = encodeURIComponent(storagePath);
   return `https://firebasestorage.googleapis.com/v0/b/${BUCKET_NAME}/o/${encoded}?alt=media`;
 }
@@ -107,5 +110,66 @@ export async function deleteMaterialImage(imageUrl: string): Promise<void> {
   } catch (err: any) {
     // Already gone / never existed — not an error worth surfacing.
     if (err?.code !== 404) throw err;
+  }
+}
+
+/**
+ * Generates a short-lived (15 min) signed URL the CLIENT can PUT a file to
+ * DIRECTLY — completely bypassing Cloud Run's hard, non-configurable 32MB
+ * request body limit, since the upload goes straight to Firebase Storage
+ * (a separate Google service) and never touches our own backend's request
+ * body at all. Used for video/thumbnail uploads from the Flutter app.
+ */
+export async function generateUploadUrl(
+  folder: 'temp-videos' | 'project-thumbnails',
+  ownerUserId: string,
+  filename: string,
+  contentType: string
+): Promise<{ uploadUrl: string; storagePath: string }> {
+  const firebaseApp = ensureInitialized();
+  const safeFilename = filename.replace(/[^a-zA-Z0-9._-]/g, '_');
+  const storagePath = `${folder}/${ownerUserId}/${Date.now()}-${safeFilename}`;
+  const bucket = getStorage(firebaseApp).bucket();
+  const file = bucket.file(storagePath);
+  const [uploadUrl] = await file.getSignedUrl({
+    version: 'v4',
+    action: 'write',
+    expires: Date.now() + 15 * 60 * 1000,
+    contentType,
+  });
+  return { uploadUrl, storagePath };
+}
+
+/**
+ * Downloads a previously-uploaded file from Firebase Storage to a local
+ * temp path on Cloud Run's own disk, for the existing AI review / YouTube
+ * upload code (which both expect a local file path) to keep working
+ * completely unchanged. This is a server-to-server transfer — Cloud Run's
+ * 32MB limit only applies to requests coming INTO Cloud Run from outside,
+ * never to Cloud Run's own outbound calls, so this direction is unaffected.
+ */
+export async function downloadToTempFile(storagePath: string): Promise<string> {
+  const firebaseApp = ensureInitialized();
+  const bucket = getStorage(firebaseApp).bucket();
+  const ext = path.extname(storagePath) || '.mp4';
+  const localPath = path.join(os.tmpdir(), `${randomUUID()}${ext}`);
+  await bucket.file(storagePath).download({ destination: localPath });
+  return localPath;
+}
+
+/**
+ * Best-effort cleanup of a temp video upload once YouTube has it — never
+ * throws, since a cleanup failure should never affect the actual response.
+ * NEVER call this on a thumbnail path — the thumbnail's Firebase Storage
+ * URL is the permanent Project.thumbnail reference, not a temp file.
+ */
+export async function deleteFromStorage(storagePath: string): Promise<void> {
+  try {
+    const firebaseApp = ensureInitialized();
+    const bucket = getStorage(firebaseApp).bucket();
+    await bucket.file(storagePath).delete();
+  } catch (err: any) {
+    // Already gone / never existed / any other issue — logging would be
+    // nice but this must never throw and never block a response.
   }
 }

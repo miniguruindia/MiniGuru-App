@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.findCollaborator = exports.deleteProjectByID = exports.getPublishedVideoFeed = exports.getAllProjects = exports.getAllProjectsForUser = exports.getProjectById = exports.updateProject = exports.createProject = void 0;
+exports.findCollaborator = exports.deleteProjectByID = exports.getPublishedVideoFeed = exports.getAllProjects = exports.getAllProjectsForUser = exports.getProjectById = exports.updateProject = exports.requestUploadUrl = exports.createProject = void 0;
 const prismaClient_1 = __importDefault(require("../../utils/prismaClient"));
 const project_1 = __importDefault(require("../../services/project/project"));
 const error_1 = require("../../utils/error");
@@ -12,6 +12,7 @@ const logger_1 = __importDefault(require("../../logger"));
 const aiVideoReviewService_1 = require("../../services/aiVideoReviewService");
 const videoApprovalController_1 = require("../admin/videoApprovalController");
 const notificationService_1 = require("../../services/notificationService");
+const firebaseStorageService_1 = require("../../services/firebaseStorageService");
 // ✅ Import YouTube upload service (optional)
 let uploadToYouTube = null;
 try {
@@ -53,9 +54,12 @@ const createProject = async (req, res) => {
         }
         ownerUserId = req.subject.linkedUserId;
     }
-    const { title, description, startDate, endDate, materials, categoryName, collaboratorIds } = req.body;
+    const { title, description, startDate, endDate, materials, categoryName, collaboratorIds, videoStoragePath, thumbnailStoragePath, } = req.body;
     if (!title || !description || !startDate || !endDate || !materials || !categoryName) {
         return res.status(400).json({ error: "All fields are required" });
+    }
+    if (!videoStoragePath) {
+        return res.status(400).json({ error: "Video is required" });
     }
     // ── Shared/group projects — collaborators (optional) ────────────────
     // Collaborators can ONLY be set here, at upload time. There is no
@@ -111,26 +115,29 @@ const createProject = async (req, res) => {
         logger_1.default.error(error);
         return res.status(400).json({ error: "Invalid materials format" });
     }
-    const files = req.files;
-    const thumbnailFile = files?.thumbnail?.[0];
-    const videoFile = files?.video?.[0];
-    if (!videoFile) {
-        return res.status(400).json({ error: "Video file is required" });
+    // ── Video arrives via Firebase Storage now, not the request body ─────
+    // Cloud Run enforces a hard, non-configurable 32MB limit on incoming
+    // request bodies — real videos routinely exceed that (confirmed via a
+    // real 413 response). The Flutter app now uploads the video (and
+    // optional thumbnail) DIRECTLY to Firebase Storage first (see
+    // requestUploadUrl below), completely bypassing that limit, then sends
+    // us just this small JSON request with the storage path(s). We download
+    // the video here, server-to-server — Cloud Run's body-size limit only
+    // applies to requests INTO Cloud Run from outside, not to Cloud Run's
+    // own outbound calls, so this direction is unaffected.
+    let localVideoPath;
+    try {
+        localVideoPath = await (0, firebaseStorageService_1.downloadToTempFile)(videoStoragePath);
     }
-    // ✅ Upload thumbnail as before (local storage). Guarded — a failed
-    // thumbnail write (disk hiccup, permissions, etc.) must never hang the
-    // whole upload request; the project can exist without a custom thumbnail
-    // (the YouTube-CDN fallback in getPublishedVideoFeed covers this).
-    let thumbnailPath = "";
-    if (thumbnailFile) {
-        try {
-            thumbnailPath = await (0, upload_1.uploadThumbnail)(thumbnailFile);
-        }
-        catch (thumbError) {
-            logger_1.default.warn(`Thumbnail upload failed, continuing without it: ${thumbError.message}`);
-            thumbnailPath = "";
-        }
+    catch (downloadError) {
+        logger_1.default.error(`Failed to download video from storage: ${downloadError.message}`);
+        return res.status(500).json({ error: "Could not retrieve the uploaded video. Please try again." });
     }
+    // The thumbnail is just referenced by its already-public Firebase
+    // Storage URL — no need to re-download or re-host it locally (which was
+    // also, incidentally, subject to the same "Cloud Run disk writes count
+    // as container RAM" gotcha as the old video path — this fixes that too).
+    const thumbnailPath = thumbnailStoragePath ? (0, firebaseStorageService_1.publicUrlFor)(thumbnailStoragePath) : "";
     // ── AI first-pass video review ──────────────────────────────────────
     // MUST run here, BEFORE uploadToYouTube() below — youtubeUploadService.js
     // deletes the local video file (fs.unlinkSync) immediately after its
@@ -141,7 +148,7 @@ const createProject = async (req, res) => {
     // (the browser reports the resulting timeout as a false "CORS" error).
     let aiReview;
     try {
-        aiReview = await (0, aiVideoReviewService_1.reviewVideoFile)(videoFile.path, videoFile.mimetype);
+        aiReview = await (0, aiVideoReviewService_1.reviewVideoFile)(localVideoPath, "video/mp4");
     }
     catch (aiError) {
         logger_1.default.error(`AI review threw unexpectedly (should never happen): ${aiError.message}`);
@@ -159,8 +166,7 @@ const createProject = async (req, res) => {
     if (uploadToYouTube) {
         try {
             logger_1.default.info(`📤 Uploading video to YouTube for project: "${title}"`);
-            const result = await uploadToYouTube(videoFile.path, // multer diskStorage sets file.path to the full local path
-            {
+            const result = await uploadToYouTube(localVideoPath, {
                 title: title,
                 description: description || "",
                 tags: ["MiniGuru", "STEM", "Education", "India"],
@@ -181,6 +187,11 @@ const createProject = async (req, res) => {
         // depending on how the frontend expects to handle videos without YouTube
         videoUrl = ""; // Or you could return an error here
     }
+    // The Firebase Storage copy of the VIDEO was only ever a staging area to
+    // get it past Cloud Run's request-size limit — not needed once YouTube
+    // has it. Deliberately NOT deleting the thumbnail: its Firebase Storage
+    // URL IS the permanent thumbnail reference stored on the project.
+    (0, firebaseStorageService_1.deleteFromStorage)(videoStoragePath).catch(() => { });
     try {
         const project = await projectService.create(ownerUserId, {
             title,
@@ -252,6 +263,31 @@ const createProject = async (req, res) => {
     }
 };
 exports.createProject = createProject;
+// POST /project/request-upload-url — generates a short-lived signed URL the
+// client can PUT a video or thumbnail to DIRECTLY, bypassing Cloud Run's
+// hard 32MB request body limit entirely for the actual file bytes.
+const requestUploadUrl = async (req, res) => {
+    const userId = req.user?.userId;
+    if (!userId)
+        return res.status(401).json({ error: "Unauthorized" });
+    const { filename, contentType, kind } = req.body;
+    if (!filename || !contentType || !kind) {
+        return res.status(400).json({ error: "filename, contentType, and kind are required" });
+    }
+    if (kind !== "video" && kind !== "thumbnail") {
+        return res.status(400).json({ error: "kind must be 'video' or 'thumbnail'" });
+    }
+    try {
+        const folder = kind === "video" ? "temp-videos" : "project-thumbnails";
+        const { uploadUrl, storagePath } = await (0, firebaseStorageService_1.generateUploadUrl)(folder, userId, filename, contentType);
+        res.json({ uploadUrl, storagePath });
+    }
+    catch (error) {
+        logger_1.default.error(`Failed to generate upload URL: ${error.message}`);
+        res.status(500).json({ error: "Could not prepare upload. Please try again." });
+    }
+};
+exports.requestUploadUrl = requestUploadUrl;
 const updateProject = async (req, res) => {
     const userId = req.user?.userId;
     if (!userId)

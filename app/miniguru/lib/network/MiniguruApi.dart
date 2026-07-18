@@ -342,6 +342,39 @@ class MiniguruApi {
     return response;
   }
 
+  /// Asks the backend for a short-lived signed URL to upload a file
+  /// DIRECTLY to Firebase Storage, bypassing Cloud Run's hard 32MB request
+  /// body limit entirely (confirmed via a real 413 response — this is a
+  /// platform limit, not something any client-side or Cloud Run config
+  /// change can work around). Returns {'uploadUrl':..., 'storagePath':...}
+  /// or null on any failure.
+  Future<Map<String, String>?> _requestUploadUrl(
+      String filename, String contentType, String kind) async {
+    final authToken = await _getValidToken();
+    if (authToken == null) return null;
+    try {
+      final response = await http.post(
+        Uri.parse('$_baseUrl/project/request-upload-url'),
+        headers: _buildHeaders(authToken.accessToken),
+        body: jsonEncode({
+          'filename': filename,
+          'contentType': contentType,
+          'kind': kind,
+        }),
+      );
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body) as Map<String, dynamic>;
+        return {
+          'uploadUrl': data['uploadUrl'] as String,
+          'storagePath': data['storagePath'] as String,
+        };
+      }
+      return null;
+    } catch (_) {
+      return null;
+    }
+  }
+
   Future<http.Response?> uploadProjectWithMedia(
     Map<String, dynamic> data,
     XFile video,
@@ -350,110 +383,73 @@ class MiniguruApi {
     final authToken = await _getValidToken();
     if (authToken == null) return null;
 
-    final url = Uri.parse('$_baseUrl/project/');
-
-    if (kIsWeb) {
-      // ── Flutter Web path — build the multipart body manually ──────────
-      // http.MultipartRequest.send() streams its body as a ReadableStream
-      // on Flutter Web's fetch()-based HTTP client. Modern Chrome requires
-      // an explicit `duplex: 'half'` option on any fetch() call whose body
-      // is a stream — without it, the browser rejects the call outright
-      // with "Failed to fetch", BEFORE the request ever reaches the
-      // network. This is a documented issue for this exact combination
-      // (Flutter Web + http.MultipartRequest + an Express/Multer backend).
-      // Building the body as a single plain byte array and sending it via
-      // a normal http.post() call avoids the streamed-body path entirely.
-      final videoBytes = await video.readAsBytes();
-      final thumbBytes = thumbnail != null ? await thumbnail.readAsBytes() : null;
-
-      final boundary =
-          '----MiniGuruBoundary${DateTime.now().microsecondsSinceEpoch}';
-      final body = <int>[];
-
-      void writeField(String name, String value) {
-        body.addAll(utf8.encode('--$boundary\r\n'));
-        body.addAll(
-            utf8.encode('Content-Disposition: form-data; name="$name"\r\n\r\n'));
-        body.addAll(utf8.encode('$value\r\n'));
-      }
-
-      void writeFile(
-          String fieldName, String filename, List<int> bytes, String contentType) {
-        body.addAll(utf8.encode('--$boundary\r\n'));
-        body.addAll(utf8.encode(
-            'Content-Disposition: form-data; name="$fieldName"; filename="$filename"\r\n'));
-        body.addAll(utf8.encode('Content-Type: $contentType\r\n\r\n'));
-        body.addAll(bytes);
-        body.addAll(utf8.encode('\r\n'));
-      }
-
-      writeField('title', data['title']);
-      writeField('description', data['description']);
-      writeField('startDate', data['startDate']);
-      writeField('endDate', data['endDate']);
-      writeField('categoryName', data['categoryName']);
-      writeField('materials', jsonEncode(data['materials']));
-      if (data['collaboratorIds'] != null &&
-          (data['collaboratorIds'] as List).isNotEmpty) {
-        writeField('collaboratorIds', jsonEncode(data['collaboratorIds']));
-      }
-
-      writeFile('video', video.name, videoBytes, 'video/mp4');
-      if (thumbBytes != null) {
-        writeFile('thumbnail', thumbnail!.name, thumbBytes, 'image/jpeg');
-      }
-
-      body.addAll(utf8.encode('--$boundary--\r\n'));
-
-      final headers = _buildHeaders(authToken.accessToken);
-      headers.remove('Content-Type');
-      headers['Content-Type'] = 'multipart/form-data; boundary=$boundary';
-
-      final response = await http.post(url, headers: headers, body: body);
-      _handleResponse(response);
-      return response;
+    // ── Step 1: upload the video DIRECTLY to Firebase Storage ───────────
+    // Cloud Run enforces a hard, non-configurable 32MB limit on incoming
+    // request bodies — real videos routinely exceed that. Uploading
+    // straight to Firebase Storage (a separate Google service) completely
+    // bypasses that limit; our own backend's request body never carries
+    // the actual video bytes at all.
+    final videoUrlInfo = await _requestUploadUrl(video.name, 'video/mp4', 'video');
+    if (videoUrlInfo == null) {
+      return http.Response(
+          jsonEncode({'error': 'Could not prepare video upload. Please try again.'}),
+          500);
+    }
+    final videoBytes = await video.readAsBytes();
+    final videoPut = await http.put(
+      Uri.parse(videoUrlInfo['uploadUrl']!),
+      headers: {'Content-Type': 'video/mp4'},
+      body: videoBytes,
+    );
+    if (videoPut.statusCode < 200 || videoPut.statusCode >= 300) {
+      return http.Response(
+          jsonEncode({'error': 'Video upload failed (storage error). Please try again.'}),
+          500);
     }
 
-    // ── Native (Android/iOS) path — unchanged ──────────────────────────
-    // MultipartRequest works fine here since it goes through dart:io's
-    // HttpClient, not the browser fetch() API, so the web-only streaming
-    // issue above never applied to this path.
-    var request = http.MultipartRequest('POST', url);
-
-    request.fields['title']        = data['title'];
-    request.fields['description']  = data['description'];
-    request.fields['startDate']    = data['startDate'];
-    request.fields['endDate']      = data['endDate'];
-    request.fields['categoryName'] = data['categoryName'];
-    request.fields['materials']    = jsonEncode(data['materials']);
-    if (data['collaboratorIds'] != null &&
-        (data['collaboratorIds'] as List).isNotEmpty) {
-      request.fields['collaboratorIds'] = jsonEncode(data['collaboratorIds']);
-    }
-
-    final uploadHeaders = _buildHeaders(authToken.accessToken);
-    uploadHeaders.remove('Content-Type');
-    request.headers.addAll(uploadHeaders);
-
-    var videoStream = http.ByteStream(video.openRead());
-    var videoLength = await video.length();
-    request.files.add(http.MultipartFile(
-      'video', videoStream, videoLength,
-      filename: basename(video.path),
-      contentType: MediaType.parse('video/mp4'),
-    ));
+    // ── Step 2: same for the thumbnail, if any (non-critical — proceed
+    // without one if this fails) ─────────────────────────────────────────
+    String? thumbnailStoragePath;
     if (thumbnail != null) {
-      var thumbnailStream = http.ByteStream(thumbnail.openRead());
-      var thumbnailLength = await thumbnail.length();
-      request.files.add(http.MultipartFile(
-        'thumbnail', thumbnailStream, thumbnailLength,
-        filename: basename(thumbnail.path),
-        contentType: MediaType.parse('image/jpeg'),
-      ));
+      final thumbUrlInfo =
+          await _requestUploadUrl(thumbnail.name, 'image/jpeg', 'thumbnail');
+      if (thumbUrlInfo != null) {
+        final thumbBytes = await thumbnail.readAsBytes();
+        final thumbPut = await http.put(
+          Uri.parse(thumbUrlInfo['uploadUrl']!),
+          headers: {'Content-Type': 'image/jpeg'},
+          body: thumbBytes,
+        );
+        if (thumbPut.statusCode >= 200 && thumbPut.statusCode < 300) {
+          thumbnailStoragePath = thumbUrlInfo['storagePath'];
+        }
+      }
     }
 
-    final streamedResponse = await request.send();
-    final response = await http.Response.fromStream(streamedResponse);
+    // ── Step 3: a small, plain JSON request with just the metadata +
+    // storage paths — comfortably under Cloud Run's 32MB limit no matter
+    // how large the actual video is, since the video itself is never in
+    // this request body. ─────────────────────────────────────────────────
+    final url = Uri.parse('$_baseUrl/project/');
+    final body = {
+      'title': data['title'],
+      'description': data['description'],
+      'startDate': data['startDate'],
+      'endDate': data['endDate'],
+      'categoryName': data['categoryName'],
+      'materials': data['materials'],
+      'videoStoragePath': videoUrlInfo['storagePath'],
+      if (thumbnailStoragePath != null) 'thumbnailStoragePath': thumbnailStoragePath,
+      if (data['collaboratorIds'] != null &&
+          (data['collaboratorIds'] as List).isNotEmpty)
+        'collaboratorIds': data['collaboratorIds'],
+    };
+
+    final response = await http.post(
+      url,
+      headers: _buildHeaders(authToken.accessToken),
+      body: jsonEncode(body),
+    );
     _handleResponse(response);
     return response;
   }

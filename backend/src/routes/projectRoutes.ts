@@ -1,5 +1,5 @@
 import express from 'express';
-import { createProject, updateProject, getProjectById, getAllProjectsForUser , getAllProjects, findCollaborator, getPublishedVideoFeed} from '../controllers/project/projectController';
+import { createProject, updateProject, getProjectById, getAllProjectsForUser , getAllProjects, findCollaborator, getPublishedVideoFeed, requestUploadUrl} from '../controllers/project/projectController';
 import { uploadThumbnailAndVideoMiddleware } from '../middleware/upload';
 import { getProjectsByCategory, getAllProjectCategories, createProjectCategory, updateProjectCategory, deleteProjectCategory } from '../controllers/project/categoryController';
 import { authenticateToken } from '../middleware/authMiddleware';
@@ -20,7 +20,12 @@ const projectRouter = express.Router();
 // its Goins on approval — to the CHILD's own account, not the mentor's.
 // Previously missing here (only wired into goinsRoutes/userAnalyticsRoutes),
 // which silently misattributed every upload made during a PIN session.
-projectRouter.post('/', authenticateToken, resolveSubject, validateProject, uploadThumbnailAndVideoMiddleware, createProject);
+projectRouter.post('/', authenticateToken, resolveSubject, validateProject, createProject);
+
+// Signed direct-to-Firebase-Storage upload URL — bypasses Cloud Run's
+// hard 32MB request body limit for the actual video/thumbnail bytes.
+// MUST be registered before get('/:id') below (Rule 28).
+projectRouter.post('/request-upload-url', authenticateToken, requestUploadUrl);
 
 projectRouter.get('/categories', getAllProjectCategories);
 projectRouter.post('/categories', authenticateToken, createProjectCategory);

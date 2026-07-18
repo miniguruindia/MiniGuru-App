@@ -21,11 +21,51 @@
 //
 // Bucket is the SAME one already used for material images:
 // miniguru-prod.firebasestorage.app (NOT .appspot.com — Rule 30 territory).
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.publicUrlFor = publicUrlFor;
 exports.uploadMaterialImage = uploadMaterialImage;
 exports.deleteMaterialImage = deleteMaterialImage;
+exports.generateUploadUrl = generateUploadUrl;
+exports.downloadToTempFile = downloadToTempFile;
+exports.deleteFromStorage = deleteFromStorage;
 const app_1 = require("firebase-admin/app");
 const storage_1 = require("firebase-admin/storage");
+const path = __importStar(require("path"));
+const os = __importStar(require("os"));
+const crypto_1 = require("crypto");
 const BUCKET_NAME = 'miniguru-prod.firebasestorage.app';
 let app = null;
 function ensureInitialized() {
@@ -103,5 +143,59 @@ async function deleteMaterialImage(imageUrl) {
         // Already gone / never existed — not an error worth surfacing.
         if (err?.code !== 404)
             throw err;
+    }
+}
+/**
+ * Generates a short-lived (15 min) signed URL the CLIENT can PUT a file to
+ * DIRECTLY — completely bypassing Cloud Run's hard, non-configurable 32MB
+ * request body limit, since the upload goes straight to Firebase Storage
+ * (a separate Google service) and never touches our own backend's request
+ * body at all. Used for video/thumbnail uploads from the Flutter app.
+ */
+async function generateUploadUrl(folder, ownerUserId, filename, contentType) {
+    const firebaseApp = ensureInitialized();
+    const safeFilename = filename.replace(/[^a-zA-Z0-9._-]/g, '_');
+    const storagePath = `${folder}/${ownerUserId}/${Date.now()}-${safeFilename}`;
+    const bucket = (0, storage_1.getStorage)(firebaseApp).bucket();
+    const file = bucket.file(storagePath);
+    const [uploadUrl] = await file.getSignedUrl({
+        version: 'v4',
+        action: 'write',
+        expires: Date.now() + 15 * 60 * 1000,
+        contentType,
+    });
+    return { uploadUrl, storagePath };
+}
+/**
+ * Downloads a previously-uploaded file from Firebase Storage to a local
+ * temp path on Cloud Run's own disk, for the existing AI review / YouTube
+ * upload code (which both expect a local file path) to keep working
+ * completely unchanged. This is a server-to-server transfer — Cloud Run's
+ * 32MB limit only applies to requests coming INTO Cloud Run from outside,
+ * never to Cloud Run's own outbound calls, so this direction is unaffected.
+ */
+async function downloadToTempFile(storagePath) {
+    const firebaseApp = ensureInitialized();
+    const bucket = (0, storage_1.getStorage)(firebaseApp).bucket();
+    const ext = path.extname(storagePath) || '.mp4';
+    const localPath = path.join(os.tmpdir(), `${(0, crypto_1.randomUUID)()}${ext}`);
+    await bucket.file(storagePath).download({ destination: localPath });
+    return localPath;
+}
+/**
+ * Best-effort cleanup of a temp video upload once YouTube has it — never
+ * throws, since a cleanup failure should never affect the actual response.
+ * NEVER call this on a thumbnail path — the thumbnail's Firebase Storage
+ * URL is the permanent Project.thumbnail reference, not a temp file.
+ */
+async function deleteFromStorage(storagePath) {
+    try {
+        const firebaseApp = ensureInitialized();
+        const bucket = (0, storage_1.getStorage)(firebaseApp).bucket();
+        await bucket.file(storagePath).delete();
+    }
+    catch (err) {
+        // Already gone / never existed / any other issue — logging would be
+        // nice but this must never throw and never block a response.
     }
 }

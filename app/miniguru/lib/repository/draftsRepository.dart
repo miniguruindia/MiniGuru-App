@@ -96,13 +96,31 @@ class DraftRepository {
     final data = transformProject(project);
     final response = await _api.uploadProjectWithMedia(data, video, thumbnail);
 
-    // NULL SAFETY FIX
     if (response != null && response.statusCode == 201) {
       jsonDecode(response.body);
       return response.statusCode;
     } else {
-      print('Failed to upload project: ${response?.statusCode}');
-      throw Exception("Error uploading video");
+      // Surface the REAL backend error instead of a generic message — this
+      // was previously discarded entirely, which is why every past failure
+      // (regardless of actual cause) showed the exact same unhelpful text.
+      String detail = 'no response from server';
+      if (response != null) {
+        detail = 'HTTP ${response.statusCode}';
+        try {
+          final parsed = jsonDecode(response.body);
+          if (parsed is Map && parsed['error'] != null) {
+            detail = '${response.statusCode}: ${parsed['error']}';
+          } else if (response.body.isNotEmpty) {
+            detail = '${response.statusCode}: ${response.body}';
+          }
+        } catch (_) {
+          if (response.body.isNotEmpty) {
+            detail = '${response.statusCode}: ${response.body}';
+          }
+        }
+      }
+      print('Failed to upload project: $detail');
+      throw Exception(detail);
     }
   }
 
