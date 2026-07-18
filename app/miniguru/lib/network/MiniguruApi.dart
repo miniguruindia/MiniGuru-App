@@ -351,6 +351,73 @@ class MiniguruApi {
     if (authToken == null) return null;
 
     final url = Uri.parse('$_baseUrl/project/');
+
+    if (kIsWeb) {
+      // ── Flutter Web path — build the multipart body manually ──────────
+      // http.MultipartRequest.send() streams its body as a ReadableStream
+      // on Flutter Web's fetch()-based HTTP client. Modern Chrome requires
+      // an explicit `duplex: 'half'` option on any fetch() call whose body
+      // is a stream — without it, the browser rejects the call outright
+      // with "Failed to fetch", BEFORE the request ever reaches the
+      // network. This is a documented issue for this exact combination
+      // (Flutter Web + http.MultipartRequest + an Express/Multer backend).
+      // Building the body as a single plain byte array and sending it via
+      // a normal http.post() call avoids the streamed-body path entirely.
+      final videoBytes = await video.readAsBytes();
+      final thumbBytes = thumbnail != null ? await thumbnail.readAsBytes() : null;
+
+      final boundary =
+          '----MiniGuruBoundary${DateTime.now().microsecondsSinceEpoch}';
+      final body = <int>[];
+
+      void writeField(String name, String value) {
+        body.addAll(utf8.encode('--$boundary\r\n'));
+        body.addAll(
+            utf8.encode('Content-Disposition: form-data; name="$name"\r\n\r\n'));
+        body.addAll(utf8.encode('$value\r\n'));
+      }
+
+      void writeFile(
+          String fieldName, String filename, List<int> bytes, String contentType) {
+        body.addAll(utf8.encode('--$boundary\r\n'));
+        body.addAll(utf8.encode(
+            'Content-Disposition: form-data; name="$fieldName"; filename="$filename"\r\n'));
+        body.addAll(utf8.encode('Content-Type: $contentType\r\n\r\n'));
+        body.addAll(bytes);
+        body.addAll(utf8.encode('\r\n'));
+      }
+
+      writeField('title', data['title']);
+      writeField('description', data['description']);
+      writeField('startDate', data['startDate']);
+      writeField('endDate', data['endDate']);
+      writeField('categoryName', data['categoryName']);
+      writeField('materials', jsonEncode(data['materials']));
+      if (data['collaboratorIds'] != null &&
+          (data['collaboratorIds'] as List).isNotEmpty) {
+        writeField('collaboratorIds', jsonEncode(data['collaboratorIds']));
+      }
+
+      writeFile('video', video.name, videoBytes, 'video/mp4');
+      if (thumbBytes != null) {
+        writeFile('thumbnail', thumbnail!.name, thumbBytes, 'image/jpeg');
+      }
+
+      body.addAll(utf8.encode('--$boundary--\r\n'));
+
+      final headers = _buildHeaders(authToken.accessToken);
+      headers.remove('Content-Type');
+      headers['Content-Type'] = 'multipart/form-data; boundary=$boundary';
+
+      final response = await http.post(url, headers: headers, body: body);
+      _handleResponse(response);
+      return response;
+    }
+
+    // ── Native (Android/iOS) path — unchanged ──────────────────────────
+    // MultipartRequest works fine here since it goes through dart:io's
+    // HttpClient, not the browser fetch() API, so the web-only streaming
+    // issue above never applied to this path.
     var request = http.MultipartRequest('POST', url);
 
     request.fields['title']        = data['title'];
@@ -359,59 +426,30 @@ class MiniguruApi {
     request.fields['endDate']      = data['endDate'];
     request.fields['categoryName'] = data['categoryName'];
     request.fields['materials']    = jsonEncode(data['materials']);
-    // Shared/group projects — only ever set at upload time (see product
-    // decision: planning-only, instant-add, equal Goins split on approval).
     if (data['collaboratorIds'] != null &&
         (data['collaboratorIds'] as List).isNotEmpty) {
       request.fields['collaboratorIds'] = jsonEncode(data['collaboratorIds']);
     }
 
-    // IMPORTANT: do NOT include our own 'Content-Type' header here.
-    // MultipartRequest sets its own Content-Type (with a unique boundary
-    // marker) right before sending. _buildHeaders() always includes
-    // 'Content-Type': 'application/json' — harmless for normal requests,
-    // but on a MultipartRequest it becomes a SECOND, conflicting
-    // Content-Type header (Dart Maps are case-sensitive, so 'Content-Type'
-    // and MultipartRequest's own lowercase 'content-type' both survive).
-    // That duplicate/conflicting header is what was silently breaking
-    // this upload with "Failed to fetch" before the request ever left
-    // the browser.
     final uploadHeaders = _buildHeaders(authToken.accessToken);
     uploadHeaders.remove('Content-Type');
     request.headers.addAll(uploadHeaders);
 
-    if (kIsWeb) {
-      final videoBytes = await video.readAsBytes();
-      request.files.add(http.MultipartFile.fromBytes(
-        'video', videoBytes,
-        filename: video.name,
-        contentType: MediaType.parse('video/mp4'),
-      ));
-      if (thumbnail != null) {
-        final thumbBytes = await thumbnail.readAsBytes();
-        request.files.add(http.MultipartFile.fromBytes(
-          'thumbnail', thumbBytes,
-          filename: thumbnail.name,
-          contentType: MediaType.parse('image/jpeg'),
-        ));
-      }
-    } else {
-      var videoStream = http.ByteStream(video.openRead());
-      var videoLength = await video.length();
+    var videoStream = http.ByteStream(video.openRead());
+    var videoLength = await video.length();
+    request.files.add(http.MultipartFile(
+      'video', videoStream, videoLength,
+      filename: basename(video.path),
+      contentType: MediaType.parse('video/mp4'),
+    ));
+    if (thumbnail != null) {
+      var thumbnailStream = http.ByteStream(thumbnail.openRead());
+      var thumbnailLength = await thumbnail.length();
       request.files.add(http.MultipartFile(
-        'video', videoStream, videoLength,
-        filename: basename(video.path),
-        contentType: MediaType.parse('video/mp4'),
+        'thumbnail', thumbnailStream, thumbnailLength,
+        filename: basename(thumbnail.path),
+        contentType: MediaType.parse('image/jpeg'),
       ));
-      if (thumbnail != null) {
-        var thumbnailStream = http.ByteStream(thumbnail.openRead());
-        var thumbnailLength = await thumbnail.length();
-        request.files.add(http.MultipartFile(
-          'thumbnail', thumbnailStream, thumbnailLength,
-          filename: basename(thumbnail.path),
-          contentType: MediaType.parse('image/jpeg'),
-        ));
-      }
     }
 
     final streamedResponse = await request.send();
