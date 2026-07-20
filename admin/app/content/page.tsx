@@ -93,14 +93,18 @@ function CommunityEditor({ data, onChange }: { data: any; onChange: (d: any) => 
               <Field label="Title"><input className={inp} value={h.title || ''} onChange={e => updateItem('happenings', h.id, 'title', e.target.value)} /></Field>
               <Field label="Date (YYYY-MM-DD)"><input className={inp} value={h.date || ''} onChange={e => updateItem('happenings', h.id, 'date', e.target.value)} /></Field>
             </div>
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="City"><input className={inp} value={h.city || ''} onChange={e => updateItem('happenings', h.id, 'city', e.target.value)} /></Field>
+              <Field label="Emoji (e.g. 🏫 🏠 🏢)"><input className={inp} value={h.emoji || ''} onChange={e => updateItem('happenings', h.id, 'emoji', e.target.value)} /></Field>
+            </div>
             <Field label="Description"><textarea className={ta} rows={2} value={h.description || ''} onChange={e => updateItem('happenings', h.id, 'description', e.target.value)} /></Field>
             <div className="grid grid-cols-2 gap-3">
-              <Field label="Tag (NEW / UPCOMING / PAST)"><input className={inp} value={h.tag || ''} onChange={e => updateItem('happenings', h.id, 'tag', e.target.value)} /></Field>
+              <Field label="Tag (NEW / UPCOMING / MILESTONE / AWARD / PAST)"><input className={inp} value={h.tag || ''} onChange={e => updateItem('happenings', h.id, 'tag', e.target.value)} /></Field>
               <Field label="Image URL (optional)"><input className={inp} value={h.imageUrl || ''} onChange={e => updateItem('happenings', h.id, 'imageUrl', e.target.value)} /></Field>
             </div>
           </div>
         ))}
-        <button onClick={() => addItem('happenings', { title: '', date: '', description: '', tag: 'NEW', imageUrl: '' })}
+        <button onClick={() => addItem('happenings', { title: '', date: '', description: '', tag: 'NEW', imageUrl: '', city: '', emoji: '🏫' })}
           className="flex items-center gap-2 text-sm text-blue-600 hover:text-blue-800 font-medium">
           <Plus className="h-4 w-4" /> Add Happening
         </button>
@@ -132,11 +136,16 @@ function CommunityEditor({ data, onChange }: { data: any; onChange: (d: any) => 
                 </select>
               </Field>
             </div>
+            <div className="grid grid-cols-3 gap-3">
+              <Field label="Category Emoji (optional)"><input className={inp} value={c.categoryEmoji || ''} onChange={e => updateItem('challenges', c.id, 'categoryEmoji', e.target.value)} placeholder="auto if blank" /></Field>
+              <Field label="Participants (optional)"><input type="number" className={inp} value={c.participants || 0} onChange={e => updateItem('challenges', c.id, 'participants', e.target.value)} /></Field>
+              <Field label="Color hex (optional)"><input className={inp} value={c.color || ''} onChange={e => updateItem('challenges', c.id, 'color', e.target.value)} placeholder="auto if blank, e.g. 3B82F6" /></Field>
+            </div>
             <Field label="End Date"><input className={inp} value={c.endDate || ''} onChange={e => updateItem('challenges', c.id, 'endDate', e.target.value)} /></Field>
             <Field label="Description"><textarea className={ta} rows={2} value={c.description || ''} onChange={e => updateItem('challenges', c.id, 'description', e.target.value)} /></Field>
           </div>
         ))}
-        <button onClick={() => addItem('challenges', { title: '', category: '', difficulty: 'Medium', goinsReward: 100, endDate: '', status: 'upcoming', description: '' })}
+        <button onClick={() => addItem('challenges', { title: '', category: '', difficulty: 'Medium', goinsReward: 100, endDate: '', status: 'upcoming', description: '', categoryEmoji: '', participants: 0, color: '' })}
           className="flex items-center gap-2 text-sm text-blue-600 font-medium"><Plus className="h-4 w-4" /> Add Challenge</button>
       </SectionCard>
 

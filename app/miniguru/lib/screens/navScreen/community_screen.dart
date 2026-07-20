@@ -53,6 +53,108 @@ class _CommunityScreenState extends State<CommunityScreen>
     _loadCms();
   }
 
+  // ── CMS field-mapping helpers ────────────────────────────────────────────
+  // Admin (admin/app/content/page.tsx) saves goinsReward/endDate/description/
+  // status-as-string; these map admin's real field names + provide sensible
+  // auto-derived fallbacks (emoji/color) so admin doesn't have to pick a
+  // color for every single entry. Keep in sync with MINIGURU_RULES.md.
+
+  Color? _parseHex(dynamic v) {
+    if (v is! String || v.isEmpty) return null;
+    try {
+      final hex = v.replaceFirst('#', '');
+      return Color(int.parse('FF$hex', radix: 16));
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Color _happeningTagColor(String tag) {
+    switch (tag.toUpperCase()) {
+      case 'NEW':
+      case 'FEATURED':
+        return const Color(0xFFFFD60A);
+      case 'UPCOMING':
+        return const Color(0xFF3B82F6);
+      case 'MILESTONE':
+        return const Color(0xFF10B981);
+      case 'AWARD':
+        return const Color(0xFFEC4899);
+      case 'PAST':
+      case 'PAST HIGHLIGHT':
+        return const Color(0xFF6B6B8A);
+      default:
+        return const Color(0xFFFFD60A);
+    }
+  }
+
+  String _categoryEmoji(String category) {
+    final c = category.toLowerCase();
+    if (c.contains('electr')) return '🔌';
+    if (c.contains('robot')) return '🤖';
+    if (c.contains('scien')) return '🔬';
+    if (c.contains('mechan')) return '⚙️';
+    if (c.contains('art') || c.contains('craft')) return '🎨';
+    return '🏆';
+  }
+
+  Color _categoryColor(String category) {
+    final c = category.toLowerCase();
+    if (c.contains('electr')) return const Color(0xFFF59E0B);
+    if (c.contains('robot')) return const Color(0xFF8B5CF6);
+    if (c.contains('scien')) return const Color(0xFF10B981);
+    if (c.contains('mechan')) return const Color(0xFF3B82F6);
+    if (c.contains('art') || c.contains('craft')) return const Color(0xFFEC4899);
+    return const Color(0xFF3B82F6);
+  }
+
+  String _resourceEmoji(String type) {
+    switch (type.toUpperCase()) {
+      case 'PDF':
+        return '📄';
+      case 'DOC':
+        return '📝';
+      case 'VIDEO':
+        return '🎬';
+      case 'LIST':
+        return '📋';
+      default:
+        return '📄';
+    }
+  }
+
+  Color _resourceColor(String type) {
+    switch (type.toUpperCase()) {
+      case 'PDF':
+        return const Color(0xFF3B82F6);
+      case 'DOC':
+        return const Color(0xFF8B5CF6);
+      case 'VIDEO':
+        return const Color(0xFFEC4899);
+      case 'LIST':
+        return const Color(0xFF10B981);
+      default:
+        return const Color(0xFF3B82F6);
+    }
+  }
+
+  // Admin's Status dropdown stores 'ongoing'/'upcoming'/'past' (a string).
+  // A handful of legacy/seed entries may still have an int (0/1/2) —
+  // support both so nothing already in the DB breaks.
+  int _statusToInt(dynamic v) {
+    if (v is num) return v.toInt();
+    switch (v?.toString().toLowerCase()) {
+      case 'ongoing':
+        return 0;
+      case 'upcoming':
+        return 1;
+      case 'past':
+        return 2;
+      default:
+        return 1;
+    }
+  }
+
   Future<void> _loadCms() async {
     try {
       final data = await _api.getCmsContent('community');
@@ -68,72 +170,67 @@ class _CommunityScreenState extends State<CommunityScreen>
         }
 
         // ── Happenings list ──────────────────────────────────────────────
+        // BUGFIX: trust the CMS as source of truth once it has loaded — an
+        // admin-emptied list must render as empty, not silently keep the
+        // original hardcoded defaults (this was the root cause of "I
+        // deleted it in admin but it's still showing").
         final happeningsList = data['happenings'] as List<dynamic>?;
-        if (happeningsList != null && happeningsList.isNotEmpty) {
+        if (happeningsList != null) {
           _happenings = happeningsList.map((h) {
             final map = h as Map<String, dynamic>;
-            Color tagColor = const Color(0xFFFFD60A);
-            try {
-              final hex = (map['tagColor'] as String?)?.replaceFirst('#', '') ?? 'FFD60A';
-              tagColor = Color(int.parse('FF$hex', radix: 16));
-            } catch (_) {}
+            final tag = map['tag']?.toString() ?? 'Update';
             return _Happening(
               emoji:    map['emoji']?.toString()       ?? '🏫',
               lab:      map['title']?.toString()       ?? '',
               city:     map['city']?.toString()        ?? '',
               update:   map['description']?.toString() ?? '',
-              tag:      map['tag']?.toString()         ?? 'Update',
-              tagColor: tagColor,
+              tag:      tag,
+              tagColor: _parseHex(map['tagColor']) ?? _happeningTagColor(tag),
               date:     map['date']?.toString()        ?? '',
             );
           }).toList();
         }
 
         // ── Challenges list ──────────────────────────────────────────────
-        // CMS shape: { title, desc, category, categoryEmoji, status (0/1/2),
-        //              reward, deadline, participants, color (hex) }
+        // Admin field names: title, category, difficulty, goinsReward,
+        // endDate, status ('ongoing'/'upcoming'/'past'), description.
+        // categoryEmoji/participants/color are optional admin fields —
+        // auto-derived from category when not explicitly set.
         final challengesList = data['challenges'] as List<dynamic>?;
-        if (challengesList != null && challengesList.isNotEmpty) {
+        if (challengesList != null) {
           _challenges = challengesList.map((c) {
             final map = c as Map<String, dynamic>;
-            Color color = const Color(0xFF3B82F6);
-            try {
-              final hex = (map['color'] as String?)?.replaceFirst('#', '') ?? '3B82F6';
-              color = Color(int.parse('FF$hex', radix: 16));
-            } catch (_) {}
+            final category = map['category']?.toString() ?? '';
             return _Challenge(
-              title:         map['title']?.toString()         ?? '',
-              desc:          map['desc']?.toString()          ?? '',
-              category:      map['category']?.toString()      ?? '',
-              categoryEmoji: map['categoryEmoji']?.toString() ?? '🔬',
-              status:        (map['status'] as num?)?.toInt() ?? 0,
-              reward:        (map['reward'] as num?)?.toInt() ?? 0,
-              deadline:      map['deadline']?.toString()      ?? '',
+              title:         map['title']?.toString() ?? '',
+              desc:          (map['description'] ?? map['desc'])?.toString() ?? '',
+              category:      category,
+              categoryEmoji: map['categoryEmoji']?.toString() ?? _categoryEmoji(category),
+              status:        _statusToInt(map['status']),
+              reward:        ((map['goinsReward'] ?? map['reward']) as num?)?.toInt() ?? 0,
+              deadline:      (map['endDate'] ?? map['deadline'])?.toString() ?? '',
               participants:  (map['participants'] as num?)?.toInt() ?? 0,
-              color:         color,
+              color:         _parseHex(map['color']) ?? _categoryColor(category),
             );
           }).toList();
         }
 
         // ── Resources list ───────────────────────────────────────────────
-        // CMS shape: { emoji, title, desc, tag, tagColor (hex), type, url }
+        // Admin field names: title, type, tag, url, description.
+        // emoji/tagColor auto-derived from type when not explicitly set.
         final resourcesList = data['resources'] as List<dynamic>?;
-        if (resourcesList != null && resourcesList.isNotEmpty) {
+        if (resourcesList != null) {
           _resources = resourcesList.map((r) {
             final map = r as Map<String, dynamic>;
-            Color tagColor = const Color(0xFF3B82F6);
-            try {
-              final hex = (map['tagColor'] as String?)?.replaceFirst('#', '') ?? '3B82F6';
-              tagColor = Color(int.parse('FF$hex', radix: 16));
-            } catch (_) {}
+            final type = map['type']?.toString() ?? 'PDF';
             return _Resource(
-              emoji:    map['emoji']?.toString() ?? '📄',
+              emoji:    map['emoji']?.toString() ?? _resourceEmoji(type),
               title:    map['title']?.toString() ?? '',
-              desc:     map['desc']?.toString()  ?? '',
-              tag:      map['tag']?.toString()   ?? '',
-              tagColor: tagColor,
-              type:     map['type']?.toString()  ?? 'PDF',
-              url:      map['url']?.toString()   ?? '',
+              desc:     (map['description'] ?? map['desc'])?.toString() ?? '',
+              tag:      map['tag']?.toString() ?? '',
+              tagColor: _parseHex(map['tagColor']) ?? _resourceColor(type),
+              type:     type,
+              url:      map['url']?.toString() ?? '',
             );
           }).toList();
         }
