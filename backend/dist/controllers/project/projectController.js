@@ -413,13 +413,19 @@ const getPublishedVideoFeed = async (req, res) => {
             .filter((p) => p.video?.url) // defensive — skip any malformed record rather than 500
             .map((p) => {
             const videoId = (0, videoApprovalController_1.extractYouTubeId)(p.video.url);
+            // Shared/group projects — show every team member's name, not just
+            // the owner. channelTitle is a single shared field read identically
+            // by every screen (home cards, video detail "by X", rating widget
+            // messages), so fixing it here fixes the display everywhere at once.
+            const collaboratorNames = p.collaborators || [];
+            const teamNames = [p.user?.name || "MiniGuru Maker", ...collaboratorNames.map((c) => c.name)];
             return {
                 id: p.id,
                 projectId: p.id,
                 videoId,
                 title: p.title,
                 description: p.description,
-                channelTitle: p.user?.name || "MiniGuru Maker",
+                channelTitle: teamNames.join(", "),
                 viewCount: 0, // view tracking lives in /api/videos/:id/views — not duplicated here
                 // Prefer our own stored thumbnail (set at upload time); fall back
                 // to YouTube's own free, no-API-call thumbnail CDN URL — never

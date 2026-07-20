@@ -23,6 +23,15 @@ const GOINS_PER_CRITERION = 10;
 // - Goins added to creator's user.score immediately
 // - If rating already exists, UPDATE it (adjust Goins delta)
 // ════════════════════════════════════════════════════════════════════════════
+// Split a Goins pool equally across recipientIds. First recipient (the
+// project owner) absorbs any rounding remainder — same convention as
+// publishAndAwardProject's approval-time split (videoApprovalController.ts).
+function splitEqually(total: number, recipientIds: string[]): number[] {
+  const shareEach = Math.floor(total / recipientIds.length);
+  const remainder = total - shareEach * recipientIds.length;
+  return recipientIds.map((_, idx) => (idx === 0 ? shareEach + remainder : shareEach));
+}
+
 router.post('/:id/rate', authenticateToken, async (req: Request, res: Response) => {
   try {
     const raterId = (req as any).user?.userId;
@@ -42,25 +51,32 @@ router.post('/:id/rate', authenticateToken, async (req: Request, res: Response) 
       return res.status(400).json({ error: 'Select at least one criterion to rate.' });
     }
 
-    // ── Find the project/video to get creatorId ─────────────────────────────
-    // videoId in the community feed is the project id
-    const project = await prisma.pendingVideo.findUnique({
+    // ── Find the project/video ───────────────────────────────────────────────
+    // videoId in the community/home feed is the Project id (see
+    // getPublishedVideoFeed in projectController.ts). BUGFIX: this used to
+    // look up the legacy/unrelated `pendingVideo` model, which the current
+    // upload pipeline never writes to — every real video 404'd here.
+    const project = await prisma.project.findUnique({
       where: { id: videoId },
-      select: { uploadedById: true },
+      select: { userId: true, collaborators: true },
     });
 
     if (!project) {
       return res.status(404).json({ error: 'Video not found.' });
     }
 
-    const creatorId = project.uploadedById;
+    // ── Shared/group projects — split rating Goins equally, like approval ──
+    const collaborators = ((project as any).collaborators as
+      Array<{ userId: string; name: string }> | null) || [];
+    const recipientIds = [project.userId, ...collaborators.map((c) => c.userId)];
+    const creatorId = project.userId; // owner — used for cross-school check + VideoRating.creatorId
 
-    if (creatorId === raterId) {
-      return res.status(403).json({ error: 'You cannot rate your own video.' });
+    if (recipientIds.includes(raterId)) {
+      return res.status(403).json({ error: 'You cannot rate your own project.' });
     }
 
-    // ── Determine cross-school ──────────────────────────────────────────────
-    // Compare mentorId (school affiliation) of rater vs creator
+    // ── Determine cross-school (based on the project owner's school) ────────
+    // Compare mentorId (school affiliation) of rater vs owner
     const [rater, creator] = await Promise.all([
       prisma.user.findUnique({ where: { id: raterId }, select: { guardianInfo: true, mentorType: true } }),
       prisma.user.findUnique({ where: { id: creatorId }, select: { guardianInfo: true, mentorType: true } }),
@@ -81,20 +97,22 @@ router.post('/:id/rate', authenticateToken, async (req: Request, res: Response) 
     });
 
     if (existing) {
-      // UPDATE: adjust Goins delta
+      // UPDATE: adjust Goins delta, split equally across all recipients
       const goinsDelta = goinsAwarded - existing.goinsAwarded;
+      const oldShares = splitEqually(existing.goinsAwarded, recipientIds);
+      const newShares = splitEqually(goinsAwarded, recipientIds);
 
       await prisma.$transaction([
-        // Update the rating record
         prisma.videoRating.update({
           where: { videoId_raterId: { videoId, raterId } },
           data: { ...criteria, isCrossSchool, goinsAwarded },
         }),
-        // Adjust creator score by delta (can be positive or negative)
-        prisma.user.update({
-          where: { id: creatorId },
-          data: { score: { increment: goinsDelta } },
-        }),
+        ...recipientIds.map((recipientId, idx) =>
+          prisma.user.update({
+            where: { id: recipientId },
+            data: { score: { increment: newShares[idx] - oldShares[idx] } },
+          })
+        ),
       ]);
 
       return res.json({
@@ -104,10 +122,13 @@ router.post('/:id/rate', authenticateToken, async (req: Request, res: Response) 
         goinsDelta,
         isCrossSchool,
         multiplier,
+        recipients: recipientIds.length,
       });
     }
 
-    // ── Create new rating ───────────────────────────────────────────────────
+    // ── Create new rating — split equally across owner + collaborators ─────
+    const shares = splitEqually(goinsAwarded, recipientIds);
+
     await prisma.$transaction([
       prisma.videoRating.create({
         data: {
@@ -119,10 +140,12 @@ router.post('/:id/rate', authenticateToken, async (req: Request, res: Response) 
           goinsAwarded,
         },
       }),
-      prisma.user.update({
-        where: { id: creatorId },
-        data: { score: { increment: goinsAwarded } },
-      }),
+      ...recipientIds.map((recipientId, idx) =>
+        prisma.user.update({
+          where: { id: recipientId },
+          data: { score: { increment: shares[idx] } },
+        })
+      ),
       // +1 Goin to rater for peer assessment
       prisma.user.update({
         where: { id: raterId },
@@ -136,6 +159,7 @@ router.post('/:id/rate', authenticateToken, async (req: Request, res: Response) 
       goinsAwarded,
       isCrossSchool,
       multiplier,
+      recipients: recipientIds.length,
       breakdown: {
         criteria: selectedCount,
         goinsPerCriterion: GOINS_PER_CRITERION,
