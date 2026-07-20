@@ -535,7 +535,8 @@ class _UnifiedVideoPlayerState extends State<UnifiedVideoPlayer> {
   // Extracted verbatim from the previous single-column build().
   List<Widget> _buildCommentsWidgets() {
     return [
-      // Comments                        Padding(
+      // Comments
+                        Padding(
                           padding: const EdgeInsets.all(16),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
