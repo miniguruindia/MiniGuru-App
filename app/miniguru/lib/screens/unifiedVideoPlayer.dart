@@ -296,60 +296,166 @@ class _UnifiedVideoPlayerState extends State<UnifiedVideoPlayer> {
       child: Scaffold(
         backgroundColor: Colors.black,
         body: SafeArea(
-          child: Column(
-            children: [
-              // ── Back button row — sits ABOVE the iframe, never overlapped ──
-              Container(
-                color: Colors.black,
-                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                child: Row(
-                  children: [
-                    IconButton(
-                      icon: const Icon(Icons.arrow_back, color: Colors.white),
-                      onPressed: () => Navigator.of(context).pop(),
-                      tooltip: 'Back',
-                    ),
-                    Expanded(
-                      child: Text(
-                        widget.title,
-                        style: GoogleFonts.nunito(
-                          color: Colors.white,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final isWide = constraints.maxWidth >= 760;
+              return isWide
+                  ? _buildWideLayout(constraints)
+                  : _buildNarrowLayout(context);
+            },
+          ),
+        ),
+      ),
+    );
+  }
 
-              // ── YouTube player (no Flutter widgets overlaid on it) ──
-              Container(
-                color: Colors.black,
-                child: YoutubePlayer(
-                  controller: _controller,
-                  aspectRatio: 16 / 9,
-                ),
+  // ── Shared back button row — sits ABOVE the iframe, never overlapped ────
+  Widget _buildBackBar() {
+    return Container(
+      color: Colors.black,
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+      child: Row(
+        children: [
+          IconButton(
+            icon: const Icon(Icons.arrow_back, color: Colors.white),
+            onPressed: () => Navigator.of(context).pop(),
+            tooltip: 'Back',
+          ),
+          Expanded(
+            child: Text(
+              widget.title,
+              style: GoogleFonts.nunito(
+                color: Colors.white,
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
               ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
-              // ── Scrollable content below player ──
-              SizedBox(
-                height: MediaQuery.of(context).size.height * 0.55,
-                child: Container(
-                  decoration: const BoxDecoration(
-                    color: backgroundWhite,
-                    borderRadius: BorderRadius.only(
-                      topLeft: Radius.circular(20),
-                      topRight: Radius.circular(20),
-                    ),
-                  ),
+  // ── Narrow (phone/tablet-portrait) layout — UNCHANGED behavior ──────────
+  // Full-width 16:9 video stays modest in height on narrow screens, so the
+  // original fixed 55%-of-screen-height panel below it always fit. Left
+  // exactly as it was before this fix.
+  Widget _buildNarrowLayout(BuildContext context) {
+    return Column(
+      children: [
+        _buildBackBar(),
+        // ── YouTube player (no Flutter widgets overlaid on it) ──
+        Container(
+          color: Colors.black,
+          child: YoutubePlayer(
+            controller: _controller,
+            aspectRatio: 16 / 9,
+          ),
+        ),
+        // ── Scrollable content below player ──
+        SizedBox(
+          height: MediaQuery.of(context).size.height * 0.55,
+          child: Container(
+            decoration: const BoxDecoration(
+              color: backgroundWhite,
+              borderRadius: BorderRadius.only(
+                topLeft: Radius.circular(20),
+                topRight: Radius.circular(20),
+              ),
+            ),
+            child: SingleChildScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  ..._buildAboutWidgets(),
+                  ..._buildCommentsWidgets(),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ── Wide (desktop/laptop/landscape-tablet) layout — NEW ─────────────────
+  // BUGFIX: on a wide window a full-width 16:9 video becomes taller than
+  // the whole viewport (e.g. 1440px wide -> 810px tall video), which pushed
+  // the old fixed-height info/comments panel off-screen entirely — this is
+  // why the video looked half-hidden and Comments/About were invisible on
+  // desktop. Fix: cap the video's rendered width (so its height stays
+  // reasonable, like real YouTube's desktop player) and give the content
+  // area a proper Expanded region that always fills whatever space
+  // remains, split into two scrollable columns (About+Rating on the left,
+  // Comments on the right) so both are always reachable regardless of
+  // window size.
+  Widget _buildWideLayout(BoxConstraints constraints) {
+    final videoWidth = (constraints.maxWidth * 0.62).clamp(480.0, 900.0);
+    return Column(
+      children: [
+        _buildBackBar(),
+        Container(
+          color: Colors.black,
+          alignment: Alignment.center,
+          child: SizedBox(
+            width: videoWidth,
+            child: YoutubePlayer(
+              controller: _controller,
+              aspectRatio: 16 / 9,
+            ),
+          ),
+        ),
+        Expanded(
+          child: Container(
+            decoration: const BoxDecoration(
+              color: backgroundWhite,
+              borderRadius: BorderRadius.only(
+                topLeft: Radius.circular(20),
+                topRight: Radius.circular(20),
+              ),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  flex: 3,
                   child: SingleChildScrollView(
                     physics: const AlwaysScrollableScrollPhysics(),
+                    padding: const EdgeInsets.only(right: 4),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
+                      children: _buildAboutWidgets(),
+                    ),
+                  ),
+                ),
+                const VerticalDivider(width: 1),
+                Expanded(
+                  flex: 2,
+                  child: SingleChildScrollView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    padding: const EdgeInsets.only(left: 4),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: _buildCommentsWidgets(),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ── Title / stats / peer rating / "About this project" ──────────────────
+  // Extracted verbatim from the previous single-column build() so both
+  // layouts render byte-identical content, just arranged differently.
+  List<Widget> _buildAboutWidgets() {
+    return [
                         // Video Info
                         Padding(
                           padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
@@ -422,8 +528,14 @@ class _UnifiedVideoPlayerState extends State<UnifiedVideoPlayer> {
 
                         const Divider(height: 1),
 
-                        // Comments
-                        Padding(
+    ];
+  }
+
+  // ── Comments header, input box, and comment list ─────────────────────────
+  // Extracted verbatim from the previous single-column build().
+  List<Widget> _buildCommentsWidgets() {
+    return [
+      // Comments                        Padding(
                           padding: const EdgeInsets.all(16),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -600,15 +712,6 @@ class _UnifiedVideoPlayerState extends State<UnifiedVideoPlayer> {
                         ),
 
                         const SizedBox(height: 20),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
+    ];
   }
 }
