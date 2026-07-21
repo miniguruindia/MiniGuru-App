@@ -22,7 +22,8 @@ import {
   ShoppingBag,
   Inbox,
   Lightbulb,
-  ShieldAlert
+  ShieldAlert,
+  Megaphone
 } from 'lucide-react'
 import Image from 'next/image'
 
@@ -82,6 +83,14 @@ export function AdminLayout({ children }: AdminLayoutProps) {
       href: '/schools', 
       icon: School,
       current: pathname.startsWith('/schools')
+    },
+    // ── Community Submissions — Happenings + Challenges moderation ──
+    { 
+      name: 'Community Submissions', 
+      href: '/community-submissions', 
+      icon: Megaphone,
+      current: pathname.startsWith('/community-submissions'),
+      description: 'Approve teacher/school Happenings & Challenges'
     },
     // ── Goins ──────────────────────────────────────────────
     { 

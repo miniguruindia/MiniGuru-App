@@ -14,15 +14,6 @@ function requireAdmin(req, res, next) {
     }
     next();
 }
-// Any mentor/school/T-LAB/parent account, or an admin, may submit a
-// Happening or Challenge. Plain child/individual accounts cannot.
-function requireMentorOrAdmin(req, res, next) {
-    const u = req.user;
-    if (u?.role === 'ADMIN' || u?.role === 'SUPERADMIN' || u?.isMentor === true) {
-        return next();
-    }
-    return res.status(403).json({ error: 'Only school/T-LAB/parent accounts or admins can submit this.' });
-}
 async function loadSubmitterContext(userId) {
     return prismaClient_1.default.user.findUnique({
         where: { id: userId },
@@ -116,13 +107,16 @@ router.delete('/admin/happenings/:id', authMiddleware_1.authenticateToken, requi
 });
 // Submit — mentor/school/T-LAB/parent or admin. Admin-authored entries
 // auto-approve; everyone else lands in the moderation queue.
-router.post('/happenings', authMiddleware_1.authenticateToken, requireMentorOrAdmin, async (req, res) => {
+router.post('/happenings', authMiddleware_1.authenticateToken, async (req, res) => {
     try {
         const u = req.user;
         const submitter = await loadSubmitterContext(u.userId);
         if (!submitter)
             return res.status(401).json({ error: 'User not found.' });
         const isAdmin = submitter.role === 'ADMIN' || submitter.role === 'SUPERADMIN';
+        if (!isAdmin && submitter.isMentor !== true) {
+            return res.status(403).json({ error: 'Only school/T-LAB/parent accounts or admins can submit this.' });
+        }
         const body = req.body || {};
         if (!body.title || !body.description || !body.date) {
             return res.status(400).json({ error: 'title, description, and date are required.' });
@@ -260,13 +254,16 @@ router.delete('/admin/challenges/:id', authMiddleware_1.authenticateToken, requi
 // Submit — mentor/school/T-LAB/parent or admin. Teacher picks audience:
 // 'OWN_SCHOOL' (only children linked under their own account) or 'ALL'.
 // Admin-authored challenges are always 'ALL' and auto-approve.
-router.post('/challenges', authMiddleware_1.authenticateToken, requireMentorOrAdmin, async (req, res) => {
+router.post('/challenges', authMiddleware_1.authenticateToken, async (req, res) => {
     try {
         const u = req.user;
         const submitter = await loadSubmitterContext(u.userId);
         if (!submitter)
             return res.status(401).json({ error: 'User not found.' });
         const isAdmin = submitter.role === 'ADMIN' || submitter.role === 'SUPERADMIN';
+        if (!isAdmin && submitter.isMentor !== true) {
+            return res.status(403).json({ error: 'Only school/T-LAB/parent accounts or admins can submit this.' });
+        }
         const body = req.body || {};
         if (!body.title || !body.description || !body.category || !body.endDate) {
             return res.status(400).json({ error: 'title, description, category, and endDate are required.' });

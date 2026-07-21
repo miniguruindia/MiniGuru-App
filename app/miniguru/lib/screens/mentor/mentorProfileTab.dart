@@ -11,6 +11,8 @@ import 'package:miniguru/state/sessionState.dart';
 import 'package:miniguru/screens/editProfileScreen.dart';
 import 'package:miniguru/screens/legalScreen.dart';
 import 'package:miniguru/widgets/contactVerificationCard.dart';
+import 'package:miniguru/screens/mentor/submitHappeningScreen.dart';
+import 'package:miniguru/screens/mentor/submitChallengeScreen.dart';
 
 class MentorProfileTab extends StatefulWidget {
   const MentorProfileTab({super.key});
@@ -442,6 +444,24 @@ class _MentorProfileTabState extends State<MentorProfileTab> {
               MaterialPageRoute(builder: (_) => const MentorChildPickerScreen()),
               (route) => false,
             ),
+          ),
+          const SizedBox(height: 10),
+          _actionTile(
+            icon: Icons.campaign_outlined,
+            label: 'Share a T-LAB Happening',
+            subtitle: 'Tell the community what\'s new at your school',
+            color: const Color(0xFFE8A000),
+            onTap: () => Navigator.push(context,
+                MaterialPageRoute(builder: (_) => const SubmitHappeningScreen())),
+          ),
+          const SizedBox(height: 10),
+          _actionTile(
+            icon: Icons.emoji_events_outlined,
+            label: 'Submit a STEAM Challenge',
+            subtitle: 'Set a build challenge for children to join',
+            color: const Color(0xFFE8A000),
+            onTap: () => Navigator.push(context,
+                MaterialPageRoute(builder: (_) => const SubmitChallengeScreen())),
           ),
           const SizedBox(height: 10),
           _actionTile(

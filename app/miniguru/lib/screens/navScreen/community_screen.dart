@@ -51,6 +51,7 @@ class _CommunityScreenState extends State<CommunityScreen>
     _tabController = TabController(length: 4, vsync: this)
       ..addListener(() => setState(() => _activeTab = _tabController.index));
     _loadCms();
+    _loadHappeningsAndChallenges();
   }
 
   // ── CMS field-mapping helpers ────────────────────────────────────────────
@@ -169,51 +170,11 @@ class _CommunityScreenState extends State<CommunityScreen>
           _statLabs   = stats['labs']?.toString()   ?? _statLabs;
         }
 
-        // ── Happenings list ──────────────────────────────────────────────
-        // BUGFIX: trust the CMS as source of truth once it has loaded — an
-        // admin-emptied list must render as empty, not silently keep the
-        // original hardcoded defaults (this was the root cause of "I
-        // deleted it in admin but it's still showing").
-        final happeningsList = data['happenings'] as List<dynamic>?;
-        if (happeningsList != null) {
-          _happenings = happeningsList.map((h) {
-            final map = h as Map<String, dynamic>;
-            final tag = map['tag']?.toString() ?? 'Update';
-            return _Happening(
-              emoji:    map['emoji']?.toString()       ?? '🏫',
-              lab:      map['title']?.toString()       ?? '',
-              city:     map['city']?.toString()        ?? '',
-              update:   map['description']?.toString() ?? '',
-              tag:      tag,
-              tagColor: _parseHex(map['tagColor']) ?? _happeningTagColor(tag),
-              date:     map['date']?.toString()        ?? '',
-            );
-          }).toList();
-        }
-
-        // ── Challenges list ──────────────────────────────────────────────
-        // Admin field names: title, category, difficulty, goinsReward,
-        // endDate, status ('ongoing'/'upcoming'/'past'), description.
-        // categoryEmoji/participants/color are optional admin fields —
-        // auto-derived from category when not explicitly set.
-        final challengesList = data['challenges'] as List<dynamic>?;
-        if (challengesList != null) {
-          _challenges = challengesList.map((c) {
-            final map = c as Map<String, dynamic>;
-            final category = map['category']?.toString() ?? '';
-            return _Challenge(
-              title:         map['title']?.toString() ?? '',
-              desc:          (map['description'] ?? map['desc'])?.toString() ?? '',
-              category:      category,
-              categoryEmoji: map['categoryEmoji']?.toString() ?? _categoryEmoji(category),
-              status:        _statusToInt(map['status']),
-              reward:        ((map['goinsReward'] ?? map['reward']) as num?)?.toInt() ?? 0,
-              deadline:      (map['endDate'] ?? map['deadline'])?.toString() ?? '',
-              participants:  (map['participants'] as num?)?.toInt() ?? 0,
-              color:         _parseHex(map['color']) ?? _categoryColor(category),
-            );
-          }).toList();
-        }
+        // Happenings + Challenges now load from their own real endpoints
+        // (see _loadHappeningsAndChallenges below) — they moved out of the
+        // CMS blob so submitter identity, moderation status, and audience
+        // scoping can be tracked properly. Only Stats + Resources still
+        // come from the CMS blob here.
 
         // ── Resources list ───────────────────────────────────────────────
         // Admin field names: title, type, tag, url, description.
@@ -239,6 +200,53 @@ class _CommunityScreenState extends State<CommunityScreen>
       });
     } catch (e) {
       debugPrint('❌ Community CMS load error: $e');
+    }
+  }
+
+  // Happenings + Challenges — real, moderated endpoints (not the CMS
+  // blob). /challenges applies audience filtering server-side based on
+  // the logged-in viewer's school, via the auth token MiniguruApi already
+  // attaches when available.
+  Future<void> _loadHappeningsAndChallenges() async {
+    try {
+      final happeningsRaw = await _api.getHappenings();
+      final challengesRaw = await _api.getChallenges();
+      if (!mounted) return;
+
+      setState(() {
+        _happenings = happeningsRaw.map((h) {
+          final map = h as Map<String, dynamic>;
+          final tag = map['tag']?.toString() ?? 'Update';
+          return _Happening(
+            emoji:      map['emoji']?.toString()       ?? '🏫',
+            lab:        map['title']?.toString()       ?? '',
+            city:       map['city']?.toString()        ?? '',
+            update:     map['description']?.toString() ?? '',
+            tag:        tag,
+            tagColor:   _parseHex(map['tagColor']) ?? _happeningTagColor(tag),
+            date:       map['date']?.toString()        ?? '',
+            schoolName: map['schoolName']?.toString()   ?? '',
+          );
+        }).toList();
+
+        _challenges = challengesRaw.map((c) {
+          final map = c as Map<String, dynamic>;
+          final category = map['category']?.toString() ?? '';
+          return _Challenge(
+            title:         map['title']?.toString() ?? '',
+            desc:          map['description']?.toString() ?? '',
+            category:      category,
+            categoryEmoji: map['categoryEmoji']?.toString() ?? _categoryEmoji(category),
+            status:        _statusToInt(map['lifecycleStatus']),
+            reward:        (map['goinsReward'] as num?)?.toInt() ?? 0,
+            deadline:      map['endDate']?.toString() ?? '',
+            participants:  (map['participants'] as num?)?.toInt() ?? 0,
+            color:         _parseHex(map['color']) ?? _categoryColor(category),
+          );
+        }).toList();
+      });
+    } catch (e) {
+      debugPrint('❌ Happenings/Challenges load error: $e');
     }
   }
 
@@ -511,7 +519,10 @@ class _HappeningCard extends StatelessWidget {
                   style: GoogleFonts.nunito(
                       fontSize: 14, fontWeight: FontWeight.w800,
                       color: const Color(0xFF1A1A2E))),
-              Text('📍 ${h.city}',
+              Text(
+                  h.schoolName.isNotEmpty
+                      ? '🏫 ${h.schoolName} · 📍 ${h.city}'
+                      : '📍 ${h.city}',
                   style: GoogleFonts.nunito(
                       fontSize: 11, color: const Color(0xFF6B6B8A))),
             ]),
@@ -1413,12 +1424,12 @@ class _Tab {
 }
 
 class _Happening {
-  final String emoji, lab, city, update, tag, date;
+  final String emoji, lab, city, update, tag, date, schoolName;
   final Color tagColor;
   const _Happening({
     required this.emoji, required this.lab, required this.city,
     required this.update, required this.tag, required this.tagColor,
-    required this.date,
+    required this.date, this.schoolName = '',
   });
 }
 

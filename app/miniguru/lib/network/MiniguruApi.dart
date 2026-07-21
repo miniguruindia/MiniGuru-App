@@ -474,6 +474,81 @@ class MiniguruApi {
     }
   }
 
+  // ── T-LAB Happenings + STEAM Challenges submission workflow ────────────
+  // Any mentor/school/T-LAB/parent account can submit either. Submissions
+  // land as PENDING until an admin approves them (see communitySubmissionsRoutes.ts).
+  Future<Map<String, dynamic>> submitHappening(Map<String, dynamic> data) async {
+    final authToken = await _getValidToken();
+    if (authToken == null) return {'error': 'Not logged in.'};
+    try {
+      final response = await http.post(
+        Uri.parse('$_baseUrl/happenings'),
+        headers: _buildHeaders(authToken.accessToken),
+        body: jsonEncode(data),
+      );
+      final body = jsonDecode(response.body) as Map<String, dynamic>;
+      if (response.statusCode == 201) return body;
+      return {'error': body['error']?.toString() ?? 'Failed to submit happening.'};
+    } catch (e) {
+      return {'error': 'Network error: $e'};
+    }
+  }
+
+  // audience: 'OWN_SCHOOL' or 'ALL'
+  Future<Map<String, dynamic>> submitChallenge(Map<String, dynamic> data) async {
+    final authToken = await _getValidToken();
+    if (authToken == null) return {'error': 'Not logged in.'};
+    try {
+      final response = await http.post(
+        Uri.parse('$_baseUrl/challenges'),
+        headers: _buildHeaders(authToken.accessToken),
+        body: jsonEncode(data),
+      );
+      final body = jsonDecode(response.body) as Map<String, dynamic>;
+      if (response.statusCode == 201) return body;
+      return {'error': body['error']?.toString() ?? 'Failed to submit challenge.'};
+    } catch (e) {
+      return {'error': 'Network error: $e'};
+    }
+  }
+
+  // Public feeds — read by community_screen.dart. Auth is optional but
+  // included when available so /challenges can apply OWN_SCHOOL audience
+  // filtering for the logged-in viewer.
+  Future<List<dynamic>> getHappenings() async {
+    try {
+      final authToken = await _getValidToken();
+      final response = await http.get(
+        Uri.parse('$_baseUrl/happenings'),
+        headers: _buildHeaders(authToken?.accessToken),
+      );
+      if (response.statusCode == 200) {
+        final body = jsonDecode(response.body) as Map<String, dynamic>;
+        return (body['happenings'] as List<dynamic>?) ?? [];
+      }
+      return [];
+    } catch (e) {
+      return [];
+    }
+  }
+
+  Future<List<dynamic>> getChallenges() async {
+    try {
+      final authToken = await _getValidToken();
+      final response = await http.get(
+        Uri.parse('$_baseUrl/challenges'),
+        headers: _buildHeaders(authToken?.accessToken),
+      );
+      if (response.statusCode == 200) {
+        final body = jsonDecode(response.body) as Map<String, dynamic>;
+        return (body['challenges'] as List<dynamic>?) ?? [];
+      }
+      return [];
+    } catch (e) {
+      return [];
+    }
+  }
+
   Future<http.Response?> addComment(String projectId, String content) async {
     final authToken = await _getValidToken();
     if (authToken == null) return null;
