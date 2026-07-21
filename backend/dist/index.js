@@ -39,6 +39,7 @@ const communicationRoutes_1 = __importDefault(require("./routes/communicationRou
 const goinsRoutes_1 = __importDefault(require("./routes/goinsRoutes")); // ← NEW
 const goinsTopupRoutes_1 = __importDefault(require("./routes/goinsTopupRoutes"));
 const schoolAccountRoutes_1 = __importDefault(require("./routes/schoolAccountRoutes")); // ← NEW: school/T-LAB admin accounts
+const communitySubmissionsRoutes_1 = __importDefault(require("./routes/communitySubmissionsRoutes")); // ← NEW: T-LAB Happenings + STEAM Challenges submission workflow
 // YouTube Upload Setup (optional)
 let youtubeService = null;
 try {
@@ -285,6 +286,7 @@ try {
     app.use('/project', projectRoutes_1.default);
     app.use('/admin', adminRoutes_1.default);
     app.use('/admin', schoolAccountRoutes_1.default); // ← NEW: school/T-LAB admin accounts
+    app.use(communitySubmissionsRoutes_1.default); // ← NEW: serves /happenings, /admin/happenings, /challenges, /admin/challenges
     app.use('/payment', paymentRoutes_1.default);
     app.use('/api/videos', videoRoutes_1.default);
     app.use('/api/videos', videoRatingRoutes_1.default);

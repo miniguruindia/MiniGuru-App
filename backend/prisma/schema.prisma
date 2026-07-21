@@ -589,6 +589,60 @@ model VideoRating {
   @@map("video_ratings")
 }
 
+model Happening {
+  id              String    @id @default(auto()) @map("_id") @db.ObjectId
+  title           String
+  description     String
+  date            DateTime
+  city            String?
+  schoolName      String?   // auto-filled from submitter's guardianInfo.institutionName — never typed manually
+  emoji           String    @default("🏫")
+  tag             String    @default("Update")   // NEW / UPCOMING / MILESTONE / AWARD / PAST
+  tagColor        String?
+  imageUrl        String?
+  status          String    @default("PENDING")  // PENDING | APPROVED | REJECTED
+  submittedById   String?   @db.ObjectId          // null = admin-authored (auto-approved)
+  submittedByName String?
+  approvedById    String?   @db.ObjectId
+  approvedAt      DateTime?
+  rejectionReason String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([status])
+  @@index([submittedById])
+  @@map("happenings")
+}
+
+model Challenge {
+  id              String    @id @default(auto()) @map("_id") @db.ObjectId
+  title           String
+  description     String
+  category        String
+  categoryEmoji   String?
+  difficulty      String    @default("Medium")
+  goinsReward     Int       @default(100)
+  endDate         DateTime
+  participants    Int       @default(0)
+  color           String?
+  lifecycleStatus String    @default("upcoming")  // ongoing | upcoming | past — DISPLAY status
+  status          String    @default("PENDING")   // PENDING | APPROVED | REJECTED — MODERATION status
+  audience        String    @default("ALL")       // ALL | OWN_SCHOOL
+  restrictedToUserId String? @db.ObjectId          // set when audience=OWN_SCHOOL — the submitting teacher/school's own User.id
+  submittedById   String?   @db.ObjectId           // null = admin-authored (auto-approved, always ALL)
+  submittedByName String?
+  approvedById    String?   @db.ObjectId
+  approvedAt      DateTime?
+  rejectionReason String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([status])
+  @@index([audience])
+  @@index([submittedById])
+  @@map("challenges")
+}
+
 model GoinTopUpRequest {
   id                  String    @id @default(auto()) @map("_id") @db.ObjectId
   requesterId         String    @db.ObjectId

@@ -36,6 +36,7 @@ import communicationRouter from './routes/communicationRoutes';   // ← NEW
 import goinsRouter from './routes/goinsRoutes';           // ← NEW
 import goinsTopupRouter from './routes/goinsTopupRoutes';
 import schoolAccountRouter from './routes/schoolAccountRoutes';   // ← NEW: school/T-LAB admin accounts
+import communitySubmissionsRouter from './routes/communitySubmissionsRoutes';   // ← NEW: T-LAB Happenings + STEAM Challenges submission workflow
 
 // YouTube Upload Setup (optional)
 let youtubeService: any = null;
@@ -299,6 +300,7 @@ try {
   app.use('/project', projectRouter);
   app.use('/admin', adminRouter);
   app.use('/admin', schoolAccountRouter);   // ← NEW: school/T-LAB admin accounts
+  app.use(communitySubmissionsRouter);   // ← NEW: serves /happenings, /admin/happenings, /challenges, /admin/challenges
   app.use('/payment', paymentRouter);
   app.use('/api/videos', videoRoutes);
   app.use('/api/videos', videoRatingRouter);
