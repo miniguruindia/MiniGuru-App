@@ -67,8 +67,20 @@ class _MentorActivityTabState extends State<MentorActivityTab> {
       (c) => c.id == _selectedChildId,
       orElse: () => _children.first,
     );
-    return _projects.where((p) =>
-        p.title.toLowerCase().startsWith(child.name.toLowerCase())).toList();
+    // BUGFIX: was matching by checking if the project TITLE started with
+    // the child's name — fragile and often wrong. Now matches real
+    // ownership via the child's independent-login user id. A child with
+    // no linkedUserId yet (not independently registered) has no way to
+    // be matched to a project owner, so they correctly show none here.
+    if (child.linkedUserId == null) return [];
+    return _projects.where((p) => p.userId == child.linkedUserId).toList();
+  }
+
+  // ── Batch snapshot — used by _buildBatchSnapshot() below ─────────────
+  ChildProfile? _topPerformer() {
+    if (_children.isEmpty) return null;
+    final sorted = [..._children]..sort((a, b) => b.score.compareTo(a.score));
+    return sorted.first;
   }
 
   void _showUploadDialog() {
@@ -411,6 +423,18 @@ class _MentorActivityTabState extends State<MentorActivityTab> {
                 ),
               ),
 
+              // Batch Snapshot — replaces the old duplicate Goins lists that
+              // used to live on the Profile tab (Family Goins bar chart +
+              // My Learners score list). One clear summary here instead.
+              if (_children.isNotEmpty)
+                SliverToBoxAdapter(child: _buildBatchSnapshot()),
+
+              // Clickable projects table — each row links to that child's
+              // actual project (ProjectDetailsScreen), same screen the
+              // card list below already opens.
+              if (_children.isNotEmpty && _projects.isNotEmpty)
+                SliverToBoxAdapter(child: _buildProjectsTable()),
+
               // Filter chips
               if (_children.isNotEmpty)
                 SliverToBoxAdapter(
@@ -491,6 +515,166 @@ class _MentorActivityTabState extends State<MentorActivityTab> {
         label: Text('Upload Video',
             style: GoogleFonts.nunito(
                 color: Colors.white, fontWeight: FontWeight.w800)),
+      ),
+    );
+  }
+
+  Widget _buildBatchSnapshot() {
+    final totalGoins = _children.fold<int>(0, (sum, c) => sum + c.score);
+    final top = _topPerformer();
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+      child: Container(
+        padding: const EdgeInsets.all(18),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(18),
+          boxShadow: [
+            BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 8, offset: const Offset(0, 3)),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Batch Snapshot',
+                style: GoogleFonts.nunito(fontSize: 15, fontWeight: FontWeight.w900, color: Colors.black87)),
+            const SizedBox(height: 14),
+            Row(
+              children: [
+                Expanded(child: _snapshotStat('👥', '${_children.length}', 'Learners')),
+                Expanded(child: _snapshotStat('🎬', '${_projects.length}', 'Projects')),
+                Expanded(child: _snapshotStat('🪙', '$totalGoins', 'Total Goins')),
+              ],
+            ),
+            if (top != null && top.score > 0) ...[
+              const SizedBox(height: 14),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFFF8E1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
+                  children: [
+                    const Text('🌟', style: TextStyle(fontSize: 18)),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        '${top.name} is leading with ${top.score} Goins!',
+                        style: GoogleFonts.nunito(fontSize: 13, fontWeight: FontWeight.w700, color: const Color(0xFF8A6D00)),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _snapshotStat(String emoji, String value, String label) {
+    return Column(
+      children: [
+        Text(emoji, style: const TextStyle(fontSize: 20)),
+        const SizedBox(height: 4),
+        Text(value, style: GoogleFonts.nunito(fontSize: 18, fontWeight: FontWeight.w900, color: Colors.black87)),
+        Text(label, style: GoogleFonts.nunito(fontSize: 11, color: Colors.grey[500])),
+      ],
+    );
+  }
+
+  Widget _buildProjectsTable() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(18),
+          boxShadow: [
+            BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 8, offset: const Offset(0, 3)),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 14, 16, 6),
+              child: Text('All Projects',
+                  style: GoogleFonts.nunito(fontSize: 15, fontWeight: FontWeight.w900, color: Colors.black87)),
+            ),
+            const Divider(height: 1),
+            ..._projects.map((p) => _projectTableRow(p)),
+            const SizedBox(height: 6),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _projectTableRow(Project p) {
+    // Flutter's Project model has no status field client-side — a project
+    // either has a parseable video attached or it doesn't. This reflects
+    // that honestly rather than inventing an unbacked status label.
+    final hasVideo = p.video.isNotEmpty && p.video != 'null';
+    final childName = _children
+        .firstWhere(
+          (c) => c.linkedUserId == p.userId,
+          orElse: () => ChildProfile(id: '', name: p.author, age: 0, score: 0),
+        )
+        .name;
+
+    return InkWell(
+      onTap: () => Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => ProjectDetailsScreen(
+            project: p,
+            backgroundColor: const Color(0xFF5B6EF5),
+            user: _user!,
+          ),
+        ),
+      ),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: const BoxDecoration(
+          border: Border(bottom: BorderSide(color: Color(0xFFF0F0F5))),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              flex: 3,
+              child: Text(p.title,
+                  style: GoogleFonts.nunito(fontSize: 13, fontWeight: FontWeight.w700),
+                  maxLines: 1, overflow: TextOverflow.ellipsis),
+            ),
+            Expanded(
+              flex: 2,
+              child: Text(childName,
+                  style: GoogleFonts.nunito(fontSize: 12, color: Colors.grey[600]),
+                  maxLines: 1, overflow: TextOverflow.ellipsis),
+            ),
+            Expanded(
+              flex: 2,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: hasVideo ? const Color(0xFFE6F7EE) : const Color(0xFFFFF3E0),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  hasVideo ? 'Published' : 'Processing',
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.nunito(
+                      fontSize: 11, fontWeight: FontWeight.w700,
+                      color: hasVideo ? const Color(0xFF1B8A4C) : const Color(0xFFB26A00)),
+                ),
+              ),
+            ),
+            const Icon(Icons.chevron_right, size: 18, color: Colors.grey),
+          ],
+        ),
       ),
     );
   }

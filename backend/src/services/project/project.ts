@@ -41,6 +41,7 @@ class ProjectService {
       thumbnailPath,
       videoUrl,
       collaborators,
+      challengeId,
       // AI first-pass video review result (optional — undefined when the
       // review was never run, e.g. GEMINI_API_KEY not configured).
       aiVerdict,
@@ -68,6 +69,7 @@ class ProjectService {
         userId,
         categoryId: category.id,
         collaborators: collaborators && collaborators.length > 0 ? collaborators : undefined,
+        challengeId: challengeId ?? undefined,
         aiVerdict: aiVerdict ?? undefined,
         aiReason: aiReason ?? undefined,
         aiConfidence: typeof aiConfidence === "number" ? aiConfidence : undefined,

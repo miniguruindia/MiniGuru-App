@@ -55,7 +55,7 @@ export const createProject = async (req: Request, res: Response) => {
 
   const {
     title, description, startDate, endDate, materials, categoryName, collaboratorIds,
-    videoStoragePath, thumbnailStoragePath,
+    videoStoragePath, thumbnailStoragePath, challengeId,
   } = req.body;
 
   if (!title || !description || !startDate || !endDate || !materials || !categoryName) {
@@ -97,6 +97,32 @@ export const createProject = async (req: Request, res: Response) => {
         );
         collaborators = [];
       }
+    }
+  }
+
+  // STEAM Challenge join (optional). A child can pick a challenge while
+  // planning. Must be APPROVED and not yet ended - anything else is
+  // silently ignored (fail-open, same philosophy as the collaborator
+  // lookup below): an upload should never fail just because a challenge
+  // reference went stale while the child was building. Bonus Goins for
+  // this are awarded later, on admin approval - see
+  // publishAndAwardProject() in videoApprovalController.ts.
+  let validChallengeId: string | undefined;
+  if (challengeId && typeof challengeId === "string") {
+    try {
+      const challenge = await prisma.challenge.findUnique({ where: { id: challengeId } });
+      if (challenge && challenge.status === "APPROVED" && challenge.endDate >= new Date()) {
+        validChallengeId = challenge.id;
+        // Reflect real interest immediately, independent of approval timing.
+        await prisma.challenge.update({
+          where: { id: challenge.id },
+          data: { participants: { increment: 1 } },
+        }).catch(() => {});
+      }
+    } catch (challengeError) {
+      logger.warn(
+        `Challenge lookup failed, proceeding without it: ${(challengeError as Error).message}`
+      );
     }
   }
 
@@ -213,6 +239,7 @@ export const createProject = async (req: Request, res: Response) => {
       thumbnailPath,
       videoUrl, // ✅ Now a YouTube URL, stored in project.video.url
       collaborators,
+      challengeId: validChallengeId,
       aiVerdict: aiReview.verdict,
       aiReason: aiReview.reason,
       aiConfidence: aiReview.confidence,

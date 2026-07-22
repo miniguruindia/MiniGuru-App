@@ -54,7 +54,7 @@ const createProject = async (req, res) => {
         }
         ownerUserId = req.subject.linkedUserId;
     }
-    const { title, description, startDate, endDate, materials, categoryName, collaboratorIds, videoStoragePath, thumbnailStoragePath, } = req.body;
+    const { title, description, startDate, endDate, materials, categoryName, collaboratorIds, videoStoragePath, thumbnailStoragePath, challengeId, } = req.body;
     if (!title || !description || !startDate || !endDate || !materials || !categoryName) {
         return res.status(400).json({ error: "All fields are required" });
     }
@@ -94,6 +94,30 @@ const createProject = async (req, res) => {
                 logger_1.default.warn(`Collaborator lookup failed, proceeding without them: ${collabError.message}`);
                 collaborators = [];
             }
+        }
+    }
+    // STEAM Challenge join (optional). A child can pick a challenge while
+    // planning. Must be APPROVED and not yet ended - anything else is
+    // silently ignored (fail-open, same philosophy as the collaborator
+    // lookup below): an upload should never fail just because a challenge
+    // reference went stale while the child was building. Bonus Goins for
+    // this are awarded later, on admin approval - see
+    // publishAndAwardProject() in videoApprovalController.ts.
+    let validChallengeId;
+    if (challengeId && typeof challengeId === "string") {
+        try {
+            const challenge = await prismaClient_1.default.challenge.findUnique({ where: { id: challengeId } });
+            if (challenge && challenge.status === "APPROVED" && challenge.endDate >= new Date()) {
+                validChallengeId = challenge.id;
+                // Reflect real interest immediately, independent of approval timing.
+                await prismaClient_1.default.challenge.update({
+                    where: { id: challenge.id },
+                    data: { participants: { increment: 1 } },
+                }).catch(() => { });
+            }
+        }
+        catch (challengeError) {
+            logger_1.default.warn(`Challenge lookup failed, proceeding without it: ${challengeError.message}`);
         }
     }
     let parsedMaterials = [];
@@ -203,6 +227,7 @@ const createProject = async (req, res) => {
             thumbnailPath,
             videoUrl, // ✅ Now a YouTube URL, stored in project.video.url
             collaborators,
+            challengeId: validChallengeId,
             aiVerdict: aiReview.verdict,
             aiReason: aiReview.reason,
             aiConfidence: aiReview.confidence,

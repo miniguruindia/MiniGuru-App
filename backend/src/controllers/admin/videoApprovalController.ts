@@ -98,12 +98,32 @@ export async function publishAndAwardProject(id: string) {
 
   const BASE_REWARD    = 50;
   const materialRefund = Math.round(materialGoins * 2);
-  const totalGoins     = BASE_REWARD + materialRefund;
+
+  // ── STEAM Challenge bonus — in ADDITION to the normal award ─────────────
+  // If this project was made for a challenge (set at upload time — see
+  // createProject), the challenge's goinsReward is paid out on top of the
+  // base + material refund, once, here, on approval. Never re-awarded on
+  // a re-approval attempt since a project can only be approved from
+  // 'pending' once (see the status guard above).
+  let challengeBonus = 0;
+  if (project.challengeId) {
+    try {
+      const challenge = await prisma.challenge.findUnique({ where: { id: project.challengeId } });
+      if (challenge) challengeBonus = challenge.goinsReward;
+    } catch (challengeError) {
+      logger.warn(`Challenge lookup failed during approval, awarding base only: ${(challengeError as Error).message}`);
+    }
+  }
+
+  const totalGoins = BASE_REWARD + materialRefund + challengeBonus;
   // ─────────────────────────────────────────────────────────────
 
   // ── Shared/group projects — split equally across owner + collaborators ──
   // Confirmed product decision: always equal split, no custom percentages.
-  // Owner absorbs any rounding remainder so Goins are never lost.
+  // Owner absorbs any rounding remainder so Goins are never lost. The
+  // challenge bonus is folded into totalGoins above, so it's split the
+  // exact same way — a team that joins a challenge together shares the
+  // bonus equally too, same as the base award.
   const collaborators = ((project as any).collaborators as
     Array<{ userId: string; name: string }> | null) || [];
   const recipientIds = [project.userId, ...collaborators.map((c) => c.userId)];
@@ -113,7 +133,10 @@ export async function publishAndAwardProject(id: string) {
   const [updated] = await prisma.$transaction([
     prisma.project.update({
       where: { id },
-      data: { status: 'published' },
+      data: {
+        status: 'published',
+        challengeGoinsAwarded: challengeBonus > 0 ? challengeBonus : undefined,
+      },
     }),
     ...recipientIds.map((recipientId, idx) =>
       prisma.user.update({
@@ -126,13 +149,14 @@ export async function publishAndAwardProject(id: string) {
   logger.info(
     `Project ${id} approved. ${totalGoins} Goins split across ${recipientIds.length} ` +
     `recipient(s) (${shareEach} each${remainder > 0 ? `, +${remainder} rounding to owner` : ''}) ` +
-    `(base: ${BASE_REWARD}, material refund 2x${Math.round(materialGoins)}: ${materialRefund})`
+    `(base: ${BASE_REWARD}, material refund 2x${Math.round(materialGoins)}: ${materialRefund}` +
+    `${challengeBonus > 0 ? `, challenge bonus: ${challengeBonus}` : ''})`
   );
 
   return {
     project: updated,
     goinsAwarded: totalGoins,
-    breakdown: { base: BASE_REWARD, materialRefund },
+    breakdown: { base: BASE_REWARD, materialRefund, challengeBonus },
     recipients: recipientIds.length,
   };
 }

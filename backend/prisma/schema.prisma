@@ -312,12 +312,20 @@ model Project {
   // before the video is uploaded). Goins split equally across owner +
   // all collaborators on admin approval — see approveProject().
   collaborators ProjectCollaborator[]
+  // STEAM Challenge this project was made for (optional). Set only at
+  // upload time, same as collaborators — a child picks a challenge while
+  // planning. On admin approval, the challenge's goinsReward is awarded
+  // IN ADDITION to the normal upload-approval Goins (split the same way
+  // across owner + collaborators) — see publishAndAwardProject().
+  challengeId            String?   @db.ObjectId
+  challengeGoinsAwarded   Int?      // audit trail — set once, at approval
   createdAt   DateTime          @default(now())
   updatedAt   DateTime          @updatedAt
 
   @@index([userId])
   @@index([categoryId])
   @@index([status])
+  @@index([challengeId])
   @@map("projects")
 }
 

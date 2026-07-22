@@ -55,6 +55,10 @@ class _AddDraftScreenState extends State<AddDraftScreen>
   // Confirmed product decision: planning-only, instant-add, equal Goins
   // split on approval. Each entry: {'id': userId, 'name': displayName}.
   final List<Map<String, String>> _collaborators = [];
+
+  // STEAM Challenge join (optional) -- see mg_award_challenge_bonus_on_approval.py
+  List<Map<String, dynamic>> _openChallenges = [];
+  String? _selectedChallengeId;
   bool _collabSearching = false;
   final TextEditingController _collabCtrl = TextEditingController();
   bool                 _loading             = true;
@@ -86,6 +90,18 @@ class _AddDraftScreenState extends State<AddDraftScreen>
       _collaborators.addAll(widget.presetCollaborators!);
     }
     _loadInitialData();
+    _loadOpenChallenges();
+  }
+
+  Future<void> _loadOpenChallenges() async {
+    final raw = await MiniguruApi().getChallenges();
+    if (!mounted) return;
+    setState(() {
+      _openChallenges = raw
+          .cast<Map<String, dynamic>>()
+          .where((c) => c['lifecycleStatus'] != 'past')
+          .toList();
+    });
   }
 
   @override
@@ -288,6 +304,7 @@ class _AddDraftScreenState extends State<AddDraftScreen>
           'category':    _categoryCtrl.text,
           'materials':   materialsMap,
           'collaboratorIds': _collaborators.map((c) => c['id']!).toList(),
+          if (_selectedChallengeId != null) 'challengeId': _selectedChallengeId,
         },
         _video!,
         _thumbnail,
@@ -501,6 +518,10 @@ class _AddDraftScreenState extends State<AddDraftScreen>
                           _buildMaterials(),
                           const SizedBox(height: 12),
                           _buildCollaborators(),
+                          if (_openChallenges.isNotEmpty) ...[
+                            const SizedBox(height: 12),
+                            _buildChallengePicker(),
+                          ],
                         ]),
                       ),
                     ),
@@ -774,6 +795,70 @@ class _AddDraftScreenState extends State<AddDraftScreen>
     setState(() {
       _collaborators.add({'id': id, 'name': result['name'] as String});
     });
+  }
+
+  Widget _buildChallengePicker() {
+    return Container(
+      decoration: BoxDecoration(
+        color:        _card,
+        borderRadius: BorderRadius.circular(16),
+        border:       Border.all(color: _cardBorder),
+        boxShadow: [
+          BoxShadow(
+            color:      Colors.black.withOpacity(0.04),
+            blurRadius: 8,
+            offset:     const Offset(0, 2),
+          ),
+        ],
+      ),
+      padding: const EdgeInsets.all(16),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          const Text('🏆', style: TextStyle(fontSize: 16)),
+          const SizedBox(width: 8),
+          Text('Join a STEAM Challenge? (optional)',
+              style: GoogleFonts.nunito(
+                  color: _ink, fontWeight: FontWeight.w900, fontSize: 14)),
+        ]),
+        const SizedBox(height: 4),
+        Text(
+          "Pick a challenge and complete this project for it — you'll earn "
+          'bonus Goins on top of the usual reward once your project is approved.',
+          style: GoogleFonts.nunito(color: _muted, fontSize: 12),
+        ),
+        const SizedBox(height: 12),
+        DropdownButtonFormField<String>(
+          value: _selectedChallengeId,
+          isExpanded: true,
+          decoration: InputDecoration(
+            isDense: true,
+            filled: true,
+            fillColor: Colors.white,
+            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide: BorderSide(color: _cardBorder),
+            ),
+          ),
+          hint: Text('None — just a regular project', style: GoogleFonts.nunito(fontSize: 13, color: _muted)),
+          items: [
+            DropdownMenuItem<String>(
+              value: null,
+              child: Text('None — just a regular project', style: GoogleFonts.nunito(fontSize: 13)),
+            ),
+            ..._openChallenges.map((c) => DropdownMenuItem<String>(
+                  value: c['id'] as String,
+                  child: Text(
+                    "${c['categoryEmoji'] ?? '🏆'} ${c['title']} (+${c['goinsReward']} Goins)",
+                    style: GoogleFonts.nunito(fontSize: 13),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                )),
+          ],
+          onChanged: (v) => setState(() => _selectedChallengeId = v),
+        ),
+      ]),
+    );
   }
 
   Widget _buildCollaborators() {
