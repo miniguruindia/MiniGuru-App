@@ -212,6 +212,84 @@ class _MentorProfileTabState extends State<MentorProfileTab> {
     );
   }
 
+  Future<void> _changePassword() async {
+    final curCtrl = TextEditingController();
+    final newCtrl = TextEditingController();
+    final conCtrl = TextEditingController();
+    bool changing = false;
+
+    await showDialog(
+      context: context,
+      builder: (dlg) => StatefulBuilder(
+        builder: (ctx, setDlg) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: Text('Change Password',
+              style: GoogleFonts.nunito(fontSize: 18, fontWeight: FontWeight.w800)),
+          content: Column(mainAxisSize: MainAxisSize.min, children: [
+            TextField(
+              controller: curCtrl,
+              obscureText: true,
+              decoration: const InputDecoration(labelText: 'Current Password'),
+            ),
+            const SizedBox(height: 10),
+            TextField(
+              controller: newCtrl,
+              obscureText: true,
+              decoration: const InputDecoration(labelText: 'New Password'),
+            ),
+            const SizedBox(height: 10),
+            TextField(
+              controller: conCtrl,
+              obscureText: true,
+              decoration: const InputDecoration(labelText: 'Confirm New Password'),
+            ),
+          ]),
+          actions: [
+            TextButton(
+              onPressed: changing ? null : () => Navigator.pop(ctx),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: changing
+                  ? null
+                  : () async {
+                      if (newCtrl.text.length < 6) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('New password must be at least 6 characters')));
+                        return;
+                      }
+                      if (newCtrl.text != conCtrl.text) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Passwords do not match')));
+                        return;
+                      }
+                      setDlg(() => changing = true);
+                      final res = await _api.changePassword(curCtrl.text, newCtrl.text);
+                      if (res.statusCode == 200 || res.statusCode == 201) {
+                        if (mounted) Navigator.pop(ctx);
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('Password changed successfully')));
+                        }
+                      } else {
+                        setDlg(() => changing = false);
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('Failed to change password — check current password')));
+                        }
+                      }
+                    },
+              child: changing
+                  ? const SizedBox(
+                      width: 18, height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                  : const Text('Update'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
   Widget _buildActions() {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
