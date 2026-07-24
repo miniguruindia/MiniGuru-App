@@ -18,10 +18,10 @@ class ConsultancyPage extends StatefulWidget {
 class _ConsultancyPageState extends State<ConsultancyPage> {
   int _selectedService = 0; // 0=T-LAB, 1=Workshops, 2=Home Corner
 
-  // ── CONTACT DETAILS ────────────────────────────────────────────────────
-  static const String _phone    = '+919399756846';
-  static const String _whatsapp = '919399756846';
-  static const String _email    = 'connect@miniguru.in';
+  // ── CONTACT DETAILS (CMS-editable, hardcoded fallbacks) ────────────────
+  String _phone    = '+919399756846';
+  String _whatsapp = '919399756846';
+  String _email    = 'connect@miniguru.in';
   static const String _website  = 'https://www.miniguru.in';
 
   // ── CMS-driven header values (with hardcoded fallbacks) ────────────────
@@ -45,10 +45,33 @@ class _ConsultancyPageState extends State<ConsultancyPage> {
   String? _materialsBody;
   Map<String, String> _profileBodies = {};
 
-  // ── FAQ / ACCORDION STATE ──────────────────────────────────────────────
-  final Map<String, bool> _faqOpen = {
-    'faq1': false, 'faq2': false, 'faq3': false,
-  };
+  // ── FAQ / ACCORDION STATE (CMS-editable, real current Qs as fallback) ──
+  List<Map<String, String>> _faqs = [
+    {
+      'question': "My child doesn't know what they want to make. Is that okay?",
+      'answer': 'Yes — and it is completely normal. Most children who have spent years '
+          'in structured school settings have lost practice in following their own '
+          'curiosity. The first sessions of any tinkering space often involve '
+          'looking, handling materials, and waiting. This is the beginning of '
+          'learning, not the absence of it. It passes.',
+    },
+    {
+      'question': 'What if my child loses interest after a few weeks?',
+      'answer': "Some children need more time to find the project that captures them. "
+          "If the corner isn't working, we talk through what might be different "
+          '— different materials, a different arrangement, a new project trigger. '
+          'Our follow-up support is specifically designed for this moment.',
+    },
+    {
+      'question': 'Is this safe for younger children?',
+      'answer': 'Yes, with age-appropriate materials. We tailor every materials list '
+          "to the child's age and supervise the introduction of tools through "
+          'the setup process. All plans include safety guidance for parents. '
+          'For children under 8, we begin with craft, clay, and basic '
+          'construction — and introduce electronics and sharp tools gradually.',
+    },
+  ];
+  final Set<int> _openFaqIndexes = {};
   final Map<String, bool> _profileOpen = {
     'p1': false, 'p2': false, 'p3': false, 'p4': false,
   };
@@ -109,6 +132,26 @@ class _ConsultancyPageState extends State<ConsultancyPage> {
         final profiles = data['profileBodies'] as Map<String, dynamic>?;
         if (profiles != null) {
           _profileBodies = profiles.map((k, v) => MapEntry(k, v.toString()));
+        }
+        if (data['contactEmail'] != null &&
+            data['contactEmail'].toString().trim().isNotEmpty) {
+          _email = data['contactEmail'].toString();
+        }
+        if (data['contactPhone'] != null &&
+            data['contactPhone'].toString().trim().isNotEmpty) {
+          _phone = data['contactPhone'].toString();
+        }
+        if (data['contactWhatsapp'] != null &&
+            data['contactWhatsapp'].toString().trim().isNotEmpty) {
+          _whatsapp = data['contactWhatsapp'].toString();
+        }
+        final faqsRaw = data['faqs'] as List<dynamic>?;
+        if (faqsRaw != null && faqsRaw.isNotEmpty) {
+          _faqs = faqsRaw
+              .map((f) => Map<String, String>.from(
+                  (f as Map).map((k, v) => MapEntry(k.toString(), v.toString()))))
+              .where((f) => (f['question'] ?? '').trim().isNotEmpty)
+              .toList();
         }
       });
     } catch (e) {
@@ -1030,28 +1073,12 @@ class _ConsultancyPageState extends State<ConsultancyPage> {
         _sectionTitle('Parent FAQ', Icons.help_outline),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Column(children: [
-            _faqAccordion('faq1',
-                "My child doesn't know what they want to make. Is that okay?",
-                'Yes — and it is completely normal. Most children who have spent years '
-                'in structured school settings have lost practice in following their own '
-                'curiosity. The first sessions of any tinkering space often involve '
-                'looking, handling materials, and waiting. This is the beginning of '
-                'learning, not the absence of it. It passes.'),
-            _faqAccordion('faq2',
-                'What if my child loses interest after a few weeks?',
-                'Some children need more time to find the project that captures them. '
-                'If the corner isn\'t working, we talk through what might be different '
-                '— different materials, a different arrangement, a new project trigger. '
-                'Our follow-up support is specifically designed for this moment.'),
-            _faqAccordion('faq3',
-                'Is this safe for younger children?',
-                'Yes, with age-appropriate materials. We tailor every materials list '
-                'to the child\'s age and supervise the introduction of tools through '
-                'the setup process. All plans include safety guidance for parents. '
-                'For children under 8, we begin with craft, clay, and basic '
-                'construction — and introduce electronics and sharp tools gradually.'),
-          ]),
+          child: Column(
+            children: [
+              for (int i = 0; i < _faqs.length; i++)
+                _faqAccordion(i, _faqs[i]['question'] ?? '', _faqs[i]['answer'] ?? ''),
+            ],
+          ),
         ),
 
         // ── CTA ──────────────────────────────────────────────────────────
@@ -1735,8 +1762,8 @@ class _ConsultancyPageState extends State<ConsultancyPage> {
     );
   }
 
-  Widget _faqAccordion(String key, String question, String answer) {
-    final isOpen = _faqOpen[key] ?? false;
+  Widget _faqAccordion(int index, String question, String answer) {
+    final isOpen = _openFaqIndexes.contains(index);
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       decoration: BoxDecoration(
@@ -1746,7 +1773,13 @@ class _ConsultancyPageState extends State<ConsultancyPage> {
       ),
       child: Column(children: [
         GestureDetector(
-          onTap: () => setState(() => _faqOpen[key] = !isOpen),
+          onTap: () => setState(() {
+            if (isOpen) {
+              _openFaqIndexes.remove(index);
+            } else {
+              _openFaqIndexes.add(index);
+            }
+          }),
           child: Padding(
             padding: const EdgeInsets.all(14),
             child: Row(children: [

@@ -70,6 +70,18 @@ class _AboutScreenState extends State<AboutScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // CMS-editable pieces: the 4 stat chips and the T-LAB schools list —
+    // the two things on this page that genuinely change over time.
+    // Everything else (Origin Story, Natural Learning Model, Platform
+    // Features, Offerings, Awards) stays hardcoded narrative content by
+    // deliberate choice — falls back to the real, existing copy if CMS
+    // has nothing yet.
+    final stats = _cms?['stats'] as Map<String, dynamic>?;
+    final schoolsRaw = _cms?['schools'] as List<dynamic>?;
+    final schools = (schoolsRaw != null && schoolsRaw.isNotEmpty)
+        ? schoolsRaw.map((e) => e.toString()).toList()
+        : null;
+
     return Scaffold(
       backgroundColor: const Color(0xFFF5F7FF),
       body: SafeArea(
@@ -77,12 +89,17 @@ class _AboutScreenState extends State<AboutScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const _HeroSection(),
+              _HeroSection(
+                yearsLabel:     stats?['years']?.toString(),
+                tlabsLabel:     stats?['tlabs']?.toString(),
+                studentsLabel:  stats?['students']?.toString(),
+                workshopsLabel: stats?['workshops']?.toString(),
+              ),
               const _OriginStorySection(),
               const _NaturalLearningSection(),
               const _PlatformFeaturesSection(),
               const _OfferingsSection(),
-              const _TLabNetworkSection(),
+              _TLabNetworkSection(schools: schools),
               const _AwardsSection(),
               _ContactSection(
                 email:   _cms?['contactEmail']?.toString(),
@@ -102,18 +119,26 @@ class _AboutScreenState extends State<AboutScreen> {
 // SECTION 1 — HERO
 // ═══════════════════════════════════════════════════════════════════════════
 class _HeroSection extends StatelessWidget {
-  const _HeroSection();
+  final String? yearsLabel, tlabsLabel, studentsLabel, workshopsLabel;
+  const _HeroSection({
+    this.yearsLabel, this.tlabsLabel, this.studentsLabel, this.workshopsLabel,
+  });
 
   @override
   Widget build(BuildContext context) {
     final w = MediaQuery.of(context).size.width;
     final isMobile = w < 700;
-    return isMobile ? const _HeroMobile() : const _HeroDesktop();
+    final text = _HeroText(
+      yearsLabel: yearsLabel, tlabsLabel: tlabsLabel,
+      studentsLabel: studentsLabel, workshopsLabel: workshopsLabel,
+    );
+    return isMobile ? _HeroMobile(text: text) : _HeroDesktop(text: text);
   }
 }
 
 class _HeroDesktop extends StatelessWidget {
-  const _HeroDesktop();
+  final Widget text;
+  const _HeroDesktop({required this.text});
 
   @override
   Widget build(BuildContext context) {
@@ -128,7 +153,7 @@ class _HeroDesktop extends StatelessWidget {
             child: Container(
               color: _AC.deepGreen,
               padding: const EdgeInsets.symmetric(horizontal: 64, vertical: 48),
-              child: const _HeroText(),
+              child: text,
             ),
           ),
           // RIGHT — Pari image only, no overlay line
@@ -170,7 +195,8 @@ class _HeroDesktop extends StatelessWidget {
 }
 
 class _HeroMobile extends StatelessWidget {
-  const _HeroMobile();
+  final Widget text;
+  const _HeroMobile({required this.text});
 
   @override
   Widget build(BuildContext context) {
@@ -191,7 +217,7 @@ class _HeroMobile extends StatelessWidget {
         Container(
           color: _AC.deepGreen,
           padding: const EdgeInsets.fromLTRB(24, 28, 24, 36),
-          child: const _HeroText(),
+          child: text,
         ),
       ],
     );
@@ -199,7 +225,10 @@ class _HeroMobile extends StatelessWidget {
 }
 
 class _HeroText extends StatelessWidget {
-  const _HeroText();
+  final String? yearsLabel, tlabsLabel, studentsLabel, workshopsLabel;
+  const _HeroText({
+    this.yearsLabel, this.tlabsLabel, this.studentsLabel, this.workshopsLabel,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -248,10 +277,10 @@ class _HeroText extends StatelessWidget {
         ),
         const SizedBox(height: 22),
         Wrap(spacing: 10, runSpacing: 10, children: [
-          _StatChip('10+ Years'),
-          _StatChip('32+ T-LABs'),
-          _StatChip('10,000+ Students'),
-          _StatChip('200+ Workshops'),
+          _StatChip(yearsLabel ?? '10+ Years'),
+          _StatChip(tlabsLabel ?? '32+ T-LABs'),
+          _StatChip(studentsLabel ?? '10,000+ Students'),
+          _StatChip(workshopsLabel ?? '200+ Workshops'),
         ]),
       ],
     );
@@ -1008,13 +1037,14 @@ class _OfferingCard extends StatelessWidget {
 // SECTION 6 — T-LAB NETWORK
 // ═══════════════════════════════════════════════════════════════════════════
 class _TLabNetworkSection extends StatelessWidget {
-  const _TLabNetworkSection();
+  final List<String>? schools;
+  const _TLabNetworkSection({this.schools});
 
   @override
   Widget build(BuildContext context) {
     final w = MediaQuery.of(context).size.width;
     final isMobile = w < 700;
-    final schools = [
+    final schools = this.schools ?? const [
       'Jinglebell School, Faizabad UP',
       'Sahyadri School (KFI), Pune MH',
       'TinyTods School, Faizabad UP',

@@ -195,27 +195,44 @@ function CommunityEditor({ data, onChange }: { data: any; onChange: (d: any) => 
 
 // ── ABOUT ─────────────────────────────────────────────────────────────────────
 function AboutEditor({ data, onChange }: { data: any; onChange: (d: any) => void }) {
+  const stats = data.stats || {}
+  const setStat = (k: string, v: string) => onChange({ ...data, stats: { ...stats, [k]: v } })
   const set = (k: string, v: string) => onChange({ ...data, [k]: v })
+  const schools: string[] = data.schools || []
+  const setSchool = (i: number, v: string) => {
+    const list = [...schools]; list[i] = v; onChange({ ...data, schools: list })
+  }
+  const removeSchool = (i: number) => onChange({ ...data, schools: schools.filter((_, idx) => idx !== i) })
+  const addSchool = () => onChange({ ...data, schools: [...schools, ''] })
+
   return (
     <div className="space-y-4">
-      <SectionCard title="🎯 Mission & Vision">
-        <Field label="Mission"><textarea className={ta} rows={3} value={data.mission || ''} onChange={e => set('mission', e.target.value)} /></Field>
-        <Field label="Vision"><textarea className={ta} rows={3} value={data.vision || ''} onChange={e => set('vision', e.target.value)} /></Field>
-        <Field label="Our Story"><textarea className={ta} rows={5} value={data.story || ''} onChange={e => set('story', e.target.value)} /></Field>
+      <div className="p-3 bg-blue-50 border border-blue-100 rounded-lg text-xs text-blue-700">
+        This is exactly what the About page in the app shows — the two things here are the only
+        parts of that page that change over time. The Origin Story, Natural Learning Model,
+        Platform Features, Offerings, and Awards sections are fixed, well-written copy that
+        stays as-is in the app itself.
+      </div>
+      <SectionCard title="📊 Stat Chips (shown on the hero banner)">
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Years"><input className={inp} placeholder="10+ Years" value={stats.years || ''} onChange={e => setStat('years', e.target.value)} /></Field>
+          <Field label="T-LABs"><input className={inp} placeholder="32+ T-LABs" value={stats.tlabs || ''} onChange={e => setStat('tlabs', e.target.value)} /></Field>
+          <Field label="Students"><input className={inp} placeholder="10,000+ Students" value={stats.students || ''} onChange={e => setStat('students', e.target.value)} /></Field>
+          <Field label="Workshops"><input className={inp} placeholder="200+ Workshops" value={stats.workshops || ''} onChange={e => setStat('workshops', e.target.value)} /></Field>
+        </div>
       </SectionCard>
-      <SectionCard title="💎 Values">
-        {(data.values || []).map((v: any, i: number) => (
-          <div key={i} className="grid grid-cols-2 gap-3 border border-gray-100 rounded-lg p-3 bg-gray-50">
-            <Field label="Title"><input className={inp} value={v.title || ''} onChange={e => {
-              const vals = [...data.values]; vals[i] = { ...v, title: e.target.value }; onChange({ ...data, values: vals })
-            }} /></Field>
-            <Field label="Description"><input className={inp} value={v.description || ''} onChange={e => {
-              const vals = [...data.values]; vals[i] = { ...v, description: e.target.value }; onChange({ ...data, values: vals })
-            }} /></Field>
+      <SectionCard title="🏫 T-LAB Network — Schools & Partners">
+        {schools.map((s, i) => (
+          <div key={i} className="flex items-center gap-2">
+            <input className={inp} value={s} onChange={e => setSchool(i, e.target.value)} />
+            <button onClick={() => removeSchool(i)} className="text-red-400 hover:text-red-600 shrink-0">
+              <Trash2 className="h-4 w-4" />
+            </button>
           </div>
         ))}
-        <button onClick={() => onChange({ ...data, values: [...(data.values || []), { title: '', description: '' }] })}
-          className="flex items-center gap-2 text-sm text-blue-600 font-medium"><Plus className="h-4 w-4" /> Add Value</button>
+        <button onClick={addSchool} className="flex items-center gap-2 text-sm text-blue-600 font-medium">
+          <Plus className="h-4 w-4" /> Add School / Partner
+        </button>
       </SectionCard>
       <SectionCard title="📞 Contact">
         <div className="grid grid-cols-3 gap-3">
@@ -231,38 +248,47 @@ function AboutEditor({ data, onChange }: { data: any; onChange: (d: any) => void
 // ── CONSULTANCY ───────────────────────────────────────────────────────────────
 function ConsultancyEditor({ data, onChange }: { data: any; onChange: (d: any) => void }) {
   const set = (k: string, v: string) => onChange({ ...data, [k]: v })
+  const stats = data.stats || {}
+  const tlabStats = data.tlabStats || {}
+  const workshopStats = data.workshopStats || {}
+  const setStat = (group: 'stats' | 'tlabStats' | 'workshopStats', k: string, v: string) =>
+    onChange({ ...data, [group]: { ...(data[group] || {}), [k]: v } })
+
   return (
     <div className="space-y-4">
-      <SectionCard title="🏫 Hero">
+      <div className="p-3 bg-blue-50 border border-blue-100 rounded-lg text-xs text-blue-700">
+        Every field below is actually shown on the live Consultancy page (header tagline,
+        3 stat blocks, T-LAB photos, materials/profile text, Parent FAQ accordion, contact
+        details). Pricing, process steps, and each tab's detailed write-up stay as the real,
+        already-good hardcoded copy in the app.
+      </div>
+      <SectionCard title="🏫 Hero Tagline">
         <Field label="Tagline"><input className={inp} value={data.tagline || ''} onChange={e => set('tagline', e.target.value)} /></Field>
-        <Field label="Description"><textarea className={ta} rows={3} value={data.description || ''} onChange={e => set('description', e.target.value)} /></Field>
-        <Field label="Form Note"><input className={inp} value={data.formNote || ''} onChange={e => set('formNote', e.target.value)} /></Field>
       </SectionCard>
-      <SectionCard title="🛠️ Services">
-        {(data.services || []).map((s: any, i: number) => (
-          <div key={i} className="border border-gray-100 rounded-lg p-4 space-y-3 bg-gray-50">
-            <div className="flex justify-between">
-              <span className="text-xs font-semibold text-gray-500">Service {i + 1}</span>
-              <button onClick={() => onChange({ ...data, services: data.services.filter((_: any, j: number) => j !== i) })}
-                className="text-red-400 hover:text-red-600"><Trash2 className="h-4 w-4" /></button>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <Field label="Icon (emoji)"><input className={inp} value={s.icon || ''} onChange={e => {
-                const svcs = [...data.services]; svcs[i] = { ...s, icon: e.target.value }; onChange({ ...data, services: svcs })
-              }} /></Field>
-              <Field label="Title"><input className={inp} value={s.title || ''} onChange={e => {
-                const svcs = [...data.services]; svcs[i] = { ...s, title: e.target.value }; onChange({ ...data, services: svcs })
-              }} /></Field>
-            </div>
-            <Field label="Description"><textarea className={ta} rows={2} value={s.description || ''} onChange={e => {
-              const svcs = [...data.services]; svcs[i] = { ...s, description: e.target.value }; onChange({ ...data, services: svcs })
-            }} /></Field>
-          </div>
-        ))}
-        <button onClick={() => onChange({ ...data, services: [...(data.services || []), { icon: '🔧', title: '', description: '' }] })}
-          className="flex items-center gap-2 text-sm text-blue-600 font-medium"><Plus className="h-4 w-4" /> Add Service</button>
+      <SectionCard title="📊 Header Stat Numbers">
+        <p className="text-xs text-gray-500 mb-1">Shown at the top of the Consultancy page, above the 3 tabs.</p>
+        <div className="grid grid-cols-4 gap-3">
+          <Field label="T-LABs"><input className={inp} value={stats.tlabs || ''} onChange={e => setStat('stats', 'tlabs', e.target.value)} /></Field>
+          <Field label="Students"><input className={inp} value={stats.students || ''} onChange={e => setStat('stats', 'students', e.target.value)} /></Field>
+          <Field label="Workshops"><input className={inp} value={stats.workshops || ''} onChange={e => setStat('stats', 'workshops', e.target.value)} /></Field>
+          <Field label="Experience"><input className={inp} value={stats.experience || ''} onChange={e => setStat('stats', 'experience', e.target.value)} /></Field>
+        </div>
       </SectionCard>
-      <SectionCard title="❓ FAQs">
+      <SectionCard title="🏫 School T-LAB Tab — Stat Numbers">
+        <div className="grid grid-cols-3 gap-3">
+          <Field label="T-LABs"><input className={inp} value={tlabStats.tlabs || ''} onChange={e => setStat('tlabStats', 'tlabs', e.target.value)} /></Field>
+          <Field label="Students"><input className={inp} value={tlabStats.students || ''} onChange={e => setStat('tlabStats', 'students', e.target.value)} /></Field>
+          <Field label="Running for"><input className={inp} value={tlabStats.running || ''} onChange={e => setStat('tlabStats', 'running', e.target.value)} /></Field>
+        </div>
+      </SectionCard>
+      <SectionCard title="🔬 Workshops Tab — Stat Numbers">
+        <div className="grid grid-cols-3 gap-3">
+          <Field label="Workshops done"><input className={inp} value={workshopStats.done || ''} onChange={e => setStat('workshopStats', 'done', e.target.value)} /></Field>
+          <Field label="Participants"><input className={inp} value={workshopStats.participants || ''} onChange={e => setStat('workshopStats', 'participants', e.target.value)} /></Field>
+          <Field label="Projects made"><input className={inp} value={workshopStats.projects || ''} onChange={e => setStat('workshopStats', 'projects', e.target.value)} /></Field>
+        </div>
+      </SectionCard>
+      <SectionCard title="❓ Home Tinkering Corner — Parent FAQ">
         {(data.faqs || []).map((f: any, i: number) => (
           <div key={i} className="border border-gray-100 rounded-lg p-4 space-y-2 bg-gray-50">
             <div className="flex justify-between">
@@ -273,7 +299,7 @@ function ConsultancyEditor({ data, onChange }: { data: any; onChange: (d: any) =
             <Field label="Question"><input className={inp} value={f.question || ''} onChange={e => {
               const faqs = [...data.faqs]; faqs[i] = { ...f, question: e.target.value }; onChange({ ...data, faqs })
             }} /></Field>
-            <Field label="Answer"><textarea className={ta} rows={2} value={f.answer || ''} onChange={e => {
+            <Field label="Answer"><textarea className={ta} rows={3} value={f.answer || ''} onChange={e => {
               const faqs = [...data.faqs]; faqs[i] = { ...f, answer: e.target.value }; onChange({ ...data, faqs })
             }} /></Field>
           </div>
@@ -310,9 +336,12 @@ function ConsultancyEditor({ data, onChange }: { data: any; onChange: (d: any) =
           onChange={e => onChange({ ...data, profileBodies: { ...(data.profileBodies || {}), p4: e.target.value } })} /></Field>
       </SectionCard>
       <SectionCard title="📞 Contact">
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-3 gap-3">
           <Field label="Email"><input className={inp} value={data.contactEmail || ''} onChange={e => set('contactEmail', e.target.value)} /></Field>
           <Field label="Phone"><input className={inp} value={data.contactPhone || ''} onChange={e => set('contactPhone', e.target.value)} /></Field>
+          <Field label="WhatsApp" hint="Digits only, with country code, e.g. 919399756846">
+            <input className={inp} value={data.contactWhatsapp || ''} onChange={e => set('contactWhatsapp', e.target.value)} />
+          </Field>
         </div>
       </SectionCard>
     </div>
@@ -321,10 +350,105 @@ function ConsultancyEditor({ data, onChange }: { data: any; onChange: (d: any) =
 
 // ── LEGAL ─────────────────────────────────────────────────────────────────────
 // NOTE: now includes Cookie tab (was 3 sub-tabs, now 4)
+type LegalDoc = { title: string; lastUpdated: string; sections: { heading: string; body: string }[] }
+
+const emptyLegalDoc = (title: string): LegalDoc => ({ title, lastUpdated: '', sections: [] })
+
+// Accepts the new {title, lastUpdated, sections} shape (normal case going
+// forward), but degrades gracefully if a record still has the OLD raw
+// markdown-string shape from before this was restructured — parses it into
+// one best-effort section rather than crashing or silently dropping content.
+function toLegalDoc(raw: any, fallbackTitle: string): LegalDoc {
+  if (raw && typeof raw === 'object' && Array.isArray(raw.sections)) {
+    return {
+      title: typeof raw.title === 'string' ? raw.title : fallbackTitle,
+      lastUpdated: typeof raw.lastUpdated === 'string' ? raw.lastUpdated : '',
+      sections: raw.sections.map((s: any) => ({
+        heading: typeof s?.heading === 'string' ? s.heading : '',
+        body: typeof s?.body === 'string' ? s.body : '',
+      })),
+    }
+  }
+  if (typeof raw === 'string' && raw.trim()) {
+    return { title: fallbackTitle, lastUpdated: '', sections: [{ heading: '', body: raw }] }
+  }
+  return emptyLegalDoc(fallbackTitle)
+}
+
+function LegalDocForm({ doc, onChange }: { doc: LegalDoc; onChange: (d: LegalDoc) => void }) {
+  const updateSection = (i: number, field: 'heading' | 'body', val: string) => {
+    const sections = doc.sections.map((s, idx) => idx === i ? { ...s, [field]: val } : s)
+    onChange({ ...doc, sections })
+  }
+  const removeSection = (i: number) =>
+    onChange({ ...doc, sections: doc.sections.filter((_, idx) => idx !== i) })
+  const addSection = () =>
+    onChange({ ...doc, sections: [...doc.sections, { heading: '', body: '' }] })
+  const moveSection = (i: number, dir: -1 | 1) => {
+    const j = i + dir
+    if (j < 0 || j >= doc.sections.length) return
+    const sections = [...doc.sections]
+    ;[sections[i], sections[j]] = [sections[j], sections[i]]
+    onChange({ ...doc, sections })
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 gap-4">
+        <Field label="Document Title">
+          <input className={inp} value={doc.title}
+            onChange={e => onChange({ ...doc, title: e.target.value })} />
+        </Field>
+        <Field label="Last Updated" hint="Shown at the top of the document, e.g. 'June 2026 · MiniGuru Innovation Private Limited'">
+          <input className={inp} value={doc.lastUpdated}
+            onChange={e => onChange({ ...doc, lastUpdated: e.target.value })} />
+        </Field>
+      </div>
+
+      <div className="space-y-3">
+        {doc.sections.map((s, i) => (
+          <div key={i} className="border border-gray-100 rounded-xl p-4 space-y-3 bg-gray-50">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="w-6 h-6 rounded-full bg-red-100 flex items-center justify-center">
+                  <span className="text-xs font-bold text-red-600">{i + 1}</span>
+                </div>
+                <span className="text-xs font-semibold text-gray-500 uppercase">Section {i + 1}</span>
+              </div>
+              <div className="flex items-center gap-3">
+                <button onClick={() => moveSection(i, -1)} disabled={i === 0}
+                  className="text-gray-400 hover:text-gray-700 disabled:opacity-30 transition-colors text-xs">▲</button>
+                <button onClick={() => moveSection(i, 1)} disabled={i === doc.sections.length - 1}
+                  className="text-gray-400 hover:text-gray-700 disabled:opacity-30 transition-colors text-xs">▼</button>
+                <button onClick={() => removeSection(i)} className="text-red-400 hover:text-red-600 transition-colors">
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+            <Field label="Heading">
+              <input className={inp} value={s.heading} placeholder="e.g. Your Rights"
+                onChange={e => updateSection(i, 'heading', e.target.value)} />
+            </Field>
+            <Field label="Body text" hint="Plain text — no markdown symbols needed. Use a blank line to start a new paragraph.">
+              <textarea className={ta} rows={5} value={s.body}
+                placeholder="Write this section in plain, ordinary sentences..."
+                onChange={e => updateSection(i, 'body', e.target.value)} />
+            </Field>
+          </div>
+        ))}
+        <button onClick={addSection}
+          className="flex items-center gap-2 text-sm text-red-600 hover:text-red-800 font-semibold transition-colors">
+          <Plus className="h-4 w-4" /> Add Section
+        </button>
+      </div>
+    </div>
+  )
+}
+
 function LegalEditor({ privacy, terms, childSafety, cookie, onChangePrivacy, onChangeTerms, onChangeChildSafety, onChangeCookie }: {
-  privacy: string; terms: string; childSafety: string; cookie: string
-  onChangePrivacy: (v: string) => void; onChangeTerms: (v: string) => void
-  onChangeChildSafety: (v: string) => void; onChangeCookie: (v: string) => void
+  privacy: LegalDoc; terms: LegalDoc; childSafety: LegalDoc; cookie: LegalDoc
+  onChangePrivacy: (v: LegalDoc) => void; onChangeTerms: (v: LegalDoc) => void
+  onChangeChildSafety: (v: LegalDoc) => void; onChangeCookie: (v: LegalDoc) => void
 }) {
   const [legalTab, setLegalTab] = useState<'privacy' | 'terms' | 'child' | 'cookie'>('privacy')
   return (
@@ -343,13 +467,14 @@ function LegalEditor({ privacy, terms, childSafety, cookie, onChangePrivacy, onC
         ))}
       </div>
       <Card className="border-0 shadow-sm p-5">
-        <p className="text-xs text-gray-400 mb-3 flex items-center gap-1">
-          <Edit3 className="h-3 w-3" /> Markdown supported — # headings, **bold**, - bullet points
+        <p className="text-xs text-gray-400 mb-3">
+          Plain, ordinary text fields — no markdown or code. Each section becomes one
+          heading + paragraph on the app's Legal &amp; Help screen, in the order shown here.
         </p>
-        {legalTab === 'privacy' && <textarea className={`${ta} font-mono text-xs`} rows={32} value={privacy}     onChange={e => onChangePrivacy(e.target.value)} />}
-        {legalTab === 'terms'   && <textarea className={`${ta} font-mono text-xs`} rows={32} value={terms}       onChange={e => onChangeTerms(e.target.value)} />}
-        {legalTab === 'child'   && <textarea className={`${ta} font-mono text-xs`} rows={32} value={childSafety} onChange={e => onChangeChildSafety(e.target.value)} />}
-        {legalTab === 'cookie'  && <textarea className={`${ta} font-mono text-xs`} rows={32} value={cookie}      onChange={e => onChangeCookie(e.target.value)} />}
+        {legalTab === 'privacy' && <LegalDocForm doc={privacy}     onChange={onChangePrivacy} />}
+        {legalTab === 'terms'   && <LegalDocForm doc={terms}       onChange={onChangeTerms} />}
+        {legalTab === 'child'   && <LegalDocForm doc={childSafety} onChange={onChangeChildSafety} />}
+        {legalTab === 'cookie'  && <LegalDocForm doc={cookie}      onChange={onChangeCookie} />}
       </Card>
     </div>
   )
@@ -378,7 +503,7 @@ function FaqEditor({ data, onChange }: {
         <div className="p-5 grid grid-cols-3 gap-4 text-sm">
           <div>
             <p className="font-medium text-gray-700">Support Email</p>
-            <p className="font-mono text-xs text-gray-500 mt-1">hello@miniguru.in</p>
+            <p className="font-mono text-xs text-gray-500 mt-1">connect@miniguru.in</p>
           </div>
           <div>
             <p className="font-medium text-gray-700">WhatsApp</p>
@@ -434,7 +559,8 @@ function FaqEditor({ data, onChange }: {
         <p className="font-semibold">💡 Tips for great FAQs</p>
         <p>• Write questions the way a parent or child would actually ask them</p>
         <p>• Keep answers under 3 sentences — clear and friendly</p>
-        <p>• Make sure you cover: Goins, wallet top-up, ordering, data safety, account deletion</p>
+        <p>• Make sure you cover: what Goins are (a motivation tracker, never spent),
+           how the Amazon shop/kit works, data safety, and account deletion</p>
       </div>
     </div>
   )
@@ -520,10 +646,10 @@ export default function ContentPage() {
   const [community,   setCommunity]   = useState<any>({})
   const [about,       setAbout]       = useState<any>({})
   const [consultancy, setConsultancy] = useState<any>({})
-  const [privacy,     setPrivacy]     = useState('')
-  const [terms,       setTerms]       = useState('')
-  const [childSafety, setChildSafety] = useState('')
-  const [cookie,      setCookie]      = useState('')
+  const [privacy,     setPrivacy]     = useState<LegalDoc>(emptyLegalDoc('Privacy Policy'))
+  const [terms,       setTerms]       = useState<LegalDoc>(emptyLegalDoc('Terms & Conditions'))
+  const [childSafety, setChildSafety] = useState<LegalDoc>(emptyLegalDoc('Child Safety Policy'))
+  const [cookie,      setCookie]      = useState<LegalDoc>(emptyLegalDoc('Cookie Policy'))
   const [faqs,        setFaqs]        = useState<{id:string; question:string; answer:string}[]>([])
   const [externalVideos, setExternalVideos] = useState<any>({ videos: [] })
 
@@ -541,10 +667,10 @@ export default function ContentPage() {
         fetchContent('legal_cookie'), fetchContent('faq'), fetchContent('external_videos'),
       ])
       setCommunity(c); setAbout(a); setConsultancy(co)
-      setPrivacy(typeof p === 'string' ? p : JSON.stringify(p, null, 2))
-      setTerms(typeof t === 'string' ? t : JSON.stringify(t, null, 2))
-      setChildSafety(typeof cs === 'string' ? cs : JSON.stringify(cs, null, 2))
-      setCookie(typeof ck === 'string' ? ck : JSON.stringify(ck, null, 2))
+      setPrivacy(toLegalDoc(p, 'Privacy Policy'))
+      setTerms(toLegalDoc(t, 'Terms & Conditions'))
+      setChildSafety(toLegalDoc(cs, 'Child Safety Policy'))
+      setCookie(toLegalDoc(ck, 'Cookie Policy'))
       setFaqs(faqData?.items || [])
       setExternalVideos(ext || { videos: [] })
     } catch { flash('Could not load from backend — showing defaults', true) }

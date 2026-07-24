@@ -443,6 +443,10 @@ class MiniguruApi {
       if (data['collaboratorIds'] != null &&
           (data['collaboratorIds'] as List).isNotEmpty)
         'collaboratorIds': data['collaboratorIds'],
+      // BUGFIX: challengeId was missing from this whitelist, so it never
+      // reached the backend even after transformProject started passing it
+      // through — the "Join a STEAM Challenge" feature silently did nothing.
+      if (data['challengeId'] != null) 'challengeId': data['challengeId'],
     };
 
     final response = await http.post(

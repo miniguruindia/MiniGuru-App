@@ -148,6 +148,11 @@ class DraftRepository {
       // Shared/group projects — list of collaborator user IDs, if any
       // were added while planning. Empty/absent for a normal solo project.
       'collaboratorIds': project['collaboratorIds'] ?? [],
+      // STEAM Challenge join (optional) — BUGFIX: this was previously
+      // dropped here, so a child could pick a challenge in addDraftScreen
+      // and it would silently never reach the backend (no participant
+      // count, no bonus Goins, no error shown). Pass it through if present.
+      if (project['challengeId'] != null) 'challengeId': project['challengeId'],
     };
 
     return transformedProject;
