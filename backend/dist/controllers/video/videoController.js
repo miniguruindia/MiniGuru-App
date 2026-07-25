@@ -9,6 +9,7 @@ exports.deleteVideoComment = exports.postVideoComment = exports.getVideoComments
 const client_1 = require("@prisma/client");
 const logger_1 = __importDefault(require("../../logger"));
 const googleapis_1 = require("googleapis");
+const resolveSubject_1 = require("../../middleware/resolveSubject");
 const prisma = new client_1.PrismaClient();
 // YouTube API setup
 const youtube = googleapis_1.google.youtube({
@@ -127,10 +128,14 @@ const likeVideo = async (req, res) => {
     try {
         const { videoId } = req.params;
         const { category, liked } = req.body;
-        const userId = req.user?.userId; // ✅ FIXED: was req.user?.id
-        if (!userId) {
-            return res.status(401).json({ message: 'User not authenticated' });
-        }
+        // BUGFIX: was req.user?.userId directly — a mentor browsing inside a
+        // child's PIN session would have their own account credited with the
+        // like instead of the child's. resolveOwnerUserId (requires
+        // resolveSubject on the route) correctly resolves to the child's own
+        // linked account when a child session is active.
+        const userId = (0, resolveSubject_1.resolveOwnerUserId)(req, res);
+        if (!userId)
+            return; // resolveOwnerUserId already sent the error response
         const validCategories = ['aesthetic', 'functional', 'sturdy', 'creative', 'educational'];
         if (!validCategories.includes(category)) {
             return res.status(400).json({
@@ -179,10 +184,11 @@ exports.likeVideo = likeVideo;
 const getUserVideoLikes = async (req, res) => {
     try {
         const { videoId } = req.params;
-        const userId = req.user?.userId; // ✅ FIXED: was req.user?.id
-        if (!userId) {
-            return res.status(401).json({ message: 'User not authenticated' });
-        }
+        // Same resolution as likeVideo — must check the SAME account that
+        // likeVideo would have recorded the like under.
+        const userId = (0, resolveSubject_1.resolveOwnerUserId)(req, res);
+        if (!userId)
+            return;
         const likes = await prisma.videoLike.findMany({
             where: { videoId, userId },
             select: { category: true },
@@ -294,10 +300,12 @@ const postVideoComment = async (req, res) => {
     try {
         const { videoId } = req.params;
         const { comment } = req.body;
-        const userId = req.user?.userId; // ✅ FIXED: was req.user?.id
-        if (!userId) {
-            return res.status(401).json({ message: 'User not authenticated' });
-        }
+        // BUGFIX: was req.user?.userId directly — a child's comment posted
+        // during a mentor's PIN session would show the MENTOR's name, not the
+        // child's. Resolve to the real acting account first.
+        const userId = (0, resolveSubject_1.resolveOwnerUserId)(req, res);
+        if (!userId)
+            return;
         if (!comment || comment.trim().length === 0) {
             return res.status(400).json({ message: 'Comment cannot be empty' });
         }
@@ -375,10 +383,12 @@ exports.postVideoComment = postVideoComment;
 const deleteVideoComment = async (req, res) => {
     try {
         const { commentId } = req.params;
-        const userId = req.user?.userId; // ✅ FIXED: was req.user?.id
-        if (!userId) {
-            return res.status(401).json({ message: 'User not authenticated' });
-        }
+        // Must resolve to the SAME account postVideoComment would have used,
+        // or a child's own comment (now correctly attributed to their linked
+        // account) would become undeletable by them.
+        const userId = (0, resolveSubject_1.resolveOwnerUserId)(req, res);
+        if (!userId)
+            return;
         const comment = await prisma.videoComment.findUnique({
             where: { id: commentId },
         });

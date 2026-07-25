@@ -7,7 +7,6 @@ exports.findCollaborator = exports.deleteProjectByID = exports.getPublishedVideo
 const prismaClient_1 = __importDefault(require("../../utils/prismaClient"));
 const project_1 = __importDefault(require("../../services/project/project"));
 const error_1 = require("../../utils/error");
-const upload_1 = require("../../middleware/upload");
 const logger_1 = __importDefault(require("../../logger"));
 const aiVideoReviewService_1 = require("../../services/aiVideoReviewService");
 const videoApprovalController_1 = require("../admin/videoApprovalController");
@@ -318,11 +317,23 @@ const updateProject = async (req, res) => {
     if (!userId)
         return res.status(401).json({ error: "Unauthorized" });
     const { id } = req.params;
-    const { title, description, startDate, endDate, materials, categoryName, } = req.body;
-    const thumbnailPath = req.file ? await (0, upload_1.uploadThumbnail)(req.file) : "";
-    // NOTE: updateProject doesn't re-upload to YouTube (keep existing video URL)
-    // If you need video replacement, add YouTube upload logic here similarly
-    const videoUrl = "";
+    const { title, description, startDate, endDate, materials, categoryName, thumbnailStoragePath, } = req.body;
+    // Same signed-URL pattern as createProject — no multer, no risk of
+    // hitting Cloud Run's hard 32MB request-body limit for a new thumbnail.
+    // Only set when the caller actually uploaded a new one; leaving this
+    // undefined (not "") when unchanged is what lets projectService.update()
+    // below correctly preserve the existing thumbnail instead of wiping it.
+    const thumbnailPath = thumbnailStoragePath
+        ? (0, firebaseStorageService_1.publicUrlFor)(thumbnailStoragePath)
+        : undefined;
+    // NOTE — deliberately scoped out of this fix: full video replacement
+    // (re-uploading a new video to YouTube for an existing project) is not
+    // supported here. That's a genuinely separate feature with real product
+    // questions attached — does editing an already-approved/published video
+    // un-publish it? does it need to go through AI review again? — and
+    // shouldn't be silently bolted on. Title/description/materials/category/
+    // thumbnail edits work correctly; video replacement still requires a
+    // product decision before it's built.
     try {
         const project = await projectService.update(userId, id, {
             title,
@@ -332,7 +343,6 @@ const updateProject = async (req, res) => {
             materials,
             categoryName,
             thumbnailPath,
-            videoUrl,
         });
         res.json(project);
     }

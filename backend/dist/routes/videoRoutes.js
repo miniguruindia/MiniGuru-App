@@ -8,6 +8,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = __importDefault(require("express"));
 const fs_1 = __importDefault(require("fs"));
 const authMiddleware_1 = require("../middleware/authMiddleware");
+const resolveSubject_1 = require("../middleware/resolveSubject");
 const prismaClient_1 = __importDefault(require("../utils/prismaClient"));
 // Video interaction controllers
 const videoController_1 = require("../controllers/video/videoController");
@@ -195,13 +196,13 @@ router.get('/my-submissions', authMiddleware_1.authenticateToken, async (req, re
 router.post('/:videoId/view', authMiddleware_1.authenticateToken, videoController_1.trackVideoView);
 router.get('/:videoId/views', videoController_1.getVideoViews);
 // Video likes (5 categories)
-router.post('/:videoId/like', authMiddleware_1.authenticateToken, videoController_1.likeVideo);
-router.get('/:videoId/likes/user', authMiddleware_1.authenticateToken, videoController_1.getUserVideoLikes);
+router.post('/:videoId/like', authMiddleware_1.authenticateToken, resolveSubject_1.resolveSubject, videoController_1.likeVideo);
+router.get('/:videoId/likes/user', authMiddleware_1.authenticateToken, resolveSubject_1.resolveSubject, videoController_1.getUserVideoLikes);
 router.get('/:videoId/likes/stats', videoController_1.getVideoLikesStats);
 // Video comments
 router.get('/:videoId/comments', videoController_1.getVideoComments);
-router.post('/:videoId/comments', authMiddleware_1.authenticateToken, videoController_1.postVideoComment);
-router.delete('/comments/:commentId', authMiddleware_1.authenticateToken, videoController_1.deleteVideoComment);
+router.post('/:videoId/comments', authMiddleware_1.authenticateToken, resolveSubject_1.resolveSubject, videoController_1.postVideoComment);
+router.delete('/comments/:commentId', authMiddleware_1.authenticateToken, resolveSubject_1.resolveSubject, videoController_1.deleteVideoComment);
 // GET /api/videos/:videoId/materials
 // Returns enriched materials for the project linked to a YouTube video ID.
 // Used by home screen to show the "Materials used" strip.

@@ -2,7 +2,6 @@ import { Request, Response } from "express";
 import prisma from "../../utils/prismaClient";
 import ProjectService from "../../services/project/project";
 import { NotFoundError } from "../../utils/error";
-import { uploadThumbnail } from "../../middleware/upload";
 import logger from "../../logger";
 import { reviewVideoFile } from "../../services/aiVideoReviewService";
 import { publishAndAwardProject, extractYouTubeId } from "../admin/videoApprovalController";
@@ -338,13 +337,26 @@ export const updateProject = async (req: Request, res: Response) => {
     endDate,
     materials,
     categoryName,
+    thumbnailStoragePath,
   } = req.body;
 
-  const thumbnailPath = req.file ? await uploadThumbnail(req.file) : "";
+  // Same signed-URL pattern as createProject — no multer, no risk of
+  // hitting Cloud Run's hard 32MB request-body limit for a new thumbnail.
+  // Only set when the caller actually uploaded a new one; leaving this
+  // undefined (not "") when unchanged is what lets projectService.update()
+  // below correctly preserve the existing thumbnail instead of wiping it.
+  const thumbnailPath = thumbnailStoragePath
+    ? publicUrlFor(thumbnailStoragePath)
+    : undefined;
 
-  // NOTE: updateProject doesn't re-upload to YouTube (keep existing video URL)
-  // If you need video replacement, add YouTube upload logic here similarly
-  const videoUrl = "";
+  // NOTE — deliberately scoped out of this fix: full video replacement
+  // (re-uploading a new video to YouTube for an existing project) is not
+  // supported here. That's a genuinely separate feature with real product
+  // questions attached — does editing an already-approved/published video
+  // un-publish it? does it need to go through AI review again? — and
+  // shouldn't be silently bolted on. Title/description/materials/category/
+  // thumbnail edits work correctly; video replacement still requires a
+  // product decision before it's built.
 
   try {
     const project = await projectService.update(userId, id, {
@@ -355,7 +367,6 @@ export const updateProject = async (req: Request, res: Response) => {
       materials,
       categoryName,
       thumbnailPath,
-      videoUrl,
     });
 
     res.json(project);

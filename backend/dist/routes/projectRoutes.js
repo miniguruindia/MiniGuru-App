@@ -5,7 +5,6 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = __importDefault(require("express"));
 const projectController_1 = require("../controllers/project/projectController");
-const upload_1 = require("../middleware/upload");
 const categoryController_1 = require("../controllers/project/categoryController");
 const authMiddleware_1 = require("../middleware/authMiddleware");
 const resolveSubject_1 = require("../middleware/resolveSubject");
@@ -43,7 +42,7 @@ projectRouter.get('/find-collaborator/:miniguruId', authMiddleware_1.authenticat
 // MUST be registered before get('/:id') below (Rule 28).
 projectRouter.get('/feed', projectController_1.getPublishedVideoFeed);
 // Update a project
-projectRouter.put('/:id', authMiddleware_1.authenticateToken, validationMiddleware_1.validateProject, upload_1.uploadThumbnailAndVideoMiddleware, projectController_1.updateProject);
+projectRouter.put('/:id', authMiddleware_1.authenticateToken, validationMiddleware_1.validateProject, projectController_1.updateProject);
 projectRouter.get('/all', authMiddleware_1.authenticateToken, projectController_1.getAllProjects);
 // Get project details
 projectRouter.get('/:id', authMiddleware_1.authenticateToken, projectController_1.getProjectById);

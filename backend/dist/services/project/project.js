@@ -78,7 +78,12 @@ class ProjectService {
                 description,
                 startDate: startDate ? new Date(startDate) : undefined,
                 endDate: endDate ? new Date(endDate) : undefined,
-                thumbnail: thumbnailPath,
+                // Guard against wiping the existing thumbnail: only ever write a
+                // new value when one was genuinely provided. This used to receive
+                // "" on every edit that didn't touch the thumbnail, silently
+                // deleting it — undefined here means "leave field untouched" to
+                // Prisma, "" would have meant "set it to blank".
+                thumbnail: thumbnailPath || undefined,
                 video: videoUrl ? { url: videoUrl } : undefined,
                 materials: enrichedMaterials,
                 categoryId: category?.id,

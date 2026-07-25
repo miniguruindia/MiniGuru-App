@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import prisma from '../utils/prismaClient';
 import { authenticateToken } from '../middleware/authMiddleware';
+import { resolveSubject, resolveOwnerUserId } from '../middleware/resolveSubject';
 
 const router = Router();
 
@@ -32,9 +33,13 @@ function splitEqually(total: number, recipientIds: string[]): number[] {
   return recipientIds.map((_, idx) => (idx === 0 ? shareEach + remainder : shareEach));
 }
 
-router.post('/:id/rate', authenticateToken, async (req: Request, res: Response) => {
+router.post('/:id/rate', authenticateToken, resolveSubject, async (req: Request, res: Response) => {
   try {
-    const raterId = (req as any).user?.userId;
+    // BUGFIX: was (req as any).user?.userId directly — a child rating a
+    // friend's project while their mentor is in a PIN session would have
+    // the rating (and its Goins split) attributed to the mentor instead.
+    const raterId = resolveOwnerUserId(req, res);
+    if (!raterId) return; // resolveOwnerUserId already sent the error response
     const videoId = req.params.id;
 
     // ── Validate criteria in body ───────────────────────────────────────────
@@ -180,9 +185,12 @@ router.post('/:id/rate', authenticateToken, async (req: Request, res: Response) 
 // - totalRaters: how many people rated this video
 // - myRating: the current user's rating (null if not rated)
 // ════════════════════════════════════════════════════════════════════════════
-router.get('/:id/ratings', authenticateToken, async (req: Request, res: Response) => {
+router.get('/:id/ratings', authenticateToken, resolveSubject, async (req: Request, res: Response) => {
   try {
-    const raterId = (req as any).user?.userId;
+    // Must resolve to the same account POST /:id/rate would have used,
+    // so "myRating" below correctly finds a child's own prior rating.
+    const raterId = resolveOwnerUserId(req, res);
+    if (!raterId) return;
     const videoId = req.params.id;
 
     const ratings = await prisma.videoRating.findMany({

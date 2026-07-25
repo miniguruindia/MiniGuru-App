@@ -6,6 +6,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = require("express");
 const prismaClient_1 = __importDefault(require("../utils/prismaClient"));
 const authMiddleware_1 = require("../middleware/authMiddleware");
+const resolveSubject_1 = require("../middleware/resolveSubject");
 const router = (0, express_1.Router)();
 // ─── Criteria list — matches Flutter UI and Prisma booleans exactly ──────────
 const CRITERIA = ['sturdy', 'creative', 'functional', 'resourceful', 'documented'];
@@ -31,9 +32,14 @@ function splitEqually(total, recipientIds) {
     const remainder = total - shareEach * recipientIds.length;
     return recipientIds.map((_, idx) => (idx === 0 ? shareEach + remainder : shareEach));
 }
-router.post('/:id/rate', authMiddleware_1.authenticateToken, async (req, res) => {
+router.post('/:id/rate', authMiddleware_1.authenticateToken, resolveSubject_1.resolveSubject, async (req, res) => {
     try {
-        const raterId = req.user?.userId;
+        // BUGFIX: was (req as any).user?.userId directly — a child rating a
+        // friend's project while their mentor is in a PIN session would have
+        // the rating (and its Goins split) attributed to the mentor instead.
+        const raterId = (0, resolveSubject_1.resolveOwnerUserId)(req, res);
+        if (!raterId)
+            return; // resolveOwnerUserId already sent the error response
         const videoId = req.params.id;
         // ── Validate criteria in body ───────────────────────────────────────────
         const criteria = {
@@ -158,9 +164,13 @@ router.post('/:id/rate', authMiddleware_1.authenticateToken, async (req, res) =>
 // - totalRaters: how many people rated this video
 // - myRating: the current user's rating (null if not rated)
 // ════════════════════════════════════════════════════════════════════════════
-router.get('/:id/ratings', authMiddleware_1.authenticateToken, async (req, res) => {
+router.get('/:id/ratings', authMiddleware_1.authenticateToken, resolveSubject_1.resolveSubject, async (req, res) => {
     try {
-        const raterId = req.user?.userId;
+        // Must resolve to the same account POST /:id/rate would have used,
+        // so "myRating" below correctly finds a child's own prior rating.
+        const raterId = (0, resolveSubject_1.resolveOwnerUserId)(req, res);
+        if (!raterId)
+            return;
         const videoId = req.params.id;
         const ratings = await prismaClient_1.default.videoRating.findMany({
             where: { videoId },

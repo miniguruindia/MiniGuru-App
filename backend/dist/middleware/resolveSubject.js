@@ -24,6 +24,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.resolveSubject = resolveSubject;
+exports.resolveOwnerUserId = resolveOwnerUserId;
 const prismaClient_1 = __importDefault(require("../utils/prismaClient"));
 // ---------------------------------------------------------------------------
 // Middleware
@@ -108,4 +109,39 @@ async function resolveSubject(req, res, next) {
         console.error('[resolveSubject] DB error (child lookup):', err);
         res.status(500).json({ error: 'Internal server error' });
     }
+}
+// ---------------------------------------------------------------------------
+// resolveOwnerUserId — shared helper for any write endpoint that needs to
+// attribute an action (like, comment, rating, etc.) to the real acting
+// person, not whoever's JWT is on the request.
+//
+// Mount `resolveSubject` on the route BEFORE calling this in the controller.
+//
+// Returns:
+//   - the correct User.id string to write into the DB, OR
+//   - null, having already sent an error response — caller should
+//     `if (!ownerUserId) return;` immediately after calling this.
+//
+// This is the exact same logic already used inline in
+// projectController.ts's createProject — pulled out here so new call sites
+// (likes, comments, peer ratings) don't have to duplicate it.
+// ---------------------------------------------------------------------------
+function resolveOwnerUserId(req, res) {
+    const userId = req.user?.userId;
+    if (!userId) {
+        res.status(401).json({ error: 'Unauthorized' });
+        return null;
+    }
+    if (req.subject?.isChild) {
+        if (!req.subject.linkedUserId) {
+            res.status(400).json({
+                error: "This child profile doesn't have an independent login set up yet, " +
+                    'so this action can\'t be attributed correctly. Ask an admin to ' +
+                    "complete the child's account setup (linkedUserId) first.",
+            });
+            return null;
+        }
+        return req.subject.linkedUserId;
+    }
+    return userId;
 }

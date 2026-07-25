@@ -1,6 +1,5 @@
 import express from 'express';
 import { createProject, updateProject, getProjectById, getAllProjectsForUser , getAllProjects, findCollaborator, getPublishedVideoFeed, requestUploadUrl} from '../controllers/project/projectController';
-import { uploadThumbnailAndVideoMiddleware } from '../middleware/upload';
 import { getProjectsByCategory, getAllProjectCategories, createProjectCategory, updateProjectCategory, deleteProjectCategory } from '../controllers/project/categoryController';
 import { authenticateToken } from '../middleware/authMiddleware';
 import { resolveSubject } from '../middleware/resolveSubject';
@@ -49,7 +48,7 @@ projectRouter.get('/feed', getPublishedVideoFeed);
 
 
 // Update a project
-projectRouter.put('/:id', authenticateToken, validateProject,uploadThumbnailAndVideoMiddleware, updateProject);
+projectRouter.put('/:id', authenticateToken, validateProject, updateProject);
 
 projectRouter.get('/all',authenticateToken,getAllProjects);
 

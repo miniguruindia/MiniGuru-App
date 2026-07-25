@@ -4,6 +4,7 @@
 import express, { Request, Response } from 'express';
 import fs from 'fs';
 import { authenticateToken, authorizeAdmin } from '../middleware/authMiddleware';
+import { resolveSubject } from '../middleware/resolveSubject';
 import prisma from '../utils/prismaClient';
 
 // Video interaction controllers
@@ -224,14 +225,14 @@ router.post('/:videoId/view', authenticateToken, trackVideoView);
 router.get('/:videoId/views', getVideoViews);
 
 // Video likes (5 categories)
-router.post('/:videoId/like', authenticateToken, likeVideo);
-router.get('/:videoId/likes/user', authenticateToken, getUserVideoLikes);
+router.post('/:videoId/like', authenticateToken, resolveSubject, likeVideo);
+router.get('/:videoId/likes/user', authenticateToken, resolveSubject, getUserVideoLikes);
 router.get('/:videoId/likes/stats', getVideoLikesStats);
 
 // Video comments
 router.get('/:videoId/comments', getVideoComments);
-router.post('/:videoId/comments', authenticateToken, postVideoComment);
-router.delete('/comments/:commentId', authenticateToken, deleteVideoComment);
+router.post('/:videoId/comments', authenticateToken, resolveSubject, postVideoComment);
+router.delete('/comments/:commentId', authenticateToken, resolveSubject, deleteVideoComment);
 
 
 // GET /api/videos/:videoId/materials
