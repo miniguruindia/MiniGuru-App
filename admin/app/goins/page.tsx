@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { AdminLayout } from '@/components/AdminLayout'
 import { Card } from '@/components/ui/card'
@@ -433,7 +433,7 @@ function GoinsRequestsTab() {
 // ═══════════════════════════════════════════════════════════════════════════
 // PAGE — one nav entry, two tabs, instead of two separate top-level pages
 // ═══════════════════════════════════════════════════════════════════════════
-export default function GoinsPage() {
+function GoinsPageInner() {
   const searchParams = useSearchParams()
   const initialTab = searchParams.get('tab') === 'requests' ? 'requests' : 'balances'
   const [tab, setTab] = useState<'balances' | 'requests'>(initialTab)
@@ -462,5 +462,18 @@ export default function GoinsPage() {
         {tab === 'balances' ? <GoinsBalancesTab /> : <GoinsRequestsTab />}
       </div>
     </AdminLayout>
+  )
+}
+
+// Next.js 15 requires any component that calls useSearchParams() to be
+// wrapped in a Suspense boundary, or `next build` fails outright (this is
+// what actually happened on the last deploy — the build failed silently on
+// Vercel, which kept serving the old version, hence /goins looking
+// unchanged and /people 404ing).
+export default function GoinsPage() {
+  return (
+    <Suspense fallback={null}>
+      <GoinsPageInner />
+    </Suspense>
   )
 }

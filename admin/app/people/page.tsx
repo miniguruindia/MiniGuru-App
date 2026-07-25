@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { AdminLayout } from '@/components/AdminLayout'
@@ -617,7 +617,7 @@ function ContactChangesTab() {
 // ═══════════════════════════════════════════════════════════════════════════
 // PAGE — one nav entry, three tabs
 // ═══════════════════════════════════════════════════════════════════════════
-export default function PeoplePage() {
+function PeoplePageInner() {
   const searchParams = useSearchParams()
   const initialTab = (['directory', 'schools', 'contact'].includes(searchParams.get('tab') || '')
     ? searchParams.get('tab') : 'directory') as 'directory' | 'schools' | 'contact'
@@ -653,5 +653,16 @@ export default function PeoplePage() {
         {tab === 'contact' && <ContactChangesTab />}
       </div>
     </AdminLayout>
+  )
+}
+
+// Next.js 15 requires any component that calls useSearchParams() to be
+// wrapped in a Suspense boundary, or `next build` fails outright. Same
+// fix as goins/page.tsx — see the comment there for what this caused.
+export default function PeoplePage() {
+  return (
+    <Suspense fallback={null}>
+      <PeoplePageInner />
+    </Suspense>
   )
 }
