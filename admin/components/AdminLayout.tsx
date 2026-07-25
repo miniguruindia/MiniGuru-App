@@ -20,7 +20,6 @@ import {
   Coins,
   Package,
   ShoppingBag,
-  Inbox,
   Lightbulb,
   ShieldAlert,
   Megaphone
@@ -92,19 +91,12 @@ export function AdminLayout({ children }: AdminLayoutProps) {
       current: pathname.startsWith('/community-submissions'),
       description: 'Approve teacher/school Happenings & Challenges'
     },
-    // ── Goins ──────────────────────────────────────────────
+    // ── Goins (balances + top-up requests, both as tabs) ────
     { 
       name: 'Goins', 
       href: '/goins', 
       icon: Coins,
-      current: pathname.startsWith('/goins')
-    },
-    // ── Goin Top-Up Requests ─────────────────────────────────
-    { 
-      name: 'Goin Requests', 
-      href: '/goin-requests', 
-      icon: Inbox,
-      current: pathname.startsWith('/goin-requests')
+      current: pathname.startsWith('/goins') || pathname.startsWith('/goin-requests')
     },
     // ── Communication ──────────────────────────────────────
     { 
