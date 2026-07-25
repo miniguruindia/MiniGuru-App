@@ -89,7 +89,7 @@ export default function DashboardPage() {
       sub: `+${stats.new.users} this week`,
       icon: Users,
       gradient: 'from-blue-500 to-cyan-500',
-      href: '/users'
+      href: '/people'
     },
     {
       title: 'Projects / Videos',

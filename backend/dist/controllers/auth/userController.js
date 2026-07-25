@@ -135,6 +135,7 @@ const listUsers = async (req, res) => {
                 isMentor: true,
                 guardianEmail: true,
                 mentorType: true,
+                guardianInfo: true,
                 age: true,
                 id: true,
                 score: true,

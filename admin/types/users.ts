@@ -33,6 +33,15 @@ export interface UserOrder {
   products: OrderProduct[];
 }
 
+export interface GuardianInfo {
+  institutionName: string | null;
+  address: string | null;
+  city: string | null;
+  state: string | null;
+  pincode: string | null;
+  isVerified: boolean;
+}
+
 export interface User {
   id: string;
   email: string;
@@ -52,4 +61,5 @@ export interface User {
   orders?: UserOrder[];
   isMentor?: boolean;
   mentorType?: string | null;
+  guardianInfo?: GuardianInfo | null;
 }

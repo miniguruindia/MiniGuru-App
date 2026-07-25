@@ -16,12 +16,10 @@ import {
   Menu,
   X,
   Tag,
-  School,
   Coins,
   Package,
   ShoppingBag,
   Lightbulb,
-  ShieldAlert,
   Megaphone
 } from 'lucide-react'
 import Image from 'next/image'
@@ -49,10 +47,11 @@ export function AdminLayout({ children }: AdminLayoutProps) {
       current: pathname === '/'
     },
     { 
-      name: 'Users', 
-      href: '/users', 
+      name: 'People', 
+      href: '/people', 
       icon: Users,
-      current: pathname.startsWith('/users')
+      current: pathname.startsWith('/people') || pathname.startsWith('/users')
+        || pathname.startsWith('/schools') || pathname.startsWith('/contact-changes')
     },
     { 
       name: 'Video Approvals', 
@@ -75,13 +74,6 @@ export function AdminLayout({ children }: AdminLayoutProps) {
       href: '/categories', 
       icon: Tag,
       current: pathname.startsWith('/categories')
-    },
-    // ── Schools & T-LABs ─────────────────────────────────────
-    { 
-      name: 'Schools', 
-      href: '/schools', 
-      icon: School,
-      current: pathname.startsWith('/schools')
     },
     // ── Community Submissions — Happenings + Challenges moderation ──
     { 
@@ -125,13 +117,6 @@ export function AdminLayout({ children }: AdminLayoutProps) {
       href: '/product-suggestions',
       icon: Lightbulb,
       current: pathname.startsWith('/product-suggestions')
-    },
-    // ── Contact Change Approval Queue ───────────────────────
-    { 
-      name: 'Contact Changes',
-      href: '/contact-changes',
-      icon: ShieldAlert,
-      current: pathname.startsWith('/contact-changes')
     },
   ]
 
