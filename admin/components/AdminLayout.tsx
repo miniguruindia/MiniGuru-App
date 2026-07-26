@@ -54,7 +54,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
         || pathname.startsWith('/schools') || pathname.startsWith('/contact-changes')
     },
     { 
-      name: 'Video Approvals', 
+      name: 'Content Moderation', 
       href: '/videos', 
       icon: Video,
       current: pathname.startsWith('/videos'),
