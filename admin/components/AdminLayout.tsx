@@ -19,7 +19,6 @@ import {
   Coins,
   Package,
   ShoppingBag,
-  Lightbulb,
   Megaphone
 } from 'lucide-react'
 import Image from 'next/image'
@@ -65,8 +64,8 @@ export function AdminLayout({ children }: AdminLayoutProps) {
       name: 'Materials', 
       href: '/materials', 
       icon: Package,
-      current: pathname.startsWith('/materials'),
-      description: 'Set ASINs, prices, Goins'
+      current: pathname.startsWith('/materials') || pathname.startsWith('/product-suggestions'),
+      description: 'Set ASINs, prices, Goins, user suggestions'
     },
     // ── Project categories ─────────────────────────────────
     { 
@@ -75,13 +74,13 @@ export function AdminLayout({ children }: AdminLayoutProps) {
       icon: Tag,
       current: pathname.startsWith('/categories')
     },
-    // ── Community Submissions — Happenings + Challenges moderation ──
+    // ── Community — moderation + stats/resources, both as tabs ──────
     { 
-      name: 'Community Submissions', 
-      href: '/community-submissions', 
+      name: 'Community', 
+      href: '/community', 
       icon: Megaphone,
-      current: pathname.startsWith('/community-submissions'),
-      description: 'Approve teacher/school Happenings & Challenges'
+      current: pathname.startsWith('/community'),
+      description: 'Approve Happenings & Challenges, edit stats & resources'
     },
     // ── Goins (balances + top-up requests, both as tabs) ────
     { 
@@ -106,17 +105,10 @@ export function AdminLayout({ children }: AdminLayoutProps) {
     },
     // ── CMS content ────────────────────────────────────────
     { 
-      name: 'Content',
+      name: 'Site Content',
       href: '/content',
       icon: FileEdit,
       current: pathname.startsWith('/content')
-    },
-    // ── Product Suggestions ─────────────────────────────────
-    { 
-      name: 'Suggestions',
-      href: '/product-suggestions',
-      icon: Lightbulb,
-      current: pathname.startsWith('/product-suggestions')
     },
   ]
 

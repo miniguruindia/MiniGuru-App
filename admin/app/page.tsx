@@ -5,13 +5,10 @@ import { Card } from "@/components/ui/card"
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import {
-  Users, Video, Package, TrendingUp, ArrowUpRight,
-  CheckCircle, Clock, RefreshCw, Coins
+  Users, Video, Package, ArrowUpRight,
+  CheckCircle, Clock, RefreshCw, Coins, Megaphone, ShieldAlert,
+  Lightbulb, HandCoins, AlertTriangle,
 } from 'lucide-react'
-import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
-  ResponsiveContainer, AreaChart, Area
-} from 'recharts'
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001'
 
@@ -37,6 +34,19 @@ const DEFAULT_STATS = {
   new:   { users: 0, projects: 0, orders: 0 },
 }
 
+// A single failed endpoint should never take down the whole dashboard —
+// each attention-item fetch is independently wrapped so one backend hiccup
+// just shows 0 for that item instead of breaking the page.
+async function safeCount(url: string, extract: (data: any) => number): Promise<number> {
+  try {
+    const res = await fetch(url, { headers: authHeader(), credentials: 'include' })
+    if (!res.ok) return 0
+    return extract(await res.json())
+  } catch {
+    return 0
+  }
+}
+
 export default function DashboardPage() {
   const router = useRouter()
   const [stats,         setStats]         = useState(DEFAULT_STATS)
@@ -45,6 +55,13 @@ export default function DashboardPage() {
   const [loading,       setLoading]       = useState(true)
   const [error,         setError]         = useState<string | null>(null)
   const [lastRefreshed, setLastRefreshed] = useState('')
+
+  // ── "Needs Your Attention" counts ──────────────────────────────────────
+  const [pendingVideos,      setPendingVideos]      = useState(0)
+  const [pendingCommunity,   setPendingCommunity]   = useState(0)
+  const [pendingContact,     setPendingContact]     = useState(0)
+  const [pendingSuggestions, setPendingSuggestions] = useState(0)
+  const [pendingGoinTopUps,  setPendingGoinTopUps]  = useState(0)
 
   const load = async () => {
     setLoading(true)
@@ -72,6 +89,22 @@ export default function DashboardPage() {
         setMaterialCount(list.length)
         setAsinCount(list.filter((m: any) => m.amazonASIN).length)
       }
+
+      // Attention counts — fetched independently and in parallel so a
+      // single slow/broken endpoint doesn't block or break the rest.
+      const [videos, happenings, challenges, contact, suggestions, topups] = await Promise.all([
+        safeCount(`${API_BASE}/admin/projects/pending`, d => Array.isArray(d) ? d.length : (d.projects?.length ?? 0)),
+        safeCount(`${API_BASE}/admin/happenings`, d => (d.happenings || []).filter((h: any) => h.status === 'PENDING').length),
+        safeCount(`${API_BASE}/admin/challenges`, d => (d.challenges || []).filter((c: any) => c.status === 'PENDING').length),
+        safeCount(`${API_BASE}/admin/contact-change-requests`, d => (d.requests || []).length),
+        safeCount(`${API_BASE}/admin/product-suggestions?status=pending`, d => (d.suggestions || []).length),
+        safeCount(`${API_BASE}/goins/admin/topup/pending`, d => (d.requests || []).length),
+      ])
+      setPendingVideos(videos)
+      setPendingCommunity(happenings + challenges)
+      setPendingContact(contact)
+      setPendingSuggestions(suggestions)
+      setPendingGoinTopUps(topups)
     } catch (e: any) {
       setError(`Connection failed: ${e?.message}`)
     } finally {
@@ -117,10 +150,37 @@ export default function DashboardPage() {
     },
   ]
 
-  const userChartData = [
-    { label: 'Existing', value: Math.max(0, stats.total.users - stats.new.users) },
-    { label: 'New (7d)',  value: stats.new.users },
+  const attentionItems = [
+    {
+      label: 'Videos awaiting approval', count: pendingVideos, icon: Video,
+      href: '/videos', color: 'purple',
+    },
+    {
+      label: 'Community submissions pending', count: pendingCommunity, icon: Megaphone,
+      href: '/community', color: 'indigo',
+    },
+    {
+      label: 'Contact change requests', count: pendingContact, icon: ShieldAlert,
+      href: '/people?tab=contact', color: 'red',
+    },
+    {
+      label: 'Material suggestions from users', count: pendingSuggestions, icon: Lightbulb,
+      href: '/materials?tab=suggestions', color: 'amber',
+    },
+    {
+      label: 'Goin top-up requests', count: pendingGoinTopUps, icon: HandCoins,
+      href: '/goins?tab=requests', color: 'emerald',
+    },
   ]
+  const totalPending = attentionItems.reduce((sum, i) => sum + i.count, 0)
+
+  const colorClasses: Record<string, { bg: string; text: string; iconBg: string }> = {
+    purple:  { bg: 'bg-purple-50 border-purple-100 hover:bg-purple-100',   text: 'text-purple-900',  iconBg: 'text-purple-600' },
+    indigo:  { bg: 'bg-indigo-50 border-indigo-100 hover:bg-indigo-100',   text: 'text-indigo-900',  iconBg: 'text-indigo-600' },
+    red:     { bg: 'bg-red-50 border-red-100 hover:bg-red-100',           text: 'text-red-900',     iconBg: 'text-red-600' },
+    amber:   { bg: 'bg-amber-50 border-amber-100 hover:bg-amber-100',     text: 'text-amber-900',   iconBg: 'text-amber-600' },
+    emerald: { bg: 'bg-emerald-50 border-emerald-100 hover:bg-emerald-100', text: 'text-emerald-900', iconBg: 'text-emerald-600' },
+  }
 
   if (loading) return (
     <AdminLayout>
@@ -181,7 +241,7 @@ export default function DashboardPage() {
                 {asinCount} of {materialCount} materials have Amazon ASINs linked
               </p>
             </div>
-            <button onClick={() => router.push('/materials')}
+            <button onClick={() => router.push('/materials?tab=amazon')}
               className="text-sm text-orange-600 hover:text-orange-700 font-medium">
               Add ASINs →
             </button>
@@ -210,41 +270,39 @@ export default function DashboardPage() {
           )}
         </Card>
 
-        {/* Charts */}
+        {/* Needs Your Attention + Quick Actions */}
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
           <Card className="p-6 border-0 shadow-md">
-            <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center justify-between mb-5">
               <div>
-                <h3 className="text-lg font-semibold text-gray-900">User Breakdown</h3>
-                <p className="text-sm text-gray-500">Total vs new this week</p>
+                <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                  <AlertTriangle className="h-5 w-5 text-amber-500" /> Needs Your Attention
+                </h3>
+                <p className="text-sm text-gray-500">
+                  {totalPending === 0 ? 'All caught up! 🎉' : `${totalPending} item${totalPending === 1 ? '' : 's'} across the platform`}
+                </p>
               </div>
-              <button onClick={() => router.push('/analytics')}
-                className="text-sm text-blue-600 hover:text-blue-700 font-medium">
-                View Analytics →
-              </button>
             </div>
-            <ResponsiveContainer width="100%" height={240}>
-              <BarChart data={userChartData} barSize={48}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                <XAxis dataKey="label" stroke="#9ca3af" style={{ fontSize: '13px' }} />
-                <YAxis stroke="#9ca3af" style={{ fontSize: '12px' }} allowDecimals={false} />
-                <Tooltip
-                  contentStyle={{ backgroundColor: '#fff', border: '1px solid #e5e7eb', borderRadius: '8px', fontSize: '13px' }}
-                  formatter={(v: number) => [v, 'Users']}
-                />
-                <Bar dataKey="value" radius={[6,6,0,0]} fill="#3b82f6"
-                  label={{ position: 'top', fontSize: 13, fontWeight: 700, fill: '#374151' }} />
-              </BarChart>
-            </ResponsiveContainer>
-            <div className="mt-4 grid grid-cols-2 gap-3">
-              <div className="bg-blue-50 rounded-lg p-3 text-center">
-                <p className="text-2xl font-bold text-blue-700">{stats.total.users}</p>
-                <p className="text-xs text-blue-500 mt-0.5">Total Users</p>
-              </div>
-              <div className="bg-cyan-50 rounded-lg p-3 text-center">
-                <p className="text-2xl font-bold text-cyan-700">+{stats.new.users}</p>
-                <p className="text-xs text-cyan-500 mt-0.5">New This Week</p>
-              </div>
+            <div className="space-y-2">
+              {attentionItems.map(item => {
+                const Icon = item.icon
+                const c = colorClasses[item.color]
+                return (
+                  <button key={item.label} onClick={() => router.push(item.href)}
+                    className={`w-full flex items-center justify-between p-3.5 rounded-lg border transition-colors ${c.bg}`}>
+                    <div className="flex items-center gap-3">
+                      <Icon className={`h-4 w-4 ${c.iconBg}`} />
+                      <span className={`text-sm font-medium ${c.text}`}>{item.label}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className={`text-sm font-bold ${item.count > 0 ? c.text : 'text-gray-300'}`}>
+                        {item.count}
+                      </span>
+                      <ArrowUpRight className={`h-3.5 w-3.5 ${item.count > 0 ? c.iconBg : 'text-gray-300'}`} />
+                    </div>
+                  </button>
+                )
+              })}
             </div>
           </Card>
 
@@ -268,7 +326,7 @@ export default function DashboardPage() {
                 <ArrowUpRight className="h-4 w-4 text-purple-400" />
               </button>
 
-              <button onClick={() => router.push('/materials')}
+              <button onClick={() => router.push('/materials?tab=amazon')}
                 className="w-full flex items-center justify-between p-4 bg-orange-50 rounded-lg border border-orange-100 hover:bg-orange-100 transition-colors">
                 <div className="flex items-center gap-3">
                   <Package className="h-5 w-5 text-orange-600" />
@@ -280,13 +338,25 @@ export default function DashboardPage() {
                 <ArrowUpRight className="h-4 w-4 text-orange-400" />
               </button>
 
+              <button onClick={() => router.push('/community')}
+                className="w-full flex items-center justify-between p-4 bg-indigo-50 rounded-lg border border-indigo-100 hover:bg-indigo-100 transition-colors">
+                <div className="flex items-center gap-3">
+                  <Megaphone className="h-5 w-5 text-indigo-600" />
+                  <div className="text-left">
+                    <p className="text-sm font-medium text-indigo-900">Review Community Submissions</p>
+                    <p className="text-xs text-indigo-600">Happenings & Challenges from teachers</p>
+                  </div>
+                </div>
+                <ArrowUpRight className="h-4 w-4 text-indigo-400" />
+              </button>
+
               <button onClick={() => router.push('/content')}
                 className="w-full flex items-center justify-between p-4 bg-green-50 rounded-lg border border-green-100 hover:bg-green-100 transition-colors">
                 <div className="flex items-center gap-3">
                   <CheckCircle className="h-5 w-5 text-green-600" />
                   <div className="text-left">
-                    <p className="text-sm font-medium text-green-900">Update CMS Content</p>
-                    <p className="text-xs text-green-600">Challenges, Resources, Announcements</p>
+                    <p className="text-sm font-medium text-green-900">Update Site Content</p>
+                    <p className="text-xs text-green-600">About, Consultancy, Legal, FAQ</p>
                   </div>
                 </div>
                 <ArrowUpRight className="h-4 w-4 text-green-400" />

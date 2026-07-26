@@ -5,7 +5,7 @@ import React, { useEffect, useState, useCallback } from 'react'
 import { AdminLayout } from '@/components/AdminLayout'
 import { Card } from '@/components/ui/card'
 import {
-  Save, RefreshCw, CheckCircle, AlertCircle, Globe, Users,
+  Save, RefreshCw, CheckCircle, AlertCircle, Users,
   BookOpen, Shield, FileText, Baby, ChevronDown, ChevronUp,
   Plus, Trash2, Edit3, HelpCircle
 } from 'lucide-react'
@@ -33,10 +33,9 @@ async function saveContent(key: string, value: any) {
   return res.json()
 }
 
-type Tab = 'community' | 'about' | 'consultancy' | 'legal' | 'faq'
+type Tab = 'about' | 'consultancy' | 'legal' | 'faq'
 
 const TABS: { id: Tab; label: string; icon: React.ReactNode; color: string }[] = [
-  { id: 'community',   label: 'Community',   icon: <Globe       className="h-4 w-4" />, color: 'blue'   },
   { id: 'about',       label: 'About',       icon: <Users       className="h-4 w-4" />, color: 'purple' },
   { id: 'consultancy', label: 'Consultancy', icon: <BookOpen    className="h-4 w-4" />, color: 'green'  },
   { id: 'legal',       label: 'Legal',       icon: <Shield      className="h-4 w-4" />, color: 'red'    },
@@ -71,127 +70,6 @@ function Field({ label, hint, children }: { label: string; hint?: string; childr
 }
 
 // ── COMMUNITY ─────────────────────────────────────────────────────────────────
-function CommunityEditor({ data, onChange }: { data: any; onChange: (d: any) => void }) {
-  const updateItem = (arrKey: string, id: string, field: string, val: string) =>
-    onChange({ ...data, [arrKey]: data[arrKey].map((x: any) => x.id === id ? { ...x, [field]: val } : x) })
-  const removeItem = (arrKey: string, id: string) =>
-    onChange({ ...data, [arrKey]: data[arrKey].filter((x: any) => x.id !== id) })
-  const addItem = (arrKey: string, template: any) =>
-    onChange({ ...data, [arrKey]: [...(data[arrKey] || []), { ...template, id: Date.now().toString() }] })
-
-  return (
-    <div className="space-y-4">
-      <SectionCard title="📣 T-LAB Happenings">
-        {(data.happenings || []).map((h: any, i: number) => (
-          <div key={h.id} className="border border-gray-100 rounded-lg p-4 space-y-3 bg-gray-50">
-            <div className="flex justify-between items-center">
-              <span className="text-xs font-semibold text-gray-500 uppercase">Happening {i + 1}</span>
-              <button onClick={() => removeItem('happenings', h.id)} className="text-red-400 hover:text-red-600"><Trash2 className="h-4 w-4" /></button>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <Field label="Title"><input className={inp} value={h.title || ''} onChange={e => updateItem('happenings', h.id, 'title', e.target.value)} /></Field>
-              <Field label="Date (YYYY-MM-DD)"><input className={inp} value={h.date || ''} onChange={e => updateItem('happenings', h.id, 'date', e.target.value)} /></Field>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <Field label="City"><input className={inp} value={h.city || ''} onChange={e => updateItem('happenings', h.id, 'city', e.target.value)} /></Field>
-              <Field label="Emoji (e.g. 🏫 🏠 🏢)"><input className={inp} value={h.emoji || ''} onChange={e => updateItem('happenings', h.id, 'emoji', e.target.value)} /></Field>
-            </div>
-            <Field label="Description"><textarea className={ta} rows={2} value={h.description || ''} onChange={e => updateItem('happenings', h.id, 'description', e.target.value)} /></Field>
-            <div className="grid grid-cols-2 gap-3">
-              <Field label="Tag (NEW / UPCOMING / MILESTONE / AWARD / PAST)"><input className={inp} value={h.tag || ''} onChange={e => updateItem('happenings', h.id, 'tag', e.target.value)} /></Field>
-              <Field label="Image URL (optional)"><input className={inp} value={h.imageUrl || ''} onChange={e => updateItem('happenings', h.id, 'imageUrl', e.target.value)} /></Field>
-            </div>
-          </div>
-        ))}
-        <button onClick={() => addItem('happenings', { title: '', date: '', description: '', tag: 'NEW', imageUrl: '', city: '', emoji: '🏫' })}
-          className="flex items-center gap-2 text-sm text-blue-600 hover:text-blue-800 font-medium">
-          <Plus className="h-4 w-4" /> Add Happening
-        </button>
-      </SectionCard>
-
-      <SectionCard title="🏆 Challenges">
-        {(data.challenges || []).map((c: any, i: number) => (
-          <div key={c.id} className="border border-gray-100 rounded-lg p-4 space-y-3 bg-gray-50">
-            <div className="flex justify-between items-center">
-              <span className="text-xs font-semibold text-gray-500 uppercase">Challenge {i + 1}</span>
-              <button onClick={() => removeItem('challenges', c.id)} className="text-red-400 hover:text-red-600"><Trash2 className="h-4 w-4" /></button>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <Field label="Title"><input className={inp} value={c.title || ''} onChange={e => updateItem('challenges', c.id, 'title', e.target.value)} /></Field>
-              <Field label="Category"><input className={inp} value={c.category || ''} onChange={e => updateItem('challenges', c.id, 'category', e.target.value)} /></Field>
-            </div>
-            <div className="grid grid-cols-3 gap-3">
-              <Field label="Difficulty">
-                <select className={inp} value={c.difficulty || 'Medium'} onChange={e => updateItem('challenges', c.id, 'difficulty', e.target.value)}>
-                  <option>Easy</option><option>Medium</option><option>Hard</option>
-                </select>
-              </Field>
-              <Field label="Goins Reward"><input type="number" className={inp} value={c.goinsReward || 0} onChange={e => updateItem('challenges', c.id, 'goinsReward', e.target.value)} /></Field>
-              <Field label="Status">
-                <select className={inp} value={c.status || 'upcoming'} onChange={e => updateItem('challenges', c.id, 'status', e.target.value)}>
-                  <option value="ongoing">Ongoing</option>
-                  <option value="upcoming">Upcoming</option>
-                  <option value="past">Past</option>
-                </select>
-              </Field>
-            </div>
-            <div className="grid grid-cols-3 gap-3">
-              <Field label="Category Emoji (optional)"><input className={inp} value={c.categoryEmoji || ''} onChange={e => updateItem('challenges', c.id, 'categoryEmoji', e.target.value)} placeholder="auto if blank" /></Field>
-              <Field label="Participants (optional)"><input type="number" className={inp} value={c.participants || 0} onChange={e => updateItem('challenges', c.id, 'participants', e.target.value)} /></Field>
-              <Field label="Color hex (optional)"><input className={inp} value={c.color || ''} onChange={e => updateItem('challenges', c.id, 'color', e.target.value)} placeholder="auto if blank, e.g. 3B82F6" /></Field>
-            </div>
-            <Field label="End Date"><input className={inp} value={c.endDate || ''} onChange={e => updateItem('challenges', c.id, 'endDate', e.target.value)} /></Field>
-            <Field label="Description"><textarea className={ta} rows={2} value={c.description || ''} onChange={e => updateItem('challenges', c.id, 'description', e.target.value)} /></Field>
-          </div>
-        ))}
-        <button onClick={() => addItem('challenges', { title: '', category: '', difficulty: 'Medium', goinsReward: 100, endDate: '', status: 'upcoming', description: '', categoryEmoji: '', participants: 0, color: '' })}
-          className="flex items-center gap-2 text-sm text-blue-600 font-medium"><Plus className="h-4 w-4" /> Add Challenge</button>
-      </SectionCard>
-
-      <SectionCard title="📚 Resources">
-        {(data.resources || []).map((r: any, i: number) => (
-          <div key={r.id} className="border border-gray-100 rounded-lg p-4 space-y-3 bg-gray-50">
-            <div className="flex justify-between items-center">
-              <span className="text-xs font-semibold text-gray-500 uppercase">Resource {i + 1}</span>
-              <button onClick={() => removeItem('resources', r.id)} className="text-red-400 hover:text-red-600"><Trash2 className="h-4 w-4" /></button>
-            </div>
-            <div className="grid grid-cols-3 gap-3">
-              <Field label="Title"><input className={inp} value={r.title || ''} onChange={e => updateItem('resources', r.id, 'title', e.target.value)} /></Field>
-              <Field label="Type (PDF/DOC/VIDEO)"><input className={inp} value={r.type || ''} onChange={e => updateItem('resources', r.id, 'type', e.target.value)} /></Field>
-              <Field label="Tag"><input className={inp} value={r.tag || ''} onChange={e => updateItem('resources', r.id, 'tag', e.target.value)} /></Field>
-            </div>
-            <Field label="Download URL"><input className={inp} value={r.url || ''} onChange={e => updateItem('resources', r.id, 'url', e.target.value)} /></Field>
-            <Field label="Description"><textarea className={ta} rows={2} value={r.description || ''} onChange={e => updateItem('resources', r.id, 'description', e.target.value)} /></Field>
-          </div>
-        ))}
-        <button onClick={() => addItem('resources', { title: '', type: 'PDF', tag: '', url: '', description: '' })}
-          className="flex items-center gap-2 text-sm text-blue-600 font-medium"><Plus className="h-4 w-4" /> Add Resource</button>
-      </SectionCard>
-
-      <SectionCard title="🪜 Progression Ladder">
-        {(data.ladder?.levels || []).map((l: any, i: number) => (
-          <div key={i} className="grid grid-cols-4 gap-3 border border-gray-100 rounded-lg p-3 bg-gray-50">
-            {['name','emoji','perks'].map(field => (
-              <Field key={field} label={field.charAt(0).toUpperCase()+field.slice(1)}>
-                <input className={inp} value={l[field] || ''} onChange={e => {
-                  const levels = [...data.ladder.levels]; levels[i] = { ...l, [field]: e.target.value }
-                  onChange({ ...data, ladder: { ...data.ladder, levels } })
-                }} />
-              </Field>
-            ))}
-            <Field label="Min Score">
-              <input type="number" className={inp} value={l.minScore || 0} onChange={e => {
-                const levels = [...data.ladder.levels]; levels[i] = { ...l, minScore: parseInt(e.target.value) }
-                onChange({ ...data, ladder: { ...data.ladder, levels } })
-              }} />
-            </Field>
-          </div>
-        ))}
-      </SectionCard>
-    </div>
-  )
-}
-
 // ── ABOUT ─────────────────────────────────────────────────────────────────────
 function AboutEditor({ data, onChange }: { data: any; onChange: (d: any) => void }) {
   const stats = data.stats || {}
@@ -572,13 +450,12 @@ function FaqEditor({ data, onChange }: {
 // student video feed, which is sourced from Project records, not this.
 // ── MAIN PAGE ─────────────────────────────────────────────────────────────────
 export default function ContentPage() {
-  const [activeTab,   setActiveTab]   = useState<Tab>('community')
+  const [activeTab,   setActiveTab]   = useState<Tab>('about')
   const [loading,     setLoading]     = useState(true)
   const [saving,      setSaving]      = useState(false)
   const [error,       setError]       = useState('')
   const [success,     setSuccess]     = useState('')
   const [lastSaved,   setLastSaved]   = useState<Record<string, string>>({})
-  const [community,   setCommunity]   = useState<any>({})
   const [about,       setAbout]       = useState<any>({})
   const [consultancy, setConsultancy] = useState<any>({})
   const [privacy,     setPrivacy]     = useState<LegalDoc>(emptyLegalDoc('Privacy Policy'))
@@ -595,12 +472,12 @@ export default function ContentPage() {
   const loadAll = useCallback(async () => {
     setLoading(true); setError('')
     try {
-      const [c, a, co, p, t, cs, ck, faqData] = await Promise.all([
-        fetchContent('community'), fetchContent('about'), fetchContent('consultancy'),
+      const [a, co, p, t, cs, ck, faqData] = await Promise.all([
+        fetchContent('about'), fetchContent('consultancy'),
         fetchContent('legal_privacy'), fetchContent('legal_terms'), fetchContent('legal_child_safety'),
         fetchContent('legal_cookie'), fetchContent('faq'),
       ])
-      setCommunity(c); setAbout(a); setConsultancy(co)
+      setAbout(a); setConsultancy(co)
       setPrivacy(toLegalDoc(p, 'Privacy Policy'))
       setTerms(toLegalDoc(t, 'Terms & Conditions'))
       setChildSafety(toLegalDoc(cs, 'Child Safety Policy'))
@@ -615,7 +492,6 @@ export default function ContentPage() {
   const save = async () => {
     setSaving(true); setError('')
     try {
-      if (activeTab === 'community')   await saveContent('community',   community)
       if (activeTab === 'about')       await saveContent('about',       about)
       if (activeTab === 'consultancy') await saveContent('consultancy', consultancy)
       if (activeTab === 'legal') {
@@ -634,14 +510,12 @@ export default function ContentPage() {
   }
 
   const btnColor: Record<Tab, string> = {
-    community:   'bg-blue-600',
     about:       'bg-purple-600',
     consultancy: 'bg-green-600',
     legal:       'bg-red-600',
     faq:         'bg-indigo-600',
   }
   const tabActive: Record<Tab, string> = {
-    community:   'bg-blue-600 text-white border-transparent',
     about:       'bg-purple-600 text-white border-transparent',
     consultancy: 'bg-green-600 text-white border-transparent',
     legal:       'bg-red-600 text-white border-transparent',
@@ -653,7 +527,7 @@ export default function ContentPage() {
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Content Manager</h1>
+            <h1 className="text-2xl font-bold text-gray-900">Site Content</h1>
             <p className="text-sm text-gray-500 mt-1">Edit app content — changes go live immediately</p>
           </div>
           <div className="flex gap-3">
@@ -687,7 +561,6 @@ export default function ContentPage() {
           <div className="flex justify-center py-20"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" /></div>
         ) : (
           <>
-            {activeTab === 'community'   && <CommunityEditor   data={community}   onChange={setCommunity} />}
             {activeTab === 'about'       && <AboutEditor       data={about}       onChange={setAbout} />}
             {activeTab === 'consultancy' && <ConsultancyEditor data={consultancy} onChange={setConsultancy} />}
             {activeTab === 'legal'       && <LegalEditor
