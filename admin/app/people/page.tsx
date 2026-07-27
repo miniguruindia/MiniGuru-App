@@ -7,7 +7,6 @@ import { AdminLayout } from '@/components/AdminLayout'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { User, GuardianInfo } from '@/types/users'
-import { listUsers, deleteUser } from '@/utils/api/userApi'
 import { SkeletonCard } from '@/components/SkeletonCard'
 import {
   RefreshCw, WifiOff, Users as UsersIcon, School, ShieldAlert,
@@ -48,12 +47,15 @@ function DirectoryTab() {
   const fetchUsers = async () => {
     try {
       setLoading(true); setError(null)
-      setUsers(await listUsers())
+      const token = await authToken()
+      const res = await fetch(`${API_BASE}/admin/users/`, { headers: { Authorization: `Bearer ${token}` } })
+      if (res.status === 502 || res.status === 503) { setError('backend_down'); return }
+      if (res.status === 403) { setError('forbidden'); return }
+      if (!res.ok) { setError(`${res.status}`); return }
+      const data = await res.json()
+      setUsers(Array.isArray(data.data) ? data.data : [])
     } catch (err: any) {
-      const status = err?.response?.status
-      if (status === 502 || status === 503) setError('backend_down')
-      else if (status === 403) setError('forbidden')
-      else setError(err?.message || 'unknown')
+      setError(err?.message || 'unknown')
     } finally {
       setLoading(false); setRetrying(false)
     }
@@ -66,7 +68,11 @@ function DirectoryTab() {
   const handleDeleteUser = async (userId: string) => {
     if (!confirm('Delete this user? This cannot be undone.')) return
     try {
-      await deleteUser(userId)
+      const token = await authToken()
+      const res = await fetch(`${API_BASE}/admin/users/${userId}`, {
+        method: 'DELETE', headers: { Authorization: `Bearer ${token}` },
+      })
+      if (!res.ok) throw new Error(`${res.status}`)
       setUsers(prev => prev.filter(u => u.id !== userId))
     } catch (err: any) {
       alert('Could not delete user: ' + (err?.message || 'Unknown error'))

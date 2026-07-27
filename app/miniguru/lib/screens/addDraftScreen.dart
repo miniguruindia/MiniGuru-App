@@ -37,7 +37,8 @@ const _accent    = Color(0xFF5B6EF5);   // appbar — was _navy 0xFF1E3A8A
 class AddDraftScreen extends StatefulWidget {
   final int? draftId;
   final List<Map<String, String>>? presetCollaborators;
-  const AddDraftScreen({super.key, this.draftId, this.presetCollaborators});
+  final String? presetChallengeId;
+  const AddDraftScreen({super.key, this.draftId, this.presetCollaborators, this.presetChallengeId});
   @override
   State<AddDraftScreen> createState() => _AddDraftScreenState();
 }
@@ -101,6 +102,13 @@ class _AddDraftScreenState extends State<AddDraftScreen>
           .cast<Map<String, dynamic>>()
           .where((c) => c['lifecycleStatus'] != 'past')
           .toList();
+      // Came from tapping "Join Challenge" on the Community screen —
+      // pre-select it if it's still open, so the tap genuinely joins them
+      // instead of just opening a blank new-project screen.
+      if (widget.presetChallengeId != null &&
+          _openChallenges.any((c) => c['id'] == widget.presetChallengeId)) {
+        _selectedChallengeId = widget.presetChallengeId;
+      }
     });
   }
 

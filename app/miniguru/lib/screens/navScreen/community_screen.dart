@@ -13,6 +13,7 @@ import 'package:miniguru/network/MiniguruApi.dart';
 import 'package:miniguru/secrets.dart';
 import 'package:miniguru/screens/loginScreen.dart';
 import 'package:miniguru/screens/registerScreen.dart';
+import 'package:miniguru/screens/addDraftScreen.dart';
 
 class CommunityScreen extends StatefulWidget {
   const CommunityScreen({super.key});
@@ -233,6 +234,7 @@ class _CommunityScreenState extends State<CommunityScreen>
           final map = c as Map<String, dynamic>;
           final category = map['category']?.toString() ?? '';
           return _Challenge(
+            id:            map['id']?.toString() ?? '',
             title:         map['title']?.toString() ?? '',
             desc:          map['description']?.toString() ?? '',
             category:      category,
@@ -682,6 +684,39 @@ class _ChallengeCard extends StatelessWidget {
   final _Challenge c;
   const _ChallengeCard({required this.c});
 
+  // BUGFIX: this used to unconditionally send everyone to the login screen,
+  // even users who were already logged in — this Community screen became
+  // available to authenticated users back in the May 15 session, but this
+  // button was never updated from its guest-only-screen origins.
+  Future<void> _handleJoinTap(BuildContext context) async {
+    final user = await MiniguruApi().getUserData();
+    if (!context.mounted) return;
+
+    if (user == null) {
+      // Genuinely logged out — login is the correct destination.
+      Navigator.pushNamed(context, LoginScreen.id);
+      return;
+    }
+
+    // Already logged in — actually joining a challenge happens by picking
+    // it while starting a new project, so send them there with this
+    // challenge pre-selected instead of a dead-end trip to login.
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => AddDraftScreen(
+          presetChallengeId: c.id.isNotEmpty ? c.id : null,
+        ),
+      ),
+    );
+    if (c.id.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text(
+          "Pick this challenge from the dropdown when you plan your project!")),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final statusLabel = ['ONGOING', 'UPCOMING', 'ENDED'][c.status];
@@ -758,7 +793,7 @@ class _ChallengeCard extends StatelessWidget {
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
-                  onPressed: () => Navigator.pushNamed(context, LoginScreen.id),
+                  onPressed: () => _handleJoinTap(context),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: c.color,
                     foregroundColor: Colors.white,
@@ -1434,10 +1469,11 @@ class _Happening {
 }
 
 class _Challenge {
-  final String title, desc, category, categoryEmoji, deadline;
+  final String id, title, desc, category, categoryEmoji, deadline;
   final int status, reward, participants;
   final Color color;
   const _Challenge({
+    this.id = '',
     required this.title, required this.desc, required this.category,
     required this.categoryEmoji, required this.status, required this.reward,
     required this.deadline, required this.participants, required this.color,

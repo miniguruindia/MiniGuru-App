@@ -42,13 +42,50 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
   @override
   void initState() {
     super.initState();
-    materialList = jsonDecode(jsonDecode(widget.project.materials));
-    comments = jsonDecode(jsonDecode(widget.project.comments));
+    // BUGFIX: this used to assign the decode result directly into a
+    // non-nullable `late List<dynamic>` field with no error handling. If a
+    // project had no materials selected (a real, common case — not every
+    // child picks materials before uploading), the double-decode below
+    // could resolve to null, and assigning null into a non-nullable late
+    // field throws immediately inside initState(). Flutter can't recover
+    // from an exception there, which in a release build shows up as
+    // exactly a blank screen with no visible error — matching the bug
+    // report. Same risk applied to comments. Both now default safely to
+    // an empty list instead of crashing the whole screen.
+    materialList = _safeDoubleDecodeList(widget.project.materials);
+    comments = _safeDoubleDecodeList(widget.project.comments);
+  }
+
+  String? _safeVideoUrl() {
+    try {
+      final decoded = jsonDecode(widget.project.video);
+      if (decoded is Map && decoded['url'] is String && (decoded['url'] as String).isNotEmpty) {
+        return decoded['url'] as String;
+      }
+      return null;
+    } catch (e) {
+      debugPrint('⚠️ ProjectDetailsScreen: could not parse video data ($e)');
+      return null;
+    }
+  }
+
+  List<dynamic> _safeDoubleDecodeList(String raw) {
+    try {
+      final once = jsonDecode(raw);
+      final twice = once is String ? jsonDecode(once) : once;
+      if (twice is List) return twice;
+      return [];
+    } catch (e) {
+      debugPrint('⚠️ ProjectDetailsScreen: could not parse "$raw" — showing empty list ($e)');
+      return [];
+    }
   }
 
   bool get hasUserAlreadyCommented {
-    return comments
-        .any((comment) => comment['commentedBy']['id'] == widget.user.id);
+    return comments.any((comment) {
+      final commentedBy = comment is Map ? comment['commentedBy'] : null;
+      return commentedBy is Map && commentedBy['id'] == widget.user.id;
+    });
   }
 
   Future<void> submitComment() async {
@@ -311,8 +348,14 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
               borderRadius: BorderRadius.circular(16.0),
               child: SizedBox(
                 height: 200,
-                child: NetworkVideoPlayer(
-                    videoUrl: jsonDecode(widget.project.video)['url']),
+                child: _safeVideoUrl() != null
+                    ? NetworkVideoPlayer(videoUrl: _safeVideoUrl()!)
+                    : Container(
+                        color: Colors.black12,
+                        alignment: Alignment.center,
+                        child: const Text('Video unavailable',
+                            style: TextStyle(color: Colors.black45)),
+                      ),
               ),
             ),
             const SizedBox(height: 24.0),
