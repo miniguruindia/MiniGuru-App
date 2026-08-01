@@ -88,6 +88,7 @@ class ProjectService {
       categoryName,
       thumbnailPath,
       videoUrl,
+      collaborators, // admin-only field — see adminUpdateProject in projectController.ts
     } = projectData;
 
     let category;
@@ -118,6 +119,9 @@ class ProjectService {
         video: videoUrl ? { url: videoUrl } : undefined,
         materials: enrichedMaterials,
         categoryId: category?.id,
+        // undefined = leave untouched; an actual array (even []) replaces
+        // it wholesale — matches how title/description already behave.
+        collaborators: collaborators !== undefined ? collaborators : undefined,
       },
     });
   }

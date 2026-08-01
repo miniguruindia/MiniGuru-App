@@ -301,7 +301,10 @@ class _MentorActivityTabState extends State<MentorActivityTab> {
     // device) alongside starting a fresh project. Drafts are local-storage
     // only and never synced to the backend, so this only finds drafts the
     // child made on this same device/browser.
-    final drafts = await _draftRepo.getDrafts(childKey: child.id);
+    final drafts = await _draftRepo.getDrafts(
+      childKey: child.id,
+      alsoMatchKeys: child.linkedUserId != null ? [child.linkedUserId!] : null,
+    );
 
     if (!mounted) {
       SessionState.clearChild();

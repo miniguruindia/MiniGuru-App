@@ -1,6 +1,6 @@
 import express from 'express';
 import { createProduct, updateProduct, deleteProduct } from '../controllers/admin/ecom/productController';
-import { deleteProjectByID } from '../controllers/project/projectController';
+import { deleteProjectByID, adminUpdateProject } from '../controllers/project/projectController';
 import { createProductCategory, deleteProductCategory, updateProductCategory} from '../controllers/admin/ecom/categoryController';
 import { createProjectCategory, deleteProjectCategory, updateProjectCategory } from '../controllers/project/categoryController';
 import { productValidationRules, idValidationRules, updateUserValidationRules } from '../middleware/validationMiddleware';
@@ -41,6 +41,7 @@ adminRouter.put('/users/:userId', authenticateToken, authorizeAdmin, updateUserD
 
 // ==================== PROJECTS ====================
 adminRouter.delete('/project/:id', authenticateToken, authorizeAdmin, deleteProjectByID);
+adminRouter.put('/project/:id', authenticateToken, authorizeAdmin, adminUpdateProject);
 
 // ==================== ORDERS ====================
 adminRouter.get('/orders', authenticateToken, authorizeAdmin, getAllOrdersController);

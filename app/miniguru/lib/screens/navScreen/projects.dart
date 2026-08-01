@@ -11,6 +11,7 @@ import 'package:miniguru/screens/addDraftScreen.dart';
 import 'package:miniguru/repository/draftsRepository.dart';
 import 'package:miniguru/repository/projectRepository.dart';
 import 'package:miniguru/repository/userDataRepository.dart';
+import 'package:miniguru/state/sessionState.dart';
 import 'package:miniguru/screens/projectDetailsScreen.dart';
 import 'package:miniguru/screens/loginScreen.dart';
 
@@ -105,7 +106,17 @@ class _ProjectScreenState extends State<ProjectScreen>
   }
 
   Future<void> _loadDrafts() async {
-    final drafts = await DraftRepository().getDrafts();
+    // BUGFIX: this used to call getDrafts() with no filter at all — every
+    // draft ever saved on this device/browser, from every child who has
+    // ever logged in on it, showed up for whoever opens this screen next.
+    // Scope it to the real current identity: the ChildProfile id during a
+    // mentor's PIN session, or the actual logged-in account's own id
+    // otherwise (see the matching fix in addDraftScreen.dart's save path).
+    final myUserData = await UserRepository().getUserDataFromLocalDb();
+    final myKey = SessionState.isChildSession
+        ? SessionState.activeChildProfileId
+        : myUserData?.id;
+    final drafts = await DraftRepository().getDrafts(childKey: myKey);
     if (mounted) setState(() { _drafts = drafts; _allDrafts = List.from(drafts); });
   }
 

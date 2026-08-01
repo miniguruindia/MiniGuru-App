@@ -14,6 +14,7 @@ import 'package:miniguru/models/ProjectCategory.dart';
 import 'package:miniguru/repository/draftsRepository.dart';
 import 'package:miniguru/network/MiniguruApi.dart';
 import 'package:miniguru/repository/projectRepository.dart';
+import 'package:miniguru/repository/userDataRepository.dart';
 import 'package:miniguru/repository/GoinsRepository.dart';
 import 'package:miniguru/widgets/material_picker_widget.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -277,6 +278,16 @@ class _AddDraftScreenState extends State<AddDraftScreen>
     final materialsMap = {for (final m in _pickedMaterials) m.item.id: m.quantity};
 
     if (isDraft) {
+      // BUGFIX: this used to tag every non-mentor-session draft with the
+      // literal string 'self' — the SAME value for every child who has
+      // ever logged in on this device/browser. That made the childKey
+      // filter in projects.dart's draft list completely useless for
+      // telling siblings/classmates apart on a shared device — everyone's
+      // drafts looked identically "mine". Use the real logged-in account's
+      // own id instead, so each child's drafts are actually their own.
+      final myUserData = await UserRepository().getUserDataFromLocalDb();
+      final myOwnKey = myUserData?.id;
+
       _draftId = await _draftRepo.saveOrUpdateDraft(
         id:          _draftId > 0 ? _draftId : null,
         title:       _titleCtrl.text,
@@ -287,7 +298,7 @@ class _AddDraftScreenState extends State<AddDraftScreen>
         materials:   materialsMap,
         childKey:    SessionState.isChildSession
             ? SessionState.activeChildProfileId
-            : 'self',
+            : myOwnKey,
       );
       _showSnack('Saved as draft! ✅');
       if (mounted) {

@@ -37,6 +37,7 @@ adminRouter.delete('/users/:userId', authMiddleware_1.authenticateToken, authMid
 adminRouter.put('/users/:userId', authMiddleware_1.authenticateToken, authMiddleware_1.authorizeAdmin, userController_1.updateUserDetails, validationMiddleware_1.updateUserValidationRules);
 // ==================== PROJECTS ====================
 adminRouter.delete('/project/:id', authMiddleware_1.authenticateToken, authMiddleware_1.authorizeAdmin, projectController_1.deleteProjectByID);
+adminRouter.put('/project/:id', authMiddleware_1.authenticateToken, authMiddleware_1.authorizeAdmin, projectController_1.adminUpdateProject);
 // ==================== ORDERS ====================
 adminRouter.get('/orders', authMiddleware_1.authenticateToken, authMiddleware_1.authorizeAdmin, orderController_1.getAllOrdersController);
 // Admin — update order dispatch details

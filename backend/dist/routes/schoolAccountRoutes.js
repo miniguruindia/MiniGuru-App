@@ -397,6 +397,53 @@ router.post('/children/:childId/reset-password', async (req, res) => {
         res.status(500).json({ message: 'Failed to reset password' });
     }
 });
+// ── POST /admin/children/:childId/create-login ──────────────────────────────
+// For a legacy ChildProfile with no linkedUserId (added before independent
+// student logins existed, or through an older/rushed import path). Without
+// this, that child can never be attributed Goins directly — which is why
+// they get silently SKIPPED as a project collaborator during a teacher's
+// multi-child upload (see mentorActivityTab.dart), and "Reset Password"
+// above 404s for them with no way to fix it from the UI. This creates the
+// missing account and links it, the same way the normal "Add Student" flow
+// does, so the student can be added as a collaborator and log in going
+// forward.
+router.post('/children/:childId/create-login', async (req, res) => {
+    try {
+        const { childId } = req.params;
+        const child = await prismaClient_1.default.childProfile.findUnique({ where: { id: childId } });
+        if (!child)
+            return res.status(404).json({ message: 'Student not found' });
+        if (child.linkedUserId) {
+            return res.status(400).json({ message: 'This student already has an independent login' });
+        }
+        const email = await buildUniqueChildEmail(child.name);
+        const plainPassword = generatePassword();
+        const passwordHash = await bcryptjs_1.default.hash(plainPassword, 10);
+        const newUser = await prismaClient_1.default.user.create({
+            data: {
+                name: child.name,
+                email,
+                passwordHash,
+                age: child.age,
+                phoneNumber: null,
+                score: 100, // starter Goins, same as every other registration path
+                role: 'USER',
+            },
+        });
+        await prismaClient_1.default.childProfile.update({
+            where: { id: childId },
+            data: { linkedUserId: newUser.id },
+        });
+        return res.json({
+            message: 'Login created',
+            credentials: { email: newUser.email, password: plainPassword },
+        });
+    }
+    catch (e) {
+        console.error('Create child login error:', e);
+        res.status(500).json({ message: 'Failed to create login' });
+    }
+});
 // ── POST /admin/children/:childId/reset-pin ────────────────────────────────
 // Resets the parent/teacher "view as" PIN — separate from the student's own login password.
 router.post('/children/:childId/reset-pin', async (req, res) => {

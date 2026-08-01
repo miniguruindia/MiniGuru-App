@@ -3,7 +3,8 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.findCollaborator = exports.deleteProjectByID = exports.getPublishedVideoFeed = exports.getAllProjects = exports.getAllProjectsForUser = exports.getProjectById = exports.updateProject = exports.requestUploadUrl = exports.createProject = void 0;
+exports.findCollaborator = exports.deleteProjectByID = exports.getPublishedVideoFeed = exports.getAllProjects = exports.getAllProjectsForUser = exports.getProjectById = exports.adminUpdateProject = exports.updateProject = exports.requestUploadUrl = exports.createProject = void 0;
+const fs_1 = __importDefault(require("fs"));
 const prismaClient_1 = __importDefault(require("../../utils/prismaClient"));
 const project_1 = __importDefault(require("../../services/project/project"));
 const error_1 = require("../../utils/error");
@@ -14,9 +15,13 @@ const notificationService_1 = require("../../services/notificationService");
 const firebaseStorageService_1 = require("../../services/firebaseStorageService");
 // ✅ Import YouTube upload service (optional)
 let uploadToYouTube = null;
+let setVideoPublic = null;
+let deleteVideo = null;
 try {
     const youtubeService = require("../../services/youtubeUploadService");
     uploadToYouTube = youtubeService.uploadToYouTube;
+    setVideoPublic = youtubeService.setVideoPublic;
+    deleteVideo = youtubeService.deleteVideo;
     logger_1.default.info('YouTube service loaded in project controller');
 }
 catch (error) {
@@ -385,6 +390,134 @@ const updateProject = async (req, res) => {
     }
 };
 exports.updateProject = updateProject;
+// Shared with adminUpdateProject below — builds the same "🧰 Materials
+// used" YouTube description enrichment createProject uses, so an admin
+// replacing a video (or editing materials) gets consistent output. Kept as
+// a small standalone helper rather than refactoring createProject's inline
+// version, to avoid touching already-verified upload-path code.
+async function buildMaterialsEnrichedDescription(baseDescription, materials) {
+    let result = baseDescription || "";
+    if (!materials || materials.length === 0)
+        return result;
+    try {
+        const idsOf = (m) => m.id || m.productId;
+        const materialIds = materials.map(idsOf).filter(Boolean);
+        const materialRecords = await prismaClient_1.default.material.findMany({
+            where: { id: { in: materialIds } },
+            select: { id: true, name: true },
+        });
+        const nameMap = new Map(materialRecords.map((m) => [m.id, m.name]));
+        const lines = materials
+            .map((m) => {
+            const name = nameMap.get(idsOf(m) || "");
+            if (!name)
+                return null;
+            return `• ${name}${m.quantity > 1 ? ` x${m.quantity}` : ""}`;
+        })
+            .filter(Boolean);
+        if (lines.length > 0)
+            result += `\n\n🧰 Materials used:\n${lines.join("\n")}`;
+    }
+    catch (matError) {
+        logger_1.default.warn({ matError }, "⚠️ Could not enrich description with materials — continuing without it");
+    }
+    return result;
+}
+// PUT /admin/project/:id — admin-only, full-power project edit. Unlike the
+// child-facing updateProject above, this can also change collaborators and
+// replace the actual video file. Deliberately kept as a SEPARATE endpoint
+// (not a widened updateProject) so those two extra powers stay admin-only
+// until/unless a future session decides children should have them too.
+const adminUpdateProject = async (req, res) => {
+    const { id } = req.params;
+    const { title, description, startDate, endDate, materials, categoryName, thumbnailStoragePath, collaboratorIds, // string[] — each a MiniGuru login email or raw user id
+    videoStoragePath, // Firebase Storage path from the SAME signed-upload
+    // flow createProject uses (POST /project/request-upload-url)
+     } = req.body;
+    try {
+        const project = await prismaClient_1.default.project.findUnique({
+            where: { id },
+            select: { id: true, userId: true, status: true, video: true, title: true, description: true },
+        });
+        if (!project)
+            return res.status(404).json({ error: "Project not found" });
+        const thumbnailPath = thumbnailStoragePath ? (0, firebaseStorageService_1.publicUrlFor)(thumbnailStoragePath) : undefined;
+        // Resolve collaborators, if the admin changed that list. Excludes the
+        // owner (same rule createProject/findCollaborator already enforce) and
+        // silently skips any id/email that doesn't resolve to a real account,
+        // same "fail open, never block the save" spirit as createProject's own
+        // challenge validation.
+        let resolvedCollaborators = undefined;
+        if (Array.isArray(collaboratorIds)) {
+            const found = await prismaClient_1.default.user.findMany({
+                where: {
+                    OR: [
+                        ...collaboratorIds.map((c) => ({ id: c })),
+                        ...collaboratorIds.map((c) => ({ email: c })),
+                    ],
+                },
+                select: { id: true, name: true },
+            });
+            resolvedCollaborators = found
+                .filter((u) => u.id !== project.userId)
+                .map((u) => ({ userId: u.id, name: u.name }));
+        }
+        // Video replacement — only runs if the admin actually uploaded a new
+        // file. Uploads the new video to YouTube, matches the OLD video's
+        // public/unlisted state, deletes the old YouTube video (deleteVideo is
+        // the same helper rejectProject already uses — proven in production),
+        // then cleans up the temp Firebase Storage copy. Never touches
+        // AI-review fields or resets status — an admin replacing a video is a
+        // deliberate, already-reviewed correction, not a fresh submission.
+        let newVideoUrl = undefined;
+        if (videoStoragePath && uploadToYouTube) {
+            let tempPath = null;
+            try {
+                tempPath = await (0, firebaseStorageService_1.downloadToTempFile)(videoStoragePath);
+                const enrichedDescription = await buildMaterialsEnrichedDescription(description !== undefined ? description : (project.description || ""), materials || []);
+                const result = await uploadToYouTube(tempPath, {
+                    title: title !== undefined ? title : project.title,
+                    description: enrichedDescription,
+                    tags: ["MiniGuru", "STEM", "Education", "India"],
+                });
+                newVideoUrl = result?.url;
+                const newVideoId = result?.videoId;
+                if (project.status === "published" && newVideoId && setVideoPublic) {
+                    await setVideoPublic(newVideoId).catch((e) => logger_1.default.warn({ e }, "⚠️ Could not set replacement video public — it stays unlisted, admin can fix manually on YouTube"));
+                }
+                const oldVideoUrl = project.video?.url;
+                if (oldVideoUrl && deleteVideo) {
+                    await deleteVideo((0, videoApprovalController_1.extractYouTubeId)(oldVideoUrl)).catch((e) => logger_1.default.warn({ e }, "⚠️ Could not delete old YouTube video after replacement — it may need manual cleanup"));
+                }
+            }
+            finally {
+                if (tempPath && fs_1.default.existsSync(tempPath))
+                    fs_1.default.promises.unlink(tempPath).catch(() => { });
+                await (0, firebaseStorageService_1.deleteFromStorage)(videoStoragePath).catch(() => { });
+            }
+        }
+        const updated = await projectService.update(project.userId, id, {
+            title,
+            description,
+            startDate,
+            endDate,
+            materials,
+            categoryName,
+            thumbnailPath,
+            videoUrl: newVideoUrl,
+            collaborators: resolvedCollaborators,
+        });
+        res.json(updated);
+    }
+    catch (error) {
+        if (error instanceof error_1.NotFoundError) {
+            return res.status(404).json({ error: error.message });
+        }
+        logger_1.default.error({ error }, "❌ Admin update project error");
+        res.status(500).json({ error: error.message });
+    }
+};
+exports.adminUpdateProject = adminUpdateProject;
 const getProjectById = async (req, res) => {
     const userId = req.user?.userId;
     if (!userId)

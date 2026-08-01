@@ -59,7 +59,8 @@ class ProjectService {
         });
     }
     async update(userId, id, projectData) {
-        const { title, description, startDate, endDate, materials, categoryName, thumbnailPath, videoUrl, } = projectData;
+        const { title, description, startDate, endDate, materials, categoryName, thumbnailPath, videoUrl, collaborators, // admin-only field — see adminUpdateProject in projectController.ts
+         } = projectData;
         let category;
         if (categoryName) {
             category = await prismaClient_1.default.projectCategory.findUnique({
@@ -87,6 +88,9 @@ class ProjectService {
                 video: videoUrl ? { url: videoUrl } : undefined,
                 materials: enrichedMaterials,
                 categoryId: category?.id,
+                // undefined = leave untouched; an actual array (even []) replaces
+                // it wholesale — matches how title/description already behave.
+                collaborators: collaborators !== undefined ? collaborators : undefined,
             },
         });
     }

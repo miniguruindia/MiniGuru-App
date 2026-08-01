@@ -28,14 +28,22 @@ class DraftRepository {
     return await _db.insertDraft(draft);
   }
 
-  /// Pass [childKey] to only get drafts tagged for a specific child (or
-  /// 'self' for the logged-in user's own drafts). Drafts saved before this
-  /// tagging existed have no childKey yet and are always included, rather
-  /// than silently disappearing.
-  Future<List<Draft>> getDrafts({String? childKey}) async {
+  /// Pass [childKey] to only get drafts tagged for a specific identity (the
+  /// logged-in user's own account id, or a ChildProfile id during a
+  /// mentor's PIN session). Pass [alsoMatchKeys] for any additional
+  /// identities that should also count as "mine" — e.g. a mentor looking
+  /// for a child's existing drafts needs to match BOTH the ChildProfile id
+  /// (drafts made during a past PIN session) AND that child's own
+  /// linkedUserId (drafts they made logging in independently), since the
+  /// same child can create drafts through either path.
+  /// Drafts saved before this tagging existed have no childKey yet and are
+  /// always included, rather than silently disappearing or leaking only to
+  /// whoever happens to open the app next — see BUGFIX note below.
+  Future<List<Draft>> getDrafts({String? childKey, List<String>? alsoMatchKeys}) async {
     final all = await _db.drafts();
     if (childKey == null) return all;
-    return all.where((d) => d.childKey == childKey || d.childKey == null).toList();
+    final keys = {childKey, ...?alsoMatchKeys};
+    return all.where((d) => d.childKey == null || keys.contains(d.childKey)).toList();
   }
 
   Future<void> updateDraft(

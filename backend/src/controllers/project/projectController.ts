@@ -1,4 +1,5 @@
 import { Request, Response } from "express";
+import fs from "fs";
 import prisma from "../../utils/prismaClient";
 import ProjectService from "../../services/project/project";
 import { NotFoundError } from "../../utils/error";
@@ -10,9 +11,13 @@ import { generateUploadUrl, downloadToTempFile, deleteFromStorage, publicUrlFor 
 
 // ✅ Import YouTube upload service (optional)
 let uploadToYouTube: any = null;
+let setVideoPublic: any = null;
+let deleteVideo: any = null;
 try {
   const youtubeService = require("../../services/youtubeUploadService");
   uploadToYouTube = youtubeService.uploadToYouTube;
+  setVideoPublic = youtubeService.setVideoPublic;
+  deleteVideo = youtubeService.deleteVideo;
   logger.info('YouTube service loaded in project controller');
 } catch (error) {
   logger.warn({ error: (error as Error).message }, 'YouTube service not available in project controller - YouTube features will be disabled');
@@ -404,6 +409,150 @@ export const updateProject = async (req: Request, res: Response) => {
       return res.status(404).json({ error: error.message });
     }
     logger.error(`Error ${error}`);
+    res.status(500).json({ error: (error as Error).message });
+  }
+};
+
+// Shared with adminUpdateProject below — builds the same "🧰 Materials
+// used" YouTube description enrichment createProject uses, so an admin
+// replacing a video (or editing materials) gets consistent output. Kept as
+// a small standalone helper rather than refactoring createProject's inline
+// version, to avoid touching already-verified upload-path code.
+async function buildMaterialsEnrichedDescription(baseDescription: string, materials: { id?: string; productId?: string; quantity: number }[]): Promise<string> {
+  let result = baseDescription || "";
+  if (!materials || materials.length === 0) return result;
+  try {
+    const idsOf = (m: { id?: string; productId?: string }) => m.id || m.productId;
+    const materialIds = materials.map(idsOf).filter(Boolean) as string[];
+    const materialRecords = await prisma.material.findMany({
+      where: { id: { in: materialIds } },
+      select: { id: true, name: true },
+    });
+    const nameMap = new Map(materialRecords.map((m) => [m.id, m.name]));
+    const lines = materials
+      .map((m) => {
+        const name = nameMap.get(idsOf(m) || "");
+        if (!name) return null;
+        return `• ${name}${m.quantity > 1 ? ` x${m.quantity}` : ""}`;
+      })
+      .filter(Boolean);
+    if (lines.length > 0) result += `\n\n🧰 Materials used:\n${lines.join("\n")}`;
+  } catch (matError) {
+    logger.warn({ matError }, "⚠️ Could not enrich description with materials — continuing without it");
+  }
+  return result;
+}
+
+// PUT /admin/project/:id — admin-only, full-power project edit. Unlike the
+// child-facing updateProject above, this can also change collaborators and
+// replace the actual video file. Deliberately kept as a SEPARATE endpoint
+// (not a widened updateProject) so those two extra powers stay admin-only
+// until/unless a future session decides children should have them too.
+export const adminUpdateProject = async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const {
+    title,
+    description,
+    startDate,
+    endDate,
+    materials,
+    categoryName,
+    thumbnailStoragePath,
+    collaboratorIds,      // string[] — each a MiniGuru login email or raw user id
+    videoStoragePath,     // Firebase Storage path from the SAME signed-upload
+                           // flow createProject uses (POST /project/request-upload-url)
+  } = req.body;
+
+  try {
+    const project = await prisma.project.findUnique({
+      where: { id },
+      select: { id: true, userId: true, status: true, video: true, title: true, description: true },
+    });
+    if (!project) return res.status(404).json({ error: "Project not found" });
+
+    const thumbnailPath = thumbnailStoragePath ? publicUrlFor(thumbnailStoragePath) : undefined;
+
+    // Resolve collaborators, if the admin changed that list. Excludes the
+    // owner (same rule createProject/findCollaborator already enforce) and
+    // silently skips any id/email that doesn't resolve to a real account,
+    // same "fail open, never block the save" spirit as createProject's own
+    // challenge validation.
+    let resolvedCollaborators: { userId: string; name: string }[] | undefined = undefined;
+    if (Array.isArray(collaboratorIds)) {
+      const found = await prisma.user.findMany({
+        where: {
+          OR: [
+            ...collaboratorIds.map((c: string): { id: string } => ({ id: c })),
+            ...collaboratorIds.map((c: string): { email: string } => ({ email: c })),
+          ] as Array<{ id: string } | { email: string }>,
+        },
+        select: { id: true, name: true },
+      });
+      resolvedCollaborators = found
+        .filter((u) => u.id !== project.userId)
+        .map((u) => ({ userId: u.id, name: u.name }));
+    }
+
+    // Video replacement — only runs if the admin actually uploaded a new
+    // file. Uploads the new video to YouTube, matches the OLD video's
+    // public/unlisted state, deletes the old YouTube video (deleteVideo is
+    // the same helper rejectProject already uses — proven in production),
+    // then cleans up the temp Firebase Storage copy. Never touches
+    // AI-review fields or resets status — an admin replacing a video is a
+    // deliberate, already-reviewed correction, not a fresh submission.
+    let newVideoUrl: string | undefined = undefined;
+    if (videoStoragePath && uploadToYouTube) {
+      let tempPath: string | null = null;
+      try {
+        tempPath = await downloadToTempFile(videoStoragePath);
+        const enrichedDescription = await buildMaterialsEnrichedDescription(
+          description !== undefined ? description : (project.description || ""),
+          materials || []
+        );
+        const result = await uploadToYouTube(tempPath, {
+          title: title !== undefined ? title : project.title,
+          description: enrichedDescription,
+          tags: ["MiniGuru", "STEM", "Education", "India"],
+        });
+        newVideoUrl = result?.url;
+        const newVideoId = result?.videoId;
+
+        if (project.status === "published" && newVideoId && setVideoPublic) {
+          await setVideoPublic(newVideoId).catch((e: any) =>
+            logger.warn({ e }, "⚠️ Could not set replacement video public — it stays unlisted, admin can fix manually on YouTube")
+          );
+        }
+
+        const oldVideoUrl = (project.video as any)?.url;
+        if (oldVideoUrl && deleteVideo) {
+          await deleteVideo(extractYouTubeId(oldVideoUrl)).catch((e: any) =>
+            logger.warn({ e }, "⚠️ Could not delete old YouTube video after replacement — it may need manual cleanup")
+          );
+        }
+      } finally {
+        if (tempPath && fs.existsSync(tempPath)) fs.promises.unlink(tempPath).catch(() => {});
+        await deleteFromStorage(videoStoragePath).catch(() => {});
+      }
+    }
+
+    const updated = await projectService.update(project.userId, id, {
+      title,
+      description,
+      startDate,
+      endDate,
+      materials,
+      categoryName,
+      thumbnailPath,
+      videoUrl: newVideoUrl,
+      collaborators: resolvedCollaborators,
+    });
+
+    res.json(updated);
+  } catch (error) {
+    if (error instanceof NotFoundError) {
+      return res.status(404).json({ error: error.message });
+    }
+    logger.error({ error }, "❌ Admin update project error");
     res.status(500).json({ error: (error as Error).message });
   }
 };

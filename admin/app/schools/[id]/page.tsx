@@ -6,7 +6,7 @@ import { AdminLayout } from '@/components/AdminLayout'
 import { Card } from '@/components/ui/card'
 import {
   ArrowLeft, School, KeyRound, Copy, Check, X, Plus, Trash2, Pencil,
-  Loader2, RefreshCw, Hash, Trophy, FileVideo,
+  Loader2, RefreshCw, Hash, Trophy, FileVideo, AlertTriangle,
 } from 'lucide-react'
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || ''
@@ -307,6 +307,18 @@ export default function SchoolDetailPage() {
     } finally { setEditSaving(false) }
   }
 
+  const handleCreateStudentLogin = async (s: StudentRow) => {
+    if (!confirm(`Create an independent login for ${s.name}? They currently have no way to log in on their own, and can't be added as a project collaborator until they do.`)) return
+    setBusyId(s.id)
+    try {
+      const data = await authedFetch(`/admin/children/${s.id}/create-login`, { method: 'POST' })
+      setCreds({ ...data.credentials, label: `${s.name} — new login created` })
+      loadStudents()
+    } catch (e: any) {
+      flash(e.message, true)
+    } finally { setBusyId(null) }
+  }
+
   const handleResetStudentPassword = async (s: StudentRow) => {
     if (!confirm(`Reset login password for ${s.name}?`)) return
     setBusyId(s.id)
@@ -514,7 +526,13 @@ export default function SchoolDetailPage() {
                       <tr key={s.id}>
                         <td className="px-3 py-2.5 font-medium text-gray-900">{s.name}</td>
                         <td className="px-3 py-2.5 text-gray-600">{s.age}{s.grade ? ` · ${s.grade}` : ''}</td>
-                        <td className="px-3 py-2.5 font-mono text-xs text-gray-600">{s.loginEmail || '—'}</td>
+                        <td className="px-3 py-2.5 font-mono text-xs text-gray-600">
+                          {s.loginEmail || (
+                            <span className="inline-flex items-center gap-1 text-amber-600 font-sans font-medium">
+                              <AlertTriangle className="h-3 w-3" /> No login yet
+                            </span>
+                          )}
+                        </td>
                         <td className="px-3 py-2.5 text-gray-600">{s.score}</td>
                         <td className="px-3 py-2.5 text-right">
                           <div className="inline-flex items-center gap-1.5">
@@ -525,14 +543,26 @@ export default function SchoolDetailPage() {
                             >
                               <Pencil className="h-3.5 w-3.5 text-gray-500" />
                             </button>
-                            <button
-                              onClick={() => handleResetStudentPassword(s)}
-                              disabled={busyId === s.id}
-                              className="p-1.5 border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-40"
-                              title="Reset login password"
-                            >
-                              <KeyRound className="h-3.5 w-3.5 text-gray-500" />
-                            </button>
+                            {s.hasLogin ? (
+                              <button
+                                onClick={() => handleResetStudentPassword(s)}
+                                disabled={busyId === s.id}
+                                className="p-1.5 border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-40"
+                                title="Reset login password"
+                              >
+                                <KeyRound className="h-3.5 w-3.5 text-gray-500" />
+                              </button>
+                            ) : (
+                              <button
+                                onClick={() => handleCreateStudentLogin(s)}
+                                disabled={busyId === s.id}
+                                className="px-2 py-1.5 border border-amber-300 bg-amber-50 rounded-lg hover:bg-amber-100 disabled:opacity-40 text-xs font-medium text-amber-700 flex items-center gap-1"
+                                title="This student can't log in or be added as a project collaborator until they have a login"
+                              >
+                                {busyId === s.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <KeyRound className="h-3.5 w-3.5" />}
+                                Create login
+                              </button>
+                            )}
                             <button
                               onClick={() => handleResetStudentPin(s)}
                               disabled={busyId === s.id}
