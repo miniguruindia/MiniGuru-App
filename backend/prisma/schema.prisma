@@ -46,6 +46,7 @@ enum GuardianType {
 type ScoreHistory {
   time         DateTime
   updatedScore Int
+  reason       String?
 }
 
 type ChildScoreHistory {

@@ -98,18 +98,34 @@ adminRouter.get('/goins/history/:userId', authMiddleware_1.authenticateToken, au
     try {
         const user = await prismaClient_1.default.user.findUnique({
             where: { id: req.params.userId },
-            select: { scoreHistory: true }
+            select: { scoreHistory: true, score: true }
         });
         if (!user)
             return res.json([]);
-        const history = [...(user.scoreHistory || [])].reverse().slice(0, 50);
+        // scoreHistory is stored oldest-first. Walk it newest-first, starting
+        // from the user's real current score and subtracting each entry's
+        // delta as we go back — gives a genuine running balance instead of
+        // the previous hardcoded balanceAfter: 0.
+        const chronological = user.scoreHistory || [];
+        let runningBalance = user.score;
+        const withBalance = chronological.map((h) => {
+            const entry = { ...h, balanceAfter: runningBalance };
+            runningBalance -= h.updatedScore;
+            return entry;
+        });
+        const history = withBalance.reverse().slice(0, 50);
         res.json(history.map((h, i) => ({
             id: i.toString(),
             type: h.updatedScore >= 0 ? 'CREDIT' : 'DEBIT',
             amount: h.updatedScore,
-            description: 'Goins transaction',
+            // BUGFIX: was a hardcoded 'Goins transaction' string for every
+            // entry — now shows the real, specific reason when one was
+            // recorded (project approvals, challenge bonuses, manual admin
+            // adjustments), falling back only for older entries from before
+            // reasons were tracked.
+            description: h.reason || 'Goins transaction',
             timestamp: h.time,
-            balanceAfter: 0,
+            balanceAfter: h.balanceAfter,
         })));
     }
     catch (e) {
@@ -129,7 +145,10 @@ adminRouter.post('/goins/adjust', authMiddleware_1.authenticateToken, authMiddle
             data: {
                 score: { increment: amount },
                 scoreHistory: {
-                    push: { time: new Date(), updatedScore: amount }
+                    // BUGFIX: `reason` was destructured from the request but never
+                    // actually saved — every admin adjustment showed up in history
+                    // with no explanation at all, no matter what the admin typed.
+                    push: { time: new Date(), updatedScore: amount, reason: reason || 'Manual admin adjustment' }
                 }
             }
         });

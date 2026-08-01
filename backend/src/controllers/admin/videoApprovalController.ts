@@ -81,15 +81,21 @@ export async function publishAndAwardProject(id: string) {
   }
 
   // ── Re-calculate material cost in Goins ───────────────────────
+  // BUGFIX: this used to query prisma.product — the old own-shop model
+  // from before the Amazon-affiliate architecture (Rule 26). No Material
+  // ID has ever matched a Product ID, so this lookup silently returned
+  // empty every single time, meaning materialGoins was ALWAYS 0 and the
+  // "2x materials refund" bonus has never actually paid out on any
+  // project, ever. Confirmed against a real account's exact numbers.
   let materialGoins = 0;
   const mats = (project as any).materials as Array<{ productId: string; quantity: number }> | null;
   if (mats && mats.length > 0) {
-    const productIds = mats.map(m => m.productId);
-    const products = await prisma.product.findMany({
-      where: { id: { in: productIds } },
-      select: { id: true, price: true },
+    const materialIds = mats.map(m => m.productId);
+    const materialRecords = await prisma.material.findMany({
+      where: { id: { in: materialIds } },
+      select: { id: true, goinsPrice: true },
     });
-    const priceMap = new Map(products.map(p => [p.id, p.price]));
+    const priceMap = new Map(materialRecords.map(m => [m.id, m.goinsPrice]));
     for (const mat of mats) {
       const rate = priceMap.get(mat.productId) ?? 0;
       materialGoins += rate * mat.quantity;
@@ -130,6 +136,11 @@ export async function publishAndAwardProject(id: string) {
   const shareEach   = Math.floor(totalGoins / recipientIds.length);
   const remainder   = totalGoins - shareEach * recipientIds.length;
 
+  const reasonParts = [`base +${BASE_REWARD}`];
+  if (materialRefund > 0) reasonParts.push(`materials +${materialRefund}`);
+  if (challengeBonus > 0) reasonParts.push(`challenge bonus +${challengeBonus}`);
+  const isTeam = recipientIds.length > 1;
+
   const [updated] = await prisma.$transaction([
     prisma.project.update({
       where: { id },
@@ -138,12 +149,21 @@ export async function publishAndAwardProject(id: string) {
         challengeGoinsAwarded: challengeBonus > 0 ? challengeBonus : undefined,
       },
     }),
-    ...recipientIds.map((recipientId, idx) =>
-      prisma.user.update({
+    ...recipientIds.map((recipientId, idx) => {
+      const share = idx === 0 ? shareEach + remainder : shareEach;
+      const reason = `"${project.title}" approved: +${share} Goins ` +
+        `(${reasonParts.join(', ')}${isTeam ? `, split ${recipientIds.length} ways` : ''})`;
+      return prisma.user.update({
         where: { id: recipientId },
-        data: { score: { increment: idx === 0 ? shareEach + remainder : shareEach } },
-      })
-    ),
+        data: {
+          score: { increment: share },
+          // updatedScore stores the DELTA of this transaction (matching
+          // the existing convention already used by /admin/goins/adjust
+          // and read by /admin/goins/history) — NOT the resulting total.
+          scoreHistory: { push: { time: new Date(), updatedScore: share, reason } },
+        },
+      });
+    }),
   ]);
 
   logger.info(

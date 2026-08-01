@@ -1,0 +1,289 @@
+diff --git a/app/miniguru/lib/screens/navScreen/shop.dart b/app/miniguru/lib/screens/navScreen/shop.dart
+index 40ca026..ee88a14 100644
+--- a/app/miniguru/lib/screens/navScreen/shop.dart
++++ b/app/miniguru/lib/screens/navScreen/shop.dart
+@@ -645,15 +645,22 @@ class _MaterialTile extends StatelessWidget {
+ 
+   @override
+   Widget build(BuildContext context) {
+-    final name      = material['name']?.toString() ?? '';
+-    final imageUrl  = material['imageUrl']?.toString() ?? '';
+-    final icon      = material['icon']?.toString() ?? '📦';
+-    final price     = (material['priceEstimate'] as num?)?.toDouble() ?? 0;
+-    final unit      = material['unit']?.toString() ?? 'piece';
+-    final hasAmazon = (material['amazonASIN']?.toString() ?? '').isNotEmpty;
+-    final inKit     = kitQty > 0;
++    final name       = material['name']?.toString() ?? '';
++    final imageUrl   = material['imageUrl']?.toString() ?? '';
++    final icon       = material['icon']?.toString() ?? '📦';
++    final price      = (material['priceEstimate'] as num?)?.toDouble() ?? 0;
++    final unit       = material['unit']?.toString() ?? 'piece';
++    final amazonUrl  = material['amazonUrl']?.toString() ?? '';
++    final hasAmazon  = amazonUrl.isNotEmpty;
++    final inKit      = kitQty > 0;
+ 
+-    return Container(
++    return GestureDetector(
++      // Tapping the card (outside the + Kit / stepper buttons, which
++      // still win their own taps first) opens the real Amazon product
++      // page for this material, so a parent/child can see the actual
++      // current price and photos before buying.
++      onTap: hasAmazon ? () => launchUrl(Uri.parse(amazonUrl), mode: LaunchMode.externalApplication) : null,
++      child: Container(
+       decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16),
+         boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.06), blurRadius: 8, offset: const Offset(0, 2))]),
+       child: Column(children: [
+@@ -671,7 +678,11 @@ class _MaterialTile extends StatelessWidget {
+             Positioned(top: 8, right: 8,
+               child: Container(padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                 decoration: BoxDecoration(color: _orange, borderRadius: BorderRadius.circular(6)),
+-                child: Text('Amazon', style: GoogleFonts.nunito(fontSize: 9, fontWeight: FontWeight.w900, color: Colors.white)))),
++                child: Row(mainAxisSize: MainAxisSize.min, children: [
++                  Text('Amazon', style: GoogleFonts.nunito(fontSize: 9, fontWeight: FontWeight.w900, color: Colors.white)),
++                  const SizedBox(width: 2),
++                  const Icon(Icons.open_in_new_rounded, size: 9, color: Colors.white),
++                ]))),
+           if (inKit)
+             Positioned(top: 8, left: 8,
+               child: Container(padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+@@ -679,7 +690,7 @@ class _MaterialTile extends StatelessWidget {
+                 child: Text('In Kit: $kitQty', style: GoogleFonts.nunito(fontSize: 9, fontWeight: FontWeight.w900, color: Colors.white)))),
+         ]),
+ 
+-        // Info 80px
++        // Info
+         Expanded(child: Padding(
+           padding: const EdgeInsets.fromLTRB(10, 6, 10, 8),
+           child: Column(crossAxisAlignment: CrossAxisAlignment.start,
+@@ -687,31 +698,40 @@ class _MaterialTile extends StatelessWidget {
+             children: [
+               Text(name, maxLines: 1, overflow: TextOverflow.ellipsis,
+                   style: GoogleFonts.nunito(fontSize: 12, fontWeight: FontWeight.w800, color: _ink)),
+-              Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+-                Flexible(child: Text(
+-                  price > 0 ? '₹${price.toStringAsFixed(0)}/$unit' : (hasAmazon ? 'via Amazon' : 'Local/free'),
+-                  style: GoogleFonts.nunito(fontSize: 11, fontWeight: FontWeight.w700,
+-                      color: price > 0 ? _green : _muted),
+-                  overflow: TextOverflow.ellipsis)),
+-                const SizedBox(width: 4),
+-                if (!inKit)
+-                  GestureDetector(onTap: onAdd,
+-                    child: Container(
+-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+-                      decoration: BoxDecoration(color: _accent, borderRadius: BorderRadius.circular(8)),
+-                      child: Text('+ Kit', style: GoogleFonts.nunito(fontSize: 11, fontWeight: FontWeight.w800, color: Colors.white))))
+-                else
+-                  Row(mainAxisSize: MainAxisSize.min, children: [
+-                    _stepBtn(Icons.remove_rounded, onDec),
+-                    Padding(padding: const EdgeInsets.symmetric(horizontal: 5),
+-                      child: Text('$kitQty', style: GoogleFonts.nunito(fontSize: 13, fontWeight: FontWeight.w900, color: _accent))),
+-                    _stepBtn(Icons.add_rounded, onInc),
+-                  ]),
+-              ]),
++              // Quantity + unit read more naturally than a bare "/unit"
++              // slash — e.g. "₹50 per pack of 5" instead of "₹50/pack of 5"
++              // — and doesn't assume every material is priced per single
++              // piece, since some are priced per pack, per metre, etc.
++              Text(
++                price > 0 ? '₹${price.toStringAsFixed(0)} per $unit' : (hasAmazon ? 'via Amazon' : 'Local/free'),
++                style: GoogleFonts.nunito(fontSize: 11, fontWeight: FontWeight.w700,
++                    color: price > 0 ? _green : _muted),
++                overflow: TextOverflow.ellipsis,
++              ),
++              if (price > 0)
++                Text('Est. price — see Amazon for current rate',
++                    style: GoogleFonts.nunito(fontSize: 8, fontWeight: FontWeight.w600, color: _muted),
++                    maxLines: 1, overflow: TextOverflow.ellipsis),
++              const SizedBox(height: 2),
++              Align(
++                alignment: Alignment.centerRight,
++                child: !inKit
++                  ? GestureDetector(onTap: onAdd,
++                      child: Container(
++                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
++                        decoration: BoxDecoration(color: _accent, borderRadius: BorderRadius.circular(8)),
++                        child: Text('+ Kit', style: GoogleFonts.nunito(fontSize: 11, fontWeight: FontWeight.w800, color: Colors.white))))
++                  : Row(mainAxisSize: MainAxisSize.min, children: [
++                      _stepBtn(Icons.remove_rounded, onDec),
++                      Padding(padding: const EdgeInsets.symmetric(horizontal: 5),
++                        child: Text('$kitQty', style: GoogleFonts.nunito(fontSize: 13, fontWeight: FontWeight.w900, color: _accent))),
++                      _stepBtn(Icons.add_rounded, onInc),
++                    ]),
++              ),
+             ]),
+         )),
+       ]),
+-    );
++    ));
+   }
+ 
+   Widget _stepBtn(IconData icon, VoidCallback fn) => GestureDetector(
+diff --git a/backend/prisma/schema.prisma b/backend/prisma/schema.prisma
+index 1e199fe..1a2ac9e 100644
+--- a/backend/prisma/schema.prisma
++++ b/backend/prisma/schema.prisma
+@@ -46,6 +46,7 @@ enum GuardianType {
+ type ScoreHistory {
+   time         DateTime
+   updatedScore Int
++  reason       String?
+ }
+ 
+ type ChildScoreHistory {
+diff --git a/backend/src/controllers/admin/videoApprovalController.ts b/backend/src/controllers/admin/videoApprovalController.ts
+index 4bc8d38..4c1d07f 100644
+--- a/backend/src/controllers/admin/videoApprovalController.ts
++++ b/backend/src/controllers/admin/videoApprovalController.ts
+@@ -81,15 +81,21 @@ export async function publishAndAwardProject(id: string) {
+   }
+ 
+   // ── Re-calculate material cost in Goins ───────────────────────
++  // BUGFIX: this used to query prisma.product — the old own-shop model
++  // from before the Amazon-affiliate architecture (Rule 26). No Material
++  // ID has ever matched a Product ID, so this lookup silently returned
++  // empty every single time, meaning materialGoins was ALWAYS 0 and the
++  // "2x materials refund" bonus has never actually paid out on any
++  // project, ever. Confirmed against a real account's exact numbers.
+   let materialGoins = 0;
+   const mats = (project as any).materials as Array<{ productId: string; quantity: number }> | null;
+   if (mats && mats.length > 0) {
+-    const productIds = mats.map(m => m.productId);
+-    const products = await prisma.product.findMany({
+-      where: { id: { in: productIds } },
+-      select: { id: true, price: true },
++    const materialIds = mats.map(m => m.productId);
++    const materialRecords = await prisma.material.findMany({
++      where: { id: { in: materialIds } },
++      select: { id: true, goinsPrice: true },
+     });
+-    const priceMap = new Map(products.map(p => [p.id, p.price]));
++    const priceMap = new Map(materialRecords.map(m => [m.id, m.goinsPrice]));
+     for (const mat of mats) {
+       const rate = priceMap.get(mat.productId) ?? 0;
+       materialGoins += rate * mat.quantity;
+@@ -130,6 +136,11 @@ export async function publishAndAwardProject(id: string) {
+   const shareEach   = Math.floor(totalGoins / recipientIds.length);
+   const remainder   = totalGoins - shareEach * recipientIds.length;
+ 
++  const reasonParts = [`base +${BASE_REWARD}`];
++  if (materialRefund > 0) reasonParts.push(`materials +${materialRefund}`);
++  if (challengeBonus > 0) reasonParts.push(`challenge bonus +${challengeBonus}`);
++  const isTeam = recipientIds.length > 1;
++
+   const [updated] = await prisma.$transaction([
+     prisma.project.update({
+       where: { id },
+@@ -138,12 +149,21 @@ export async function publishAndAwardProject(id: string) {
+         challengeGoinsAwarded: challengeBonus > 0 ? challengeBonus : undefined,
+       },
+     }),
+-    ...recipientIds.map((recipientId, idx) =>
+-      prisma.user.update({
++    ...recipientIds.map((recipientId, idx) => {
++      const share = idx === 0 ? shareEach + remainder : shareEach;
++      const reason = `"${project.title}" approved: +${share} Goins ` +
++        `(${reasonParts.join(', ')}${isTeam ? `, split ${recipientIds.length} ways` : ''})`;
++      return prisma.user.update({
+         where: { id: recipientId },
+-        data: { score: { increment: idx === 0 ? shareEach + remainder : shareEach } },
+-      })
+-    ),
++        data: {
++          score: { increment: share },
++          // updatedScore stores the DELTA of this transaction (matching
++          // the existing convention already used by /admin/goins/adjust
++          // and read by /admin/goins/history) — NOT the resulting total.
++          scoreHistory: { push: { time: new Date(), updatedScore: share, reason } },
++        },
++      });
++    }),
+   ]);
+ 
+   logger.info(
+diff --git a/backend/src/routes/adminRoutes.ts b/backend/src/routes/adminRoutes.ts
+index d63182a..af2cffa 100644
+--- a/backend/src/routes/adminRoutes.ts
++++ b/backend/src/routes/adminRoutes.ts
+@@ -105,17 +105,33 @@ adminRouter.get('/goins/history/:userId', authenticateToken, authorizeAdmin, asy
+   try {
+     const user = await prisma.user.findUnique({
+       where: { id: req.params.userId },
+-      select: { scoreHistory: true }
++      select: { scoreHistory: true, score: true }
+     });
+     if (!user) return res.json([]);
+-    const history = [...(user.scoreHistory || [])].reverse().slice(0, 50);
++    // scoreHistory is stored oldest-first. Walk it newest-first, starting
++    // from the user's real current score and subtracting each entry's
++    // delta as we go back — gives a genuine running balance instead of
++    // the previous hardcoded balanceAfter: 0.
++    const chronological = user.scoreHistory || [];
++    let runningBalance = user.score;
++    const withBalance = chronological.map((h: any) => {
++      const entry = { ...h, balanceAfter: runningBalance };
++      runningBalance -= h.updatedScore;
++      return entry;
++    });
++    const history = withBalance.reverse().slice(0, 50);
+     res.json(history.map((h: any, i: number) => ({
+       id: i.toString(),
+       type: h.updatedScore >= 0 ? 'CREDIT' : 'DEBIT',
+       amount: h.updatedScore,
+-      description: 'Goins transaction',
++      // BUGFIX: was a hardcoded 'Goins transaction' string for every
++      // entry — now shows the real, specific reason when one was
++      // recorded (project approvals, challenge bonuses, manual admin
++      // adjustments), falling back only for older entries from before
++      // reasons were tracked.
++      description: h.reason || 'Goins transaction',
+       timestamp: h.time,
+-      balanceAfter: 0,
++      balanceAfter: h.balanceAfter,
+     })));
+   } catch (e) { res.status(500).json({ message: 'Failed to fetch history' }); }
+ });
+@@ -131,7 +147,10 @@ adminRouter.post('/goins/adjust', authenticateToken, authorizeAdmin, async (req:
+       data: {
+         score: { increment: amount },
+         scoreHistory: {
+-          push: { time: new Date(), updatedScore: amount }
++          // BUGFIX: `reason` was destructured from the request but never
++          // actually saved — every admin adjustment showed up in history
++          // with no explanation at all, no matter what the admin typed.
++          push: { time: new Date(), updatedScore: amount, reason: reason || 'Manual admin adjustment' }
+         }
+       }
+     });
+diff --git a/backend/src/services/project/project.ts b/backend/src/services/project/project.ts
+index 57da1d2..8ad4071 100644
+--- a/backend/src/services/project/project.ts
++++ b/backend/src/services/project/project.ts
+@@ -151,17 +151,22 @@ class ProjectService {
+   }
+ 
+   private async addNameToMaterials(materials: ProjectMaterial[]) {
+-    const productIds = materials.map((material) => material.productId);
+-    const products = await prisma.product.findMany({
+-      where: { id: { in: productIds } },
++    // BUGFIX: same root cause as the material refund bug in
++    // videoApprovalController.ts — this used to query prisma.product (the
++    // dead own-shop model), so material.name has likely been undefined on
++    // every project ever created, even though a real name always existed
++    // in the Material catalog under this same id.
++    const materialIds = materials.map((material) => material.productId);
++    const materialRecords = await prisma.material.findMany({
++      where: { id: { in: materialIds } },
+       select: { id: true, name: true },
+     });
+ 
+-    const productMap = new Map(products.map((product) => [product.id, product.name]));
++    const nameMap = new Map(materialRecords.map((m) => [m.id, m.name]));
+     return materials.map((material) => ({
+-      productId: material.productId, // Use `productId` instead of `id`
++      productId: material.productId, // field name kept for schema compatibility
+       quantity: material.quantity,
+-      name: productMap.get(material.productId),
++      name: nameMap.get(material.productId),
+     }));
+   }
+ 

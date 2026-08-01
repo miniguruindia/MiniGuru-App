@@ -115,16 +115,21 @@ class ProjectService {
         return { projects, totalProjects };
     }
     async addNameToMaterials(materials) {
-        const productIds = materials.map((material) => material.productId);
-        const products = await prismaClient_1.default.product.findMany({
-            where: { id: { in: productIds } },
+        // BUGFIX: same root cause as the material refund bug in
+        // videoApprovalController.ts — this used to query prisma.product (the
+        // dead own-shop model), so material.name has likely been undefined on
+        // every project ever created, even though a real name always existed
+        // in the Material catalog under this same id.
+        const materialIds = materials.map((material) => material.productId);
+        const materialRecords = await prismaClient_1.default.material.findMany({
+            where: { id: { in: materialIds } },
             select: { id: true, name: true },
         });
-        const productMap = new Map(products.map((product) => [product.id, product.name]));
+        const nameMap = new Map(materialRecords.map((m) => [m.id, m.name]));
         return materials.map((material) => ({
-            productId: material.productId, // Use `productId` instead of `id`
+            productId: material.productId, // field name kept for schema compatibility
             quantity: material.quantity,
-            name: productMap.get(material.productId),
+            name: nameMap.get(material.productId),
         }));
     }
     async deleteById(projectId) {
