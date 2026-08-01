@@ -645,15 +645,22 @@ class _MaterialTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final name      = material['name']?.toString() ?? '';
-    final imageUrl  = material['imageUrl']?.toString() ?? '';
-    final icon      = material['icon']?.toString() ?? '📦';
-    final price     = (material['priceEstimate'] as num?)?.toDouble() ?? 0;
-    final unit      = material['unit']?.toString() ?? 'piece';
-    final hasAmazon = (material['amazonASIN']?.toString() ?? '').isNotEmpty;
-    final inKit     = kitQty > 0;
+    final name       = material['name']?.toString() ?? '';
+    final imageUrl   = material['imageUrl']?.toString() ?? '';
+    final icon       = material['icon']?.toString() ?? '📦';
+    final price      = (material['priceEstimate'] as num?)?.toDouble() ?? 0;
+    final unit       = material['unit']?.toString() ?? 'piece';
+    final amazonUrl  = material['amazonUrl']?.toString() ?? '';
+    final hasAmazon  = amazonUrl.isNotEmpty;
+    final inKit      = kitQty > 0;
 
-    return Container(
+    return GestureDetector(
+      // Tapping the card (outside the + Kit / stepper buttons, which
+      // still win their own taps first) opens the real Amazon product
+      // page for this material, so a parent/child can see the actual
+      // current price and photos before buying.
+      onTap: hasAmazon ? () => launchUrl(Uri.parse(amazonUrl), mode: LaunchMode.externalApplication) : null,
+      child: Container(
       decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16),
         boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.06), blurRadius: 8, offset: const Offset(0, 2))]),
       child: Column(children: [
@@ -671,7 +678,11 @@ class _MaterialTile extends StatelessWidget {
             Positioned(top: 8, right: 8,
               child: Container(padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
                 decoration: BoxDecoration(color: _orange, borderRadius: BorderRadius.circular(6)),
-                child: Text('Amazon', style: GoogleFonts.nunito(fontSize: 9, fontWeight: FontWeight.w900, color: Colors.white)))),
+                child: Row(mainAxisSize: MainAxisSize.min, children: [
+                  Text('Amazon', style: GoogleFonts.nunito(fontSize: 9, fontWeight: FontWeight.w900, color: Colors.white)),
+                  const SizedBox(width: 2),
+                  const Icon(Icons.open_in_new_rounded, size: 9, color: Colors.white),
+                ]))),
           if (inKit)
             Positioned(top: 8, left: 8,
               child: Container(padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
@@ -679,7 +690,7 @@ class _MaterialTile extends StatelessWidget {
                 child: Text('In Kit: $kitQty', style: GoogleFonts.nunito(fontSize: 9, fontWeight: FontWeight.w900, color: Colors.white)))),
         ]),
 
-        // Info 80px
+        // Info
         Expanded(child: Padding(
           padding: const EdgeInsets.fromLTRB(10, 6, 10, 8),
           child: Column(crossAxisAlignment: CrossAxisAlignment.start,
@@ -687,31 +698,40 @@ class _MaterialTile extends StatelessWidget {
             children: [
               Text(name, maxLines: 1, overflow: TextOverflow.ellipsis,
                   style: GoogleFonts.nunito(fontSize: 12, fontWeight: FontWeight.w800, color: _ink)),
-              Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-                Flexible(child: Text(
-                  price > 0 ? '₹${price.toStringAsFixed(0)}/$unit' : (hasAmazon ? 'via Amazon' : 'Local/free'),
-                  style: GoogleFonts.nunito(fontSize: 11, fontWeight: FontWeight.w700,
-                      color: price > 0 ? _green : _muted),
-                  overflow: TextOverflow.ellipsis)),
-                const SizedBox(width: 4),
-                if (!inKit)
-                  GestureDetector(onTap: onAdd,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
-                      decoration: BoxDecoration(color: _accent, borderRadius: BorderRadius.circular(8)),
-                      child: Text('+ Kit', style: GoogleFonts.nunito(fontSize: 11, fontWeight: FontWeight.w800, color: Colors.white))))
-                else
-                  Row(mainAxisSize: MainAxisSize.min, children: [
-                    _stepBtn(Icons.remove_rounded, onDec),
-                    Padding(padding: const EdgeInsets.symmetric(horizontal: 5),
-                      child: Text('$kitQty', style: GoogleFonts.nunito(fontSize: 13, fontWeight: FontWeight.w900, color: _accent))),
-                    _stepBtn(Icons.add_rounded, onInc),
-                  ]),
-              ]),
+              // Quantity + unit read more naturally than a bare "/unit"
+              // slash — e.g. "₹50 per pack of 5" instead of "₹50/pack of 5"
+              // — and doesn't assume every material is priced per single
+              // piece, since some are priced per pack, per metre, etc.
+              Text(
+                price > 0 ? '₹${price.toStringAsFixed(0)} per $unit' : (hasAmazon ? 'via Amazon' : 'Local/free'),
+                style: GoogleFonts.nunito(fontSize: 11, fontWeight: FontWeight.w700,
+                    color: price > 0 ? _green : _muted),
+                overflow: TextOverflow.ellipsis,
+              ),
+              if (price > 0)
+                Text('Est. price — see Amazon for current rate',
+                    style: GoogleFonts.nunito(fontSize: 8, fontWeight: FontWeight.w600, color: _muted),
+                    maxLines: 1, overflow: TextOverflow.ellipsis),
+              const SizedBox(height: 2),
+              Align(
+                alignment: Alignment.centerRight,
+                child: !inKit
+                  ? GestureDetector(onTap: onAdd,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                        decoration: BoxDecoration(color: _accent, borderRadius: BorderRadius.circular(8)),
+                        child: Text('+ Kit', style: GoogleFonts.nunito(fontSize: 11, fontWeight: FontWeight.w800, color: Colors.white))))
+                  : Row(mainAxisSize: MainAxisSize.min, children: [
+                      _stepBtn(Icons.remove_rounded, onDec),
+                      Padding(padding: const EdgeInsets.symmetric(horizontal: 5),
+                        child: Text('$kitQty', style: GoogleFonts.nunito(fontSize: 13, fontWeight: FontWeight.w900, color: _accent))),
+                      _stepBtn(Icons.add_rounded, onInc),
+                    ]),
+              ),
             ]),
         )),
       ]),
-    );
+    ));
   }
 
   Widget _stepBtn(IconData icon, VoidCallback fn) => GestureDetector(
