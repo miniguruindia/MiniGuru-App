@@ -5,7 +5,7 @@ import { AdminLayout } from '@/components/AdminLayout'
 import { Card } from '@/components/ui/card'
 import {
   RefreshCw, CheckCircle, XCircle, Eye, Video, Plus, Trash2,
-  ClipboardCheck,
+  ClipboardCheck, MessageSquare,
 } from 'lucide-react'
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001'
@@ -421,8 +421,136 @@ function OutsideVideosTab() {
 // ═══════════════════════════════════════════════════════════════════════════
 // PAGE — one nav entry, two tabs
 // ═══════════════════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════════════════
+// TAB 3 — COMMENTS  (moderation: delete any comment, manually push approved
+// ones to the real YouTube video — comments no longer auto-post on their
+// own, per the comment-farming fix)
+// ═══════════════════════════════════════════════════════════════════════════
+interface ModerationComment {
+  id: string; videoId: string; userId: string; userName: string
+  comment: string; createdAt: string
+  postedToYouTube: boolean; youtubeCommentId: string | null
+}
+
+function CommentsTab() {
+  const [comments, setComments] = useState<ModerationComment[]>([])
+  const [loading, setLoading] = useState(true)
+  const [busyId, setBusyId] = useState<string | null>(null)
+  const [toast, setToast] = useState<{ msg: string; ok: boolean } | null>(null)
+
+  const load = async () => {
+    setLoading(true)
+    try {
+      const res = await fetch(`${API_BASE}/api/videos/admin/comments?limit=200`, { headers: await authHeader() })
+      const data = await res.json()
+      setComments(Array.isArray(data.comments) ? data.comments : [])
+    } catch {
+      setComments([])
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => { load() }, [])
+
+  const showToast = (msg: string, ok: boolean) => {
+    setToast({ msg, ok })
+    setTimeout(() => setToast(null), 3000)
+  }
+
+  const deleteComment = async (id: string) => {
+    if (!confirm('Delete this comment permanently?')) return
+    setBusyId(id)
+    try {
+      const res = await fetch(`${API_BASE}/api/videos/comments/${id}`, { method: 'DELETE', headers: await authHeader() })
+      if (res.ok) {
+        setComments((prev) => prev.filter((c) => c.id !== id))
+        showToast('Comment deleted', true)
+      } else {
+        showToast('Failed to delete comment', false)
+      }
+    } finally {
+      setBusyId(null)
+    }
+  }
+
+  const pushToYouTube = async (id: string) => {
+    setBusyId(id)
+    try {
+      const res = await fetch(`${API_BASE}/api/videos/admin/comments/${id}/post-to-youtube`, { method: 'POST', headers: await authHeader() })
+      const data = await res.json()
+      if (res.ok) {
+        setComments((prev) => prev.map((c) => c.id === id ? { ...c, postedToYouTube: true, youtubeCommentId: data.youtubeCommentId } : c))
+        showToast('Posted to YouTube', true)
+      } else {
+        showToast(data.message || 'Failed to post to YouTube', false)
+      }
+    } finally {
+      setBusyId(null)
+    }
+  }
+
+  return (
+    <div className="space-y-4">
+      {toast && (
+        <div className={`px-4 py-2 rounded-lg text-sm ${toast.ok ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-red-50 text-red-700 border border-red-200'}`}>
+          {toast.msg}
+        </div>
+      )}
+      <p className="text-sm text-gray-500">
+        Comments no longer post to YouTube automatically — each child can post up to 2 comments per
+        video, then must edit instead of spamming new ones. Review here and push the good ones to
+        the real YouTube video yourself.
+      </p>
+      {loading ? (
+        <Card className="p-8 text-center text-gray-400">Loading comments…</Card>
+      ) : comments.length === 0 ? (
+        <Card className="p-8 text-center text-gray-400">No comments yet.</Card>
+      ) : (
+        <div className="space-y-2">
+          {comments.map((c) => (
+            <Card key={c.id} className="p-4">
+              <div className="flex items-start justify-between gap-4">
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2 text-xs text-gray-500 mb-1">
+                    <span className="font-medium text-gray-700">{c.userName}</span>
+                    <span>·</span>
+                    <span>{new Date(c.createdAt).toLocaleString()}</span>
+                    <span>·</span>
+                    <span className="truncate">video: {c.videoId}</span>
+                    {c.postedToYouTube ? (
+                      <span className="ml-2 px-2 py-0.5 rounded-full bg-red-50 text-red-600 border border-red-200">On YouTube</span>
+                    ) : (
+                      <span className="ml-2 px-2 py-0.5 rounded-full bg-gray-100 text-gray-500 border border-gray-200">Not posted</span>
+                    )}
+                  </div>
+                  <p className="text-sm text-gray-800 whitespace-pre-wrap">{c.comment}</p>
+                </div>
+                <div className="flex gap-2 shrink-0">
+                  {!c.postedToYouTube && (
+                    <button
+                      onClick={() => pushToYouTube(c.id)}
+                      disabled={busyId === c.id}
+                      className="px-3 py-1.5 rounded-lg text-xs font-medium bg-red-50 text-red-600 border border-red-200 hover:bg-red-100 disabled:opacity-50"
+                    >Push to YouTube</button>
+                  )}
+                  <button
+                    onClick={() => deleteComment(c.id)}
+                    disabled={busyId === c.id}
+                    className="px-3 py-1.5 rounded-lg text-xs font-medium bg-white border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-50"
+                  ><Trash2 className="h-3.5 w-3.5 inline -mt-0.5" /> Delete</button>
+                </div>
+              </div>
+            </Card>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function ContentModerationPage() {
-  const [tab, setTab] = useState<'approvals' | 'outside'>('approvals')
+  const [tab, setTab] = useState<'approvals' | 'outside' | 'comments'>('approvals')
 
   return (
     <AdminLayout>
@@ -431,7 +559,7 @@ export default function ContentModerationPage() {
           <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
             <ClipboardCheck className="h-6 w-6 text-blue-600" /> Content Moderation
           </h1>
-          <p className="text-sm text-gray-500 mt-1">Review student projects before they publish, and curate outside videos for the home screen.</p>
+          <p className="text-sm text-gray-500 mt-1">Review student projects before they publish, curate outside videos for the home screen, and moderate comments.</p>
         </div>
 
         <div className="flex gap-2">
@@ -443,9 +571,13 @@ export default function ContentModerationPage() {
             className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
               tab === 'outside' ? 'bg-pink-600 text-white' : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'
             }`}><Video className="h-4 w-4" /> Outside Videos</button>
+          <button onClick={() => setTab('comments')}
+            className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+              tab === 'comments' ? 'bg-purple-600 text-white' : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'
+            }`}><MessageSquare className="h-4 w-4" /> Comments</button>
         </div>
 
-        {tab === 'approvals' ? <ApprovalsTab /> : <OutsideVideosTab />}
+        {tab === 'approvals' ? <ApprovalsTab /> : tab === 'outside' ? <OutsideVideosTab /> : <CommentsTab />}
       </div>
     </AdminLayout>
   )

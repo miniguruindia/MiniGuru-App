@@ -192,6 +192,35 @@ export const createProject = async (req: Request, res: Response) => {
   // flagged by AI but never uploaded to YouTube could simply vanish before
   // a human ever reviews it. The AI verdict decides what happens *after*
   // the upload, not whether the upload happens at all.
+  // Pull real material names from the catalog for the same items the
+  // child picked in the planning form, and append them to the YouTube
+  // description — so someone watching on YouTube itself (not just inside
+  // the app) can see what materials the project used. Never blocks the
+  // upload if this lookup fails for any reason.
+  let youtubeDescription = description || "";
+  if (parsedMaterials.length > 0) {
+    try {
+      const materialIds = parsedMaterials.map((m) => m.id);
+      const materialRecords = await prisma.material.findMany({
+        where: { id: { in: materialIds } },
+        select: { id: true, name: true },
+      });
+      const nameMap = new Map(materialRecords.map((m) => [m.id, m.name]));
+      const lines = parsedMaterials
+        .map((m) => {
+          const name = nameMap.get(m.id);
+          if (!name) return null; // skip anything we can't resolve a name for
+          return `• ${name}${m.quantity > 1 ? ` x${m.quantity}` : ""}`;
+        })
+        .filter(Boolean);
+      if (lines.length > 0) {
+        youtubeDescription += `\n\n🧰 Materials used:\n${lines.join("\n")}`;
+      }
+    } catch (matError) {
+      logger.warn({ matError }, "⚠️ Could not enrich YouTube description with materials — continuing without it");
+    }
+  }
+
   let videoUrl = "";
   if (uploadToYouTube) {
     try {
@@ -201,7 +230,7 @@ export const createProject = async (req: Request, res: Response) => {
         localVideoPath,
         {
           title: title,
-          description: description || "",
+          description: youtubeDescription,
           tags: ["MiniGuru", "STEM", "Education", "India"],
         }
       );

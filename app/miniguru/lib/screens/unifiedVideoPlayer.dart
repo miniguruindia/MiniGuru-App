@@ -1,6 +1,7 @@
 // lib/screens/unifiedVideoPlayer.dart
 // FIXED: Back button moved ABOVE the iframe — YouTube overlay can no longer intercept it
 
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:youtube_player_iframe/youtube_player_iframe.dart';
@@ -42,6 +43,7 @@ class _UnifiedVideoPlayerState extends State<UnifiedVideoPlayer> {
   bool _isLoadingComments = false;
   bool _hasTrackedView = false;
   bool _isPlayerReady = false;
+  StreamSubscription<Duration>? _positionSub;
 
   Map<String, bool> _likes = {
     'aesthetic': false,
@@ -108,11 +110,20 @@ class _UnifiedVideoPlayerState extends State<UnifiedVideoPlayer> {
     );
 
     _controller.listen((event) {
-      if (event.playerState == PlayerState.playing &&
-          !_hasTrackedView &&
-          _isAuthenticated) {
-        _trackView();
-        _hasTrackedView = true;
+      // BUGFIX (Goins-farming exploit): this used to award the view Goin
+      // the INSTANT playback started — kids learned that just opening a
+      // video counted, and would open-and-scroll-away without watching.
+      // Now we only track real watch progress (see
+      // _startWatchProgressTracking below), and only credit the Goin once
+      // ~75% of the video has actually played.
+      if (event.playerState == PlayerState.playing) {
+        _startWatchProgressTracking();
+      }
+      // Reaching the end always counts as "watched enough", even if the
+      // periodic progress poll happened to land just under the 75% mark
+      // due to polling timing.
+      if (event.playerState == PlayerState.ended) {
+        _maybeTrackView(1.0);
       }
       if (event.playerState == PlayerState.cued ||
           event.playerState == PlayerState.playing) {
@@ -121,6 +132,39 @@ class _UnifiedVideoPlayerState extends State<UnifiedVideoPlayer> {
         }
       }
     });
+  }
+
+  // How much of the video must actually be watched before the view Goin is
+  // credited. Matches (and is intentionally slightly above) the server's
+  // own MIN_WATCHED_FRACTION_FOR_GOIN safety-net check.
+  static const double _watchThreshold = 0.75;
+
+  void _startWatchProgressTracking() {
+    if (_positionSub != null) return; // only ever start one subscription
+    _positionSub = _controller
+        .getCurrentPositionStream(period: const Duration(seconds: 2))
+        .listen((position) async {
+      if (_hasTrackedView || !_isAuthenticated) return;
+      try {
+        final duration = await _controller.duration;
+        if (duration <= 0) return; // metadata not loaded yet — try again next tick
+        final fraction = position.inMilliseconds / (duration * 1000);
+        if (fraction >= _watchThreshold) {
+          _maybeTrackView(fraction.clamp(0.0, 1.0));
+        }
+      } catch (_) {
+        // Position/duration briefly unavailable (e.g. mid-seek) — just
+        // skip this tick, the stream will fire again in 2 seconds.
+      }
+    });
+  }
+
+  void _maybeTrackView(double fraction) {
+    if (_hasTrackedView || !_isAuthenticated) return;
+    _hasTrackedView = true;
+    _trackView(fraction);
+    _positionSub?.cancel();
+    _positionSub = null;
   }
 
   Future<void> _checkAuth() async {
@@ -138,10 +182,10 @@ class _UnifiedVideoPlayerState extends State<UnifiedVideoPlayer> {
     }
   }
 
-  Future<void> _trackView() async {
+  Future<void> _trackView([double watchedFraction = 1.0]) async {
     if (!_isAuthenticated) return;
     try {
-      await _miniguruApi.trackVideoView(widget.videoId);
+      await _miniguruApi.trackVideoView(widget.videoId, watchedFraction: watchedFraction);
       _loadViewStats();
     } catch (e) {
       print('❌ Failed to track view: $e');
@@ -228,7 +272,49 @@ class _UnifiedVideoPlayerState extends State<UnifiedVideoPlayer> {
         _showSnackBar('✅ Comment posted!', Colors.green);
       }
     } catch (e) {
-      _showSnackBar('Failed to post comment', Colors.red);
+      // Show the REAL backend message — e.g. "You've already commented 2
+      // times on this video. Edit one of your existing comments instead of
+      // posting a new one." — instead of a generic failure. This is the
+      // message a child actually needs to see to know what to do next.
+      final message = e.toString().replaceFirst('Exception: ', '');
+      _showSnackBar(message, Colors.orange);
+    }
+  }
+
+  Future<void> _editComment(int index) async {
+    final comment = _comments[index];
+    final controller = TextEditingController(text: comment['comment'] ?? '');
+    final newText = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('Edit your comment', style: GoogleFonts.nunito(fontWeight: FontWeight.w800)),
+        content: TextField(
+          controller: controller,
+          maxLines: 4,
+          maxLength: 500,
+          autofocus: true,
+          decoration: const InputDecoration(border: OutlineInputBorder()),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, controller.text.trim()),
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+    if (newText == null || newText.isEmpty || newText == comment['comment']) return;
+
+    try {
+      final result = await _miniguruApi.updateVideoComment(comment['id'] ?? '', newText);
+      if (result != null && mounted) {
+        setState(() => _comments[index]['comment'] = result['comment'] ?? newText);
+        _showSnackBar('✅ Comment updated', Colors.green);
+      }
+    } catch (e) {
+      final message = e.toString().replaceFirst('Exception: ', '');
+      _showSnackBar(message, Colors.orange);
     }
   }
 
@@ -284,6 +370,7 @@ class _UnifiedVideoPlayerState extends State<UnifiedVideoPlayer> {
 
   @override
   void dispose() {
+    _positionSub?.cancel();
     _controller.close();
     _commentController.dispose();
     super.dispose();
@@ -666,6 +753,16 @@ class _UnifiedVideoPlayerState extends State<UnifiedVideoPlayer> {
                                                   ),
                                                   if (isOwnComment) ...[
                                                     const Spacer(),
+                                                    GestureDetector(
+                                                      onTap: () =>
+                                                          _editComment(index),
+                                                      child: const Icon(
+                                                          Icons.edit_outlined,
+                                                          size: 18,
+                                                          color:
+                                                              Colors.black45),
+                                                    ),
+                                                    const SizedBox(width: 12),
                                                     GestureDetector(
                                                       onTap: () =>
                                                           _deleteComment(

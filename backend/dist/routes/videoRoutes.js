@@ -199,9 +199,14 @@ router.get('/:videoId/views', videoController_1.getVideoViews);
 router.post('/:videoId/like', authMiddleware_1.authenticateToken, resolveSubject_1.resolveSubject, videoController_1.likeVideo);
 router.get('/:videoId/likes/user', authMiddleware_1.authenticateToken, resolveSubject_1.resolveSubject, videoController_1.getUserVideoLikes);
 router.get('/:videoId/likes/stats', videoController_1.getVideoLikesStats);
+// Admin comment moderation — MUST come before /:videoId/comments below,
+// or Express matches "admin" itself as :videoId (Rule 28).
+router.get('/admin/comments', authMiddleware_1.authenticateToken, authMiddleware_1.authorizeAdmin, videoController_1.listCommentsForModeration);
+router.post('/admin/comments/:commentId/post-to-youtube', authMiddleware_1.authenticateToken, authMiddleware_1.authorizeAdmin, videoController_1.postCommentToYouTube);
 // Video comments
 router.get('/:videoId/comments', videoController_1.getVideoComments);
 router.post('/:videoId/comments', authMiddleware_1.authenticateToken, resolveSubject_1.resolveSubject, videoController_1.postVideoComment);
+router.put('/comments/:commentId', authMiddleware_1.authenticateToken, resolveSubject_1.resolveSubject, videoController_1.updateVideoComment);
 router.delete('/comments/:commentId', authMiddleware_1.authenticateToken, resolveSubject_1.resolveSubject, videoController_1.deleteVideoComment);
 // GET /api/videos/:videoId/materials
 // Returns enriched materials for the project linked to a YouTube video ID.

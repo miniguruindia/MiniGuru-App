@@ -870,13 +870,18 @@ class MiniguruApi {
   
   // ========================= VIDEO INTERACTION =========================
 
-  Future<void> trackVideoView(String videoId) async {
+  // watchedFraction (0.0-1.0) tells the backend how much of the video was
+  // actually watched — the server rejects the call below its own threshold
+  // (currently 0.7) so a stale/bypassed client can't just call this
+  // instantly on open. See unifiedVideoPlayer.dart for when this fires.
+  Future<void> trackVideoView(String videoId, {double watchedFraction = 1.0}) async {
     try {
       final authToken = await _getValidToken();
       if (authToken == null) return;
       await http.post(
         Uri.parse('$_baseUrl/api/videos/$videoId/view'),
         headers: _buildHeaders(authToken.accessToken),
+        body: jsonEncode({'watchedFraction': watchedFraction}),
       );
     } catch (e) {
       print('❌ Failed to track view: $e');
@@ -942,21 +947,45 @@ class MiniguruApi {
     return empty;
   }
 
+  // Throws Exception(realBackendMessage) on failure — e.g. "You've already
+  // commented 2 times on this video..." from the 429 comment-cap response —
+  // instead of silently returning null and hiding why it failed from the
+  // child (same real-error-surfacing convention established after the
+  // July 2026 upload-debugging marathon).
   Future<Map<String, dynamic>?> postVideoComment(String videoId, String comment) async {
+    final authToken = await _getValidToken();
+    if (authToken == null) throw Exception('You need to be logged in to comment.');
+    final response = await http.post(
+      Uri.parse('$_baseUrl/api/videos/$videoId/comments'),
+      headers: _buildHeaders(authToken.accessToken),
+      body: jsonEncode({'comment': comment}),
+    );
+    if (response.statusCode == 201) return jsonDecode(response.body);
+    String message = 'Failed to post comment (${response.statusCode})';
     try {
-      final authToken = await _getValidToken();
-      if (authToken == null) return null;
-      final response = await http.post(
-        Uri.parse('$_baseUrl/api/videos/$videoId/comments'),
-        headers: _buildHeaders(authToken.accessToken),
-        body: jsonEncode({'comment': comment}),
-      );
-      if (response.statusCode == 201) return jsonDecode(response.body);
-      return null;
-    } catch (e) {
-      print('❌ Failed to post comment: $e');
-      throw Exception('Failed to post comment');
-    }
+      final body = jsonDecode(response.body);
+      if (body is Map && body['message'] != null) message = body['message'].toString();
+    } catch (_) {}
+    throw Exception(message);
+  }
+
+  // Edits one of the child's own existing comments — used once they've hit
+  // the per-video comment cap. Does not earn any additional Goins.
+  Future<Map<String, dynamic>?> updateVideoComment(String commentId, String comment) async {
+    final authToken = await _getValidToken();
+    if (authToken == null) throw Exception('You need to be logged in to edit a comment.');
+    final response = await http.put(
+      Uri.parse('$_baseUrl/api/videos/comments/$commentId'),
+      headers: _buildHeaders(authToken.accessToken),
+      body: jsonEncode({'comment': comment}),
+    );
+    if (response.statusCode == 200) return jsonDecode(response.body);
+    String message = 'Failed to update comment (${response.statusCode})';
+    try {
+      final body = jsonDecode(response.body);
+      if (body is Map && body['message'] != null) message = body['message'].toString();
+    } catch (_) {}
+    throw Exception(message);
   }
 
   Future<List<Map<String, dynamic>>> getVideoComments(String videoId, {int limit = 50}) async {

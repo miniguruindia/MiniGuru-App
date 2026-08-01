@@ -16,7 +16,10 @@ import {
   getVideoLikesStats,
   getVideoComments,
   postVideoComment,
+  updateVideoComment,
   deleteVideoComment,
+  listCommentsForModeration,
+  postCommentToYouTube,
 } from '../controllers/video/videoController';
 
 const router = express.Router();
@@ -229,9 +232,15 @@ router.post('/:videoId/like', authenticateToken, resolveSubject, likeVideo);
 router.get('/:videoId/likes/user', authenticateToken, resolveSubject, getUserVideoLikes);
 router.get('/:videoId/likes/stats', getVideoLikesStats);
 
+// Admin comment moderation — MUST come before /:videoId/comments below,
+// or Express matches "admin" itself as :videoId (Rule 28).
+router.get('/admin/comments', authenticateToken, authorizeAdmin, listCommentsForModeration);
+router.post('/admin/comments/:commentId/post-to-youtube', authenticateToken, authorizeAdmin, postCommentToYouTube);
+
 // Video comments
 router.get('/:videoId/comments', getVideoComments);
 router.post('/:videoId/comments', authenticateToken, resolveSubject, postVideoComment);
+router.put('/comments/:commentId', authenticateToken, resolveSubject, updateVideoComment);
 router.delete('/comments/:commentId', authenticateToken, resolveSubject, deleteVideoComment);
 
 

@@ -1,0 +1,903 @@
+diff --git a/admin/app/videos/page.tsx b/admin/app/videos/page.tsx
+index 9c5d964..2f9065e 100644
+--- a/admin/app/videos/page.tsx
++++ b/admin/app/videos/page.tsx
+@@ -5,7 +5,7 @@ import { AdminLayout } from '@/components/AdminLayout'
+ import { Card } from '@/components/ui/card'
+ import {
+   RefreshCw, CheckCircle, XCircle, Eye, Video, Plus, Trash2,
+-  ClipboardCheck,
++  ClipboardCheck, MessageSquare,
+ } from 'lucide-react'
+ 
+ const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001'
+@@ -421,8 +421,136 @@ function OutsideVideosTab() {
+ // ═══════════════════════════════════════════════════════════════════════════
+ // PAGE — one nav entry, two tabs
+ // ═══════════════════════════════════════════════════════════════════════════
++// ═══════════════════════════════════════════════════════════════════════════
++// TAB 3 — COMMENTS  (moderation: delete any comment, manually push approved
++// ones to the real YouTube video — comments no longer auto-post on their
++// own, per the comment-farming fix)
++// ═══════════════════════════════════════════════════════════════════════════
++interface ModerationComment {
++  id: string; videoId: string; userId: string; userName: string
++  comment: string; createdAt: string
++  postedToYouTube: boolean; youtubeCommentId: string | null
++}
++
++function CommentsTab() {
++  const [comments, setComments] = useState<ModerationComment[]>([])
++  const [loading, setLoading] = useState(true)
++  const [busyId, setBusyId] = useState<string | null>(null)
++  const [toast, setToast] = useState<{ msg: string; ok: boolean } | null>(null)
++
++  const load = async () => {
++    setLoading(true)
++    try {
++      const res = await fetch(`${API_BASE}/api/videos/admin/comments?limit=200`, { headers: await authHeader() })
++      const data = await res.json()
++      setComments(Array.isArray(data.comments) ? data.comments : [])
++    } catch {
++      setComments([])
++    } finally {
++      setLoading(false)
++    }
++  }
++
++  useEffect(() => { load() }, [])
++
++  const showToast = (msg: string, ok: boolean) => {
++    setToast({ msg, ok })
++    setTimeout(() => setToast(null), 3000)
++  }
++
++  const deleteComment = async (id: string) => {
++    if (!confirm('Delete this comment permanently?')) return
++    setBusyId(id)
++    try {
++      const res = await fetch(`${API_BASE}/api/videos/comments/${id}`, { method: 'DELETE', headers: await authHeader() })
++      if (res.ok) {
++        setComments((prev) => prev.filter((c) => c.id !== id))
++        showToast('Comment deleted', true)
++      } else {
++        showToast('Failed to delete comment', false)
++      }
++    } finally {
++      setBusyId(null)
++    }
++  }
++
++  const pushToYouTube = async (id: string) => {
++    setBusyId(id)
++    try {
++      const res = await fetch(`${API_BASE}/api/videos/admin/comments/${id}/post-to-youtube`, { method: 'POST', headers: await authHeader() })
++      const data = await res.json()
++      if (res.ok) {
++        setComments((prev) => prev.map((c) => c.id === id ? { ...c, postedToYouTube: true, youtubeCommentId: data.youtubeCommentId } : c))
++        showToast('Posted to YouTube', true)
++      } else {
++        showToast(data.message || 'Failed to post to YouTube', false)
++      }
++    } finally {
++      setBusyId(null)
++    }
++  }
++
++  return (
++    <div className="space-y-4">
++      {toast && (
++        <div className={`px-4 py-2 rounded-lg text-sm ${toast.ok ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-red-50 text-red-700 border border-red-200'}`}>
++          {toast.msg}
++        </div>
++      )}
++      <p className="text-sm text-gray-500">
++        Comments no longer post to YouTube automatically — each child can post up to 2 comments per
++        video, then must edit instead of spamming new ones. Review here and push the good ones to
++        the real YouTube video yourself.
++      </p>
++      {loading ? (
++        <Card className="p-8 text-center text-gray-400">Loading comments…</Card>
++      ) : comments.length === 0 ? (
++        <Card className="p-8 text-center text-gray-400">No comments yet.</Card>
++      ) : (
++        <div className="space-y-2">
++          {comments.map((c) => (
++            <Card key={c.id} className="p-4">
++              <div className="flex items-start justify-between gap-4">
++                <div className="min-w-0 flex-1">
++                  <div className="flex items-center gap-2 text-xs text-gray-500 mb-1">
++                    <span className="font-medium text-gray-700">{c.userName}</span>
++                    <span>·</span>
++                    <span>{new Date(c.createdAt).toLocaleString()}</span>
++                    <span>·</span>
++                    <span className="truncate">video: {c.videoId}</span>
++                    {c.postedToYouTube ? (
++                      <span className="ml-2 px-2 py-0.5 rounded-full bg-red-50 text-red-600 border border-red-200">On YouTube</span>
++                    ) : (
++                      <span className="ml-2 px-2 py-0.5 rounded-full bg-gray-100 text-gray-500 border border-gray-200">Not posted</span>
++                    )}
++                  </div>
++                  <p className="text-sm text-gray-800 whitespace-pre-wrap">{c.comment}</p>
++                </div>
++                <div className="flex gap-2 shrink-0">
++                  {!c.postedToYouTube && (
++                    <button
++                      onClick={() => pushToYouTube(c.id)}
++                      disabled={busyId === c.id}
++                      className="px-3 py-1.5 rounded-lg text-xs font-medium bg-red-50 text-red-600 border border-red-200 hover:bg-red-100 disabled:opacity-50"
++                    >Push to YouTube</button>
++                  )}
++                  <button
++                    onClick={() => deleteComment(c.id)}
++                    disabled={busyId === c.id}
++                    className="px-3 py-1.5 rounded-lg text-xs font-medium bg-white border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-50"
++                  ><Trash2 className="h-3.5 w-3.5 inline -mt-0.5" /> Delete</button>
++                </div>
++              </div>
++            </Card>
++          ))}
++        </div>
++      )}
++    </div>
++  )
++}
++
+ export default function ContentModerationPage() {
+-  const [tab, setTab] = useState<'approvals' | 'outside'>('approvals')
++  const [tab, setTab] = useState<'approvals' | 'outside' | 'comments'>('approvals')
+ 
+   return (
+     <AdminLayout>
+@@ -431,7 +559,7 @@ export default function ContentModerationPage() {
+           <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+             <ClipboardCheck className="h-6 w-6 text-blue-600" /> Content Moderation
+           </h1>
+-          <p className="text-sm text-gray-500 mt-1">Review student projects before they publish, and curate outside videos for the home screen.</p>
++          <p className="text-sm text-gray-500 mt-1">Review student projects before they publish, curate outside videos for the home screen, and moderate comments.</p>
+         </div>
+ 
+         <div className="flex gap-2">
+@@ -443,9 +571,13 @@ export default function ContentModerationPage() {
+             className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+               tab === 'outside' ? 'bg-pink-600 text-white' : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'
+             }`}><Video className="h-4 w-4" /> Outside Videos</button>
++          <button onClick={() => setTab('comments')}
++            className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
++              tab === 'comments' ? 'bg-purple-600 text-white' : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'
++            }`}><MessageSquare className="h-4 w-4" /> Comments</button>
+         </div>
+ 
+-        {tab === 'approvals' ? <ApprovalsTab /> : <OutsideVideosTab />}
++        {tab === 'approvals' ? <ApprovalsTab /> : tab === 'outside' ? <OutsideVideosTab /> : <CommentsTab />}
+       </div>
+     </AdminLayout>
+   )
+diff --git a/app/miniguru/lib/network/MiniguruApi.dart b/app/miniguru/lib/network/MiniguruApi.dart
+index abfe7be..0097477 100644
+--- a/app/miniguru/lib/network/MiniguruApi.dart
++++ b/app/miniguru/lib/network/MiniguruApi.dart
+@@ -870,13 +870,18 @@ class MiniguruApi {
+   
+   // ========================= VIDEO INTERACTION =========================
+ 
+-  Future<void> trackVideoView(String videoId) async {
++  // watchedFraction (0.0-1.0) tells the backend how much of the video was
++  // actually watched — the server rejects the call below its own threshold
++  // (currently 0.7) so a stale/bypassed client can't just call this
++  // instantly on open. See unifiedVideoPlayer.dart for when this fires.
++  Future<void> trackVideoView(String videoId, {double watchedFraction = 1.0}) async {
+     try {
+       final authToken = await _getValidToken();
+       if (authToken == null) return;
+       await http.post(
+         Uri.parse('$_baseUrl/api/videos/$videoId/view'),
+         headers: _buildHeaders(authToken.accessToken),
++        body: jsonEncode({'watchedFraction': watchedFraction}),
+       );
+     } catch (e) {
+       print('❌ Failed to track view: $e');
+@@ -942,21 +947,45 @@ class MiniguruApi {
+     return empty;
+   }
+ 
++  // Throws Exception(realBackendMessage) on failure — e.g. "You've already
++  // commented 2 times on this video..." from the 429 comment-cap response —
++  // instead of silently returning null and hiding why it failed from the
++  // child (same real-error-surfacing convention established after the
++  // July 2026 upload-debugging marathon).
+   Future<Map<String, dynamic>?> postVideoComment(String videoId, String comment) async {
++    final authToken = await _getValidToken();
++    if (authToken == null) throw Exception('You need to be logged in to comment.');
++    final response = await http.post(
++      Uri.parse('$_baseUrl/api/videos/$videoId/comments'),
++      headers: _buildHeaders(authToken.accessToken),
++      body: jsonEncode({'comment': comment}),
++    );
++    if (response.statusCode == 201) return jsonDecode(response.body);
++    String message = 'Failed to post comment (${response.statusCode})';
+     try {
+-      final authToken = await _getValidToken();
+-      if (authToken == null) return null;
+-      final response = await http.post(
+-        Uri.parse('$_baseUrl/api/videos/$videoId/comments'),
+-        headers: _buildHeaders(authToken.accessToken),
+-        body: jsonEncode({'comment': comment}),
+-      );
+-      if (response.statusCode == 201) return jsonDecode(response.body);
+-      return null;
+-    } catch (e) {
+-      print('❌ Failed to post comment: $e');
+-      throw Exception('Failed to post comment');
+-    }
++      final body = jsonDecode(response.body);
++      if (body is Map && body['message'] != null) message = body['message'].toString();
++    } catch (_) {}
++    throw Exception(message);
++  }
++
++  // Edits one of the child's own existing comments — used once they've hit
++  // the per-video comment cap. Does not earn any additional Goins.
++  Future<Map<String, dynamic>?> updateVideoComment(String commentId, String comment) async {
++    final authToken = await _getValidToken();
++    if (authToken == null) throw Exception('You need to be logged in to edit a comment.');
++    final response = await http.put(
++      Uri.parse('$_baseUrl/api/videos/comments/$commentId'),
++      headers: _buildHeaders(authToken.accessToken),
++      body: jsonEncode({'comment': comment}),
++    );
++    if (response.statusCode == 200) return jsonDecode(response.body);
++    String message = 'Failed to update comment (${response.statusCode})';
++    try {
++      final body = jsonDecode(response.body);
++      if (body is Map && body['message'] != null) message = body['message'].toString();
++    } catch (_) {}
++    throw Exception(message);
+   }
+ 
+   Future<List<Map<String, dynamic>>> getVideoComments(String videoId, {int limit = 50}) async {
+diff --git a/app/miniguru/lib/screens/unifiedVideoPlayer.dart b/app/miniguru/lib/screens/unifiedVideoPlayer.dart
+index 0901846..48660c4 100644
+--- a/app/miniguru/lib/screens/unifiedVideoPlayer.dart
++++ b/app/miniguru/lib/screens/unifiedVideoPlayer.dart
+@@ -1,6 +1,7 @@
+ // lib/screens/unifiedVideoPlayer.dart
+ // FIXED: Back button moved ABOVE the iframe — YouTube overlay can no longer intercept it
+ 
++import 'dart:async';
+ import 'dart:convert';
+ import 'package:flutter/material.dart';
+ import 'package:youtube_player_iframe/youtube_player_iframe.dart';
+@@ -42,6 +43,7 @@ class _UnifiedVideoPlayerState extends State<UnifiedVideoPlayer> {
+   bool _isLoadingComments = false;
+   bool _hasTrackedView = false;
+   bool _isPlayerReady = false;
++  StreamSubscription<Duration>? _positionSub;
+ 
+   Map<String, bool> _likes = {
+     'aesthetic': false,
+@@ -108,11 +110,20 @@ class _UnifiedVideoPlayerState extends State<UnifiedVideoPlayer> {
+     );
+ 
+     _controller.listen((event) {
+-      if (event.playerState == PlayerState.playing &&
+-          !_hasTrackedView &&
+-          _isAuthenticated) {
+-        _trackView();
+-        _hasTrackedView = true;
++      // BUGFIX (Goins-farming exploit): this used to award the view Goin
++      // the INSTANT playback started — kids learned that just opening a
++      // video counted, and would open-and-scroll-away without watching.
++      // Now we only track real watch progress (see
++      // _startWatchProgressTracking below), and only credit the Goin once
++      // ~75% of the video has actually played.
++      if (event.playerState == PlayerState.playing) {
++        _startWatchProgressTracking();
++      }
++      // Reaching the end always counts as "watched enough", even if the
++      // periodic progress poll happened to land just under the 75% mark
++      // due to polling timing.
++      if (event.playerState == PlayerState.ended) {
++        _maybeTrackView(1.0);
+       }
+       if (event.playerState == PlayerState.cued ||
+           event.playerState == PlayerState.playing) {
+@@ -123,6 +134,39 @@ class _UnifiedVideoPlayerState extends State<UnifiedVideoPlayer> {
+     });
+   }
+ 
++  // How much of the video must actually be watched before the view Goin is
++  // credited. Matches (and is intentionally slightly above) the server's
++  // own MIN_WATCHED_FRACTION_FOR_GOIN safety-net check.
++  static const double _watchThreshold = 0.75;
++
++  void _startWatchProgressTracking() {
++    if (_positionSub != null) return; // only ever start one subscription
++    _positionSub = _controller
++        .getCurrentPositionStream(period: const Duration(seconds: 2))
++        .listen((position) async {
++      if (_hasTrackedView || !_isAuthenticated) return;
++      try {
++        final duration = await _controller.duration;
++        if (duration <= 0) return; // metadata not loaded yet — try again next tick
++        final fraction = position.inMilliseconds / (duration * 1000);
++        if (fraction >= _watchThreshold) {
++          _maybeTrackView(fraction.clamp(0.0, 1.0));
++        }
++      } catch (_) {
++        // Position/duration briefly unavailable (e.g. mid-seek) — just
++        // skip this tick, the stream will fire again in 2 seconds.
++      }
++    });
++  }
++
++  void _maybeTrackView(double fraction) {
++    if (_hasTrackedView || !_isAuthenticated) return;
++    _hasTrackedView = true;
++    _trackView(fraction);
++    _positionSub?.cancel();
++    _positionSub = null;
++  }
++
+   Future<void> _checkAuth() async {
+     try {
+       final userData = await _miniguruApi.getUserData();
+@@ -138,10 +182,10 @@ class _UnifiedVideoPlayerState extends State<UnifiedVideoPlayer> {
+     }
+   }
+ 
+-  Future<void> _trackView() async {
++  Future<void> _trackView([double watchedFraction = 1.0]) async {
+     if (!_isAuthenticated) return;
+     try {
+-      await _miniguruApi.trackVideoView(widget.videoId);
++      await _miniguruApi.trackVideoView(widget.videoId, watchedFraction: watchedFraction);
+       _loadViewStats();
+     } catch (e) {
+       print('❌ Failed to track view: $e');
+@@ -228,7 +272,49 @@ class _UnifiedVideoPlayerState extends State<UnifiedVideoPlayer> {
+         _showSnackBar('✅ Comment posted!', Colors.green);
+       }
+     } catch (e) {
+-      _showSnackBar('Failed to post comment', Colors.red);
++      // Show the REAL backend message — e.g. "You've already commented 2
++      // times on this video. Edit one of your existing comments instead of
++      // posting a new one." — instead of a generic failure. This is the
++      // message a child actually needs to see to know what to do next.
++      final message = e.toString().replaceFirst('Exception: ', '');
++      _showSnackBar(message, Colors.orange);
++    }
++  }
++
++  Future<void> _editComment(int index) async {
++    final comment = _comments[index];
++    final controller = TextEditingController(text: comment['comment'] ?? '');
++    final newText = await showDialog<String>(
++      context: context,
++      builder: (ctx) => AlertDialog(
++        title: Text('Edit your comment', style: GoogleFonts.nunito(fontWeight: FontWeight.w800)),
++        content: TextField(
++          controller: controller,
++          maxLines: 4,
++          maxLength: 500,
++          autofocus: true,
++          decoration: const InputDecoration(border: OutlineInputBorder()),
++        ),
++        actions: [
++          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
++          ElevatedButton(
++            onPressed: () => Navigator.pop(ctx, controller.text.trim()),
++            child: const Text('Save'),
++          ),
++        ],
++      ),
++    );
++    if (newText == null || newText.isEmpty || newText == comment['comment']) return;
++
++    try {
++      final result = await _miniguruApi.updateVideoComment(comment['id'] ?? '', newText);
++      if (result != null && mounted) {
++        setState(() => _comments[index]['comment'] = result['comment'] ?? newText);
++        _showSnackBar('✅ Comment updated', Colors.green);
++      }
++    } catch (e) {
++      final message = e.toString().replaceFirst('Exception: ', '');
++      _showSnackBar(message, Colors.orange);
+     }
+   }
+ 
+@@ -284,6 +370,7 @@ class _UnifiedVideoPlayerState extends State<UnifiedVideoPlayer> {
+ 
+   @override
+   void dispose() {
++    _positionSub?.cancel();
+     _controller.close();
+     _commentController.dispose();
+     super.dispose();
+@@ -666,6 +753,16 @@ class _UnifiedVideoPlayerState extends State<UnifiedVideoPlayer> {
+                                                   ),
+                                                   if (isOwnComment) ...[
+                                                     const Spacer(),
++                                                    GestureDetector(
++                                                      onTap: () =>
++                                                          _editComment(index),
++                                                      child: const Icon(
++                                                          Icons.edit_outlined,
++                                                          size: 18,
++                                                          color:
++                                                              Colors.black45),
++                                                    ),
++                                                    const SizedBox(width: 12),
+                                                     GestureDetector(
+                                                       onTap: () =>
+                                                           _deleteComment(
+diff --git a/backend/src/controllers/project/projectController.ts b/backend/src/controllers/project/projectController.ts
+index cbb11f9..f5b8144 100644
+--- a/backend/src/controllers/project/projectController.ts
++++ b/backend/src/controllers/project/projectController.ts
+@@ -192,6 +192,35 @@ export const createProject = async (req: Request, res: Response) => {
+   // flagged by AI but never uploaded to YouTube could simply vanish before
+   // a human ever reviews it. The AI verdict decides what happens *after*
+   // the upload, not whether the upload happens at all.
++  // Pull real material names from the catalog for the same items the
++  // child picked in the planning form, and append them to the YouTube
++  // description — so someone watching on YouTube itself (not just inside
++  // the app) can see what materials the project used. Never blocks the
++  // upload if this lookup fails for any reason.
++  let youtubeDescription = description || "";
++  if (parsedMaterials.length > 0) {
++    try {
++      const materialIds = parsedMaterials.map((m) => m.id);
++      const materialRecords = await prisma.material.findMany({
++        where: { id: { in: materialIds } },
++        select: { id: true, name: true },
++      });
++      const nameMap = new Map(materialRecords.map((m) => [m.id, m.name]));
++      const lines = parsedMaterials
++        .map((m) => {
++          const name = nameMap.get(m.id);
++          if (!name) return null; // skip anything we can't resolve a name for
++          return `• ${name}${m.quantity > 1 ? ` x${m.quantity}` : ""}`;
++        })
++        .filter(Boolean);
++      if (lines.length > 0) {
++        youtubeDescription += `\n\n🧰 Materials used:\n${lines.join("\n")}`;
++      }
++    } catch (matError) {
++      logger.warn({ matError }, "⚠️ Could not enrich YouTube description with materials — continuing without it");
++    }
++  }
++
+   let videoUrl = "";
+   if (uploadToYouTube) {
+     try {
+@@ -201,7 +230,7 @@ export const createProject = async (req: Request, res: Response) => {
+         localVideoPath,
+         {
+           title: title,
+-          description: description || "",
++          description: youtubeDescription,
+           tags: ["MiniGuru", "STEM", "Education", "India"],
+         }
+       );
+diff --git a/backend/src/controllers/video/videoController.ts b/backend/src/controllers/video/videoController.ts
+index a5eda70..922b6b9 100644
+--- a/backend/src/controllers/video/videoController.ts
++++ b/backend/src/controllers/video/videoController.ts
+@@ -37,6 +37,12 @@ const youtubeAuth = google.youtube({
+ // VIDEO VIEWS
+ // ========================================================================
+ 
++// Minimum fraction of the video the client must report as watched before
++// the view Goin is credited. Slightly below the Flutter-side 0.75 trigger
++// to tolerate float/timing drift between the player's progress stream and
++// this request landing — NOT a separate, looser threshold.
++const MIN_WATCHED_FRACTION_FOR_GOIN = 0.7;
++
+ export const trackVideoView = async (req: Request, res: Response) => {
+   try {
+     const { videoId } = req.params;
+@@ -46,6 +52,25 @@ export const trackVideoView = async (req: Request, res: Response) => {
+       return res.status(401).json({ message: 'User not authenticated' });
+     }
+ 
++    // BUGFIX (Goins-farming exploit): this endpoint used to be called the
++    // instant playback started, with zero regard for how much was actually
++    // watched — kids learned that just opening a video and scrolling away
++    // earned a Goin. The client now only calls this once real watch
++    // progress crosses ~75% (see unifiedVideoPlayer.dart); this server-side
++    // check is defense-in-depth so an outdated/bypassed client can't just
++    // call the endpoint immediately. This is inherently a client-reported
++    // signal — a technically sophisticated user could still fake the
++    // number — but it fully closes the casual "open and scroll past" exploit
++    // that was actually happening.
++    const watchedFraction = Number(req.body?.watchedFraction);
++    if (!Number.isFinite(watchedFraction) || watchedFraction < MIN_WATCHED_FRACTION_FOR_GOIN) {
++      return res.status(400).json({
++        message: 'View not counted yet — keep watching.',
++        code: 'INSUFFICIENT_WATCH_PROGRESS',
++        required: MIN_WATCHED_FRACTION_FOR_GOIN,
++      });
++    }
++
+     // Check if already viewed today
+     const today = new Date();
+     today.setHours(0, 0, 0, 0);
+@@ -328,6 +353,81 @@ export const getVideoComments = async (req: Request, res: Response) => {
+   }
+ };
+ 
++// Max comments a single child can POST (as new comments) per video. Beyond
++// this, they must edit one of their existing comments (PUT /comments/:id)
++// instead of creating a new one. Fixes a real Goins-farming exploit: kids
++// learned that any comment earned +1 Goin and started posting unlimited
++// nonsense comments to farm it.
++const MAX_COMMENTS_PER_VIDEO = 2;
++
++// Goins the VIDEO MAKER(S) earn when someone comments on their project —
++// split equally across owner + collaborators, same convention as
++// publishAndAwardProject / videoRatingRoutes. Previously the maker got
++// nothing at all when their video was commented on.
++const COMMENT_GOINS_TO_MAKER = 2;
++
++// The `videoId` used for comments/views/likes is the raw YouTube video id
++// (see unifiedVideoPlayer.dart — widget.videoId, NOT widget.projectId,
++// is what's passed to these endpoints), not the Project's own DB id. To
++// pay the video's maker(s), we need to resolve back to the owning Project.
++// Same two-step lookup already proven by GET /:videoId/materials above:
++// 1) PendingVideo.youtubeVideoId (legacy upload path), then
++// 2) fall back to matching Project.video.url by substring.
++async function resolveProjectForVideoId(videoId: string) {
++  try {
++    const pendingVideo = await prisma.pendingVideo.findFirst({
++      where: { youtubeVideoId: videoId },
++      select: { uploadedById: true },
++    });
++
++    if (pendingVideo?.uploadedById) {
++      const project = await prisma.project.findFirst({
++        where: { userId: pendingVideo.uploadedById },
++        orderBy: { createdAt: 'desc' },
++        select: { id: true, userId: true, collaborators: true },
++      });
++      if (project) return project;
++    }
++  } catch (_) { /* fall through to the URL-match fallback below */ }
++
++  try {
++    const candidates = await prisma.project.findMany({
++      where: { status: { in: ['approved', 'published'] } },
++      select: { id: true, userId: true, collaborators: true, video: true },
++      orderBy: { createdAt: 'desc' },
++      take: 300,
++    });
++    return candidates.find((p: any) => p.video?.url && p.video.url.includes(videoId)) || null;
++  } catch (_) {
++    return null;
++  }
++}
++
++async function awardCommentGoinsToMaker(videoId: string, commenterId: string) {
++  const project = await resolveProjectForVideoId(videoId);
++  if (!project) return; // e.g. an Outside Video with no matching Project — nobody to pay, that's fine
++
++  const collaborators = ((project as any).collaborators as
++    Array<{ userId: string; name: string }> | null) || [];
++  // Exclude the commenter from recipients in case they're commenting on
++  // their own (or a co-owned) project — no self-payout for a comment.
++  const recipientIds = [project.userId, ...collaborators.map((c) => c.userId)]
++    .filter((id) => id !== commenterId);
++  if (recipientIds.length === 0) return;
++
++  const shareEach = Math.floor(COMMENT_GOINS_TO_MAKER / recipientIds.length);
++  const remainder = COMMENT_GOINS_TO_MAKER - shareEach * recipientIds.length;
++
++  await prisma.$transaction(
++    recipientIds.map((id, idx) =>
++      prisma.user.update({
++        where: { id },
++        data: { score: { increment: idx === 0 ? shareEach + remainder : shareEach } },
++      })
++    )
++  );
++}
++
+ export const postVideoComment = async (req: Request, res: Response) => {
+   try {
+     const { videoId } = req.params;
+@@ -346,6 +446,20 @@ export const postVideoComment = async (req: Request, res: Response) => {
+       return res.status(400).json({ message: 'Comment too long (max 500 characters)' });
+     }
+ 
++    // Comment cap — the actual fix for the Goins-farming exploit. Once a
++    // child has posted MAX_COMMENTS_PER_VIDEO comments on this video, they
++    // must edit an existing one (PUT /comments/:id) instead of posting a
++    // new one. Edits never earn additional Goins (see updateVideoComment).
++    const existingCount = await prisma.videoComment.count({ where: { videoId, userId } });
++    if (existingCount >= MAX_COMMENTS_PER_VIDEO) {
++      return res.status(429).json({
++        message: `You've already commented ${MAX_COMMENTS_PER_VIDEO} times on this video. ` +
++          `Edit one of your existing comments instead of posting a new one.`,
++        code: 'COMMENT_LIMIT_REACHED',
++        limit: MAX_COMMENTS_PER_VIDEO,
++      });
++    }
++
+     const user = await prisma.user.findUnique({
+       where: { id: userId },
+       select: { name: true },
+@@ -368,43 +482,24 @@ export const postVideoComment = async (req: Request, res: Response) => {
+       },
+     });
+ 
+-    // +1 Goin to commenter for engaging with community
++    // +1 Goin to commenter for engaging with community (capped by the
++    // MAX_COMMENTS_PER_VIDEO check above — max 2 Goins per video this way).
+     await prisma.user.update({
+       where: { id: userId },
+       data: { score: { increment: 1 } },
+     }).catch(() => {}); // non-blocking — don't fail comment if Goins fail
+ 
+-    // Try to post to YouTube (optional, non-blocking)
+-    let youtubeCommentId: string | null = null;
+-    try {
+-      const response = await youtubeAuth.commentThreads.insert({
+-        part: ['snippet'],
+-        requestBody: {
+-          snippet: {
+-            videoId: videoId,
+-            topLevelComment: {
+-              snippet: {
+-                textOriginal: `${comment.trim()}\n\n- ${user.name} (via MiniGuru App)`,
+-              },
+-            },
+-          },
+-        },
+-      });
+-
+-      youtubeCommentId = response.data.id || null;
+-
+-      await prisma.videoComment.update({
+-        where: { id: newComment.id },
+-        data: {
+-          postedToYouTube: true,
+-          youtubeCommentId,
+-        },
+-      });
++    // The video's maker(s) earn Goins too now — previously only the
++    // commenter did, the maker got nothing from being commented on.
++    await awardCommentGoinsToMaker(videoId, userId).catch((e) =>
++      logger.warn({ e }, '⚠️ Could not award comment Goins to video maker')
++    );
+ 
+-      logger.info(`✅ Comment posted to YouTube: ${youtubeCommentId}`);
+-    } catch (ytError) {
+-      logger.warn('Could not post to YouTube, saved locally only');
+-    }
++    // BEHAVIOR CHANGE (founder request): comments no longer auto-post to
++    // YouTube on creation. They're saved locally only; postedToYouTube
++    // stays false until an admin explicitly approves + pushes it via
++    // POST /admin/comments/:id/post-to-youtube. This lets admin moderate
++    // out spam/nonsense before it ever reaches the public YouTube video.
+ 
+     res.status(201).json({
+       id: newComment.id,
+@@ -412,7 +507,9 @@ export const postVideoComment = async (req: Request, res: Response) => {
+       userName: newComment.user.name,
+       comment: newComment.comment,
+       createdAt: newComment.createdAt.toISOString(),
+-      postedToYouTube: !!youtubeCommentId,
++      postedToYouTube: false,
++      commentsUsed: existingCount + 1,
++      commentsRemaining: MAX_COMMENTS_PER_VIDEO - (existingCount + 1),
+     });
+   } catch (error) {
+     logger.error({ error }, '❌ Post comment error');
+@@ -420,15 +517,64 @@ export const postVideoComment = async (req: Request, res: Response) => {
+   }
+ };
+ 
+-export const deleteVideoComment = async (req: Request, res: Response) => {
++export const updateVideoComment = async (req: Request, res: Response) => {
+   try {
+     const { commentId } = req.params;
++    const { comment } = req.body;
+     // Must resolve to the SAME account postVideoComment would have used,
+-    // or a child's own comment (now correctly attributed to their linked
+-    // account) would become undeletable by them.
++    // so a child editing during a mentor's PIN session still edits their
++    // own comment, not a new/wrong one.
+     const userId = resolveOwnerUserId(req, res);
+     if (!userId) return;
+ 
++    if (!comment || comment.trim().length === 0) {
++      return res.status(400).json({ message: 'Comment cannot be empty' });
++    }
++    if (comment.length > 500) {
++      return res.status(400).json({ message: 'Comment too long (max 500 characters)' });
++    }
++
++    const existing = await prisma.videoComment.findUnique({ where: { id: commentId } });
++    if (!existing) {
++      return res.status(404).json({ message: 'Comment not found' });
++    }
++    if (existing.userId !== userId) {
++      return res.status(403).json({ message: 'Not authorized to edit this comment' });
++    }
++
++    // No Goins on edit — this is the escape valve for the comment cap, not
++    // a second earning opportunity. If it had already been pushed to
++    // YouTube by an admin, the YouTube copy is now stale text — reset the
++    // flag so it drops back into the admin queue rather than silently
++    // showing outdated text on the public video.
++    const updated = await prisma.videoComment.update({
++      where: { id: commentId },
++      data: {
++        comment: comment.trim(),
++        postedToYouTube: false,
++        youtubeCommentId: null,
++      },
++      include: { user: { select: { id: true, name: true } } },
++    });
++
++    res.json({
++      id: updated.id,
++      userId: updated.userId,
++      userName: updated.user.name,
++      comment: updated.comment,
++      createdAt: updated.createdAt.toISOString(),
++      postedToYouTube: false,
++    });
++  } catch (error) {
++    logger.error({ error }, '❌ Update comment error');
++    res.status(500).json({ message: 'Failed to update comment' });
++  }
++};
++
++export const deleteVideoComment = async (req: Request, res: Response) => {
++  try {
++    const { commentId } = req.params;
++
+     const comment = await prisma.videoComment.findUnique({
+       where: { id: commentId },
+     });
+@@ -437,6 +583,22 @@ export const deleteVideoComment = async (req: Request, res: Response) => {
+       return res.status(404).json({ message: 'Comment not found' });
+     }
+ 
++    // Admins can delete ANY comment — moderation. authenticateToken
++    // already populates req.user.role, so this check doesn't need
++    // resolveSubject at all (an admin is never "acting as a child").
++    if (req.user?.role === 'ADMIN') {
++      await prisma.videoComment.delete({ where: { id: commentId } });
++      logger.info(`✅ Comment deleted by ADMIN: ${commentId}`);
++      return res.json({ success: true, message: 'Comment deleted successfully' });
++    }
++
++    // Everyone else can only delete their own — must resolve to the SAME
++    // account postVideoComment would have used, or a child's own comment
++    // (correctly attributed to their linked account) would become
++    // undeletable by them during a mentor's PIN session.
++    const userId = resolveOwnerUserId(req, res);
++    if (!userId) return;
++
+     if (comment.userId !== userId) {
+       return res.status(403).json({ message: 'Not authorized to delete this comment' });
+     }
+@@ -452,4 +614,84 @@ export const deleteVideoComment = async (req: Request, res: Response) => {
+     logger.error({ error }, '❌ Delete comment error');
+     res.status(500).json({ message: 'Failed to delete comment' });
+   }
++};
++
++// ========================================================================
++// ADMIN COMMENT MODERATION
++// ========================================================================
++
++export const listCommentsForModeration = async (req: Request, res: Response) => {
++  try {
++    const limit = Math.min(200, parseInt(req.query.limit as string) || 100);
++    const videoId = req.query.videoId as string | undefined;
++
++    const comments = await prisma.videoComment.findMany({
++      where: videoId ? { videoId } : undefined,
++      include: { user: { select: { id: true, name: true } } },
++      orderBy: { createdAt: 'desc' },
++      take: limit,
++    });
++
++    res.json({
++      success: true,
++      comments: comments.map((c) => ({
++        id: c.id,
++        videoId: c.videoId,
++        userId: c.userId,
++        userName: c.user.name,
++        comment: c.comment,
++        createdAt: c.createdAt.toISOString(),
++        postedToYouTube: c.postedToYouTube,
++        youtubeCommentId: c.youtubeCommentId,
++      })),
++    });
++  } catch (error) {
++    logger.error({ error }, '❌ List comments (admin) error');
++    res.status(500).json({ message: 'Failed to list comments' });
++  }
++};
++
++export const postCommentToYouTube = async (req: Request, res: Response) => {
++  try {
++    const { commentId } = req.params;
++
++    const comment = await prisma.videoComment.findUnique({
++      where: { id: commentId },
++      include: { user: { select: { name: true } } },
++    });
++    if (!comment) return res.status(404).json({ message: 'Comment not found' });
++    if (comment.postedToYouTube) {
++      return res.status(400).json({ message: 'Already posted to YouTube' });
++    }
++
++    // Reuses the same authenticated youtubeAuth client already set up at
++    // module scope above (module-level OAuth2 client, not re-created here).
++    const response = await youtubeAuth.commentThreads.insert({
++      part: ['snippet'],
++      requestBody: {
++        snippet: {
++          videoId: comment.videoId,
++          topLevelComment: {
++            snippet: {
++              textOriginal: `${comment.comment}\n\n- ${comment.user.name} (via MiniGuru App)`,
++            },
++          },
++        },
++      },
++    });
++
++    const youtubeCommentId = response.data.id || null;
++    await prisma.videoComment.update({
++      where: { id: commentId },
++      data: { postedToYouTube: true, youtubeCommentId },
++    });
++
++    logger.info(`✅ Comment manually pushed to YouTube by admin: ${youtubeCommentId}`);
++    res.json({ success: true, youtubeCommentId });
++  } catch (error) {
++    logger.error({ error }, '❌ Post comment to YouTube (admin) error');
++    res.status(500).json({
++      message: 'Failed to post comment to YouTube. The video may not be public yet on YouTube, or the YouTube credentials may need renewal.',
++    });
++  }
+ };
+\ No newline at end of file
+diff --git a/backend/src/routes/videoRoutes.ts b/backend/src/routes/videoRoutes.ts
+index 2734e03..4559612 100644
+--- a/backend/src/routes/videoRoutes.ts
++++ b/backend/src/routes/videoRoutes.ts
+@@ -16,7 +16,10 @@ import {
+   getVideoLikesStats,
+   getVideoComments,
+   postVideoComment,
++  updateVideoComment,
+   deleteVideoComment,
++  listCommentsForModeration,
++  postCommentToYouTube,
+ } from '../controllers/video/videoController';
+ 
+ const router = express.Router();
+@@ -229,9 +232,15 @@ router.post('/:videoId/like', authenticateToken, resolveSubject, likeVideo);
+ router.get('/:videoId/likes/user', authenticateToken, resolveSubject, getUserVideoLikes);
+ router.get('/:videoId/likes/stats', getVideoLikesStats);
+ 
++// Admin comment moderation — MUST come before /:videoId/comments below,
++// or Express matches "admin" itself as :videoId (Rule 28).
++router.get('/admin/comments', authenticateToken, authorizeAdmin, listCommentsForModeration);
++router.post('/admin/comments/:commentId/post-to-youtube', authenticateToken, authorizeAdmin, postCommentToYouTube);
++
+ // Video comments
+ router.get('/:videoId/comments', getVideoComments);
+ router.post('/:videoId/comments', authenticateToken, resolveSubject, postVideoComment);
++router.put('/comments/:commentId', authenticateToken, resolveSubject, updateVideoComment);
+ router.delete('/comments/:commentId', authenticateToken, resolveSubject, deleteVideoComment);
+ 
+ 
