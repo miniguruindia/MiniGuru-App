@@ -3,11 +3,19 @@
 import { useEffect, useState } from 'react'
 import { AdminLayout } from '@/components/AdminLayout'
 import { ProjectList } from '@/components/project/ProjectList'
-import { SkeletonCard } from '@/components/SkeletonCard'  // Import the Skeleton component
-import { ErrorDisplay } from '@/components/ErrorDisplay'  // Import the ErrorDisplay component
+import { SkeletonCard } from '@/components/SkeletonCard'
+import { ErrorDisplay } from '@/components/ErrorDisplay'
 import { Project } from '@/types/project'
-import { getAllProjects, deleteProjectById } from '@/utils/api/projectApi'
 import { Button } from '@/components/ui/button';
+
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || ''
+
+async function authHeader() {
+  const v = `; ${document.cookie}`
+  const p = v.split('; auth_token=')
+  const token = p.length === 2 ? p.pop()!.split(';').shift()! : ''
+  return { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }
+}
 
 export default function ProjectsPage() {
   const [projects, setProjects] = useState<Project[]>([])
@@ -20,13 +28,13 @@ export default function ProjectsPage() {
     const fetchProjects = async () => {
       try {
         setLoading(true)
-        setError(null)  // Reset error before fetching
-
-        const res = await getAllProjects(page) // Pass the page number to the API function
-        
-        setProjects(res.projects);
-        setTotalPages(res.pagination.totalPages);
-      } catch (error) {
+        setError(null)
+        const res = await fetch(`${API_BASE}/project/all?page=${page}`, { headers: await authHeader() })
+        if (!res.ok) throw new Error(`Failed to load projects (${res.status})`)
+        const data = await res.json()
+        setProjects(data.projects)
+        setTotalPages(data.pagination?.totalPages || 1)
+      } catch (error: any) {
         setError(error.message || 'An error occurred while fetching projects.')
       } finally {
         setLoading(false)
@@ -38,9 +46,10 @@ export default function ProjectsPage() {
 
   const handleDeleteProject =  async (projectId: string) => {
     try{
-      await deleteProjectById(projectId);
+      const res = await fetch(`${API_BASE}/admin/project/${projectId}`, { method: 'DELETE', headers: await authHeader() })
+      if (!res.ok) throw new Error(`Delete failed (${res.status})`)
     }
-    catch(error){
+    catch(error: any){
       setError('An error occurred while deleting the project.' + error.message);
       return;
     }

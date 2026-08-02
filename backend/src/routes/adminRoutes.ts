@@ -9,6 +9,7 @@ import { uploadImagesMiddleware} from '../middleware/upload';
 import { listUsers, getUserById , deleteUserById, updateUserDetails } from '../controllers/auth/userController';
 import { getAllOrdersController } from '../controllers/ecom/orderController';
 import { fetchStats } from '../controllers/admin/statsController';
+import { getWebsiteAnalyticsSummary } from '../services/googleAnalyticsService';
 import { getPendingProjects, approveProject, rejectProject, getAllDrafts } from '../controllers/admin/videoApprovalController';
 import {
   getPendingContactChangeRequests,
@@ -78,6 +79,14 @@ adminRouter.patch('/orders/:id/dispatch', authenticateToken, authorizeAdmin, asy
 
 // ==================== STATS ====================
 adminRouter.get('/stats', authenticateToken, authorizeAdmin, fetchStats);
+adminRouter.get('/analytics/website', authenticateToken, authorizeAdmin, async (req, res) => {
+  try {
+    const summary = await getWebsiteAnalyticsSummary();
+    res.json(summary);
+  } catch (e) {
+    res.json({ configured: false, error: 'Failed to load website analytics' });
+  }
+});
 
 // ==================== VIDEO APPROVALS ====================
 adminRouter.get('/projects/pending', authenticateToken, authorizeAdmin, getPendingProjects);

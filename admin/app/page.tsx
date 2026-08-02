@@ -6,8 +6,8 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   Users, Video, Package, ArrowUpRight,
-  CheckCircle, Clock, RefreshCw, Coins, Megaphone, ShieldAlert,
-  Lightbulb, HandCoins, AlertTriangle,
+  Clock, RefreshCw, Coins, Megaphone, ShieldAlert,
+  Lightbulb, HandCoins, AlertTriangle, Globe, TrendingUp, FolderOpen,
 } from 'lucide-react'
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001'
@@ -63,6 +63,15 @@ export default function DashboardPage() {
   const [pendingSuggestions, setPendingSuggestions] = useState(0)
   const [pendingGoinTopUps,  setPendingGoinTopUps]  = useState(0)
 
+  // ── Website traffic (Google Analytics GA4) ─────────────────────────────
+  const [webAnalytics, setWebAnalytics] = useState<{
+    configured: boolean
+    last7Days?: { sessions: number; activeUsers: number; pageViews: number }
+    last30Days?: { sessions: number; activeUsers: number; pageViews: number }
+    topPages?: { path: string; views: number }[]
+    error?: string
+  }>({ configured: false })
+
   const load = async () => {
     setLoading(true)
     setError(null)
@@ -105,6 +114,13 @@ export default function DashboardPage() {
       setPendingContact(contact)
       setPendingSuggestions(suggestions)
       setPendingGoinTopUps(topups)
+
+      // Independent fetch — a missing/misconfigured GA4 setup should never
+      // break the rest of the dashboard, so this is wrapped separately.
+      try {
+        const gaRes = await fetch(`${API_BASE}/admin/analytics/website`, { headers, credentials: 'include' })
+        if (gaRes.ok) setWebAnalytics(await gaRes.json())
+      } catch { /* leave configured: false */ }
     } catch (e: any) {
       setError(`Connection failed: ${e?.message}`)
     } finally {
@@ -350,18 +366,6 @@ export default function DashboardPage() {
                 <ArrowUpRight className="h-4 w-4 text-indigo-400" />
               </button>
 
-              <button onClick={() => router.push('/content')}
-                className="w-full flex items-center justify-between p-4 bg-green-50 rounded-lg border border-green-100 hover:bg-green-100 transition-colors">
-                <div className="flex items-center gap-3">
-                  <CheckCircle className="h-5 w-5 text-green-600" />
-                  <div className="text-left">
-                    <p className="text-sm font-medium text-green-900">Update Site Content</p>
-                    <p className="text-xs text-green-600">About, Consultancy, Legal, FAQ</p>
-                  </div>
-                </div>
-                <ArrowUpRight className="h-4 w-4 text-green-400" />
-              </button>
-
               <button onClick={() => router.push('/communication')}
                 className="w-full flex items-center justify-between p-4 bg-blue-50 rounded-lg border border-blue-100 hover:bg-blue-100 transition-colors">
                 <div className="flex items-center gap-3">
@@ -376,6 +380,95 @@ export default function DashboardPage() {
             </div>
           </Card>
         </div>
+
+        {/* New This Week — merged in from the old separate Analytics tab,
+            which was redundant with this page. Orders dropped — own-store
+            is paused (Rule 26), it would only ever show 0. */}
+        <Card className="p-6 border-0 shadow-md">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">New This Week</h3>
+          <div className="space-y-3">
+            {[
+              { label: 'New Users', value: stats.new.users, total: stats.total.users, icon: Users, color: 'text-blue-500' },
+              { label: 'New Projects', value: stats.new.projects, total: stats.total.projects, icon: FolderOpen, color: 'text-purple-500' },
+            ].map((row) => {
+              const Icon = row.icon
+              const pct = row.total ? Math.round((row.value / row.total) * 100) : 0
+              return (
+                <div key={row.label} className="flex items-center gap-4">
+                  <div className="flex items-center gap-2 w-36">
+                    <Icon className={`h-4 w-4 ${row.color}`} />
+                    <span className="text-sm text-gray-700">{row.label}</span>
+                  </div>
+                  <div className="flex-1 bg-gray-100 rounded-full h-2">
+                    <div className="bg-blue-500 h-2 rounded-full transition-all duration-500" style={{ width: `${Math.min(pct, 100)}%` }} />
+                  </div>
+                  <div className="flex items-center gap-2 w-20 text-right justify-end">
+                    <span className="text-sm font-semibold text-gray-900">+{row.value}</span>
+                    <span className="text-xs text-gray-400">{pct}%</span>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </Card>
+
+        {/* Website Traffic — real Google Analytics (GA4) data once
+            configured. Shows setup instructions instead of a fake chart
+            until GA4_PROPERTY_ID + service account access are added. */}
+        <Card className="p-6 border-0 shadow-md">
+          <div className="flex items-center gap-2 mb-4">
+            <Globe className="h-5 w-5 text-sky-600" />
+            <h3 className="text-lg font-semibold text-gray-900">Website Traffic</h3>
+          </div>
+          {webAnalytics.configured ? (
+            webAnalytics.error ? (
+              <p className="text-sm text-red-600">⚠️ {webAnalytics.error}</p>
+            ) : (
+              <div className="space-y-4">
+                <div className="grid grid-cols-3 gap-4">
+                  {[
+                    { label: 'Visits (7d)', value: webAnalytics.last7Days?.sessions ?? 0 },
+                    { label: 'Visitors (7d)', value: webAnalytics.last7Days?.activeUsers ?? 0 },
+                    { label: 'Page views (7d)', value: webAnalytics.last7Days?.pageViews ?? 0 },
+                  ].map((s) => (
+                    <div key={s.label} className="text-center p-3 bg-sky-50 rounded-lg">
+                      <p className="text-2xl font-bold text-sky-900">{s.value.toLocaleString('en-IN')}</p>
+                      <p className="text-xs text-sky-600 mt-0.5">{s.label}</p>
+                    </div>
+                  ))}
+                </div>
+                <p className="text-xs text-gray-400 flex items-center gap-1">
+                  <TrendingUp className="h-3 w-3" /> {webAnalytics.last30Days?.sessions ?? 0} visits in the last 30 days
+                </p>
+                {webAnalytics.topPages && webAnalytics.topPages.length > 0 && (
+                  <div className="pt-2 border-t border-gray-100">
+                    <p className="text-xs font-medium text-gray-500 mb-2">Top pages this week</p>
+                    <div className="space-y-1">
+                      {webAnalytics.topPages.map((p) => (
+                        <div key={p.path} className="flex justify-between text-xs text-gray-600">
+                          <span className="truncate">{p.path}</span>
+                          <span className="font-medium">{p.views}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )
+          ) : (
+            <div className="p-4 bg-sky-50 border border-sky-200 rounded-lg text-sm text-sky-800 space-y-2">
+              <p className="font-medium">Not connected yet</p>
+              <p className="text-xs text-sky-700">
+                1. Find your GA4 Property ID: analytics.google.com → Admin → Property Settings.<br />
+                2. In GA4 → Admin → Property Access Management, add the Firebase service account's
+                email (the "client_email" inside FIREBASE_SERVICE_ACCOUNT_JSON) as a <b>Viewer</b> — no
+                new key needed, it reuses the same one already in Secret Manager.<br />
+                3. Add <code className="bg-sky-100 px-1 rounded">GA4_PROPERTY_ID</code> as a Cloud Run
+                env var and redeploy. This card will start showing real numbers automatically.
+              </p>
+            </div>
+          )}
+        </Card>
 
       </div>
     </AdminLayout>

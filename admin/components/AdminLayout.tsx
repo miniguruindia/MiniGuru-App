@@ -10,7 +10,7 @@ import {
   Users, 
   Video,
   MessageSquare,
-  BarChart3,
+  FolderOpen,
   FileEdit,
   LogOut,
   Menu,
@@ -59,6 +59,15 @@ export function AdminLayout({ children }: AdminLayoutProps) {
       current: pathname.startsWith('/videos'),
       badge: 0
     },
+    // ── Projects — browse/edit ANY project (title, materials,
+    // collaborators, replace video). Separate from Content Moderation,
+    // which is specifically the pending-approval queue. ────
+    { 
+      name: 'Projects', 
+      href: '/projects', 
+      icon: FolderOpen,
+      current: pathname.startsWith('/projects')
+    },
     // ── Materials (shop) — replaces Products ──────────────
     { 
       name: 'Materials', 
@@ -95,13 +104,6 @@ export function AdminLayout({ children }: AdminLayoutProps) {
       href: '/communication', 
       icon: MessageSquare,
       current: pathname.startsWith('/communication')
-    },
-    // ── Analytics ──────────────────────────────────────────
-    { 
-      name: 'Analytics', 
-      href: '/analytics', 
-      icon: BarChart3,
-      current: pathname.startsWith('/analytics')
     },
     // ── CMS content ────────────────────────────────────────
     { 

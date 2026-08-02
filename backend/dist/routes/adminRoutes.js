@@ -14,6 +14,7 @@ const upload_1 = require("../middleware/upload");
 const userController_1 = require("../controllers/auth/userController");
 const orderController_1 = require("../controllers/ecom/orderController");
 const statsController_1 = require("../controllers/admin/statsController");
+const googleAnalyticsService_1 = require("../services/googleAnalyticsService");
 const videoApprovalController_1 = require("../controllers/admin/videoApprovalController");
 const contactVerificationController_1 = require("../controllers/auth/contactVerificationController");
 const productSuggestionController_1 = require("../controllers/admin/productSuggestionController");
@@ -72,6 +73,15 @@ adminRouter.patch('/orders/:id/dispatch', authMiddleware_1.authenticateToken, au
 });
 // ==================== STATS ====================
 adminRouter.get('/stats', authMiddleware_1.authenticateToken, authMiddleware_1.authorizeAdmin, statsController_1.fetchStats);
+adminRouter.get('/analytics/website', authMiddleware_1.authenticateToken, authMiddleware_1.authorizeAdmin, async (req, res) => {
+    try {
+        const summary = await (0, googleAnalyticsService_1.getWebsiteAnalyticsSummary)();
+        res.json(summary);
+    }
+    catch (e) {
+        res.json({ configured: false, error: 'Failed to load website analytics' });
+    }
+});
 // ==================== VIDEO APPROVALS ====================
 adminRouter.get('/projects/pending', authMiddleware_1.authenticateToken, authMiddleware_1.authorizeAdmin, videoApprovalController_1.getPendingProjects);
 adminRouter.post('/projects/:id/approve', authMiddleware_1.authenticateToken, authMiddleware_1.authorizeAdmin, videoApprovalController_1.approveProject);
