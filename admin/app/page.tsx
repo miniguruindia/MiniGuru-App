@@ -6,7 +6,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   Users, Video, Package, ArrowUpRight,
-  Clock, RefreshCw, Coins, Megaphone, ShieldAlert,
+  RefreshCw, Coins, Megaphone, ShieldAlert,
   Lightbulb, HandCoins, AlertTriangle, Globe, TrendingUp, FolderOpen,
 } from 'lucide-react'
 
@@ -286,8 +286,15 @@ export default function DashboardPage() {
           )}
         </Card>
 
-        {/* Needs Your Attention + Quick Actions */}
-        <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+        {/* Needs Your Attention — was previously paired with a "Quick
+            Actions" card, but 3 of its 4 buttons were pure duplicates of
+            items already here (Approve Videos = same as "Videos awaiting
+            approval" below, Add ASINs = same as the Amazon Setup progress
+            card's own button, Review Community Submissions = same as the
+            community-pending row below). Removed that whole card; kept the
+            one genuinely unique action (Send Announcement) as a small link
+            here instead of losing it entirely. */}
+        <div className="grid grid-cols-1 gap-6">
           <Card className="p-6 border-0 shadow-md">
             <div className="flex items-center justify-between mb-5">
               <div>
@@ -298,6 +305,10 @@ export default function DashboardPage() {
                   {totalPending === 0 ? 'All caught up! 🎉' : `${totalPending} item${totalPending === 1 ? '' : 's'} across the platform`}
                 </p>
               </div>
+              <button onClick={() => router.push('/communication')}
+                className="text-xs font-medium text-blue-600 hover:text-blue-700 flex items-center gap-1">
+                <Megaphone className="h-3.5 w-3.5" /> Send Announcement
+              </button>
             </div>
             <div className="space-y-2">
               {attentionItems.map(item => {
@@ -319,64 +330,6 @@ export default function DashboardPage() {
                   </button>
                 )
               })}
-            </div>
-          </Card>
-
-          <Card className="p-6 border-0 shadow-md">
-            <div className="flex items-center justify-between mb-6">
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900">Quick Actions</h3>
-                <p className="text-sm text-gray-500">Common admin tasks</p>
-              </div>
-            </div>
-            <div className="space-y-3">
-              <button onClick={() => router.push('/videos')}
-                className="w-full flex items-center justify-between p-4 bg-purple-50 rounded-lg border border-purple-100 hover:bg-purple-100 transition-colors">
-                <div className="flex items-center gap-3">
-                  <Video className="h-5 w-5 text-purple-600" />
-                  <div className="text-left">
-                    <p className="text-sm font-medium text-purple-900">Approve Videos</p>
-                    <p className="text-xs text-purple-600">Review pending project uploads</p>
-                  </div>
-                </div>
-                <ArrowUpRight className="h-4 w-4 text-purple-400" />
-              </button>
-
-              <button onClick={() => router.push('/materials?tab=amazon')}
-                className="w-full flex items-center justify-between p-4 bg-orange-50 rounded-lg border border-orange-100 hover:bg-orange-100 transition-colors">
-                <div className="flex items-center gap-3">
-                  <Package className="h-5 w-5 text-orange-600" />
-                  <div className="text-left">
-                    <p className="text-sm font-medium text-orange-900">Add Amazon ASINs</p>
-                    <p className="text-xs text-orange-600">{materialCount - asinCount} materials need ASINs</p>
-                  </div>
-                </div>
-                <ArrowUpRight className="h-4 w-4 text-orange-400" />
-              </button>
-
-              <button onClick={() => router.push('/community')}
-                className="w-full flex items-center justify-between p-4 bg-indigo-50 rounded-lg border border-indigo-100 hover:bg-indigo-100 transition-colors">
-                <div className="flex items-center gap-3">
-                  <Megaphone className="h-5 w-5 text-indigo-600" />
-                  <div className="text-left">
-                    <p className="text-sm font-medium text-indigo-900">Review Community Submissions</p>
-                    <p className="text-xs text-indigo-600">Happenings & Challenges from teachers</p>
-                  </div>
-                </div>
-                <ArrowUpRight className="h-4 w-4 text-indigo-400" />
-              </button>
-
-              <button onClick={() => router.push('/communication')}
-                className="w-full flex items-center justify-between p-4 bg-blue-50 rounded-lg border border-blue-100 hover:bg-blue-100 transition-colors">
-                <div className="flex items-center gap-3">
-                  <Clock className="h-5 w-5 text-blue-600" />
-                  <div className="text-left">
-                    <p className="text-sm font-medium text-blue-900">Send Announcement</p>
-                    <p className="text-xs text-blue-600">Broadcast to all users</p>
-                  </div>
-                </div>
-                <ArrowUpRight className="h-4 w-4 text-blue-400" />
-              </button>
             </div>
           </Card>
         </div>

@@ -5,7 +5,7 @@ import 'package:miniguru/constants.dart';
 import 'package:miniguru/models/Projects.dart';
 import 'package:miniguru/models/User.dart';
 import 'package:miniguru/network/MiniguruApi.dart';
-import 'package:miniguru/utils/NetworkPlayer.dart';
+import 'package:miniguru/screens/unifiedVideoPlayer.dart';
 
 class ProjectDetailsScreen extends StatefulWidget {
   final Project project;
@@ -67,6 +67,13 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
       debugPrint('⚠️ ProjectDetailsScreen: could not parse video data ($e)');
       return null;
     }
+  }
+
+  String? _extractYoutubeId() {
+    final url = _safeVideoUrl();
+    if (url == null) return null;
+    final match = RegExp(r'(?:v=|youtu\.be/|embed/)([A-Za-z0-9_-]{11})').firstMatch(url);
+    return match?.group(1);
   }
 
   List<dynamic> _safeDoubleDecodeList(String raw) {
@@ -343,19 +350,64 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Thumbnail or Video
-            ClipRRect(
-              borderRadius: BorderRadius.circular(16.0),
-              child: SizedBox(
-                height: 200,
-                child: _safeVideoUrl() != null
-                    ? NetworkVideoPlayer(videoUrl: _safeVideoUrl()!)
-                    : Container(
-                        color: Colors.black12,
-                        alignment: Alignment.center,
-                        child: const Text('Video unavailable',
-                            style: TextStyle(color: Colors.black45)),
-                      ),
+            // BUGFIX: this used to hand the YouTube *watch* URL straight to
+            // NetworkVideoPlayer (raw video_player, expects a direct .mp4
+            // file) — YouTube URLs can never play that way, hence the
+            // blank/frozen player. Show the real thumbnail instead, tap to
+            // open the same UnifiedVideoPlayer used everywhere else in the
+            // app, which actually knows how to embed YouTube.
+            GestureDetector(
+              onTap: _extractYoutubeId() != null
+                  ? () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => UnifiedVideoPlayer(
+                            videoId: _extractYoutubeId()!,
+                            projectId: widget.project.id,
+                            title: widget.project.title,
+                            description: widget.project.description,
+                            channelTitle: widget.project.author,
+                          ),
+                        ),
+                      )
+                  : null,
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(16.0),
+                child: SizedBox(
+                  height: 200,
+                  width: double.infinity,
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      widget.project.thumbnail.isNotEmpty
+                          ? Image.network(
+                              widget.project.thumbnail,
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, __, ___) => Container(color: Colors.black12),
+                            )
+                          : Container(color: Colors.black12),
+                      if (_extractYoutubeId() != null)
+                        Container(
+                          color: Colors.black26,
+                          alignment: Alignment.center,
+                          child: Container(
+                            padding: const EdgeInsets.all(14),
+                            decoration: const BoxDecoration(
+                              color: Colors.white70,
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(Icons.play_arrow_rounded, size: 36, color: Colors.black87),
+                          ),
+                        )
+                      else
+                        Container(
+                          alignment: Alignment.center,
+                          child: const Text('Video unavailable',
+                              style: TextStyle(color: Colors.black45)),
+                        ),
+                    ],
+                  ),
+                ),
               ),
             ),
             const SizedBox(height: 24.0),

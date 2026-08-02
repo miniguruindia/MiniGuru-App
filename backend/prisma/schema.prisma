@@ -280,7 +280,7 @@ model VideoComment {
 model ProjectCategory {
   id       String    @id @default(auto()) @map("_id") @db.ObjectId
   name     String    @unique
-  icon     String
+  icon     String    @default("📦")
   imageUrl String?
   projects Project[]
 

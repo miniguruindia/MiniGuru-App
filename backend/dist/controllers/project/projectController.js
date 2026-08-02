@@ -449,10 +449,16 @@ const adminUpdateProject = async (req, res) => {
         // challenge validation.
         let resolvedCollaborators = undefined;
         if (Array.isArray(collaboratorIds)) {
+            // BUGFIX: MongoDB validates ObjectId format for every OR branch
+            // eagerly — passing an email string like "x@miniguru.in" into an
+            // {id: c} filter throws "Malformed ObjectID" and kills the WHOLE
+            // query, even though the {email: c} branch would have matched fine.
+            // Only ever query by id for values that actually look like one.
+            const isObjectId = (s) => /^[0-9a-fA-F]{24}$/.test(s);
             const found = await prismaClient_1.default.user.findMany({
                 where: {
                     OR: [
-                        ...collaboratorIds.map((c) => ({ id: c })),
+                        ...collaboratorIds.filter(isObjectId).map((c) => ({ id: c })),
                         ...collaboratorIds.map((c) => ({ email: c })),
                     ],
                 },

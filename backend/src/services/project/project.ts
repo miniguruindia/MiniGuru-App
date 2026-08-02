@@ -148,6 +148,7 @@ class ProjectService {
     const projects = await prisma.project.findMany({
       skip: (page - 1) * limit,
       take: limit,
+      orderBy: { createdAt: "desc" },
       include: this.includeConditions,
     });
     const totalProjects = await prisma.project.count();

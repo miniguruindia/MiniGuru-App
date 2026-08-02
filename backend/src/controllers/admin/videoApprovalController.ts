@@ -63,8 +63,11 @@ export class ApprovalError extends Error {
 export async function publishAndAwardProject(id: string) {
   const project = await prisma.project.findUnique({ where: { id } });
   if (!project) throw new ApprovalError('Project not found.', 404);
-  if (project.status !== 'pending') {
-    throw new ApprovalError(`Cannot approve — status is '${project.status}', expected 'pending'.`, 400);
+  // 'rejected' is allowed here too — admin can change their mind (or a
+  // video that was fixed via the admin edit page's video-replace feature
+  // needs re-approving). Only 'published' (already live) is blocked.
+  if (!['pending', 'rejected'].includes(project.status)) {
+    throw new ApprovalError(`Cannot approve — status is '${project.status}', expected 'pending' or 'rejected'.`, 400);
   }
 
   // ── YouTube ───────────────────────────────────────────────────

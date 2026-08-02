@@ -59,6 +59,12 @@ async function authedFetch(path: string, opts: RequestInit = {}) {
   return data
 }
 
+function extractYoutubeId(url: string | undefined): string | null {
+  if (!url) return null
+  const match = url.match(/(?:v=|youtu\.be\/|embed\/)([A-Za-z0-9_-]{11})/)
+  return match ? match[1] : null
+}
+
 export default function ProjectDetailPage() {
   const params = useParams()
   const router = useRouter()
@@ -320,9 +326,23 @@ export default function ProjectDetailPage() {
           <h3 className="text-sm font-semibold text-gray-700 flex items-center gap-1.5">
             <VideoIcon className="h-4 w-4" /> Video
           </h3>
-          {project.video?.url && (
-            <video src={pendingVideoStoragePath ? undefined : project.video.url} controls className="w-full max-w-md rounded-lg" />
-          )}
+          {/* BUGFIX: a plain <video> tag can never play a youtube.com URL —
+              it needs a real video FILE, not a webpage. Embed via iframe
+              instead, same as everywhere else in the app that plays YouTube
+              content. */}
+          {(() => {
+            const ytId = pendingVideoStoragePath ? null : extractYoutubeId(project.video?.url)
+            return ytId ? (
+              <iframe
+                className="w-full max-w-md aspect-video rounded-lg"
+                src={`https://www.youtube.com/embed/${ytId}`}
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+              />
+            ) : (
+              <p className="text-xs text-gray-400">No video, or a new one is staged (save to apply).</p>
+            )
+          })()}
           <p className="text-xs text-gray-500">
             Replacing the video uploads a new one to YouTube, matches the project's current public/
             unlisted state, and deletes the old YouTube video. This does not re-trigger AI review or
@@ -342,6 +362,45 @@ export default function ProjectDetailPage() {
             <p className="text-xs text-amber-600">
               New video staged — click <b>Save Changes</b> above to actually replace it on YouTube.
             </p>
+          )}
+        </Card>
+
+        {/* Status — a project that's been rejected (or is stuck in any
+            status other than pending/published) previously had NO admin
+            view anywhere that surfaced it — it just vanished from both the
+            pending queue and the public feed. This card makes the current
+            status visible and lets admin move it directly, without going
+            through the separate Content Moderation approve/reject flow. */}
+        <Card className="p-5 space-y-3">
+          <h3 className="text-sm font-semibold text-gray-700">Status</h3>
+          <div className="flex items-center gap-2">
+            <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${
+              project.status === 'published' ? 'bg-green-100 text-green-700'
+              : project.status === 'pending' ? 'bg-amber-100 text-amber-700'
+              : project.status === 'rejected' ? 'bg-red-100 text-red-700'
+              : 'bg-gray-100 text-gray-600'
+            }`}>{project.status}</span>
+            {project.status === 'rejected' && (
+              <span className="text-xs text-gray-400">
+                Rejected projects don't appear in the pending queue or the home feed — this is the only place to find and fix one.
+              </span>
+            )}
+          </div>
+          {project.status !== 'published' && (
+            <button
+              onClick={async () => {
+                try {
+                  await authedFetch(`/admin/projects/${projectId}/approve`, { method: 'POST' })
+                  showToast('Approved and published to YouTube', true)
+                  load()
+                } catch (e: any) {
+                  showToast(e.message || 'Approve failed', false)
+                }
+              }}
+              className="px-3 py-1.5 rounded-lg text-xs font-medium bg-green-600 text-white hover:bg-green-700"
+            >
+              {project.status === 'rejected' ? 'Re-approve & Publish' : 'Approve & Publish'}
+            </button>
           )}
         </Card>
       </div>

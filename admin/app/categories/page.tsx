@@ -26,7 +26,7 @@ async function fetchCategories(): Promise<Category[]> {
   return Array.isArray(data) ? data : data.categories ?? []
 }
 
-async function createCategory(name: string): Promise<Category> {
+async function createCategory(name: string, icon: string): Promise<Category> {
   const token = (() => { const v = `; ${document.cookie}`; const p = v.split('; auth_token='); return p.length === 2 ? p.pop()!.split(';').shift()! : '' })()
   const res = await fetch(`${API_BASE}/project/categories`, {
     method: 'POST',
@@ -34,9 +34,12 @@ async function createCategory(name: string): Promise<Category> {
       'Content-Type': 'application/json',
       Authorization: `Bearer ${token}`,
     },
-    body: JSON.stringify({ name }),
+    body: JSON.stringify({ name, icon }),
   })
-  if (!res.ok) throw new Error('Failed to create category')
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}))
+    throw new Error(body.error || body.message || `Failed to create category (${res.status})`)
+  }
   return res.json()
 }
 
@@ -72,6 +75,7 @@ export default function CategoriesPage() {
 
   // New category form
   const [newName, setNewName]   = useState('')
+  const [newIcon, setNewIcon]   = useState('📦')
   const [adding, setAdding]     = useState(false)
 
   // Inline edit
@@ -109,13 +113,14 @@ export default function CategoriesPage() {
     if (!newName.trim()) return
     setSaving(true)
     try {
-      const created = await createCategory(newName.trim())
+      const created = await createCategory(newName.trim(), newIcon.trim() || '📦')
       setCategories(prev => [...prev, created])
       setNewName('')
+      setNewIcon('📦')
       setAdding(false)
       flash(`✅ "${newName.trim()}" added`)
-    } catch {
-      flash('❌ Failed to add category — check backend connection', true)
+    } catch (e: any) {
+      flash(`❌ ${e.message || 'Failed to add category'}`, true)
     } finally {
       setSaving(false)
     }
@@ -193,6 +198,16 @@ export default function CategoriesPage() {
           <Card className="p-5 border-0 shadow-md">
             <h3 className="text-sm font-semibold text-gray-700 mb-3">New Category</h3>
             <div className="flex gap-3">
+              <input
+                type="text"
+                placeholder="📦"
+                value={newIcon}
+                onChange={e => setNewIcon(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && handleAdd()}
+                maxLength={4}
+                title="An emoji to represent this category"
+                className="w-16 px-3 py-2 border border-gray-300 rounded-lg text-sm text-center focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
               <input
                 autoFocus
                 type="text"

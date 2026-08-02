@@ -11,7 +11,7 @@ export type Project = {
     uploadedAt?: string
   }
   materials: Material[];         // Array of materials required for the project
-  status: 'active' | 'completed' | 'archived'; // Status of the project (if relevant)
+  status: string; // real values: 'pending' | 'published' | 'rejected' | 'draft'
   createdAt: Date;               // Timestamp when the project was created
   updatedAt: Date;               // Timestamp for the last update
   categoryId: string;            // ID of the project category
