@@ -244,14 +244,14 @@ class _AddDraftScreenState extends State<AddDraftScreen>
   }
 
   Future<void> _openMaterialPicker() async {
+    // Rule 25 reversed (Aug 2026, confirmed) — Goins are spent on
+    // materials again, with debt allowed if it goes negative. Real balance
+    // now passed so the picker's shortfall banner reflects reality instead
+    // of always reporting "plenty of Goins" via the old 999999 placeholder.
+    final myUserData = await UserRepository().getUserDataFromLocalDb();
     final result = await showMaterialPicker(
         context: context,
-        // MaterialPickerWidget still requires this param, but its own
-        // internal balance/budget UI was already removed in the June 2
-        // architecture change (Rule 25 — Goins are never spent/blocked).
-        // A large constant here is the least-risky fix: it keeps that
-        // widget's constructor untouched rather than reworking it too.
-        currentGoinsBalance: 999999,
+        currentGoinsBalance: myUserData?.score ?? 0,
         existingPicked: _pickedMaterials);
     if (result != null) setState(() => _pickedMaterials = result);
   }

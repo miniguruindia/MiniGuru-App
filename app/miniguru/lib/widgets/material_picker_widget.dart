@@ -6,7 +6,6 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:miniguru/models/MaterialItem.dart';
 import 'package:miniguru/repository/GoinsRepository.dart';
-import 'package:miniguru/network/MiniguruApi.dart';
 
 // ─── Light theme colours ──────────────────────────────────────────────────────
 const _blue     = Color(0xFF5B6EF5);
@@ -54,7 +53,6 @@ class MaterialPickerSheet extends StatefulWidget {
 
 class _MaterialPickerSheetState extends State<MaterialPickerSheet> {
   final _repo = GoinsRepository();
-  final _api = MiniguruApi();
 
   List<MaterialCategory> _categories  = [];
   List<MaterialItem>     _allMaterials = [];
@@ -63,10 +61,6 @@ class _MaterialPickerSheetState extends State<MaterialPickerSheet> {
   String                 _activeCategoryId = 'all';
   String                 _searchQuery  = '';
   bool                   _loading      = true;
-
-  // ─── Goins top-up request state ──────────────────────────────
-  bool _requestSent = false;   // true once child taps "Request" for current shortfall
-  bool _requesting  = false;   // true while the network call is in flight
 
   @override
   void initState() {
@@ -135,51 +129,15 @@ class _MaterialPickerSheetState extends State<MaterialPickerSheet> {
       } else {
         _quantities[materialId] = newQty;
       }
-      // Any change to the picked list means a previous request no longer
-      // applies to the current shortfall — reset so they can request again.
-      _requestSent = false;
     });
-  }
-
-  // ─── Goins top-up request ──────────────────────────────────
-  Future<void> _sendTopUpRequest() async {
-    if (_shortfall <= 0 || _requesting) return;
-    setState(() => _requesting = true);
-
-    final result = await _api.requestGoinsTopUp(
-      amount: _shortfall,
-      reason: 'Materials for a MiniGuru project',
-      projectDraftContext: _pickedList.map((p) => p.item.name).join(', '),
-    );
-
-    setState(() {
-      _requesting = false;
-      _requestSent = result != null;
-    });
-
-    if (result == null && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('Could not send request — check your connection and try again.',
-            style: GoogleFonts.nunito(fontWeight: FontWeight.w700)),
-        backgroundColor: _red,
-      ));
-    }
   }
 
   // ─── Confirm ──────────────────────────────────────────────
+  // BEHAVIOR CHANGE (Aug 2026, confirmed): planning always continues, even
+  // over budget. Deduction (and, if it goes negative, an auto-resolved
+  // debt record) now happens server-side at video upload — this screen no
+  // longer blocks or requires a manual pre-approval request.
   void _confirm() {
-    if (_overBudget) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(
-          _requestSent
-              ? 'Waiting for approval — close and reopen this later to check.'
-              : 'You need $_shortfall more Goins. Tap "Request" below first.',
-          style: GoogleFonts.nunito(fontWeight: FontWeight.w900),
-        ),
-        backgroundColor: _amber,
-      ));
-      return;
-    }
     Navigator.of(context).pop(_pickedList);
   }
 
@@ -267,7 +225,10 @@ class _MaterialPickerSheetState extends State<MaterialPickerSheet> {
     );
   }
 
-  // ─── NEW: Shortfall banner ──────────────────────────────────
+  // ─── Shortfall banner — informational only (Aug 2026) ────────
+  // No button here anymore: the debt record is created automatically,
+  // server-side, at video upload — not via a manual pre-request during
+  // local planning. This just lets the child see it coming.
   Widget _buildShortfallBanner() {
     return Container(
       margin: const EdgeInsets.fromLTRB(16, 0, 16, 6),
@@ -286,40 +247,16 @@ class _MaterialPickerSheetState extends State<MaterialPickerSheet> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'You need $_shortfall more Goins for this',
+                  'This uses $_shortfall more Goins than you have',
                   style: GoogleFonts.nunito(
                       color: _ink, fontSize: 12, fontWeight: FontWeight.w800),
                 ),
-                if (_requestSent)
-                  Text(
-                    'Requested — waiting for your teacher or parent to approve',
-                    style: GoogleFonts.nunito(
-                        color: _muted, fontSize: 10, fontWeight: FontWeight.w600),
-                  ),
+                Text(
+                  'That\'s okay — keep going. You\'ll go into debt for it, paid back as you earn more Goins.',
+                  style: GoogleFonts.nunito(
+                      color: _muted, fontSize: 10, fontWeight: FontWeight.w600),
+                ),
               ],
-            ),
-          ),
-          const SizedBox(width: 8),
-          GestureDetector(
-            onTap: (_requestSent || _requesting) ? null : _sendTopUpRequest,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-              decoration: BoxDecoration(
-                color: _requestSent ? _border : _amber,
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: _requesting
-                  ? const SizedBox(
-                      width: 14, height: 14,
-                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                    )
-                  : Text(
-                      _requestSent ? 'Requested ✓' : 'Request',
-                      style: GoogleFonts.nunito(
-                          color: _requestSent ? _muted : Colors.white,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w800),
-                    ),
             ),
           ),
         ],
@@ -555,7 +492,9 @@ class _MaterialPickerSheetState extends State<MaterialPickerSheet> {
 
   Widget _buildConfirmBar() {
     final count = _pickedList.length;
-    final locked = _overBudget;
+    // Kept purely as a color cue for the total (red = over budget) — no
+    // longer disables anything, since Confirm always works now.
+    final overBudget = _overBudget;
     return SafeArea(
       child: Container(
         padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
@@ -581,7 +520,7 @@ class _MaterialPickerSheetState extends State<MaterialPickerSheet> {
                   Text(
                     'Total: $_totalGoins Goins',
                     style: GoogleFonts.nunito(
-                        color: locked ? _red : _amber,
+                        color: overBudget ? _red : _amber,
                         fontSize: 13,
                         fontWeight: FontWeight.bold),
                   ),
@@ -593,7 +532,6 @@ class _MaterialPickerSheetState extends State<MaterialPickerSheet> {
             GestureDetector(
               onTap: () => setState(() {
                 _quantities.clear();
-                _requestSent = false;
               }),
               child: Container(
                 padding: const EdgeInsets.symmetric(
@@ -612,22 +550,21 @@ class _MaterialPickerSheetState extends State<MaterialPickerSheet> {
               ),
             ),
           ],
-          // Confirm
+          // Confirm — always enabled now (Aug 2026 behavior change)
           GestureDetector(
             onTap: _confirm,
             child: Container(
               padding: const EdgeInsets.symmetric(
                   horizontal: 20, vertical: 10),
               decoration: BoxDecoration(
-                color: locked ? _muted : _blue,
+                color: _blue,
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Row(mainAxisSize: MainAxisSize.min, children: [
-                Icon(locked ? Icons.lock_outline : Icons.check_rounded,
-                    color: Colors.white, size: 16),
+                const Icon(Icons.check_rounded, color: Colors.white, size: 16),
                 const SizedBox(width: 6),
                 Text(
-                  locked ? 'Locked' : 'Confirm',
+                  'Confirm',
                   style: GoogleFonts.nunito(
                       color: Colors.white,
                       fontSize: 13,

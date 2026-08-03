@@ -279,7 +279,67 @@ export const createProject = async (req: Request, res: Response) => {
       aiReviewedAt,
     });
 
-    // NOTE: Goins are awarded ONLY on admin approval (see approveProject in
+    // ── Material Goins cost (Aug 2026 — Rule 25 reversal, confirmed) ────
+    // Deduction happens HERE, once, at upload — not live during planning.
+    // Drafts are local-only (SQLite) until this exact moment, so there is
+    // no earlier reliable server round-trip to hook a "live" deduction
+    // into. If this takes the balance negative, an already-resolved audit
+    // record is logged (MATERIAL_OVERSPEND, status APPROVED, decidedByRole
+    // 'AUTO') — never blocks the upload, never requires a manual admin
+    // click. Approving a MATERIAL_OVERSPEND record never credits Goins
+    // (see goinsTopupRoutes.ts) — the debt is real and is repaid by
+    // earning more Goins normally, exactly as confirmed: "balance can go
+    // negative (debt) until they earn it back."
+    if (parsedMaterials.length > 0) {
+      try {
+        const materialIds = parsedMaterials.map((m) => m.id);
+        const materialRecords = await prisma.material.findMany({
+          where: { id: { in: materialIds } },
+          select: { id: true, goinsPrice: true },
+        });
+        const priceMap = new Map(materialRecords.map((m) => [m.id, m.goinsPrice]));
+        const totalCost = parsedMaterials.reduce(
+          (sum, m) => sum + (priceMap.get(m.id) ?? 0) * m.quantity,
+          0
+        );
+
+        if (totalCost > 0) {
+          const owner = await prisma.user.findUnique({ where: { id: project.userId }, select: { score: true, name: true } });
+          const newBalance = (owner?.score ?? 0) - totalCost;
+
+          await prisma.user.update({
+            where: { id: project.userId },
+            data: {
+              score: { decrement: totalCost },
+              scoreHistory: {
+                push: { time: new Date(), updatedScore: -totalCost, reason: `"${title}" materials: -${totalCost} Goins` },
+              },
+            },
+          });
+
+          if (newBalance < 0) {
+            await prisma.goinTopUpRequest.create({
+              data: {
+                requesterId: project.userId,
+                requesterName: owner?.name ?? "Unknown",
+                amount: Math.abs(newBalance),
+                reason: `Materials for "${title}" cost more than the available balance.`,
+                projectDraftContext: project.id,
+                requestType: "MATERIAL_OVERSPEND",
+                status: "APPROVED",
+                decidedByRole: "AUTO",
+                decidedAt: new Date(),
+              },
+            });
+            logger.info(`💸 Project ${project.id} pushed ${owner?.name} to a Goins deficit of ${Math.abs(newBalance)} — logged, upload proceeded.`);
+          }
+        }
+      } catch (goinsError) {
+        logger.error({ goinsError }, "⚠️ Material Goins deduction failed — upload proceeded anyway, balance may be stale");
+      }
+    }
+
+
     // videoApprovalController.ts) — never at upload time. Previously this
     // line awarded +100 Goins immediately on upload, which double-paid
     // every child (once here, again on approval) and paid out even for

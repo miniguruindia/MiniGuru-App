@@ -89,10 +89,11 @@ By using MiniGuru you agree to these Terms. Parents and guardians agree on behal
 MiniGuru is designed for children aged 8–14. An account requires a parent or guardian's consent and contact details.
 
 ## 3. Goins — Virtual Currency
-- Goins are MiniGuru's virtual currency earned by completing projects, uploading videos, and community participation.
+- Goins are MiniGuru's virtual currency, earned by completing projects, uploading videos, and community participation.
 - Goins have **no real monetary value** and cannot be exchanged for cash.
-- Goins are a motivation tracker — earned by building, never deducted.
-- Materials are purchased via Amazon affiliate links — no MiniGuru payment needed.
+- Selecting materials while planning a project uses Goins based on each material's cost.
+- If a project's materials cost more Goins than a child currently has, planning still continues — the balance can go negative (a form of debt) and is repaid automatically as the child earns more Goins from future projects.
+- Materials themselves are purchased with real money via Amazon affiliate links (or gathered locally) — Goins are a separate, in-app achievement/budget system layered on top, not a payment method.
 
 ## 4. Your Content
 - Children retain ownership of their project ideas.
@@ -160,7 +161,7 @@ connect@miniguru.in
     },
     {
       'question': 'What are Goins?',
-      'answer':   'Goins are MiniGuru\'s motivation and consistency tracker. Your child earns Goins by uploading project videos, and from likes and comments on their projects. Goins celebrate your child\'s creative journey — the more they build, the more they earn. Goins are never spent or used to buy materials; materials are bought by parents directly through Amazon.',
+      'answer':   'Goins are MiniGuru\'s in-app achievement currency. Your child earns Goins by uploading project videos, and from likes and comments on their projects. Selecting materials while planning a project also uses Goins based on each material\'s cost — if that costs more than your child currently has, planning still continues and the balance can go negative, repaid automatically as they earn more. Goins have no real monetary value. Materials themselves are still bought by parents directly through Amazon, separately from Goins.',
     },
     {
       'question': 'How does the shop work?',
@@ -168,7 +169,7 @@ connect@miniguru.in
     },
     {
       'question': 'How does my child earn Goins?',
-      'answer':   'Goins are earned by completing projects and uploading videos. Goins are a motivation tracker — they show your child\'s progress and dedication. They are never used to buy anything.',
+      'answer':   'Goins are earned by completing projects and uploading videos, and by likes and comments from the community. They\'re also used up when planning a project, based on the Goins cost of the materials chosen — if a plan costs more than the current balance, it can go into a temporary deficit that\'s repaid as more Goins are earned.',
     },
     {
       'question': 'Is my child\'s data safe?',

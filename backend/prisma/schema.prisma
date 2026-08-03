@@ -660,6 +660,14 @@ model GoinTopUpRequest {
   reason              String?
   projectDraftContext String?
   status              String    @default("PENDING")
+  // DIRECT_TOPUP = child/mentor directly asks for bonus Goins — approving
+  // this CREDITS the amount (original behavior, unchanged).
+  // MATERIAL_OVERSPEND = auto-created when a project's material cost took
+  // the child's balance negative — this is an AUDIT RECORD, not a request
+  // for free Goins. The deduction already happened; approving it never
+  // credits anything. The debt persists and is repaid by earning more
+  // Goins normally, per the founder's explicit design (Aug 2026).
+  requestType         String    @default("DIRECT_TOPUP")
   decidedById         String?   @db.ObjectId
   decidedByRole       String?
   decidedAt           DateTime?

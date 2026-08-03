@@ -848,16 +848,19 @@ class _ProfileState extends State<Profile>
   // ── Goins only card ─────────────────────────────────────────────────────────
   Widget _buildGoinsOnlyCard() {
     final goins = _user?.score ?? 0;
+    final inDebt = goins < 0;
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFFE8A000), Color(0xFFFFCC02)],
+        gradient: LinearGradient(
+          colors: inDebt
+              ? const [Color(0xFFB0413E), Color(0xFFE57373)]
+              : const [Color(0xFFE8A000), Color(0xFFFFCC02)],
           begin: Alignment.topLeft, end: Alignment.bottomRight),
         borderRadius: BorderRadius.circular(18),
         boxShadow: [BoxShadow(
-          color: const Color(0xFFE8A000).withOpacity(0.3),
+          color: (inDebt ? const Color(0xFFB0413E) : const Color(0xFFE8A000)).withOpacity(0.3),
           blurRadius: 12, offset: const Offset(0, 4))],
       ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -875,7 +878,10 @@ class _ProfileState extends State<Profile>
             fontSize: 36, fontWeight: FontWeight.w900,
             color: Colors.white)),
         const SizedBox(height: 4),
-        Text('Keep building to earn more! 🚀',
+        Text(
+          inDebt
+              ? 'A project used more Goins than you had — build and earn to pay it back! 💪'
+              : 'Keep building to earn more! 🚀',
           style: GoogleFonts.nunito(fontSize: 11, color: Colors.white70)),
       ]),
     );

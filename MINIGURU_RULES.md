@@ -12,7 +12,8 @@
 | # | Rule | Why |
 |---|---|---|
 | 1 | **Goins = user.score ONLY — NEVER wallet.balance** | wallet.balance = real Razorpay money. Mixing causes financial corruption |
-| 25 | **Goins = motivation tracker ONLY. Never deducted. Never used to buy anything** | Core product philosophy — parents buy via Amazon, Goins just track achievement |
+| 25 | ~~Goins = motivation tracker ONLY. Never deducted.~~ **SUPERSEDED Aug 2026 — see Rule 25b** | Materials now cost Goins again; negative balance (debt) allowed |
+| 25b | **Materials cost Goins at video upload. If it goes negative, planning/upload is never blocked — debt is repaid by earning more Goins. Approving a MATERIAL_OVERSPEND audit record never credits Goins** | Reversing this without the debt-not-credit distinction breaks the whole design — materials become free again |
 | 26 | **Shop = Amazon affiliate (miniguru08-21) only. No own-store/Razorpay flows yet** | No own inventory until confirmed |
 | 19 | **Always --update-env-vars, NEVER --set-env-vars on Cloud Run** | --set-env-vars wipes ALL env vars including DATABASE_URL |
 | 23 | **Verify DATABASE_URL exists after any Cloud Run env operation** | Silent DB connection loss = all APIs return 500 |
@@ -89,7 +90,8 @@ firebase deploy --only hosting
 | 22 | Never use SMTP on Cloud Run — always use SendGrid or HTTP-based email API | Google Cloud blocks SMTP ports 25, 465, 587 |
 | 23 | Always --update-env-vars. Verify DATABASE_URL after any env op | DB connection silently lost |
 | 24 | YOUTUBE_TOKENS in Secret Manager only — never as env var | Double-slash `//` in token breaks gcloud parsing. Same applies to FIREBASE_SERVICE_ACCOUNT_JSON (Rule 40) |
-| 25 | Goins = motivation tracker ONLY. Never deducted for anything | Core product philosophy change (June 2, 2026) |
+| 25 | ~~Goins = motivation tracker ONLY. Never deducted for anything~~ **SUPERSEDED Aug 2026** — see Rule 25b below | Was the June 2, 2026 architecture; formally reversed, not accidentally drifted |
+| 25b | Materials cost Goins, deducted once at video upload (not live during planning — drafts are local-only, upload is the one reliable server round-trip). If it goes negative, upload still proceeds; an already-resolved `GoinTopUpRequest` (requestType: MATERIAL_OVERSPEND, status: APPROVED, decidedByRole: AUTO) is logged for admin's audit trail. The debt is real and repaid by earning more Goins normally — approving/auto-resolving a MATERIAL_OVERSPEND record must NEVER credit Goins, or materials become free again | Confirmed design, Aug 2026. The original DIRECT_TOPUP flow (child/mentor directly asks for bonus Goins) is unaffected and still credits on approval — only MATERIAL_OVERSPEND is credit-free |
 | 26 | Shop = Amazon affiliate (miniguru08-21) only for now | No own-inventory Razorpay until explicitly confirmed |
 | 27 | ALWAYS rebuild dist/ before Cloud Run deploy | Cloud Run runs dist/ JS — src/ TS changes are ignored otherwise |
 | 28 | Express route ordering: /admin/* routes MUST come before /:id | Express matches /:id for /admin/all — returns wrong handler |

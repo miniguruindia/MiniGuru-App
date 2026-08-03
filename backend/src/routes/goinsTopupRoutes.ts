@@ -153,11 +153,12 @@ router.post('/admin/topup/:id/approve', authenticateToken, requireAdminOrGuardia
       return res.status(400).json({ error: 'Request not pending' });
     }
 
-    await prisma.$transaction([
-      prisma.user.update({
-        where: { id: request.requesterId },
-        data: { score: { increment: request.amount } },
-      }),
+    // MATERIAL_OVERSPEND records are audit trails of debt already applied
+    // at project-upload time (see createProject) — approving one must
+    // never credit Goins, or the debt-until-earned-back design breaks and
+    // materials become free again. Only DIRECT_TOPUP (a child/mentor
+    // directly asking for bonus Goins) actually grants anything here.
+    const dbOps: any[] = [
       prisma.goinTopUpRequest.update({
         where: { id },
         data: {
@@ -167,7 +168,17 @@ router.post('/admin/topup/:id/approve', authenticateToken, requireAdminOrGuardia
           decidedAt: new Date(),
         },
       }),
-    ]);
+    ];
+    if (request.requestType === 'DIRECT_TOPUP') {
+      dbOps.unshift(
+        prisma.user.update({
+          where: { id: request.requesterId },
+          data: { score: { increment: request.amount } },
+        })
+      );
+    }
+
+    await prisma.$transaction(dbOps);
 
     return res.json({ success: true });
   } catch (err) {
