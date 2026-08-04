@@ -34,6 +34,7 @@ import cmsRouter from './routes/cmsRoutes';
 import guardianRouter from './routes/guardianRoutes';
 import communicationRouter from './routes/communicationRoutes';   // ← NEW
 import goinsRouter from './routes/goinsRoutes';           // ← NEW
+import dailyQuestRouter from './routes/dailyQuestRoutes';
 import goinsTopupRouter from './routes/goinsTopupRoutes';
 import schoolAccountRouter from './routes/schoolAccountRoutes';   // ← NEW: school/T-LAB admin accounts
 import communitySubmissionsRouter from './routes/communitySubmissionsRoutes';   // ← NEW: T-LAB Happenings + STEAM Challenges submission workflow
@@ -309,6 +310,7 @@ try {
   app.use('/shop', shopRoutes);
   app.use('/goins', goinsRouter);
   app.use('/goins', goinsTopupRouter);
+  app.use('/goins', dailyQuestRouter);
   app.use('/users', userAnalyticsRouter);
   app.use('/cms', cmsRouter);
 app.use('/mentor', guardianRouter);

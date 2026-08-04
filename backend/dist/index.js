@@ -37,6 +37,7 @@ const cmsRoutes_1 = __importDefault(require("./routes/cmsRoutes"));
 const guardianRoutes_1 = __importDefault(require("./routes/guardianRoutes"));
 const communicationRoutes_1 = __importDefault(require("./routes/communicationRoutes")); // ← NEW
 const goinsRoutes_1 = __importDefault(require("./routes/goinsRoutes")); // ← NEW
+const dailyQuestRoutes_1 = __importDefault(require("./routes/dailyQuestRoutes"));
 const goinsTopupRoutes_1 = __importDefault(require("./routes/goinsTopupRoutes"));
 const schoolAccountRoutes_1 = __importDefault(require("./routes/schoolAccountRoutes")); // ← NEW: school/T-LAB admin accounts
 const communitySubmissionsRoutes_1 = __importDefault(require("./routes/communitySubmissionsRoutes")); // ← NEW: T-LAB Happenings + STEAM Challenges submission workflow
@@ -295,6 +296,7 @@ try {
     app.use('/shop', shopRoutes_1.default);
     app.use('/goins', goinsRoutes_1.default);
     app.use('/goins', goinsTopupRoutes_1.default);
+    app.use('/goins', dailyQuestRoutes_1.default);
     app.use('/users', userAnalyticsRoutes_1.default);
     app.use('/cms', cmsRoutes_1.default);
     app.use('/mentor', guardianRoutes_1.default);

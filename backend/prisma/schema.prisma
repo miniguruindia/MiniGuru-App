@@ -70,6 +70,12 @@ model User {
   passwordHash  String
   name          String
   age           Int
+  // Daily Quest streak (Aug 2026) — see DailyQuestProgress model. Streak
+  // increments once per real quest-completing day; lastQuestDate uses
+  // "YYYY-MM-DD" so continuity can be checked with a plain string compare,
+  // no timezone-math needed.
+  currentStreak Int            @default(0)
+  lastQuestDate String?
   role          Role           @default(USER)
   phoneNumber   String?
   createdAt     DateTime       @default(now())
@@ -650,6 +656,25 @@ model Challenge {
   @@index([audience])
   @@index([submittedById])
   @@map("challenges")
+}
+
+// Real Daily Quest (Aug 2026) — replaces a purely decorative, hardcoded
+// home-screen card ("3/5 • +50 pts", frozen, never actually changed for
+// anyone). Task: watch 3 project videos to real completion today (reuses
+// the existing 75%-watched view-tracking, not a separate counting system).
+// One record per user per day; DAILY_QUEST_TARGET/REWARD are the only two
+// numbers to touch if this needs tuning later.
+model DailyQuestProgress {
+  id            String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId        String   @db.ObjectId
+  date          String   // "YYYY-MM-DD" — plain string compare, no timezone math
+  videosWatched Int      @default(0)
+  completed     Boolean  @default(false)
+  streakAtCompletion Int @default(0) // User.currentStreak snapshot at the moment this quest completed
+  createdAt     DateTime @default(now())
+
+  @@unique([userId, date])
+  @@map("daily_quest_progress")
 }
 
 model GoinTopUpRequest {

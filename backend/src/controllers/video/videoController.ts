@@ -6,6 +6,7 @@ import { PrismaClient } from '@prisma/client';
 import logger from '../../logger';
 import { google } from 'googleapis';
 import { resolveOwnerUserId } from '../../middleware/resolveSubject';
+import { recordQuestVideoWatched } from '../../services/dailyQuestService';
 
 const prisma = new PrismaClient();
 
@@ -106,6 +107,11 @@ export const trackVideoView = async (req: Request, res: Response) => {
       where: { id: userId },
       data: { score: { increment: 1 } },
     }).catch(() => {});
+
+    // Daily Quest — same real, 75%-watched event drives quest progress too,
+    // not a separate counting system. Fire-and-forget: never blocks or
+    // fails the view response itself.
+    recordQuestVideoWatched(userId).catch(() => {});
 
     // Get total views
     const totalViews = await prisma.videoView.count({

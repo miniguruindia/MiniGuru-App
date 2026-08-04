@@ -10,6 +10,7 @@ const client_1 = require("@prisma/client");
 const logger_1 = __importDefault(require("../../logger"));
 const googleapis_1 = require("googleapis");
 const resolveSubject_1 = require("../../middleware/resolveSubject");
+const dailyQuestService_1 = require("../../services/dailyQuestService");
 const prisma = new client_1.PrismaClient();
 // YouTube API setup
 const youtube = googleapis_1.google.youtube({
@@ -91,6 +92,10 @@ const trackVideoView = async (req, res) => {
             where: { id: userId },
             data: { score: { increment: 1 } },
         }).catch(() => { });
+        // Daily Quest — same real, 75%-watched event drives quest progress too,
+        // not a separate counting system. Fire-and-forget: never blocks or
+        // fails the view response itself.
+        (0, dailyQuestService_1.recordQuestVideoWatched)(userId).catch(() => { });
         // Get total views
         const totalViews = await prisma.videoView.count({
             where: { videoId },

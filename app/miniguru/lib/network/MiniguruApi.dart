@@ -702,6 +702,45 @@ class MiniguruApi {
     }
   }
 
+  // Real Daily Quest progress (Aug 2026) — the home screen card used to be
+  // hardcoded, always showing "3/5 • +50 pts" for every single user.
+  Future<Map<String, dynamic>?> getDailyQuest() async {
+    try {
+      final authToken = await _getValidToken();
+      if (authToken == null) return null;
+      final response = await http.get(
+        Uri.parse('$_baseUrl/goins/daily-quest'),
+        headers: _buildHeaders(authToken.accessToken),
+      );
+      if (response.statusCode == 200) return jsonDecode(response.body);
+      return null;
+    } catch (e) {
+      print('❌ Daily quest error: $e');
+      return null;
+    }
+  }
+
+  // Real leaderboard rank — was also hardcoded ("Rank #42") right next to
+  // the fake Daily Quest card, fixed together.
+  Future<int?> getMyRank() async {
+    try {
+      final authToken = await _getValidToken();
+      if (authToken == null) return null;
+      final response = await http.get(
+        Uri.parse('$_baseUrl/goins/my-rank'),
+        headers: _buildHeaders(authToken.accessToken),
+      );
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return data['rank'] as int?;
+      }
+      return null;
+    } catch (e) {
+      print('❌ My rank error: $e');
+      return null;
+    }
+  }
+
   Future<http.Response?> getGoinsHistory({int page = 1, int limit = 20}) async {
     final authToken = await _getValidToken();
     if (authToken == null) return null;

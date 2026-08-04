@@ -61,6 +61,11 @@ class _HomeState extends State<Home> {
   // Sourced from CMS key 'external_videos', edited via admin.miniguru.in/content.
   List<Map<String, dynamic>> _externalVideos = [];
 
+  // Real Daily Quest + rank (Aug 2026) — this card used to show hardcoded
+  // fake text ("3/5 • +50 pts", "Rank #42") for every single user.
+  Map<String, dynamic>? _dailyQuest;
+  int? _myRank;
+
   @override
   void initState() {
     super.initState();
@@ -87,6 +92,7 @@ class _HomeState extends State<Home> {
           _isLoading = false;
         });
       }
+      if (userData != null) _loadDailyQuestAndRank();
     } catch (e) {
       if (mounted) {
         setState(() {
@@ -96,6 +102,18 @@ class _HomeState extends State<Home> {
         });
       }
     }
+  }
+
+  Future<void> _loadDailyQuestAndRank() async {
+    final results = await Future.wait([
+      _miniguruApi.getDailyQuest(),
+      _miniguruApi.getMyRank(),
+    ]);
+    if (!mounted) return;
+    setState(() {
+      _dailyQuest = results[0] as Map<String, dynamic>?;
+      _myRank = results[1] as int?;
+    });
   }
 
   Future<void> _loadYouTubeVideos() async {
@@ -361,17 +379,30 @@ class _HomeState extends State<Home> {
     final score = user?.score?.toString() ?? '0';
     final projects = user?.totalProjects?.toString() ?? '0';
 
+    // Real Daily Quest — was hardcoded '3/5 • +50 pts' for every user.
+    final questWatched = _dailyQuest?['videosWatched'] ?? 0;
+    final questTarget = _dailyQuest?['target'] ?? 3;
+    final questReward = _dailyQuest?['reward'] ?? 10;
+    final questCompleted = _dailyQuest?['completed'] == true;
+    final questStreak = _dailyQuest?['streak'] ?? 0;
+    final questSubtitle = questCompleted
+        ? (questStreak > 1 ? '✅ Done! 🔥 $questStreak day streak' : '✅ Done today!')
+        : '$questWatched/$questTarget • +$questReward pts';
+
+    // Real rank — was hardcoded 'Rank #42' for every user.
+    final rankSubtitle = _myRank != null ? 'Rank #$_myRank' : 'Keep building!';
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: LayoutBuilder(builder: (context, constraints) {
         if (constraints.maxWidth < 600) {
           return Column(children: [
-            _buildStatCard('Daily Quest', 'Watch 5 Projects', '3/5 • +50 pts',
+            _buildStatCard('Daily Quest', 'Watch $questTarget Projects', questSubtitle,
                 Icons.emoji_events, const Color(0xFFFDE68A), const Color(0xFFD97706)),
             const SizedBox(height: 12),
             Row(children: [
               Expanded(
-                  child: _buildStatCard('Score', score, 'Rank #42',
+                  child: _buildStatCard('Score', score, rankSubtitle,
                       Icons.stars, const Color(0xFFF3F4F6), const Color(0xFF3B82F6))),
               const SizedBox(width: 12),
               Expanded(
@@ -382,11 +413,11 @@ class _HomeState extends State<Home> {
         }
         return Row(children: [
           Expanded(
-              child: _buildStatCard('Daily Quest', 'Watch 5 Projects', '3/5 • +50 pts',
+              child: _buildStatCard('Daily Quest', 'Watch $questTarget Projects', questSubtitle,
                   Icons.emoji_events, const Color(0xFFFDE68A), const Color(0xFFD97706))),
           const SizedBox(width: 12),
           Expanded(
-              child: _buildStatCard('Score', score, 'Rank #42',
+              child: _buildStatCard('Score', score, rankSubtitle,
                   Icons.stars, const Color(0xFFF3F4F6), const Color(0xFF3B82F6))),
           const SizedBox(width: 12),
           Expanded(
