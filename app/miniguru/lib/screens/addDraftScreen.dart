@@ -301,6 +301,14 @@ class _AddDraftScreenState extends State<AddDraftScreen>
             : myOwnKey,
       );
       _showSnack('Saved as draft! ✅');
+      // BEHAVIOR CHANGE (founder request): sending the materials-to-buy
+      // list to a parent only makes sense NOW, while the project is still
+      // being planned — not after the video is already uploaded and the
+      // building is done. This reuses the real email-confirm flow that
+      // already existed but was never actually wired to anything.
+      if (_pickedMaterials.isNotEmpty && mounted) {
+        await _showSendKitToParent();
+      }
       if (mounted) {
         Navigator.pushNamedAndRemoveUntil(context, HomeScreen.id, (r) => false);
       }
@@ -331,20 +339,8 @@ class _AddDraftScreenState extends State<AddDraftScreen>
       if (mounted) Navigator.pop(context);
 
       if (statusCode == 201) {
-        if (_pickedMaterials.isNotEmpty) {
-          // Goins are earned by completing projects, not spent on materials
-          if (mounted) {
-            await showProjectKitPopup(
-              context: context,
-              pickedMaterials: _pickedMaterials,
-            );
-          }
-        }
         if (_draftId > 0) await _draftRepo.deleteDraft(_draftId);
-        _showSnack('Project submitted! 🚀');
-        if (mounted) {
-          Navigator.pushNamedAndRemoveUntil(context, HomeScreen.id, (r) => false);
-        }
+        if (mounted) await _showUploadCompleteDialog();
       } else {
         _showSnack('Upload failed. Please try again.', isError: true);
       }
@@ -358,10 +354,67 @@ class _AddDraftScreenState extends State<AddDraftScreen>
 
   bool _isSendingKit = false;
 
-  void _showSendKitToParent() {
+  // Real two-option confirmation after upload (founder request) — replaces
+  // the old silent "submitted" snackbar + auto-navigate-home.
+  Future<void> _showUploadCompleteDialog() async {
+    if (!mounted) return;
+    await showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Column(children: [
+          const Text('🎉', style: TextStyle(fontSize: 40)),
+          const SizedBox(height: 8),
+          Text('Project Uploaded!',
+              style: GoogleFonts.nunito(fontWeight: FontWeight.w900, fontSize: 18)),
+        ]),
+        content: Text(
+          'Your project is being reviewed. You\'ll be notified once it\'s approved.',
+          textAlign: TextAlign.center,
+          style: GoogleFonts.nunito(color: Colors.black54),
+        ),
+        actionsAlignment: MainAxisAlignment.center,
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.of(ctx).pop();
+              if (mounted) {
+                // Start a fresh project right away.
+                Navigator.of(context).pushReplacement(
+                  MaterialPageRoute(builder: (_) => const AddDraftScreen()),
+                );
+              }
+            },
+            child: Text('Plan Another Project',
+                style: GoogleFonts.nunito(fontWeight: FontWeight.w700)),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.of(ctx).pop();
+              if (mounted) {
+                Navigator.pushNamedAndRemoveUntil(context, HomeScreen.id, (r) => false);
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF5B6EF5),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            child: Text('Done', style: GoogleFonts.nunito(fontWeight: FontWeight.w800, color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _showSendKitToParent() async {
     if (_pickedMaterials.isEmpty) return;
-    final emailCtrl = TextEditingController();
-    showModalBottomSheet(
+    // Pre-fill from the account's saved guardianEmail if set, so the child
+    // can just confirm rather than typing it from scratch every time.
+    final myUserData = await UserRepository().getUserDataFromLocalDb();
+    final emailCtrl = TextEditingController(text: myUserData?.guardianEmail ?? '');
+    if (!mounted) return;
+    await showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,

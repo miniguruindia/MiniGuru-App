@@ -176,11 +176,11 @@ class _MentorChildPickerScreenState extends State<MentorChildPickerScreen> {
                                 },
                                 childCount: _children.length + 1,
                               ),
-                              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                                crossAxisCount: 2,
+                              gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+                                maxCrossAxisExtent: 190,
                                 crossAxisSpacing: 14,
                                 mainAxisSpacing: 14,
-                                childAspectRatio: 0.85,
+                                mainAxisExtent: 210,
                               ),
                             ),
                     ),
