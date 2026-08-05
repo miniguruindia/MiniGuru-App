@@ -117,7 +117,45 @@ class _MentorChildPickerScreenState extends State<MentorChildPickerScreen> {
     return Scaffold(
       backgroundColor: backgroundWhite,
       body: SafeArea(
-        child: _isLoading
+        child: Column(
+          children: [
+            // Always visible, regardless of loading state — previously the
+            // only way to reach "My Account" here was a button at the very
+            // bottom of the loaded content, easy to miss right after login
+            // (HomeScreen, which a refresh routes back to, has this same
+            // shortcut pinned to the top — this just matches that).
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  InkWell(
+                    onTap: () {
+                      SessionState.clearChild();
+                      Navigator.of(context).pushAndRemoveUntil(
+                        MaterialPageRoute(builder: (_) => const HomeScreen()),
+                        (route) => false,
+                      );
+                    },
+                    borderRadius: BorderRadius.circular(8),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: const [
+                          Icon(Icons.supervisor_account, size: 18, color: Color(0xFF3B82F6)),
+                          SizedBox(width: 6),
+                          Text('My Account',
+                              style: TextStyle(
+                                  fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF3B82F6))),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Expanded(child: _isLoading
             ? const Center(child: CircularProgressIndicator(color: pastelBlueText))
             : RefreshIndicator(
                 onRefresh: _loadData,
@@ -152,6 +190,9 @@ class _MentorChildPickerScreenState extends State<MentorChildPickerScreen> {
                   ],
                 ),
               ),
+            ),
+          ],
+        ),
       ),
     );
   }

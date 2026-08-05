@@ -702,9 +702,12 @@ const deleteProjectByID = async (req, res) => {
     const userId = req.user?.userId;
     if (!userId && req.user?.role !== "ADMIN")
         return res.status(401).json({ error: "Unauthorized" });
-    const { projectId } = req.params;
+    // BUGFIX: the route registers this param as :id (adminRoutes.ts), but
+    // this was reading req.params.projectId — always undefined, so every
+    // delete attempt passed `undefined` to Prisma and 500'd.
+    const { id } = req.params;
     try {
-        await projectService.deleteById(projectId);
+        await projectService.deleteById(id);
         res.status(204).end();
     }
     catch (error) {

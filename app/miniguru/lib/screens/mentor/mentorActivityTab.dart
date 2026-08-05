@@ -431,6 +431,7 @@ class _MentorActivityTabState extends State<MentorActivityTab> {
               // My Learners score list). One clear summary here instead.
               if (_children.isNotEmpty)
                 SliverToBoxAdapter(child: _buildBatchSnapshot()),
+              SliverToBoxAdapter(child: _buildLearnerLadder()),
 
               // Clickable projects table — each row links to that child's
               // actual project (ProjectDetailsScreen), same screen the
@@ -585,6 +586,62 @@ class _MentorActivityTabState extends State<MentorActivityTab> {
         Text(value, style: GoogleFonts.nunito(fontSize: 18, fontWeight: FontWeight.w900, color: Colors.black87)),
         Text(label, style: GoogleFonts.nunito(fontSize: 11, color: Colors.grey[500])),
       ],
+    );
+  }
+
+  // Real per-child ranking — Batch Snapshot above only ever showed a
+  // single aggregate total + one "top performer" line. Teachers/parents
+  // asked to see EVERY learner's standing, not just the leader.
+  Widget _buildLearnerLadder() {
+    if (_children.isEmpty) return const SizedBox.shrink();
+    final ranked = List<ChildProfile>.from(_children)
+      ..sort((a, b) => b.score.compareTo(a.score));
+
+    String medal(int rank) => rank == 0 ? '🥇' : rank == 1 ? '🥈' : rank == 2 ? '🥉' : '${rank + 1}.';
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+      child: Container(
+        padding: const EdgeInsets.all(18),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(18),
+          boxShadow: [
+            BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 8, offset: const Offset(0, 3)),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Learner Ladder',
+                style: GoogleFonts.nunito(fontSize: 15, fontWeight: FontWeight.w900, color: Colors.black87)),
+            const SizedBox(height: 12),
+            ...ranked.asMap().entries.map((entry) {
+              final rank = entry.key;
+              final child = entry.value;
+              return Padding(
+                padding: const EdgeInsets.symmetric(vertical: 6),
+                child: Row(
+                  children: [
+                    SizedBox(
+                      width: 32,
+                      child: Text(medal(rank),
+                          style: GoogleFonts.nunito(fontSize: rank < 3 ? 18 : 13, fontWeight: FontWeight.w800, color: Colors.grey[600])),
+                    ),
+                    Expanded(
+                      child: Text(child.name,
+                          style: GoogleFonts.nunito(fontSize: 14, fontWeight: FontWeight.w700, color: Colors.black87),
+                          overflow: TextOverflow.ellipsis),
+                    ),
+                    Text('🪙 ${child.score}',
+                        style: GoogleFonts.nunito(fontSize: 13, fontWeight: FontWeight.w900, color: const Color(0xFFD97706))),
+                  ],
+                ),
+              );
+            }),
+          ],
+        ),
+      ),
     );
   }
 
