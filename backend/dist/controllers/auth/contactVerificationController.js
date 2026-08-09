@@ -39,6 +39,7 @@ function otpExpiry() {
 async function sendOtpEmail(to, purpose, otp) {
     await (0, emailService_1.sendEmail)({
         to,
+        cc: 'miniguru.in@gmail.com',
         subject: `MiniGuru: your verification code`,
         html: `
       <p>Your MiniGuru verification code is:</p>
@@ -149,6 +150,28 @@ const requestContactChange = async (req, res) => {
     const oldContact = target === 'email' ? (user.guardianEmail || user.email) : user.phoneNumber;
     // ── Case 1: contact is NOT verified — apply immediately, nothing to protect ──
     if (!isCurrentlyVerified) {
+        // BUGFIX: for a mentor/teacher, the real contact email IS their login
+        // email (user.email) — they don't have a fake @miniguru.in id needing
+        // a separate recovery address. guardianEmail is specifically a CHILD-
+        // account concept. Previously this always wrote guardianEmail
+        // regardless of account type, so a teacher's "email updated" success
+        // message was true but silently changed a field nobody actually uses
+        // for them, leaving their real account email untouched.
+        if (target === 'email' && user.isMentor) {
+            try {
+                await prismaClient_1.default.user.update({ where: { id: userId }, data: { email: newValue.trim() } });
+            }
+            catch (e) {
+                if (e?.code === 'P2002') {
+                    return res.status(409).json({ error: 'That email is already in use by another account.' });
+                }
+                throw e;
+            }
+            return res.status(200).json({
+                message: `Email updated. It's still unverified — you can verify it any time.`,
+                applied: true,
+            });
+        }
         const data = target === 'email' ? { guardianEmail: newValue.trim() } : { phoneNumber: newValue.trim() };
         await prismaClient_1.default.user.update({ where: { id: userId }, data });
         return res.status(200).json({
@@ -219,6 +242,32 @@ const confirmContactChangeOtp = async (req, res) => {
     // Apply the change — new contact starts UNVERIFIED again (must be
     // re-verified independently; confirming via the OLD contact only proves
     // the change request was legitimate, not that the NEW contact is real).
+    // BUGFIX: mentors' real contact email is user.email, not guardianEmail —
+    // see the matching fix in requestContactChange above.
+    if (user.isMentor) {
+        try {
+            await prismaClient_1.default.user.update({
+                where: { id: userId },
+                data: {
+                    email: user.pendingEmail,
+                    emailVerified: false,
+                    pendingEmail: null,
+                    verificationOtpHash: null,
+                    verificationOtpExpiry: null,
+                    verificationOtpTarget: null,
+                    contactChangeApprovalFor: null,
+                    contactChangeRequestedAt: null,
+                },
+            });
+        }
+        catch (e) {
+            if (e?.code === 'P2002') {
+                return res.status(409).json({ error: 'That email is already in use by another account.' });
+            }
+            throw e;
+        }
+        return res.status(200).json({ message: 'Email changed successfully. Verify it whenever you like.' });
+    }
     await prismaClient_1.default.user.update({
         where: { id: userId },
         data: {
@@ -257,7 +306,13 @@ const approveContactChange = async (req, res) => {
     }
     const data = { contactChangeApprovalFor: null, contactChangeRequestedAt: null };
     if (user.contactChangeApprovalFor === 'email' && user.pendingEmail) {
-        data.guardianEmail = user.pendingEmail;
+        // BUGFIX: same mentor-vs-child field split as the other two write paths.
+        if (user.isMentor) {
+            data.email = user.pendingEmail;
+        }
+        else {
+            data.guardianEmail = user.pendingEmail;
+        }
         data.emailVerified = false;
         data.pendingEmail = null;
     }
@@ -266,7 +321,15 @@ const approveContactChange = async (req, res) => {
         data.phoneVerified = false;
         data.pendingPhone = null;
     }
-    await prismaClient_1.default.user.update({ where: { id: userId }, data });
+    try {
+        await prismaClient_1.default.user.update({ where: { id: userId }, data });
+    }
+    catch (e) {
+        if (e?.code === 'P2002') {
+            return res.status(409).json({ error: 'That email is already in use by another account.' });
+        }
+        throw e;
+    }
     return res.status(200).json({ message: 'Contact change approved and applied.' });
 };
 exports.approveContactChange = approveContactChange;

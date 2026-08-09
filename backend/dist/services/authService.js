@@ -48,7 +48,13 @@ exports.verifyToken = verifyToken;
 // Authenticate user
 // -------------------------------
 const authenticateUser = async (email, password) => {
-    const user = await prismaClient_1.default.user.findUnique({ where: { email } });
+    // BUGFIX: MongoDB string equality is case-sensitive by default —
+    // login previously failed if the typed case didn't exactly match what
+    // was stored, which matters a lot for @miniguru.in style IDs kids/
+    // teachers type from memory or a shared credentials sheet.
+    const user = await prismaClient_1.default.user.findFirst({
+        where: { email: { equals: email.trim(), mode: 'insensitive' } },
+    });
     if (!user) {
         throw new Error("Invalid credentials");
     }

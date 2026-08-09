@@ -39,6 +39,7 @@ function otpExpiry(): Date {
 async function sendOtpEmail(to: string, purpose: string, otp: string) {
   await sendEmail({
     to,
+    cc: 'miniguru.in@gmail.com',
     subject: `MiniGuru: your verification code`,
     html: `
       <p>Your MiniGuru verification code is:</p>
@@ -154,6 +155,28 @@ export const requestContactChange = async (req: Request, res: Response) => {
 
   // ── Case 1: contact is NOT verified — apply immediately, nothing to protect ──
   if (!isCurrentlyVerified) {
+    // BUGFIX: for a mentor/teacher, the real contact email IS their login
+    // email (user.email) — they don't have a fake @miniguru.in id needing
+    // a separate recovery address. guardianEmail is specifically a CHILD-
+    // account concept. Previously this always wrote guardianEmail
+    // regardless of account type, so a teacher's "email updated" success
+    // message was true but silently changed a field nobody actually uses
+    // for them, leaving their real account email untouched.
+    if (target === 'email' && user.isMentor) {
+      try {
+        await prisma.user.update({ where: { id: userId }, data: { email: newValue.trim() } });
+      } catch (e: any) {
+        if (e?.code === 'P2002') {
+          return res.status(409).json({ error: 'That email is already in use by another account.' });
+        }
+        throw e;
+      }
+      return res.status(200).json({
+        message: `Email updated. It's still unverified — you can verify it any time.`,
+        applied: true,
+      });
+    }
+
     const data: any =
       target === 'email' ? { guardianEmail: newValue.trim() } : { phoneNumber: newValue.trim() };
     await prisma.user.update({ where: { id: userId }, data });
@@ -232,6 +255,32 @@ export const confirmContactChangeOtp = async (req: Request, res: Response) => {
   // Apply the change — new contact starts UNVERIFIED again (must be
   // re-verified independently; confirming via the OLD contact only proves
   // the change request was legitimate, not that the NEW contact is real).
+  // BUGFIX: mentors' real contact email is user.email, not guardianEmail —
+  // see the matching fix in requestContactChange above.
+  if (user.isMentor) {
+    try {
+      await prisma.user.update({
+        where: { id: userId },
+        data: {
+          email: user.pendingEmail,
+          emailVerified: false,
+          pendingEmail: null,
+          verificationOtpHash: null,
+          verificationOtpExpiry: null,
+          verificationOtpTarget: null,
+          contactChangeApprovalFor: null,
+          contactChangeRequestedAt: null,
+        },
+      });
+    } catch (e: any) {
+      if (e?.code === 'P2002') {
+        return res.status(409).json({ error: 'That email is already in use by another account.' });
+      }
+      throw e;
+    }
+    return res.status(200).json({ message: 'Email changed successfully. Verify it whenever you like.' });
+  }
+
   await prisma.user.update({
     where: { id: userId },
     data: {
@@ -272,7 +321,12 @@ export const approveContactChange = async (req: Request, res: Response) => {
 
   const data: any = { contactChangeApprovalFor: null, contactChangeRequestedAt: null };
   if (user.contactChangeApprovalFor === 'email' && user.pendingEmail) {
-    data.guardianEmail = user.pendingEmail;
+    // BUGFIX: same mentor-vs-child field split as the other two write paths.
+    if (user.isMentor) {
+      data.email = user.pendingEmail;
+    } else {
+      data.guardianEmail = user.pendingEmail;
+    }
     data.emailVerified = false;
     data.pendingEmail = null;
   }
@@ -281,7 +335,14 @@ export const approveContactChange = async (req: Request, res: Response) => {
     data.phoneVerified = false;
     data.pendingPhone = null;
   }
-  await prisma.user.update({ where: { id: userId }, data });
+  try {
+    await prisma.user.update({ where: { id: userId }, data });
+  } catch (e: any) {
+    if (e?.code === 'P2002') {
+      return res.status(409).json({ error: 'That email is already in use by another account.' });
+    }
+    throw e;
+  }
   return res.status(200).json({ message: 'Contact change approved and applied.' });
 };
 

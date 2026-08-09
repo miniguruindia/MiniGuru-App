@@ -10,6 +10,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:miniguru/network/MiniguruApi.dart';
 import 'package:miniguru/models/User.dart';
 import 'package:miniguru/constants.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class UnifiedVideoPlayer extends StatefulWidget {
   final String videoId;
@@ -44,6 +45,7 @@ class _UnifiedVideoPlayerState extends State<UnifiedVideoPlayer> {
   bool _hasTrackedView = false;
   bool _isPlayerReady = false;
   StreamSubscription<Duration>? _positionSub;
+  List<dynamic> _materials = [];
 
   Map<String, bool> _likes = {
     'aesthetic': false,
@@ -92,6 +94,16 @@ class _UnifiedVideoPlayerState extends State<UnifiedVideoPlayer> {
     _loadComments();
     _loadViewStats();
     _loadUserLikes();
+    _loadMaterials();
+  }
+
+  Future<void> _loadMaterials() async {
+    try {
+      final result = await _miniguruApi.getVideoMaterials(widget.videoId);
+      if (mounted && result != null) setState(() => _materials = result);
+    } catch (_) {
+      // Materials section just doesn't show — never breaks video playback.
+    }
   }
 
   void _initializePlayer() {
@@ -480,7 +492,19 @@ class _UnifiedVideoPlayerState extends State<UnifiedVideoPlayer> {
   // Comments on the right) so both are always reachable regardless of
   // window size.
   Widget _buildWideLayout(BoxConstraints constraints) {
-    final videoWidth = (constraints.maxWidth * 0.62).clamp(480.0, 900.0);
+    // BUGFIX: previously sized the video from WIDTH first (up to 900px
+    // wide → ~506px tall from the 16:9 ratio), which on common laptop
+    // screens (1366x768, 1440x900) left almost no vertical room for the
+    // About/Comments panel below — exactly the "video at the bottom, half
+    // hidden, one line at a time" symptom. Size from available HEIGHT
+    // first instead, so there's always a guaranteed, reasonable amount of
+    // room left for the info panel regardless of window height.
+    const backBarHeight = 48.0;
+    final availableHeight = constraints.maxHeight - backBarHeight;
+    final videoHeight = (availableHeight * 0.48).clamp(280.0, 620.0);
+    final videoWidthFromHeight = videoHeight * 16 / 9;
+    final videoWidth = videoWidthFromHeight.clamp(480.0, constraints.maxWidth * 0.92);
+
     return Column(
       children: [
         _buildBackBar(),
@@ -489,6 +513,7 @@ class _UnifiedVideoPlayerState extends State<UnifiedVideoPlayer> {
           alignment: Alignment.center,
           child: SizedBox(
             width: videoWidth,
+            height: videoWidth * 9 / 16,
             child: YoutubePlayer(
               controller: _controller,
               aspectRatio: 16 / 9,
@@ -541,6 +566,144 @@ class _UnifiedVideoPlayerState extends State<UnifiedVideoPlayer> {
   // ── Title / stats / peer rating / "About this project" ──────────────────
   // Extracted verbatim from the previous single-column build() so both
   // layouts render byte-identical content, just arranged differently.
+  Widget _buildMaterialsSection() {
+    if (_materials.isEmpty) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('🧰 Materials used',
+              style: GoogleFonts.nunito(fontWeight: FontWeight.w900, fontSize: 15, color: Colors.black87)),
+          const SizedBox(height: 8),
+          ..._materials.map((m) {
+            final name = m['name'] ?? 'Material';
+            final qty = m['quantity'] ?? 1;
+            final unit = m['unit'] ?? 'piece';
+            final amazonUrl = m['amazonUrl'] as String?;
+            return Padding(
+              padding: const EdgeInsets.symmetric(vertical: 3),
+              child: Row(
+                children: [
+                  Text(m['icon'] ?? '🔩', style: const TextStyle(fontSize: 14)),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text('$name${qty > 1 ? ' x$qty' : ''}${unit != 'piece' ? ' ($unit)' : ''}',
+                        style: GoogleFonts.nunito(fontSize: 13, color: Colors.black87)),
+                  ),
+                  if (amazonUrl != null && amazonUrl.isNotEmpty)
+                    GestureDetector(
+                      onTap: () => launchUrl(Uri.parse(amazonUrl), mode: LaunchMode.externalApplication),
+                      child: const Icon(Icons.open_in_new_rounded, size: 14, color: Color(0xFFD97706)),
+                    ),
+                ],
+              ),
+            );
+          }),
+          const SizedBox(height: 10),
+          OutlinedButton.icon(
+            onPressed: _showSendMaterialsToParent,
+            icon: const Icon(Icons.mail_outline, size: 16),
+            label: Text('Send this kit to a parent',
+                style: GoogleFonts.nunito(fontSize: 12, fontWeight: FontWeight.w700)),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: const Color(0xFF5B6EF5),
+              side: const BorderSide(color: Color(0xFF5B6EF5)),
+              minimumSize: const Size(double.infinity, 40),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  bool _sendingKitToParent = false;
+
+  Future<void> _showSendMaterialsToParent() async {
+    // Any viewer can send this — not just the video's own maker — so no
+    // guardianEmail pre-fill assumption here; always a fresh confirm.
+    final emailCtrl = TextEditingController();
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSheetState) => Padding(
+          padding: EdgeInsets.only(
+            left: 20, right: 20, top: 20,
+            bottom: MediaQuery.of(ctx).viewInsets.bottom + 20,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Send materials kit', style: GoogleFonts.nunito(fontWeight: FontWeight.w900, fontSize: 16)),
+              const SizedBox(height: 6),
+              Text('We\'ll email the materials list with an Amazon buy link for "${widget.title}".',
+                  style: GoogleFonts.nunito(fontSize: 12, color: Colors.black54)),
+              const SizedBox(height: 14),
+              TextField(
+                controller: emailCtrl,
+                keyboardType: TextInputType.emailAddress,
+                decoration: InputDecoration(
+                  labelText: 'Parent\'s email',
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                ),
+              ),
+              const SizedBox(height: 14),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: _sendingKitToParent ? null : () async {
+                    final email = emailCtrl.text.trim();
+                    if (!email.contains('@')) {
+                      ScaffoldMessenger.of(ctx).showSnackBar(
+                          const SnackBar(content: Text('Enter a valid email')));
+                      return;
+                    }
+                    setSheetState(() => _sendingKitToParent = true);
+                    final ok = await _miniguruApi.sendMaterialsToParent(
+                      parentEmail: email,
+                      projectTitle: widget.title,
+                      items: _materials.map((m) => {
+                        'name': m['name'],
+                        'qty': m['quantity'],
+                        'unit': m['unit'],
+                        'priceEstimate': m['priceEstimate'],
+                        'amazonASIN': m['amazonASIN'],
+                      }).toList(),
+                    );
+                    setSheetState(() => _sendingKitToParent = false);
+                    if (ctx.mounted) Navigator.pop(ctx);
+                    if (mounted) {
+                      _showSnackBarSafe(ok ? 'Sent! ✅' : 'Could not send — try again', ok);
+                    }
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF5B6EF5),
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                  child: _sendingKitToParent
+                      ? const SizedBox(width: 18, height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                      : Text('Send', style: GoogleFonts.nunito(fontWeight: FontWeight.w800, color: Colors.white)),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showSnackBarSafe(String msg, bool ok) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(msg, style: GoogleFonts.nunito(fontWeight: FontWeight.w700)),
+      backgroundColor: ok ? Colors.green : Colors.red,
+    ));
+  }
+
   List<Widget> _buildAboutWidgets() {
     return [
                         // Video Info
@@ -583,6 +746,15 @@ class _UnifiedVideoPlayerState extends State<UnifiedVideoPlayer> {
 
 
                         const Divider(height: 1),
+
+                        // ── Materials used (Aug 2026) — previously only
+                        // shown on the YouTube description itself and the
+                        // home-screen strip, never in the actual player.
+                        // Lets the child copy the list, and lets ANY
+                        // viewer (not just the uploader) send a buy-kit
+                        // email for these materials to a parent.
+                        _buildMaterialsSection(),
+                        if (_materials.isNotEmpty) const Divider(height: 1),
 
                         // ── Peer Rating ──
                         VideoRatingWidget(

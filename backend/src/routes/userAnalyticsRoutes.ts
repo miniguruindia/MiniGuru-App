@@ -31,9 +31,10 @@ router.get('/me/analytics', authenticateToken, resolveSubject, async (req: any, 
         where: { userId, status: { in: ['pending', 'submitted'] } },
       }),
 
-      // Completed = approved
+      // Completed = published (BUGFIX: 'approved'/'completed' never existed
+      // as real statuses — this always counted 0 for every user before)
       prisma.project.count({
-        where: { userId, status: { in: ['approved', 'completed'] } },
+        where: { userId, status: 'published' },
       }),
 
       // Likes received on user's projects (Like.project.userId)

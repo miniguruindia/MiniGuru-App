@@ -9,13 +9,16 @@ export async function sendEmail({
   to,
   subject,
   html,
+  cc,
 }: {
   to: string;
   subject: string;
   html: string;
+  cc?: string | string[];
 }) {
   await sgMail.send({
     to,
+    ...(cc ? { cc } : {}),
     from: {
       email: process.env.FROM_EMAIL || 'connect@miniguru.in',
       name: 'MiniGuru',

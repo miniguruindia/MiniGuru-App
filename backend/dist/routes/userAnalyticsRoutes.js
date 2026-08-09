@@ -23,9 +23,10 @@ router.get('/me/analytics', authMiddleware_1.authenticateToken, resolveSubject_1
             prismaClient_1.default.project.count({
                 where: { userId, status: { in: ['pending', 'submitted'] } },
             }),
-            // Completed = approved
+            // Completed = published (BUGFIX: 'approved'/'completed' never existed
+            // as real statuses — this always counted 0 for every user before)
             prismaClient_1.default.project.count({
-                where: { userId, status: { in: ['approved', 'completed'] } },
+                where: { userId, status: 'published' },
             }),
             // Likes received on user's projects (Like.project.userId)
             prismaClient_1.default.like.count({

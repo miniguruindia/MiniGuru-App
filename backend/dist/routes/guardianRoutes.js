@@ -161,10 +161,53 @@ router.get('/children', authMiddleware_1.authenticateToken, async (req, res) => 
             },
             orderBy: { createdAt: 'asc' },
         });
-        return res.json({ children });
+        // BUGFIX: ChildProfile.score is a separate, effectively-dead legacy
+        // field. Every real Goins-earning path (project approval, views,
+        // comments, Daily Quest, etc.) updates User.score instead — for any
+        // child with an independent login, that's the real number. This was
+        // the root cause of the mentor dashboard's Batch Snapshot and Ladder
+        // always showing 0 Goins regardless of real activity.
+        const linkedIds = children.map((c) => c.linkedUserId).filter(Boolean);
+        const realScores = linkedIds.length
+            ? await prismaClient_1.default.user.findMany({ where: { id: { in: linkedIds } }, select: { id: true, score: true } })
+            : [];
+        const scoreMap = new Map(realScores.map((u) => [u.id, u.score]));
+        const merged = children.map((c) => ({
+            ...c,
+            score: c.linkedUserId && scoreMap.has(c.linkedUserId) ? scoreMap.get(c.linkedUserId) : c.score,
+        }));
+        return res.json({ children: merged });
     }
     catch (err) {
         console.error('get children error:', err);
+        return res.status(500).json({ message: 'Internal server error' });
+    }
+});
+// ─── GET /mentor/children/projects ───────────────────────────────────────────
+// Every project belonging to ANY of this mentor's children, in one call.
+// Fixes a real bug: mentorActivityTab.dart was fetching the MENTOR's own
+// projects (always empty — mentors don't upload) for its Batch Snapshot,
+// Ladder, and "who made what" table, so all three always showed 0/empty
+// regardless of how many real projects the children had actually uploaded.
+router.get('/children/projects', authMiddleware_1.authenticateToken, async (req, res) => {
+    try {
+        const userId = req.user?.id;
+        const children = await prismaClient_1.default.childProfile.findMany({
+            where: { guardianId: userId, isActive: true },
+            select: { linkedUserId: true },
+        });
+        const linkedUserIds = children.map((c) => c.linkedUserId).filter(Boolean);
+        if (linkedUserIds.length === 0)
+            return res.json([]);
+        const projects = await prismaClient_1.default.project.findMany({
+            where: { userId: { in: linkedUserIds } },
+            orderBy: { createdAt: 'desc' },
+            include: { category: true, user: { select: { name: true } }, comments: true },
+        });
+        return res.json(projects);
+    }
+    catch (err) {
+        console.error('get children projects error:', err);
         return res.status(500).json({ message: 'Internal server error' });
     }
 });

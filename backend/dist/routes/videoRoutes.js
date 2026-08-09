@@ -231,7 +231,7 @@ router.get('/:videoId/materials', async (req, res) => {
             project = await prismaClient_1.default.project.findFirst({
                 where: {
                     userId: pendingVideo.uploadedById,
-                    status: 'approved',
+                    status: 'published',
                     NOT: { materials: { isEmpty: true } },
                 },
                 orderBy: { createdAt: 'desc' },
@@ -241,7 +241,7 @@ router.get('/:videoId/materials', async (req, res) => {
         // Fallback: if no pendingVideo record, try matching by video URL string directly
         if (!project) {
             const allProjects = await prismaClient_1.default.project.findMany({
-                where: { status: 'approved' },
+                where: { status: 'published' },
                 select: { materials: true, video: true },
                 orderBy: { createdAt: 'desc' },
                 take: 200,

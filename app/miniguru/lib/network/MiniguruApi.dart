@@ -7,6 +7,7 @@ import 'package:miniguru/database/database_helper.dart';
 import 'package:miniguru/models/AuthToken.dart';
 import 'package:miniguru/models/User.dart';
 import 'package:miniguru/models/ChildProfile.dart';
+import 'package:miniguru/models/Projects.dart';
 import 'package:path/path.dart';
 import 'package:http_parser/http_parser.dart';
 import 'package:miniguru/secrets.dart';
@@ -1203,6 +1204,26 @@ class MiniguruApi {
     return [];
   }
 
+  // BUGFIX (Aug 2026): the old flow fetched the MENTOR's own projects
+  // (always empty — mentors don't upload) for the Children's Activity
+  // dashboard. This fetches every project belonging to ANY of the
+  // mentor's children directly, in one call.
+  Future<List<Project>> getMentorChildrenProjects() async {
+    try {
+      final authToken = await _db!.getAuthToken();
+      if (authToken == null) return [];
+      final response = await http.get(
+        Uri.parse('$_baseUrl/mentor/children/projects'),
+        headers: _buildHeaders(authToken.accessToken),
+      );
+      if (response.statusCode == 200) {
+        final List<dynamic> data = jsonDecode(response.body);
+        return data.map((e) => Project.fromJson(e as Map<String, dynamic>)).toList();
+      }
+    } catch (e) { print('❌ getMentorChildrenProjects: $e'); }
+    return [];
+  }
+
   Future<Map<String, dynamic>?> addChildProfile({required String name, required int age, String? grade, required String pin}) async {
     try {
       final authToken = await _db!.getAuthToken();
@@ -1361,6 +1382,31 @@ class MiniguruApi {
       return null;
     } catch (_) {
       return null; // silently ignore — materials strip is optional
+    }
+  }
+
+  // Lets ANY viewer (not just the project's own uploader) email themselves
+  // or a parent the materials-to-buy list for a project they're watching.
+  Future<bool> sendMaterialsToParent({
+    required String parentEmail,
+    required String projectTitle,
+    required List<Map<String, dynamic>> items,
+    String childName = 'A MiniGuru viewer',
+  }) async {
+    try {
+      final response = await http.post(
+        Uri.parse('$apiBaseUrl/shop/send-to-parent'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'childName': childName,
+          'parentEmail': parentEmail,
+          'projectTitle': projectTitle,
+          'items': items,
+        }),
+      );
+      return response.statusCode == 200;
+    } catch (_) {
+      return false;
     }
   }
 

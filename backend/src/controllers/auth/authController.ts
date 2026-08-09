@@ -146,7 +146,7 @@ const register = async (req: Request, res: Response<ErrorResponse | { accessToke
 
 
    try {
-       const emailExists = await prisma.user.findUnique({ where: { email } });
+       const emailExists = await prisma.user.findFirst({ where: { email: { equals: email, mode: 'insensitive' } } });
        if (emailExists) {
            return res.status(400).json({ error: 'User with this email already exists.' });
        }
@@ -489,11 +489,11 @@ const changeLoginId = async (req: AuthRequest, res: Response) => {
            return res.status(401).json({ message: 'Current password is incorrect' });
        }
 
-       if (cleanId === user.email) {
+       if (cleanId.toLowerCase() === user.email.toLowerCase()) {
            return res.status(200).json({ message: 'That is already your MiniGuru ID', loginId: cleanId });
        }
 
-       const taken = await prisma.user.findUnique({ where: { email: cleanId } });
+       const taken = await prisma.user.findFirst({ where: { email: { equals: cleanId, mode: 'insensitive' } } });
        if (taken) {
            return res.status(409).json({ message: 'That MiniGuru ID is already taken — try another' });
        }

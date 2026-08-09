@@ -44,8 +44,7 @@ class _MentorActivityTabState extends State<MentorActivityTab> {
     try {
       final userResult = await _api.getUserData();
       final childrenResult = await _api.getMentorChildren();
-      await _projectRepo.fetchAndStoreProjectsForUser();
-      final projectsResult = await _projectRepo.getProjects();
+      final projectsResult = await _api.getMentorChildrenProjects();
       final topUpRequests = await _api.getMentorPendingTopUpRequests();
       if (mounted) {
         setState(() {
@@ -431,7 +430,6 @@ class _MentorActivityTabState extends State<MentorActivityTab> {
               // My Learners score list). One clear summary here instead.
               if (_children.isNotEmpty)
                 SliverToBoxAdapter(child: _buildBatchSnapshot()),
-              SliverToBoxAdapter(child: _buildLearnerLadder()),
 
               // Clickable projects table — each row links to that child's
               // actual project (ProjectDetailsScreen), same screen the
@@ -525,11 +523,15 @@ class _MentorActivityTabState extends State<MentorActivityTab> {
 
   Widget _buildBatchSnapshot() {
     final totalGoins = _children.fold<int>(0, (sum, c) => sum + c.score);
-    final top = _topPerformer();
+    final ranked = List<ChildProfile>.from(_children)
+      ..sort((a, b) => b.score.compareTo(a.score));
+    final top15 = ranked.take(15).toList();
+    final maxScore = top15.isEmpty ? 1 : top15.first.score.clamp(1, 1 << 30);
+
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
       child: Container(
-        padding: const EdgeInsets.all(18),
+        padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(18),
@@ -540,9 +542,7 @@ class _MentorActivityTabState extends State<MentorActivityTab> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Batch Snapshot',
-                style: GoogleFonts.nunito(fontSize: 15, fontWeight: FontWeight.w900, color: Colors.black87)),
-            const SizedBox(height: 14),
+            // Compact stat row — was a full separate card before.
             Row(
               children: [
                 Expanded(child: _snapshotStat('👥', '${_children.length}', 'Learners')),
@@ -550,27 +550,59 @@ class _MentorActivityTabState extends State<MentorActivityTab> {
                 Expanded(child: _snapshotStat('🪙', '$totalGoins', 'Total Goins')),
               ],
             ),
-            if (top != null && top.score > 0) ...[
-              const SizedBox(height: 14),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFFFF8E1),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Row(
-                  children: [
-                    const Text('🌟', style: TextStyle(fontSize: 18)),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        '${top.name} is leading with ${top.score} Goins!',
-                        style: GoogleFonts.nunito(fontSize: 13, fontWeight: FontWeight.w700, color: const Color(0xFF8A6D00)),
+            if (top15.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              const Divider(height: 1),
+              const SizedBox(height: 10),
+              Text('Top ${top15.length} by Goins',
+                  style: GoogleFonts.nunito(fontSize: 12, fontWeight: FontWeight.w800, color: Colors.grey[600])),
+              const SizedBox(height: 8),
+              // Compact horizontal bar chart — replaces a tall, detailed
+              // list. Each row is a fixed 22px, so even 15 learners fit in
+              // a small, glanceable area.
+              ...top15.asMap().entries.map((entry) {
+                final rank = entry.key;
+                final child = entry.value;
+                final barFraction = child.score <= 0 ? 0.0 : child.score / maxScore;
+                final barColor = rank == 0
+                    ? const Color(0xFFD97706)
+                    : rank == 1
+                        ? const Color(0xFF9CA3AF)
+                        : rank == 2
+                            ? const Color(0xFFB45309)
+                            : const Color(0xFF5B6EF5);
+                return Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 2.5),
+                  child: Row(
+                    children: [
+                      SizedBox(
+                        width: 74,
+                        child: Text(child.name,
+                            style: GoogleFonts.nunito(fontSize: 11, fontWeight: FontWeight.w700, color: Colors.black87),
+                            overflow: TextOverflow.ellipsis, maxLines: 1),
                       ),
-                    ),
-                  ],
-                ),
-              ),
+                      Expanded(
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(4),
+                          child: LinearProgressIndicator(
+                            value: barFraction,
+                            minHeight: 10,
+                            backgroundColor: const Color(0xFFF3F4F6),
+                            valueColor: AlwaysStoppedAnimation(barColor),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      SizedBox(
+                        width: 34,
+                        child: Text('${child.score}',
+                            textAlign: TextAlign.right,
+                            style: GoogleFonts.nunito(fontSize: 11, fontWeight: FontWeight.w800, color: barColor)),
+                      ),
+                    ],
+                  ),
+                );
+              }),
             ],
           ],
         ),
@@ -586,62 +618,6 @@ class _MentorActivityTabState extends State<MentorActivityTab> {
         Text(value, style: GoogleFonts.nunito(fontSize: 18, fontWeight: FontWeight.w900, color: Colors.black87)),
         Text(label, style: GoogleFonts.nunito(fontSize: 11, color: Colors.grey[500])),
       ],
-    );
-  }
-
-  // Real per-child ranking — Batch Snapshot above only ever showed a
-  // single aggregate total + one "top performer" line. Teachers/parents
-  // asked to see EVERY learner's standing, not just the leader.
-  Widget _buildLearnerLadder() {
-    if (_children.isEmpty) return const SizedBox.shrink();
-    final ranked = List<ChildProfile>.from(_children)
-      ..sort((a, b) => b.score.compareTo(a.score));
-
-    String medal(int rank) => rank == 0 ? '🥇' : rank == 1 ? '🥈' : rank == 2 ? '🥉' : '${rank + 1}.';
-
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-      child: Container(
-        padding: const EdgeInsets.all(18),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(18),
-          boxShadow: [
-            BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 8, offset: const Offset(0, 3)),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Learner Ladder',
-                style: GoogleFonts.nunito(fontSize: 15, fontWeight: FontWeight.w900, color: Colors.black87)),
-            const SizedBox(height: 12),
-            ...ranked.asMap().entries.map((entry) {
-              final rank = entry.key;
-              final child = entry.value;
-              return Padding(
-                padding: const EdgeInsets.symmetric(vertical: 6),
-                child: Row(
-                  children: [
-                    SizedBox(
-                      width: 32,
-                      child: Text(medal(rank),
-                          style: GoogleFonts.nunito(fontSize: rank < 3 ? 18 : 13, fontWeight: FontWeight.w800, color: Colors.grey[600])),
-                    ),
-                    Expanded(
-                      child: Text(child.name,
-                          style: GoogleFonts.nunito(fontSize: 14, fontWeight: FontWeight.w700, color: Colors.black87),
-                          overflow: TextOverflow.ellipsis),
-                    ),
-                    Text('🪙 ${child.score}',
-                        style: GoogleFonts.nunito(fontSize: 13, fontWeight: FontWeight.w900, color: const Color(0xFFD97706))),
-                  ],
-                ),
-              );
-            }),
-          ],
-        ),
-      ),
     );
   }
 

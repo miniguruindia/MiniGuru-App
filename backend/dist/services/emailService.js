@@ -5,9 +5,10 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.sendEmail = sendEmail;
 const sgMail = require('@sendgrid/mail');
 sgMail.setApiKey(process.env.SENDGRID_API_KEY);
-async function sendEmail({ to, subject, html, }) {
+async function sendEmail({ to, subject, html, cc, }) {
     await sgMail.send({
         to,
+        ...(cc ? { cc } : {}),
         from: {
             email: process.env.FROM_EMAIL || 'connect@miniguru.in',
             name: 'MiniGuru',
