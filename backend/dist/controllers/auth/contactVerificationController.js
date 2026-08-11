@@ -30,6 +30,24 @@ const bcryptjs_1 = __importDefault(require("bcryptjs"));
 const prismaClient_1 = __importDefault(require("../../utils/prismaClient"));
 const emailService_1 = require("../../services/emailService");
 const OTP_EXPIRY_MINUTES = 15;
+// A MiniGuru login ID is always issued on the @miniguru.in domain — for
+// children (firstname.lastname@, or the school-bulk firstnameP.code.city@
+// format) AND for admin-created School/T-LAB accounts (institutionname@ or
+// firstword.city@). None of these are real inboxes anyone can read.
+// Self-registered Parent/School accounts are the one case where user.email
+// IS a real personal address, typed by the person at signup — those never
+// end in @miniguru.in. This distinguishes the two so "change email" targets
+// the right field: user.email for a genuinely real address, guardianEmail
+// (the same field already used for a child's real contact) for anyone
+// whose login is a generated ID, mentor or not.
+function isGeneratedLoginId(email) {
+    return !!email && email.trim().toLowerCase().endsWith('@miniguru.in');
+}
+// True only for a mentor whose OWN email field is a real personal inbox —
+// i.e. self-registered, not admin-created with a generated ID.
+function mentorHasRealEmailLogin(user) {
+    return user.isMentor && !isGeneratedLoginId(user.email);
+}
 function generateOtp() {
     return Math.floor(100000 + Math.random() * 900000).toString();
 }
@@ -67,13 +85,16 @@ const sendVerificationOtp = async (req, res) => {
         if (user.emailVerified) {
             return res.status(400).json({ error: 'Email is already verified.' });
         }
-        // Prefer guardianEmail (the real inbox for @miniguru.in child accounts)
-        // — falls back to the account email itself for parent/school accounts
-        // that registered with a real address.
+        // Prefer guardianEmail (the real inbox for @miniguru.in child accounts,
+        // and for admin-created School/T-LAB accounts on a generated login ID)
+        // — falls back to the account email itself only for parent/school
+        // accounts that self-registered with a real personal address.
         const destination = user.guardianEmail || user.email;
-        if (!destination || !destination.includes('@')) {
+        if (!destination || !destination.includes('@') || isGeneratedLoginId(destination)) {
             return res.status(400).json({
-                error: 'No real email address on file to send a code to. Add a guardian/contact email first.',
+                error: destination && isGeneratedLoginId(destination)
+                    ? 'Your login ID is not a real email address, so we can\'t send a code there. Tap "Change" to add a real contact email first.'
+                    : 'No real email address on file to send a code to. Add a contact email first.',
             });
         }
         const otp = generateOtp();
@@ -150,14 +171,14 @@ const requestContactChange = async (req, res) => {
     const oldContact = target === 'email' ? (user.guardianEmail || user.email) : user.phoneNumber;
     // ── Case 1: contact is NOT verified — apply immediately, nothing to protect ──
     if (!isCurrentlyVerified) {
-        // BUGFIX: for a mentor/teacher, the real contact email IS their login
-        // email (user.email) — they don't have a fake @miniguru.in id needing
-        // a separate recovery address. guardianEmail is specifically a CHILD-
-        // account concept. Previously this always wrote guardianEmail
-        // regardless of account type, so a teacher's "email updated" success
-        // message was true but silently changed a field nobody actually uses
-        // for them, leaving their real account email untouched.
-        if (target === 'email' && user.isMentor) {
+        // BUGFIX (Aug 2026): for a SELF-REGISTERED mentor/teacher, the real
+        // contact email IS their login email (user.email) — no fake ID involved.
+        // BUGFIX (this session): that first fix was too broad — it also caught
+        // admin-created School/T-LAB accounts, whose login is always a generated
+        // xxx@miniguru.in ID, not a real inbox. For those, "change email" must
+        // target guardianEmail (same field already used for a child's real
+        // contact) instead of overwriting the login ID itself.
+        if (target === 'email' && mentorHasRealEmailLogin(user)) {
             try {
                 await prismaClient_1.default.user.update({ where: { id: userId }, data: { email: newValue.trim() } });
             }
@@ -242,9 +263,11 @@ const confirmContactChangeOtp = async (req, res) => {
     // Apply the change — new contact starts UNVERIFIED again (must be
     // re-verified independently; confirming via the OLD contact only proves
     // the change request was legitimate, not that the NEW contact is real).
-    // BUGFIX: mentors' real contact email is user.email, not guardianEmail —
-    // see the matching fix in requestContactChange above.
-    if (user.isMentor) {
+    // BUGFIX: only a mentor with a REAL email login (self-registered) writes
+    // to user.email — see mentorHasRealEmailLogin() and the matching fix in
+    // requestContactChange above. Admin-created generated-ID accounts use
+    // guardianEmail, same as children.
+    if (mentorHasRealEmailLogin(user)) {
         try {
             await prismaClient_1.default.user.update({
                 where: { id: userId },
@@ -306,8 +329,8 @@ const approveContactChange = async (req, res) => {
     }
     const data = { contactChangeApprovalFor: null, contactChangeRequestedAt: null };
     if (user.contactChangeApprovalFor === 'email' && user.pendingEmail) {
-        // BUGFIX: same mentor-vs-child field split as the other two write paths.
-        if (user.isMentor) {
+        // BUGFIX: same mentorHasRealEmailLogin() split as the other two write paths.
+        if (mentorHasRealEmailLogin(user)) {
             data.email = user.pendingEmail;
         }
         else {

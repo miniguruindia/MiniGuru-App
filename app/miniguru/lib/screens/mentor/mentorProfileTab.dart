@@ -106,6 +106,22 @@ class _MentorProfileTabState extends State<MentorProfileTab> {
     );
   }
 
+  // A MiniGuru login ID is always issued on the @miniguru.in domain — for
+  // both children and admin-created School/T-LAB accounts. Showing that
+  // directly under a teacher's name as if it were their email is exactly
+  // the bug being fixed here — label it clearly as a login ID instead, and
+  // show the real contact (guardianEmail) when one has been set.
+  bool _isGeneratedLoginId(String? email) =>
+      (email ?? '').trim().toLowerCase().endsWith('@miniguru.in');
+
+  String _headerContactLine() {
+    final realContact = _mentor?.guardianEmail;
+    if (realContact != null && realContact.isNotEmpty) return realContact;
+    final email = _mentor?.email ?? '';
+    if (_isGeneratedLoginId(email)) return 'Login ID: $email';
+    return email;
+  }
+
   Widget _buildHeader() {
     return Container(
       width: double.infinity,
@@ -141,7 +157,7 @@ class _MentorProfileTabState extends State<MentorProfileTab> {
               style: GoogleFonts.nunito(
                   fontSize: 22, fontWeight: FontWeight.w900, color: Colors.white)),
           const SizedBox(height: 4),
-          Text(_mentor?.email ?? '',
+          Text(_headerContactLine(),
               style: GoogleFonts.nunito(
                   fontSize: 13, color: Colors.white.withOpacity(0.8))),
           const SizedBox(height: 4),

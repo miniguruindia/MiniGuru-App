@@ -43,7 +43,19 @@ class _ContactVerificationCardState extends State<ContactVerificationCard> {
   final MiniguruApi _api = MiniguruApi();
   bool _busy = false;
 
-  String get _displayEmail => (widget.guardianEmail?.isNotEmpty ?? false) ? widget.guardianEmail! : (widget.email ?? '—');
+  // A MiniGuru login ID always ends in @miniguru.in — for children AND for
+  // admin-created School/T-LAB accounts on a generated ID. Showing that raw
+  // string as "your email" is misleading (nobody can receive mail there);
+  // this card should make it obvious when no real contact has been set yet.
+  bool get _emailLooksLikeLoginId => (widget.email ?? '').trim().toLowerCase().endsWith('@miniguru.in');
+
+  String get _displayEmail {
+    if (widget.guardianEmail?.isNotEmpty ?? false) return widget.guardianEmail!;
+    if (_emailLooksLikeLoginId) return 'No real email set yet';
+    return widget.email ?? '—';
+  }
+
+  bool get _hasNoRealEmail => !(widget.guardianEmail?.isNotEmpty ?? false) && _emailLooksLikeLoginId;
   String get _displayPhone => widget.phoneNumber?.isNotEmpty == true ? widget.phoneNumber! : 'Not set';
 
   Future<void> _verifyEmail() async {
@@ -238,7 +250,9 @@ class _ContactVerificationCardState extends State<ContactVerificationCard> {
             value: _displayEmail,
             verified: widget.emailVerified,
             onChange: () => _changeContact('email'),
-            onVerify: _verifyEmail,
+            // No real address to send a code to yet — nudge toward "Change"
+            // instead of offering a Verify button that would silently fail.
+            onVerify: _hasNoRealEmail ? null : _verifyEmail,
           ),
           Divider(color: Colors.grey.shade100),
           _row(
