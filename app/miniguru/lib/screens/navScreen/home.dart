@@ -47,11 +47,24 @@ class _HomeState extends State<Home> {
   // Track which videoIds we've already fetched (to avoid duplicate requests)
   final Set<String> _fetchedMaterials = {};
 
-  final List<Map<String, dynamic>> _categories = [
-    {'name': 'Robotics',  'icon': Icons.precision_manufacturing, 'color': Color(0xFF93C5FD)},
-    {'name': 'Mechanics', 'icon': Icons.handyman,                'color': Color(0xFFFDE68A)},
-    {'name': 'ArtCraft',  'icon': Icons.palette,                 'color': Color(0xFFFCA5A5)},
-    {'name': 'Science',   'icon': Icons.science,                 'color': Color(0xFF86EFAC)},
+  // Real categories, fetched from GET /project/categories — the same
+  // admin-managed list already used at upload time. Was previously a
+  // hardcoded 4-item list (Robotics/Mechanics/ArtCraft/Science) totally
+  // disconnected from the real category names admins actually create —
+  // used only as a last-resort fallback now, if the fetch ever fails.
+  List<Map<String, dynamic>> _categories = [
+    {'name': 'Robotics',  'icon': '🤖', 'color': Color(0xFF93C5FD)},
+    {'name': 'Mechanics', 'icon': '🔧', 'color': Color(0xFFFDE68A)},
+    {'name': 'ArtCraft',  'icon': '🎨', 'color': Color(0xFFFCA5A5)},
+    {'name': 'Science',   'icon': '🔬', 'color': Color(0xFF86EFAC)},
+  ];
+  bool _categoriesLoaded = false;
+
+  // Rotating palette for real categories (ProjectCategory has no color
+  // field of its own — this keeps chips visually distinct and stable).
+  static const List<Color> _categoryPalette = [
+    Color(0xFF93C5FD), Color(0xFFFDE68A), Color(0xFFFCA5A5), Color(0xFF86EFAC),
+    Color(0xFFC4B5FD), Color(0xFFFDBA74), Color(0xFF67E8F9), Color(0xFFF9A8D4),
   ];
 
   List<Map<String, dynamic>> _allVideos = [];
@@ -72,6 +85,31 @@ class _HomeState extends State<Home> {
     _checkAuthAndLoadData();
     _loadYouTubeVideos();
     _loadExternalVideos();
+    _loadRealCategories();
+  }
+
+  Future<void> _loadRealCategories() async {
+    try {
+      final cats = await MiniguruApi().getPublicCategories();
+      if (!mounted || cats.isEmpty) return;
+      setState(() {
+        _categories = cats.asMap().entries.map((entry) {
+          final c = entry.value;
+          return {
+            'name': (c['name'] ?? '').toString(),
+            // Admin stores icon as an emoji string (default '📦'), not a
+            // Flutter IconData keyword — render it as text, not Icon().
+            'icon': (c['icon'] ?? '📦').toString(),
+            'color': _categoryPalette[entry.key % _categoryPalette.length],
+          };
+        }).where((c) => (c['name'] as String).isNotEmpty).toList();
+        _categoriesLoaded = true;
+      });
+    } catch (e) {
+      // Keep the small hardcoded fallback list rather than showing an
+      // empty categories row.
+      print('❌ Failed to load real categories, using fallback: $e');
+    }
   }
 
   @override
@@ -208,9 +246,25 @@ class _HomeState extends State<Home> {
   void _filterVideos(String category) {
     setState(() {
       _selectedCategory = category;
-      _filteredVideos = category == 'All'
-          ? _allVideos
-          : YouTubeService.filterByCategory(_allVideos, category);
+      if (category == 'All') {
+        _filteredVideos = _allVideos;
+        return;
+      }
+      final categoryLower = category.toLowerCase();
+      // Prefer a real, exact match on the video's own category (now sent
+      // by GET /project/feed — see backend/projectController.ts). Only
+      // fall back to the old title/description text-guess for videos that
+      // don't carry a category at all (e.g. "More Ideas From Outside"
+      // entries, or any record uploaded before this field existed).
+      _filteredVideos = _allVideos.where((video) {
+        final videoCategory = video['category']?.toString();
+        if (videoCategory != null && videoCategory.isNotEmpty) {
+          return videoCategory.toLowerCase() == categoryLower;
+        }
+        final title = (video['title'] ?? '').toString().toLowerCase();
+        final description = (video['description'] ?? '').toString().toLowerCase();
+        return title.contains(categoryLower) || description.contains(categoryLower);
+      }).toList();
     });
   }
 
@@ -708,9 +762,9 @@ class _HomeState extends State<Home> {
                               : const Color(0xFFF3F4F6),
                           borderRadius: BorderRadius.circular(16),
                         ),
-                        child: Icon(cat['icon'],
-                            color: isSelected ? Colors.white : Colors.black54,
-                            size: 28),
+                        alignment: Alignment.center,
+                        child: Text((cat['icon'] ?? '📦').toString(),
+                            style: const TextStyle(fontSize: 26)),
                       ),
                       const SizedBox(height: 8),
                       Text(cat['name'],

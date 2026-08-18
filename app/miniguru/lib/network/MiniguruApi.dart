@@ -126,6 +126,24 @@ class MiniguruApi {
     return [];
   }
 
+  // Public, no-auth-required project categories — same GET /project/categories
+  // data used at upload time (addDraftScreen.dart via ProjectRepository), but
+  // that path requires a logged-in token. Home screen needs this for BOTH
+  // guests and logged-in users, so this hits the same backend route (which
+  // has no auth middleware at all) directly, same pattern as getVideoFeed().
+  Future<List<Map<String, dynamic>>> getPublicCategories() async {
+    final url = Uri.parse('$_baseUrl/project/categories');
+    final response = await http.get(url, headers: _buildHeaders());
+    if (response.statusCode != 200) {
+      throw Exception('Failed to load categories (${response.statusCode})');
+    }
+    final data = jsonDecode(response.body);
+    if (data is List) {
+      return data.map((c) => Map<String, dynamic>.from(c)).toList();
+    }
+    return [];
+  }
+
   // ── Contact verification (email/phone) — optional, on-demand ─────────────
   // See backend/src/controllers/auth/contactVerificationController.ts for
   // the full design: unverified contacts just show "Unverified" and can be

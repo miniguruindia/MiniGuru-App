@@ -664,6 +664,7 @@ const getPublishedVideoFeed = async (req, res) => {
             take: limit,
             include: {
                 user: { select: { name: true } },
+                category: { select: { name: true } },
             },
         });
         const videos = projects
@@ -682,6 +683,12 @@ const getPublishedVideoFeed = async (req, res) => {
                 videoId,
                 title: p.title,
                 description: p.description,
+                // Real category (ProjectCategory.name), the same source of truth
+                // used at upload time — was previously never sent to the client,
+                // so home.dart's category filter was silently guessing via a
+                // text search of title/description against 4 hardcoded words
+                // that don't match the real, admin-managed category list.
+                category: p.category?.name || null,
                 channelTitle: teamNames.join(", "),
                 viewCount: 0, // view tracking lives in /api/videos/:id/views — not duplicated here
                 // Prefer our own stored thumbnail (set at upload time); fall back
