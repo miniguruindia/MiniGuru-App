@@ -614,7 +614,7 @@ const postCommentToYouTube = async (req, res) => {
                     videoId: comment.videoId,
                     topLevelComment: {
                         snippet: {
-                            textOriginal: `${comment.comment}\n\n- ${comment.user.name} (via MiniGuru App)`,
+                            textOriginal: `${comment.comment}\n\n- ${comment.user.name}`,
                         },
                     },
                 },
@@ -630,8 +630,12 @@ const postCommentToYouTube = async (req, res) => {
     }
     catch (error) {
         logger_1.default.error({ error }, '❌ Post comment to YouTube (admin) error');
+        const realMessage = error?.response?.data?.error?.message ||
+            error?.errors?.[0]?.message ||
+            error?.message ||
+            'Unknown error';
         res.status(500).json({
-            message: 'Failed to post comment to YouTube. The video may not be public yet on YouTube, or the YouTube credentials may need renewal.',
+            message: `Failed to post comment to YouTube: ${realMessage}`,
         });
     }
 };

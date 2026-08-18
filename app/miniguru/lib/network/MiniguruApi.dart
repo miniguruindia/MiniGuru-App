@@ -253,6 +253,9 @@ class MiniguruApi {
           phoneNumber: data['phoneNumber'],
           totalProjects: data['totalProjects'] ?? 0,
           isMentor: data['isMentor'] ?? false,
+          guardianEmail: data['guardianEmail'],
+          emailVerified: data['emailVerified'] ?? false,
+          phoneVerified: data['phoneVerified'] ?? false,
         );
       } else if (response.statusCode == 401) {
         print('❌ [getUserData] 401 Unauthorized - token invalid');

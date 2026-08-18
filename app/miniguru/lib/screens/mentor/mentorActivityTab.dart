@@ -431,12 +431,6 @@ class _MentorActivityTabState extends State<MentorActivityTab> {
               if (_children.isNotEmpty)
                 SliverToBoxAdapter(child: _buildBatchSnapshot()),
 
-              // Clickable projects table — each row links to that child's
-              // actual project (ProjectDetailsScreen), same screen the
-              // card list below already opens.
-              if (_children.isNotEmpty && _projects.isNotEmpty)
-                SliverToBoxAdapter(child: _buildProjectsTable()),
-
               // Filter chips
               if (_children.isNotEmpty)
                 SliverToBoxAdapter(
@@ -618,100 +612,6 @@ class _MentorActivityTabState extends State<MentorActivityTab> {
         Text(value, style: GoogleFonts.nunito(fontSize: 18, fontWeight: FontWeight.w900, color: Colors.black87)),
         Text(label, style: GoogleFonts.nunito(fontSize: 11, color: Colors.grey[500])),
       ],
-    );
-  }
-
-  Widget _buildProjectsTable() {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-      child: Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(18),
-          boxShadow: [
-            BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 8, offset: const Offset(0, 3)),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 14, 16, 6),
-              child: Text('All Projects',
-                  style: GoogleFonts.nunito(fontSize: 15, fontWeight: FontWeight.w900, color: Colors.black87)),
-            ),
-            const Divider(height: 1),
-            ..._projects.map((p) => _projectTableRow(p)),
-            const SizedBox(height: 6),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _projectTableRow(Project p) {
-    // Flutter's Project model has no status field client-side — a project
-    // either has a parseable video attached or it doesn't. This reflects
-    // that honestly rather than inventing an unbacked status label.
-    final hasVideo = p.video.isNotEmpty && p.video != 'null';
-    final childName = _children
-        .firstWhere(
-          (c) => c.linkedUserId == p.userId,
-          orElse: () => ChildProfile(id: '', name: p.author, age: 0, score: 0),
-        )
-        .name;
-
-    return InkWell(
-      onTap: () => Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => ProjectDetailsScreen(
-            project: p,
-            backgroundColor: const Color(0xFF5B6EF5),
-            user: _user!,
-          ),
-        ),
-      ),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        decoration: const BoxDecoration(
-          border: Border(bottom: BorderSide(color: Color(0xFFF0F0F5))),
-        ),
-        child: Row(
-          children: [
-            Expanded(
-              flex: 3,
-              child: Text(p.title,
-                  style: GoogleFonts.nunito(fontSize: 13, fontWeight: FontWeight.w700),
-                  maxLines: 1, overflow: TextOverflow.ellipsis),
-            ),
-            Expanded(
-              flex: 2,
-              child: Text(childName,
-                  style: GoogleFonts.nunito(fontSize: 12, color: Colors.grey[600]),
-                  maxLines: 1, overflow: TextOverflow.ellipsis),
-            ),
-            Expanded(
-              flex: 2,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  color: hasVideo ? const Color(0xFFE6F7EE) : const Color(0xFFFFF3E0),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  hasVideo ? 'Published' : 'Processing',
-                  textAlign: TextAlign.center,
-                  style: GoogleFonts.nunito(
-                      fontSize: 11, fontWeight: FontWeight.w700,
-                      color: hasVideo ? const Color(0xFF1B8A4C) : const Color(0xFFB26A00)),
-                ),
-              ),
-            ),
-            const Icon(Icons.chevron_right, size: 18, color: Colors.grey),
-          ],
-        ),
-      ),
     );
   }
 
