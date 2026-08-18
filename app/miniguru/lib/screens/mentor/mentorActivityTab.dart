@@ -12,6 +12,9 @@ import 'package:miniguru/screens/addDraftScreen.dart';
 import 'package:miniguru/state/sessionState.dart';
 import 'package:miniguru/screens/homeScreen.dart';
 import 'package:miniguru/screens/mentor/goinsTopUpRequestsScreen.dart';
+import 'package:miniguru/screens/mentor/addChildScreen.dart';
+import 'package:miniguru/screens/mentor/bulkAddStudentsScreen.dart';
+import 'package:miniguru/screens/mentor/pinEntryScreen.dart';
 
 class MentorActivityTab extends StatefulWidget {
   const MentorActivityTab({super.key});
@@ -30,6 +33,15 @@ class _MentorActivityTabState extends State<MentorActivityTab> {
   bool _isLoading = true;
   String? _selectedChildId; // null = all children
   int _pendingTopUpCount = 0;
+
+  // Merged in from the old separate "Learners" tab (MentorChildrenTab).
+  final List<List<Color>> _learnerGradients = const [
+    [Color(0xFF5B6EF5), Color(0xFF8B9FF8)],
+    [Color(0xFFE8A000), Color(0xFFF5C842)],
+    [Color(0xFF2ECC71), Color(0xFF55E89D)],
+    [Color(0xFFE74C3C), Color(0xFFFF7675)],
+    [Color(0xFF9B59B6), Color(0xFFBE85D4)],
+  ];
 
   @override
   void initState() {
@@ -372,6 +384,192 @@ class _MentorActivityTabState extends State<MentorActivityTab> {
     _loadData();
   }
 
+  Widget _buildLearnersSection() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text('My Learners',
+                    style: GoogleFonts.nunito(
+                        fontSize: 16, fontWeight: FontWeight.w900, color: Colors.black87)),
+              ),
+              TextButton.icon(
+                onPressed: _showAddLearnerOptions,
+                icon: const Icon(Icons.person_add, size: 18, color: pastelBlueText),
+                label: Text('Add Learner',
+                    style: GoogleFonts.nunito(
+                        fontWeight: FontWeight.w800, color: pastelBlueText, fontSize: 13)),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          if (_children.isEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              child: Text('No learners yet — tap "Add Learner" to get started',
+                  style: GoogleFonts.nunito(fontSize: 13, color: Colors.grey[500])),
+            )
+          else
+            SizedBox(
+              height: 176,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                itemCount: _children.length,
+                separatorBuilder: (_, __) => const SizedBox(width: 12),
+                itemBuilder: (context, index) => SizedBox(
+                  width: 132,
+                  child: _buildLearnerCard(_children[index], index),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLearnerCard(ChildProfile child, int index) {
+    final colors = _learnerGradients[index % _learnerGradients.length];
+    return GestureDetector(
+      onTap: () async {
+        final verified = await Navigator.push<bool>(
+          context,
+          MaterialPageRoute(builder: (_) => PinEntryScreen(child: child)),
+        );
+        if (verified == true && mounted) {
+          SessionState.setChild(child.id, child.name, child.avatar);
+          Navigator.of(context).pushAndRemoveUntil(
+            MaterialPageRoute(builder: (_) => const HomeScreen()),
+            (route) => false,
+          );
+        }
+      },
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(18),
+          boxShadow: [
+            BoxShadow(
+                color: Colors.black.withOpacity(0.06),
+                blurRadius: 10,
+                offset: const Offset(0, 3)),
+          ],
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              width: 56,
+              height: 56,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(colors: colors),
+                shape: BoxShape.circle,
+              ),
+              child: Center(
+                child: Text(child.name[0].toUpperCase(),
+                    style: GoogleFonts.nunito(
+                        fontSize: 22, fontWeight: FontWeight.w900, color: Colors.white)),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 6),
+              child: Text(child.name,
+                  style: GoogleFonts.nunito(
+                      fontSize: 13, fontWeight: FontWeight.w900, color: Colors.black87),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis),
+            ),
+            if (child.grade != null) ...[
+              const SizedBox(height: 2),
+              Text('Grade ${child.grade}',
+                  style: GoogleFonts.nunito(fontSize: 11, color: Colors.grey[500])),
+            ],
+            const SizedBox(height: 6),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFFF3CD),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text('🪙', style: TextStyle(fontSize: 10)),
+                  const SizedBox(width: 3),
+                  Text('${child.score}',
+                      style: GoogleFonts.nunito(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w800,
+                          color: const Color(0xFFE8A000))),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showAddLearnerOptions() {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (_) => Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Text('Add Learners',
+              style: GoogleFonts.nunito(fontSize: 18, fontWeight: FontWeight.w900)),
+          const SizedBox(height: 20),
+          ListTile(
+            leading: Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                  color: pastelBlueText.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12)),
+              child: const Icon(Icons.person_add, color: pastelBlueText),
+            ),
+            title: Text('Add One Child',
+                style: GoogleFonts.nunito(fontWeight: FontWeight.w800)),
+            subtitle: Text('Enter details manually',
+                style: GoogleFonts.nunito(fontSize: 12, color: Colors.grey)),
+            onTap: () async {
+              Navigator.pop(context);
+              await Navigator.push(
+                  context, MaterialPageRoute(builder: (_) => const AddChildScreen()));
+              _loadData();
+            },
+          ),
+          const SizedBox(height: 8),
+          ListTile(
+            leading: Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                  color: Colors.green.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12)),
+              child: const Icon(Icons.table_chart, color: Colors.green),
+            ),
+            title: Text('Bulk Add (School)',
+                style: GoogleFonts.nunito(fontWeight: FontWeight.w800)),
+            subtitle: Text('Paste from Excel — add entire class at once',
+                style: GoogleFonts.nunito(fontSize: 12, color: Colors.grey)),
+            onTap: () async {
+              Navigator.pop(context);
+              await Navigator.push(context,
+                  MaterialPageRoute(builder: (_) => const BulkAddStudentsScreen()));
+              _loadData();
+            },
+          ),
+          const SizedBox(height: 12),
+        ]),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final filtered = _filteredProjects();
@@ -424,6 +622,14 @@ class _MentorActivityTabState extends State<MentorActivityTab> {
                   ),
                 ),
               ),
+
+              // My Learners — merged in from the old separate "Learners" tab
+              // (MentorChildrenTab), which used to be its own bottom-nav tab.
+              // Shown as a compact horizontal strip here (rather than the old
+              // full-page 2-column grid) to keep this already-busy merged
+              // page from being pushed too far down by a long child list.
+              if (!_isLoading)
+                SliverToBoxAdapter(child: _buildLearnersSection()),
 
               // Batch Snapshot — replaces the old duplicate Goins lists that
               // used to live on the Profile tab (Family Goins bar chart +
