@@ -11,7 +11,6 @@ import 'package:miniguru/screens/about.dart';
 import 'package:miniguru/network/MiniguruApi.dart';
 import 'package:miniguru/state/sessionState.dart';
 import 'package:miniguru/screens/mentor/mentorChildPickerScreen.dart';
-import 'package:miniguru/screens/mentor/mentorChildrenTab.dart';
 import 'package:miniguru/screens/mentor/mentorProfileTab.dart';
 import 'package:miniguru/screens/mentor/mentorActivityTab.dart';
 import 'package:miniguru/models/User.dart';
@@ -66,6 +65,14 @@ class _HomeScreenState extends State<HomeScreen> {
           _cachedScreens.remove(1);
           _cachedScreens.remove(3);
           _cachedScreens.remove(4);
+          // Mentors/parents/schools land on "Children's Activity" (now the
+          // merged Learners+Activity tab) right after login, instead of the
+          // old separate MentorChildPickerScreen landing page. Only applies
+          // on this first auth check (fresh HomeScreen instance right after
+          // login) — doesn't override manual tab taps afterward.
+          if (userData?.isMentor == true && !SessionState.isChildSession) {
+            _currentIndex = 3;
+          }
         });
       }
     } catch (e) {
@@ -99,8 +106,14 @@ class _HomeScreenState extends State<HomeScreen> {
     if (!_cachedScreens.containsKey(index)) {
       switch (index) {
         case 1:
+          // "Learners" used to live here as its own tab (MentorChildrenTab).
+          // That picker (child cards, PIN entry, Add Learner, Bulk Add) was
+          // merged into the top of "Children's Activity" (index 3) instead,
+          // so this slot is free for mentors/parents/schools — reuse the
+          // same Consultancy page shown to guests, matching what a
+          // logged-out visitor sees.
           if (_user?.isMentor == true && !SessionState.isChildSession) {
-            _cachedScreens[index] = const MentorChildrenTab();
+            _cachedScreens[index] = const ConsultancyPage();
             break;
           }
           _cachedScreens[index] = _isAuthenticated ? const CommunityScreen() : const ConsultancyPage();
@@ -248,9 +261,11 @@ class _HomeScreenState extends State<HomeScreen> {
               label: 'Home',
             ),
             BottomNavigationBarItem(
-              icon: Icon(_user?.isMentor == true && !SessionState.isChildSession ? Icons.people_outline : _isAuthenticated ? Icons.library_books_outlined : Icons.support_agent_outlined),
-              activeIcon: Icon(_user?.isMentor == true && !SessionState.isChildSession ? Icons.people : _isAuthenticated ? Icons.library_books : Icons.support_agent),
-              label: _user?.isMentor == true && !SessionState.isChildSession ? 'Learners' : _isAuthenticated ? 'Community' : 'Consult',
+              // Mentors/parents/schools now see the same Consultancy tab a
+              // guest sees here — "Learners" moved into Children's Activity.
+              icon: Icon(_user?.isMentor == true && !SessionState.isChildSession ? Icons.support_agent_outlined : _isAuthenticated ? Icons.library_books_outlined : Icons.support_agent_outlined),
+              activeIcon: Icon(_user?.isMentor == true && !SessionState.isChildSession ? Icons.support_agent : _isAuthenticated ? Icons.library_books : Icons.support_agent),
+              label: _user?.isMentor == true && !SessionState.isChildSession ? 'Consult' : _isAuthenticated ? 'Community' : 'Consult',
             ),
             const BottomNavigationBarItem(
               icon: Icon(Icons.shopping_bag_outlined),

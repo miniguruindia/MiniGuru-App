@@ -6,7 +6,6 @@ import 'package:miniguru/constants.dart';
 import 'package:miniguru/database/database_helper.dart';
 import 'package:miniguru/network/MiniguruApi.dart';
 import 'package:miniguru/screens/homeScreen.dart';
-import 'package:miniguru/screens/mentor/mentorChildPickerScreen.dart';
 import 'package:miniguru/screens/registerScreen.dart';
 import 'package:google_fonts/google_fonts.dart';
 
@@ -96,19 +95,15 @@ class _LoginScreenState extends State<LoginScreen> {
         if (userData != null) {
           print('✅ [LoginScreen] User data received: ${userData.name}');
           print('   📌 IsMentor: ${userData.isMentor}');
-          if (userData.isMentor == true) {
-            print('🔄 [LoginScreen] Navigating to MentorChildPickerScreen');
-            Navigator.of(context).pushAndRemoveUntil(
-              MaterialPageRoute(builder: (_) => const MentorChildPickerScreen()),
-              (route) => false,
-            );
-          } else {
-            print('🔄 [LoginScreen] Navigating to HomeScreen');
-            Navigator.of(context).pushNamedAndRemoveUntil(
-              HomeScreen.id,
-              (route) => false,
-            );
-          }
+          // Mentors/parents/schools now land directly on HomeScreen (which
+          // opens on "Children's Activity" — the merged Learners+Activity
+          // tab) instead of the separate MentorChildPickerScreen. That
+          // screen is still used elsewhere for mid-session "Switch Learner".
+          print('🔄 [LoginScreen] Navigating to HomeScreen');
+          Navigator.of(context).pushNamedAndRemoveUntil(
+            HomeScreen.id,
+            (route) => false,
+          );
         } else {
           print('❌ [LoginScreen] ERROR: getUserData returned null!');
           _showSnackBar('Failed to load user data. Please try again.', Colors.red);
