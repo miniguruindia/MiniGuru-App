@@ -17,17 +17,18 @@ const youtube = googleapis_1.google.youtube({
     version: 'v3',
     auth: process.env.YOUTUBE_API_KEY,
 });
-// OAuth2 client for posting comments
-const oauth2Client = new googleapis_1.google.auth.OAuth2(process.env.YOUTUBE_CLIENT_ID, process.env.YOUTUBE_CLIENT_SECRET, process.env.YOUTUBE_REDIRECT_URI);
-if (process.env.YOUTUBE_REFRESH_TOKEN) {
-    oauth2Client.setCredentials({
-        refresh_token: process.env.YOUTUBE_REFRESH_TOKEN,
-    });
-}
-const youtubeAuth = googleapis_1.google.youtube({
-    version: 'v3',
-    auth: oauth2Client,
-});
+// OAuth2 client for posting comments — reuses the SAME authenticated
+// singleton youtubeUploadService.js already builds from YOUTUBE_TOKENS
+// (Secret Manager, per Rule 24), instead of a second, separate client.
+// The previous version here built its own oauth2Client and only gave it
+// credentials if a plain YOUTUBE_REFRESH_TOKEN env var existed — that var
+// was never actually set anywhere (this project's real token lives in
+// YOUTUBE_TOKENS), so this client always had zero credentials, producing
+// exactly the "No access, refresh token, API key or refresh handler
+// callback is set" error on every comment push. Same bug class as the
+// July 18-19 dropped-secret-binding incident: a disconnected second
+// credential source instead of reusing the one real one.
+const { getOAuth2Client } = require('../../services/youtubeUploadService');
 // ========================================================================
 // VIDEO VIEWS
 // ========================================================================
@@ -605,8 +606,12 @@ const postCommentToYouTube = async (req, res) => {
         if (comment.postedToYouTube) {
             return res.status(400).json({ message: 'Already posted to YouTube' });
         }
-        // Reuses the same authenticated youtubeAuth client already set up at
-        // module scope above (module-level OAuth2 client, not re-created here).
+        // Build fresh each call (not cached at module scope) so we always use
+        // the current singleton — getOAuth2Client() returns the SAME object
+        // every time, but calling it here (not just once at import time)
+        // guarantees we're never holding a stale reference from before a
+        // token refresh.
+        const youtubeAuth = googleapis_1.google.youtube({ version: 'v3', auth: getOAuth2Client() });
         const response = await youtubeAuth.commentThreads.insert({
             part: ['snippet'],
             requestBody: {

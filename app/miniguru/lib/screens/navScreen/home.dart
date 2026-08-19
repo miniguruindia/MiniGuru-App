@@ -26,6 +26,85 @@ class _MouseDragScrollBehavior extends MaterialScrollBehavior {
       };
 }
 
+// A horizontal video row with left/right arrow buttons layered on top, for
+// desktop mouse users. Click-drag (via _MouseDragScrollBehavior) already
+// works but isn't an obvious affordance on desktop with no trackpad — these
+// buttons make "there's more to scroll" visually explicit. A real
+// StatefulWidget (not a plain method) so its ScrollController persists
+// correctly across parent rebuilds instead of resetting to offset 0 every
+// time setState() runs anywhere else on the page.
+class _ArrowScrollRow extends StatefulWidget {
+  final double height;
+  final int itemCount;
+  final Widget Function(BuildContext, int) itemBuilder;
+  const _ArrowScrollRow({
+    required this.height,
+    required this.itemCount,
+    required this.itemBuilder,
+  });
+
+  @override
+  State<_ArrowScrollRow> createState() => _ArrowScrollRowState();
+}
+
+class _ArrowScrollRowState extends State<_ArrowScrollRow> {
+  final ScrollController _controller = ScrollController();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _scroll(double direction) {
+    if (!_controller.hasClients) return;
+    final target = (_controller.offset + direction * 320)
+        .clamp(0.0, _controller.position.maxScrollExtent);
+    _controller.animateTo(target,
+        duration: const Duration(milliseconds: 300), curve: Curves.easeOut);
+  }
+
+  Widget _arrowButton(IconData icon, VoidCallback onTap) {
+    return Container(
+      width: 32, height: 32,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        shape: BoxShape.circle,
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.15), blurRadius: 6)],
+      ),
+      child: IconButton(
+        padding: EdgeInsets.zero,
+        icon: Icon(icon, size: 18, color: const Color(0xFF3B82F6)),
+        onPressed: onTap,
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: widget.height,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          ScrollConfiguration(
+            behavior: _MouseDragScrollBehavior(),
+            child: ListView.builder(
+              controller: _controller,
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              itemCount: widget.itemCount,
+              itemBuilder: widget.itemBuilder,
+            ),
+          ),
+          Positioned(left: 4, child: _arrowButton(Icons.chevron_left, () => _scroll(-1))),
+          Positioned(right: 4, child: _arrowButton(Icons.chevron_right, () => _scroll(1))),
+        ],
+      ),
+    );
+  }
+}
+
 class Home extends StatefulWidget {
   const Home({super.key});
 
@@ -214,7 +293,7 @@ class _HomeState extends State<Home> {
     if (_externalVideos.isEmpty) return const SizedBox.shrink();
     return _buildHorizontalSection(
         '💡 More Ideas From Outside', _externalVideos.take(10).toList(),
-        fullList: _externalVideos, height: 140, cardWidth: 120);
+        fullList: _externalVideos, height: 178, cardWidth: 120);
   }
 
   /// Fetch materials for a list of videos without blocking UI
@@ -514,9 +593,13 @@ class _HomeState extends State<Home> {
 
   Widget _buildContinueWatching() {
     if (_filteredVideos.isEmpty) return const SizedBox.shrink();
+    // height bumped 180→222 to fit the optional 🛒 materials strip below
+    // the video image (added so logged-in rows show the same Buy-on-
+    // Amazon materials the guest home screen already had) without
+    // overflowing cards that don't have materials attached.
     return _buildHorizontalSection(
         'Continue Watching', _filteredVideos.take(10).toList(),
-        fullList: _filteredVideos, height: 180, cardWidth: 280);
+        fullList: _filteredVideos, height: 222, cardWidth: 280);
   }
 
   Widget _buildForYou() {
@@ -530,7 +613,7 @@ class _HomeState extends State<Home> {
         : _filteredVideos;
     return _buildHorizontalSection(
         'For You', source.take(10).toList(),
-        fullList: source, height: 140, cardWidth: 120);
+        fullList: source, height: 178, cardWidth: 120);
   }
 
   Widget _buildTrendingNow() {
@@ -540,7 +623,7 @@ class _HomeState extends State<Home> {
         : _filteredVideos;
     return _buildHorizontalSection(
         '🔥 Trending Now', source.take(10).toList(),
-        fullList: source, height: 140, cardWidth: 120);
+        fullList: source, height: 178, cardWidth: 120);
   }
 
   // Full-screen "See All" grid — reused by every horizontal section.
@@ -606,27 +689,20 @@ class _HomeState extends State<Home> {
         ),
       ),
       const SizedBox(height: 12),
-      SizedBox(
+      _ArrowScrollRow(
         height: height,
-        child: ScrollConfiguration(
-          behavior: _MouseDragScrollBehavior(),
-          child: ListView.builder(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            itemCount: videos.length,
-            itemBuilder: (_, i) {
-              // Lazily fetch materials when card is built
-              final vid = videos[i];
-              final vidId = vid['videoId']?.toString() ?? '';
-              if (vidId.isNotEmpty && !_fetchedMaterials.contains(vidId)) {
-                _fetchVideoMaterials(vidId);
-              }
-              return cardWidth >= 200
-                  ? _buildVideoCard(vid, width: cardWidth)
-                  : _buildSmallVideoCard(vid);
-            },
-          ),
-        ),
+        itemCount: videos.length,
+        itemBuilder: (_, i) {
+          // Lazily fetch materials when card is built
+          final vid = videos[i];
+          final vidId = vid['videoId']?.toString() ?? '';
+          if (vidId.isNotEmpty && !_fetchedMaterials.contains(vidId)) {
+            _fetchVideoMaterials(vidId);
+          }
+          return cardWidth >= 200
+              ? _buildVideoCard(vid, width: cardWidth)
+              : _buildSmallVideoCard(vid);
+        },
       ),
     ]);
   }
@@ -1216,78 +1292,97 @@ class _HomeState extends State<Home> {
   // ── Video card widgets ────────────────────────────────────────────────────
 
   Widget _buildVideoCard(Map<String, dynamic> video, {double width = 280}) {
+    final videoId = video['videoId']?.toString() ?? '';
+    final materials = _materialCache[videoId] ?? [];
     return GestureDetector(
       onTap: () => _openVideo(video),
       child: Container(
         width: width,
         margin: const EdgeInsets.only(right: 12),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(16),
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
-              video['thumbnail'] != null
-                  ? Image.network(video['thumbnail'],
-                      fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => Container(
-                        color: const Color(0xFF64748B),
-                        child: const Icon(Icons.video_library,
-                            size: 40, color: Colors.white54),
-                      ))
-                  : Container(
-                      color: const Color(0xFF64748B),
-                      child: const Icon(Icons.video_library,
-                          size: 40, color: Colors.white54),
-                    ),
-              Positioned.fill(
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: [Colors.transparent, Colors.black.withOpacity(0.7)],
-                      stops: const [0.5, 1.0],
-                    ),
-                  ),
-                ),
-              ),
-              Center(
-                child: Container(
-                  width: 50, height: 50,
-                  decoration: const BoxDecoration(
-                      color: Colors.white, shape: BoxShape.circle),
-                  child: const Icon(Icons.play_arrow,
-                      size: 30, color: Color(0xFF3B82F6)),
-                ),
-              ),
-              Positioned(
-                bottom: 10, left: 12, right: 12,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SizedBox(
+              height: 180,
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(16),
+                child: Stack(
+                  fit: StackFit.expand,
                   children: [
-                    Text(video['title'] ?? '',
-                        style: GoogleFonts.nunito(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w700,
-                            color: Colors.white),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis),
-                    const SizedBox(height: 2),
-                    Text('@${video['channelTitle'] ?? 'miniguru'}',
-                        style: GoogleFonts.nunito(
-                            fontSize: 10, color: Colors.white70)),
+                    video['thumbnail'] != null
+                        ? Image.network(video['thumbnail'],
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, __, ___) => Container(
+                              color: const Color(0xFF64748B),
+                              child: const Icon(Icons.video_library,
+                                  size: 40, color: Colors.white54),
+                            ))
+                        : Container(
+                            color: const Color(0xFF64748B),
+                            child: const Icon(Icons.video_library,
+                                size: 40, color: Colors.white54),
+                          ),
+                    Positioned.fill(
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                            colors: [Colors.transparent, Colors.black.withOpacity(0.7)],
+                            stops: const [0.5, 1.0],
+                          ),
+                        ),
+                      ),
+                    ),
+                    Center(
+                      child: Container(
+                        width: 50, height: 50,
+                        decoration: const BoxDecoration(
+                            color: Colors.white, shape: BoxShape.circle),
+                        child: const Icon(Icons.play_arrow,
+                            size: 30, color: Color(0xFF3B82F6)),
+                      ),
+                    ),
+                    Positioned(
+                      bottom: 10, left: 12, right: 12,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(video['title'] ?? '',
+                              style: GoogleFonts.nunito(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w700,
+                                  color: Colors.white),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis),
+                          const SizedBox(height: 2),
+                          Text('@${video['channelTitle'] ?? 'miniguru'}',
+                              style: GoogleFonts.nunito(
+                                  fontSize: 10, color: Colors.white70)),
+                        ],
+                      ),
+                    ),
                   ],
                 ),
               ),
+            ),
+            // 🛒 Materials used in this project, same compact strip and
+            // Buy-on-Amazon behaviour the guest home screen already has
+            // (_buildProjectCard) — was previously only shown to guests.
+            if (materials.isNotEmpty) ...[
+              const SizedBox(height: 6),
+              _buildCompactMaterialsStrip(materials),
             ],
-          ),
+          ],
         ),
       ),
     );
   }
 
   Widget _buildSmallVideoCard(Map<String, dynamic> video) {
+    final videoId = video['videoId']?.toString() ?? '';
+    final materials = _materialCache[videoId] ?? [];
     return GestureDetector(
       onTap: () => _openVideo(video),
       child: Container(
@@ -1331,6 +1426,11 @@ class _HomeState extends State<Home> {
                     color: Colors.black87),
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis),
+            // 🛒 Materials strip — same addition as _buildVideoCard above.
+            if (materials.isNotEmpty) ...[
+              const SizedBox(height: 6),
+              _buildCompactMaterialsStrip(materials),
+            ],
           ],
         ),
       ),

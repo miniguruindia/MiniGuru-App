@@ -169,4 +169,4 @@ async function deleteVideo(videoId) {
   return true;
 }
 
-module.exports = { upload, getAuthUrl, handleCallback, uploadToYouTube, setVideoPublic, deleteVideo, refreshTokenNow };
+module.exports = { upload, getAuthUrl, handleCallback, uploadToYouTube, setVideoPublic, deleteVideo, refreshTokenNow, getOAuth2Client };
