@@ -29,6 +29,7 @@ exports.rejectContactChange = exports.approveContactChange = exports.getPendingC
 const bcryptjs_1 = __importDefault(require("bcryptjs"));
 const prismaClient_1 = __importDefault(require("../../utils/prismaClient"));
 const emailService_1 = require("../../services/emailService");
+const logger_1 = __importDefault(require("../../logger"));
 const OTP_EXPIRY_MINUTES = 15;
 // A MiniGuru login ID is always issued on the @miniguru.in domain — for
 // children (firstname.lastname@, or the school-bulk firstnameP.code.city@
@@ -106,7 +107,24 @@ const sendVerificationOtp = async (req, res) => {
                 verificationOtpTarget: 'email',
             },
         });
-        await sendOtpEmail(destination, 'Use this to verify your MiniGuru email address.', otp);
+        // BUGFIX (Aug 2026): this call used to be unguarded — if SendGrid ever
+        // threw (bad/expired API key, rejected sender, network error), the
+        // request never sent a response at all. The Flutter card's button
+        // stays disabled ("faded") forever waiting on a promise that never
+        // resolves, and — since the email genuinely never sent — no code ever
+        // arrives either. Both halves of the reported bug traced to this one
+        // missing try/catch. Now surfaces the real SendGrid error instead of
+        // hanging silently.
+        try {
+            await sendOtpEmail(destination, 'Use this to verify your MiniGuru email address.', otp);
+        }
+        catch (emailError) {
+            logger_1.default.error({ emailError: emailError?.response?.body || emailError?.message || emailError }, '⚠️ sendOtpEmail failed (verification send-otp)');
+            return res.status(502).json({
+                error: 'Could not send the verification email right now. Please try again in a moment, ' +
+                    'or contact connect@miniguru.in if this keeps happening.',
+            });
+        }
         return res.status(200).json({ message: `Verification code sent.`, maskedTarget: maskEmail(destination) });
     }
     // target === 'phone'
@@ -215,8 +233,20 @@ const requestContactChange = async (req, res) => {
                 contactChangeRequestedAt: new Date(),
             },
         });
-        await sendOtpEmail(oldContact, `Someone requested to change the email on this MiniGuru account to ${newValue.trim()}. ` +
-            `If this was you, enter this code in the app to confirm. If it wasn't you, ignore this email — no change will happen.`, otp);
+        // BUGFIX (Aug 2026): same missing try/catch as sendVerificationOtp above
+        // — an unhandled SendGrid failure here left the request hanging with no
+        // response, and the email genuinely never sent either.
+        try {
+            await sendOtpEmail(oldContact, `Someone requested to change the email on this MiniGuru account to ${newValue.trim()}. ` +
+                `If this was you, enter this code in the app to confirm. If it wasn't you, ignore this email — no change will happen.`, otp);
+        }
+        catch (emailError) {
+            logger_1.default.error({ emailError: emailError?.response?.body || emailError?.message || emailError }, '⚠️ sendOtpEmail failed (contact change confirmation)');
+            return res.status(502).json({
+                error: 'Could not send the confirmation email right now. Please try again in a moment, ' +
+                    'or contact connect@miniguru.in if this keeps happening.',
+            });
+        }
         return res.status(200).json({
             message: `A confirmation code was sent to your current verified email. Enter it to complete the change.`,
             maskedTarget: maskEmail(oldContact),

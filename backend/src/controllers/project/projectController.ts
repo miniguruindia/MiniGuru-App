@@ -304,34 +304,58 @@ export const createProject = async (req: Request, res: Response) => {
         );
 
         if (totalCost > 0) {
-          const owner = await prisma.user.findUnique({ where: { id: project.userId }, select: { score: true, name: true } });
-          const newBalance = (owner?.score ?? 0) - totalCost;
+          // BUGFIX (Aug 2026): this used to charge the FULL material cost
+          // to the owner alone, even when the project had real collaborators
+          // — inconsistent with publishAndAwardProject's approval-time award,
+          // which has always split equally across owner + collaborators.
+          // Now mirrors that exact pattern (same helper logic, just for a
+          // debit instead of a credit): equal split, owner absorbs any
+          // rounding remainder, each recipient gets their own independent
+          // overspend audit record if their own balance goes negative.
+          const recipientIds = [project.userId, ...collaborators.map((c) => c.userId)];
+          const shareEach = Math.floor(totalCost / recipientIds.length);
+          const remainder = totalCost - shareEach * recipientIds.length;
 
-          await prisma.user.update({
-            where: { id: project.userId },
-            data: {
-              score: { decrement: totalCost },
-              scoreHistory: {
-                push: { time: new Date(), updatedScore: -totalCost, reason: `"${title}" materials: -${totalCost} Goins` },
-              },
-            },
-          });
+          for (let i = 0; i < recipientIds.length; i++) {
+            const recipientId = recipientIds[i];
+            const share = i === 0 ? shareEach + remainder : shareEach; // owner (index 0) absorbs remainder
+            if (share <= 0) continue;
 
-          if (newBalance < 0) {
-            await prisma.goinTopUpRequest.create({
+            const recipient = await prisma.user.findUnique({ where: { id: recipientId }, select: { score: true, name: true } });
+            const newBalance = (recipient?.score ?? 0) - share;
+
+            await prisma.user.update({
+              where: { id: recipientId },
               data: {
-                requesterId: project.userId,
-                requesterName: owner?.name ?? "Unknown",
-                amount: Math.abs(newBalance),
-                reason: `Materials for "${title}" cost more than the available balance.`,
-                projectDraftContext: project.id,
-                requestType: "MATERIAL_OVERSPEND",
-                status: "APPROVED",
-                decidedByRole: "AUTO",
-                decidedAt: new Date(),
+                score: { decrement: share },
+                scoreHistory: {
+                  push: {
+                    time: new Date(),
+                    updatedScore: -share,
+                    reason: recipientIds.length > 1
+                      ? `"${title}" materials (split ${recipientIds.length} ways): -${share} Goins`
+                      : `"${title}" materials: -${share} Goins`,
+                  },
+                },
               },
             });
-            logger.info(`💸 Project ${project.id} pushed ${owner?.name} to a Goins deficit of ${Math.abs(newBalance)} — logged, upload proceeded.`);
+
+            if (newBalance < 0) {
+              await prisma.goinTopUpRequest.create({
+                data: {
+                  requesterId: recipientId,
+                  requesterName: recipient?.name ?? "Unknown",
+                  amount: Math.abs(newBalance),
+                  reason: `Materials for "${title}" cost more than the available balance.`,
+                  projectDraftContext: project.id,
+                  requestType: "MATERIAL_OVERSPEND",
+                  status: "APPROVED",
+                  decidedByRole: "AUTO",
+                  decidedAt: new Date(),
+                },
+              });
+              logger.info(`💸 Project ${project.id} pushed ${recipient?.name} to a Goins deficit of ${Math.abs(newBalance)} — logged, upload proceeded.`);
+            }
           }
         }
       } catch (goinsError) {

@@ -107,7 +107,18 @@ async function refreshTokenNow() {
 function getAuthUrl() {
   return getOAuth2Client().generateAuthUrl({
     access_type: 'offline',
-    scope:  ['https://www.googleapis.com/auth/youtube'],
+    // BUGFIX (Aug 2026): 'youtube' alone covers uploads, publish/unlisted
+    // status changes, deletes, etc. — but commentThreads.insert (posting a
+    // reply as the channel) requires the SEPARATE force-ssl scope. Without
+    // it, YouTube returns "Request had insufficient authentication scopes"
+    // on every comment push, even though the token is otherwise perfectly
+    // healthy. Re-authorizing at /setup-youtube with BOTH scopes fixes it —
+    // the new token (with both grants) then gets pasted into Secret
+    // Manager exactly like any other token refresh (Rule 24).
+    scope: [
+      'https://www.googleapis.com/auth/youtube',
+      'https://www.googleapis.com/auth/youtube.force-ssl',
+    ],
     prompt: 'consent', // ensures refresh_token is always returned
   });
 }

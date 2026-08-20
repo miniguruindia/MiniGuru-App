@@ -134,9 +134,22 @@ class _AddDraftScreenState extends State<AddDraftScreen>
   }
 
   Future<void> _loadCategories() async {
+    // BUGFIX (Aug 2026): ProjectRepository().getProjectCategories() reads
+    // ONLY from local SQLite — it never fetches. The one method that
+    // actually refreshes that cache (fetchAndStoreProjectCategory()) is
+    // only ever called from the old Library/Projects tabs, both retired
+    // from navigation sessions ago. So this screen was permanently showing
+    // whatever categories existed the very first time that cache was ever
+    // seeded — "old" categories, exactly as reported, regardless of how
+    // many categories admin has added or renamed since. Fixed to call the
+    // same live, no-auth GET /project/categories endpoint the logged-in
+    // home screen's category chips already correctly use.
     try {
-      final cats  = await ProjectRepository().getProjectCategories();
-      final names = cats.map((c) => c.name).toList();
+      final cats  = await MiniguruApi().getPublicCategories();
+      final names = cats
+          .map((c) => (c['name'] as String?) ?? '')
+          .where((n) => n.isNotEmpty)
+          .toList();
       if (mounted) setState(() {
         _categories = names.isNotEmpty ? names : _defaultCategories;
         _loading    = false;

@@ -433,84 +433,123 @@ class _MentorActivityTabState extends State<MentorActivityTab> {
 
   Widget _buildLearnerCard(ChildProfile child, int index) {
     final colors = _learnerGradients[index % _learnerGradients.length];
-    return GestureDetector(
-      onTap: () async {
-        final verified = await Navigator.push<bool>(
-          context,
-          MaterialPageRoute(builder: (_) => PinEntryScreen(child: child)),
-        );
-        if (verified == true && mounted) {
-          SessionState.setChild(child.id, child.name, child.avatar);
-          Navigator.of(context).pushAndRemoveUntil(
-            MaterialPageRoute(builder: (_) => const HomeScreen()),
-            (route) => false,
-          );
-        }
-      },
-      child: Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(18),
-          boxShadow: [
-            BoxShadow(
-                color: Colors.black.withOpacity(0.06),
-                blurRadius: 10,
-                offset: const Offset(0, 3)),
-          ],
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              width: 56,
-              height: 56,
-              decoration: BoxDecoration(
-                gradient: LinearGradient(colors: colors),
-                shape: BoxShape.circle,
-              ),
-              child: Center(
-                child: Text(child.name[0].toUpperCase(),
-                    style: GoogleFonts.nunito(
-                        fontSize: 22, fontWeight: FontWeight.w900, color: Colors.white)),
-              ),
+    // BUGFIX/SMOOTHING (Aug 2026): "teacher uploading video on behalf of
+    // student is not smooth" — the only way to reach the upload flow used
+    // to be the FAB → a full search-and-select-again sheet, duplicating a
+    // child the teacher is already looking at right here on the card.
+    // Added a small camera-badge shortcut that jumps straight into
+    // _proceedToUpload([child.id]) for the single-child case (by far the
+    // common one), skipping both the PIN prompt (uploading doesn't need
+    // it — the teacher is already authenticated as mentor, same
+    // authorization boundary the FAB flow already uses) and the
+    // search/select step. The full card tap still goes through PinEntry to
+    // VIEW the child's own session, unchanged.
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        GestureDetector(
+          onTap: () async {
+            final verified = await Navigator.push<bool>(
+              context,
+              MaterialPageRoute(builder: (_) => PinEntryScreen(child: child)),
+            );
+            if (verified == true && mounted) {
+              SessionState.setChild(child.id, child.name, child.avatar);
+              Navigator.of(context).pushAndRemoveUntil(
+                MaterialPageRoute(builder: (_) => const HomeScreen()),
+                (route) => false,
+              );
+            }
+          },
+          child: Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(18),
+              boxShadow: [
+                BoxShadow(
+                    color: Colors.black.withOpacity(0.06),
+                    blurRadius: 10,
+                    offset: const Offset(0, 3)),
+              ],
             ),
-            const SizedBox(height: 8),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 6),
-              child: Text(child.name,
-                  style: GoogleFonts.nunito(
-                      fontSize: 13, fontWeight: FontWeight.w900, color: Colors.black87),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis),
-            ),
-            if (child.grade != null) ...[
-              const SizedBox(height: 2),
-              Text('Grade ${child.grade}',
-                  style: GoogleFonts.nunito(fontSize: 11, color: Colors.grey[500])),
-            ],
-            const SizedBox(height: 6),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-              decoration: BoxDecoration(
-                color: const Color(0xFFFFF3CD),
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Text('🪙', style: TextStyle(fontSize: 10)),
-                  const SizedBox(width: 3),
-                  Text('${child.score}',
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Container(
+                  width: 56,
+                  height: 56,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(colors: colors),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Center(
+                    child: Text(child.name[0].toUpperCase(),
+                        style: GoogleFonts.nunito(
+                            fontSize: 22, fontWeight: FontWeight.w900, color: Colors.white)),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 6),
+                  child: Text(child.name,
                       style: GoogleFonts.nunito(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w800,
-                          color: const Color(0xFFE8A000))),
+                          fontSize: 13, fontWeight: FontWeight.w900, color: Colors.black87),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis),
+                ),
+                if (child.grade != null) ...[
+                  const SizedBox(height: 2),
+                  Text('Grade ${child.grade}',
+                      style: GoogleFonts.nunito(fontSize: 11, color: Colors.grey[500])),
+                ],
+                const SizedBox(height: 6),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFFF3CD),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Text('🪙', style: TextStyle(fontSize: 10)),
+                      const SizedBox(width: 3),
+                      Text('${child.score}',
+                          style: GoogleFonts.nunito(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w800,
+                              color: const Color(0xFFE8A000))),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        Positioned(
+          top: -6,
+          right: -6,
+          child: GestureDetector(
+            onTap: () => _proceedToUpload([child.id]),
+            child: Container(
+              width: 30,
+              height: 30,
+              decoration: BoxDecoration(
+                color: pastelBlueText,
+                shape: BoxShape.circle,
+                border: Border.all(color: Colors.white, width: 2),
+                boxShadow: [
+                  BoxShadow(
+                      color: Colors.black.withOpacity(0.12),
+                      blurRadius: 4,
+                      offset: const Offset(0, 2)),
                 ],
               ),
+              child: const Icon(Icons.videocam, color: Colors.white, size: 15),
             ),
-          ],
+          ),
         ),
-      ),
+      ],
     );
   }
 
