@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.validateProject = exports.updateUserValidationRules = exports.idValidationRules = exports.orderValidationRules = exports.productValidationRules = exports.registerValidationRules = exports.createRazorPayOrderValidation = exports.verifyRazorpayTransactionValidation = void 0;
+exports.updateUserValidationRules = exports.idValidationRules = exports.orderValidationRules = exports.productValidationRules = exports.registerValidationRules = exports.createRazorPayOrderValidation = exports.verifyRazorpayTransactionValidation = void 0;
 const express_validator_1 = require("express-validator");
 const registerValidationRules = () => {
     return [
@@ -54,14 +54,6 @@ const idValidationRules = () => {
     ];
 };
 exports.idValidationRules = idValidationRules;
-const validateProject = [
-    (0, express_validator_1.body)('title').isString().notEmpty().withMessage('Title is required'),
-    (0, express_validator_1.body)('description').isString().notEmpty().withMessage('Description is required'),
-    (0, express_validator_1.body)('startDate').isISO8601().toDate().withMessage('Invalid start date'),
-    (0, express_validator_1.body)('endDate').isISO8601().toDate().withMessage('Invalid end date'),
-    (0, express_validator_1.body)('materials').isArray().withMessage('Materials should be an array'),
-];
-exports.validateProject = validateProject;
 exports.verifyRazorpayTransactionValidation = [
     (0, express_validator_1.body)('userId').notEmpty().withMessage('User ID is required'),
     (0, express_validator_1.body)('transactionId').notEmpty().withMessage('Transaction ID is required'),

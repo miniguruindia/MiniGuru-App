@@ -9,6 +9,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = require("express");
 const prismaClient_1 = __importDefault(require("../utils/prismaClient"));
+const levelSystem_1 = require("../utils/levelSystem");
 const router = (0, express_1.Router)();
 router.get('/', async (_req, res) => {
     try {
@@ -27,20 +28,22 @@ router.get('/', async (_req, res) => {
                 profilePhoto: true,
             },
         });
-        const leaderboard = topUsers.map((u, i) => ({
-            rank: i + 1,
-            userId: u.id,
-            name: u.name,
-            score: u.score,
-            badge: u.score >= 1000 ? '🚀' :
-                u.score >= 600 ? '🔬' :
-                    u.score >= 300 ? '⚙️' :
-                        u.score >= 100 ? '🔩' : '🌱',
-            level: u.score >= 1000 ? 'Innovator' :
-                u.score >= 600 ? 'Inventor' :
-                    u.score >= 300 ? 'Builder' :
-                        u.score >= 100 ? 'Tinkerer' : 'Sprout',
-        }));
+        // BUGFIX (Aug 2026): this used to compute badge/level with its own
+        // inline thresholds (600/300/100), disagreeing with at least 3 OTHER
+        // hardcoded copies of "the level system" elsewhere in the codebase.
+        // Now uses the one canonical getLevelForScore() everywhere.
+        const leaderboard = topUsers.map((u, i) => {
+            const lvl = (0, levelSystem_1.getLevelForScore)(u.score);
+            return {
+                rank: i + 1,
+                userId: u.id,
+                name: u.name,
+                score: u.score,
+                badge: lvl.emoji,
+                level: lvl.title,
+                levelNumber: lvl.level,
+            };
+        });
         return res.json({ leaderboard });
     }
     catch (err) {

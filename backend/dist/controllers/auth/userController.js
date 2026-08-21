@@ -9,6 +9,7 @@ const prismaClient_1 = __importDefault(require("../../utils/prismaClient"));
 const error_1 = require("../../utils/error");
 const logger_1 = __importDefault(require("../../logger"));
 const bcryptjs_1 = __importDefault(require("bcryptjs"));
+const levelSystem_1 = require("../../utils/levelSystem");
 const userSelectAttributes = {
     id: true,
     email: true,
@@ -55,6 +56,7 @@ const getUserDetails = async (req, res) => {
                 createdAt: user.createdAt,
                 updatedAt: user.updatedAt,
                 score: user.score ?? 0,
+                level: (0, levelSystem_1.getLevelForScore)(user.score ?? 0),
                 scoreHistory: user.scoreHistory ?? [],
                 phoneNumber: user.phoneNumber,
                 wallet: {
@@ -195,6 +197,7 @@ const getUserById = async (req, res) => {
                 createdAt: user.createdAt,
                 updatedAt: user.updatedAt,
                 score: user.score ?? 0,
+                level: (0, levelSystem_1.getLevelForScore)(user.score ?? 0),
                 scoreHistory: user.scoreHistory ?? [],
                 phoneNumber: user.phoneNumber,
                 wallet: {

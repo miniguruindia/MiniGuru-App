@@ -52,14 +52,6 @@ const idValidationRules = () => {
     ];
 };
 
-const validateProject = [
-    body('title').isString().notEmpty().withMessage('Title is required'),
-    body('description').isString().notEmpty().withMessage('Description is required'),
-    body('startDate').isISO8601().toDate().withMessage('Invalid start date'),
-    body('endDate').isISO8601().toDate().withMessage('Invalid end date'),
-    body('materials').isArray().withMessage('Materials should be an array'),
-];
-
 export const verifyRazorpayTransactionValidation = [
     body('userId').notEmpty().withMessage('User ID is required'),
     body('transactionId').notEmpty().withMessage('Transaction ID is required'),
@@ -71,4 +63,4 @@ export const createRazorPayOrderValidation = [
     body('userId').notEmpty().withMessage('User ID is required'),
 ];
 
-export { registerValidationRules,productValidationRules, orderValidationRules, idValidationRules, updateUserValidationRules, validateProject };
+export { registerValidationRules,productValidationRules, orderValidationRules, idValidationRules, updateUserValidationRules };

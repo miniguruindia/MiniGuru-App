@@ -846,9 +846,35 @@ class _ProfileState extends State<Profile>
 
   // ── Wallet + Goins row ────────────────────────────────────────────────────
   // ── Goins only card ─────────────────────────────────────────────────────────
+  // Level/progression mirror of backend/src/utils/levelSystem.ts LEVELS —
+  // same reasoning as community_screen.dart's local mirror: Dart can't
+  // import the TS file directly, so this is intentionally kept as an
+  // exact copy of the same bands. Keep both in sync if levels change.
+  static const List<_LevelTier> _levelTiers = [
+    _LevelTier(1, '🌱', 'Sprout',       0,       99),
+    _LevelTier(2, '🔧', 'Builder',      100,     999),
+    _LevelTier(3, '⚙️', 'Engineer',     1000,    9999),
+    _LevelTier(4, '🚀', 'Innovator',    10000,   99999),
+    _LevelTier(5, '🏆', 'Master Maker', 100000,  999999),
+    _LevelTier(6, '🌟', 'Legend',       1000000, -1), // -1 = open-ended
+  ];
+
+  _LevelTier _tierForScore(int score) {
+    final s = score < 0 ? 0 : score;
+    for (final t in _levelTiers) {
+      if (s >= t.min && (t.max == -1 || s <= t.max)) return t;
+    }
+    return _levelTiers.last;
+  }
+
   Widget _buildGoinsOnlyCard() {
     final goins = _user?.score ?? 0;
     final inDebt = goins < 0;
+    final tier = _tierForScore(goins);
+    final nextAt = tier.max == -1 ? null : tier.max + 1;
+    final progress = tier.max == -1
+        ? 1.0
+        : ((goins.clamp(tier.min, tier.max) - tier.min) / (tier.max - tier.min + 1)).toDouble();
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(18),
@@ -871,12 +897,41 @@ class _ProfileState extends State<Profile>
             style: GoogleFonts.nunito(
               fontSize: 14, fontWeight: FontWeight.w800,
               color: Colors.white70)),
+          const Spacer(),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.22),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Text('${tier.emoji}  Level ${tier.level} · ${tier.title}',
+              style: GoogleFonts.nunito(
+                fontSize: 11, fontWeight: FontWeight.w800, color: Colors.white)),
+          ),
         ]),
         const SizedBox(height: 8),
         Text('$goins',
           style: GoogleFonts.nunito(
             fontSize: 36, fontWeight: FontWeight.w900,
             color: Colors.white)),
+        if (!inDebt) ...[
+          const SizedBox(height: 10),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(6),
+            child: LinearProgressIndicator(
+              value: progress.clamp(0.0, 1.0),
+              minHeight: 6,
+              backgroundColor: Colors.white.withOpacity(0.25),
+              valueColor: const AlwaysStoppedAnimation(Colors.white),
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            nextAt == null
+                ? 'You\'ve reached the top level! 🎉'
+                : '${(nextAt - goins).clamp(0, nextAt)} Goins to the next level',
+            style: GoogleFonts.nunito(fontSize: 11, color: Colors.white70)),
+        ],
         const SizedBox(height: 4),
         Text(
           inDebt
@@ -1126,4 +1181,11 @@ class _StatDef {
   final String label, emoji;
   final Color  color, bg;
   const _StatDef(this.label, this.emoji, this.color, this.bg);
+}
+
+class _LevelTier {
+  final int level;
+  final String emoji, title;
+  final int min, max; // max == -1 means open-ended top tier
+  const _LevelTier(this.level, this.emoji, this.title, this.min, this.max);
 }

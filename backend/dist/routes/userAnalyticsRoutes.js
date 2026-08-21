@@ -11,6 +11,7 @@ const prismaClient_1 = __importDefault(require("../utils/prismaClient"));
 const logger_1 = __importDefault(require("../logger"));
 const authMiddleware_1 = require("../middleware/authMiddleware");
 const resolveSubject_1 = require("../middleware/resolveSubject");
+const levelSystem_1 = require("../utils/levelSystem");
 const router = express_1.default.Router();
 // ─── GET /users/me/analytics ──────────────────────────────────────────────────
 router.get('/me/analytics', authMiddleware_1.authenticateToken, resolveSubject_1.resolveSubject, async (req, res) => {
@@ -75,6 +76,20 @@ router.get('/me/badges', authMiddleware_1.authenticateToken, resolveSubject_1.re
             prismaClient_1.default.like.count({ where: { project: { userId } } }),
         ]);
         const score = user?.score ?? 0;
+        // ── Goins milestones — now generated from the same canonical LEVELS
+        // used everywhere else (leaderboard, /me, profile level card), instead
+        // of its own separate 100/300/600/1000 thresholds that used to
+        // disagree with the leaderboard's old 100/300/600/1000 numbers by
+        // coincidence but would have silently drifted the moment either one
+        // was changed without remembering to update the other by hand.
+        const goinsMilestoneBadges = levelSystem_1.LEVELS.filter((l) => l.level >= 2).map((l) => ({
+            id: `level_${l.level}`,
+            emoji: l.emoji,
+            name: l.title,
+            desc: `Reach ${l.minScore.toLocaleString()} Goins`,
+            earned: score >= l.minScore,
+            category: 'goins',
+        }));
         const badges = [
             // ── Projects ──
             { id: 'first_project', emoji: '🔧', name: 'First Build',
@@ -85,15 +100,8 @@ router.get('/me/badges', authMiddleware_1.authenticateToken, resolveSubject_1.re
                 desc: 'Complete 10 projects', earned: projectCount >= 10, category: 'projects' },
             { id: 'prolific_25', emoji: '🌟', name: 'Prolific Maker',
                 desc: 'Complete 25 projects', earned: projectCount >= 25, category: 'projects' },
-            // ── Goins milestones ──
-            { id: 'goins_100', emoji: '🪙', name: 'Tinkerer',
-                desc: 'Earn 100 Goins', earned: score >= 100, category: 'goins' },
-            { id: 'goins_300', emoji: '💡', name: 'Inventor',
-                desc: 'Earn 300 Goins', earned: score >= 300, category: 'goins' },
-            { id: 'goins_600', emoji: '⚡', name: 'Innovator',
-                desc: 'Earn 600 Goins', earned: score >= 600, category: 'goins' },
-            { id: 'goins_1000', emoji: '🚀', name: 'Rocket Maker',
-                desc: 'Earn 1,000 Goins', earned: score >= 1000, category: 'goins' },
+            // ── Goins milestones (now sourced from LEVELS, see above) ──
+            ...goinsMilestoneBadges,
             // ── Learning ──
             { id: 'explorer_10', emoji: '🎬', name: 'Explorer',
                 desc: 'Watch 10 videos', earned: videoWatchCount >= 10, category: 'learning' },
@@ -105,7 +113,7 @@ router.get('/me/badges', authMiddleware_1.authenticateToken, resolveSubject_1.re
             { id: 'popular_50', emoji: '⭐', name: 'Star Maker',
                 desc: 'Receive 50 likes on projects', earned: likeCount >= 50, category: 'social' },
         ];
-        return res.json({ badges, score, projectCount });
+        return res.json({ badges, score, projectCount, level: (0, levelSystem_1.getLevelForScore)(score) });
     }
     catch (error) {
         logger_1.default.error(`GET /users/me/badges: ${error.message}`);

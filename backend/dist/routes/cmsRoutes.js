@@ -30,12 +30,17 @@ exports.DEFAULTS = {
             { id: '3', title: 'MiniGuru Mentor Handbook', type: 'PDF', tag: 'Mentor', url: '', description: 'For teachers and parents guiding young makers.' },
         ],
         ladder: {
+            // Mirrors backend/src/utils/levelSystem.ts LEVELS — see that file for
+            // the single source of truth. Kept here too since this key is still
+            // admin-editable via the CMS content editor, even though the current
+            // live Ladder tab (community_screen.dart) doesn't read it yet.
             levels: [
                 { name: 'Sprout', minScore: 0, emoji: '🌱', perks: 'Access to basic challenges' },
-                { name: 'Tinkerer', minScore: 100, emoji: '🔧', perks: 'Unlock intermediate kits' },
-                { name: 'Inventor', minScore: 300, emoji: '💡', perks: 'Community mentor badge' },
-                { name: 'Builder', minScore: 600, emoji: '🏗️', perks: 'Featured on leaderboard' },
-                { name: 'Innovator', minScore: 1000, emoji: '🚀', perks: 'Invited to T-LAB events' },
+                { name: 'Builder', minScore: 100, emoji: '🔧', perks: 'Unlock intermediate kits' },
+                { name: 'Engineer', minScore: 1000, emoji: '⚙️', perks: 'Community mentor badge' },
+                { name: 'Innovator', minScore: 10000, emoji: '🚀', perks: 'Featured on leaderboard' },
+                { name: 'Master Maker', minScore: 100000, emoji: '🏆', perks: 'Invited to T-LAB events' },
+                { name: 'Legend', minScore: 1000000, emoji: '🌟', perks: 'MiniGuru Hall of Fame' },
             ]
         }
     },

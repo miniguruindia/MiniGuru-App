@@ -3,7 +3,6 @@ import { createProject, updateProject, getProjectById, getAllProjectsForUser , g
 import { getProjectsByCategory, getAllProjectCategories, createProjectCategory, updateProjectCategory, deleteProjectCategory } from '../controllers/project/categoryController';
 import { authenticateToken } from '../middleware/authMiddleware';
 import { resolveSubject } from '../middleware/resolveSubject';
-import { validateProject } from '../middleware/validationMiddleware';
 import { likeProject } from '../controllers/project/likeController';
 import { addProjectComment } from '../controllers/project/commentController';
 import { idValidationRules } from '../middleware/validationMiddleware';
@@ -19,7 +18,11 @@ const projectRouter = express.Router();
 // its Goins on approval — to the CHILD's own account, not the mentor's.
 // Previously missing here (only wired into goinsRoutes/userAnalyticsRoutes),
 // which silently misattributed every upload made during a PIN session.
-projectRouter.post('/', authenticateToken, resolveSubject, validateProject, createProject);
+// (validateProject middleware removed Aug 2026 — it was dead: express-
+// validator's body() rules only collect errors, and nothing here ever
+// called validationResult() to check them, so it ran on every request and
+// did literally nothing. See MINIGURU_RULES.md.)
+projectRouter.post('/', authenticateToken, resolveSubject, createProject);
 
 // Signed direct-to-Firebase-Storage upload URL — bypasses Cloud Run's
 // hard 32MB request body limit for the actual video/thumbnail bytes.
@@ -48,7 +51,7 @@ projectRouter.get('/feed', getPublishedVideoFeed);
 
 
 // Update a project
-projectRouter.put('/:id', authenticateToken, validateProject, updateProject);
+projectRouter.put('/:id', authenticateToken, updateProject);
 
 projectRouter.get('/all',authenticateToken,getAllProjects);
 

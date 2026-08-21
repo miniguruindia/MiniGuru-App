@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express';
-import { sendEmail } from '../services/email/emailService';
+import { sendEmail, OFFICIAL_FROM } from '../services/email/emailService';
 import prisma from '../utils/prismaClient';
 
 const router = Router();
@@ -60,6 +60,7 @@ ${amazonCartUrl ? '<div style="text-align:center;margin:28px 0"><a href="' + ama
       to: parentEmail,
       subject: `&#128722; ${childName || 'Your child'} needs materials for their STEAM project!`,
       html,
+      fromOverride: OFFICIAL_FROM, // lower-stakes mail, connect@ reserved for OTP/reset
     });
     return res.status(200).json({ success: true, amazonCartUrl, itemCount: items.length });
   } catch (err: any) {

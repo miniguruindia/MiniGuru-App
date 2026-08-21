@@ -2,10 +2,28 @@ import sgMail from '@sendgrid/mail';
 
 sgMail.setApiKey(process.env.SENDGRID_API_KEY || '');
 
-const FROM = { email: process.env.FROM_EMAIL || 'connect@miniguru.in', name: 'MiniGuru' };
+const DEFAULT_FROM = { email: process.env.FROM_EMAIL || 'connect@miniguru.in', name: 'MiniGuru' };
+// Second, lower-stakes "official" sender — for materials-kit-to-parent
+// emails and admin broadcasts/announcements. connect@miniguru.in stays
+// reserved for OTP codes and password resets (highest-stakes, most
+// security-sensitive mail). Requires miniguru.in@gmail.com to be a
+// verified sender identity in SendGrid (same process connect@ went
+// through) — mail from an unverified sender is silently rejected or
+// spam-flagged, so confirm that's done before relying on this.
+export const OFFICIAL_FROM = { email: 'miniguru.in@gmail.com', name: 'MiniGuru' };
 
-export async function sendEmail({ to, subject, html }: { to: string; subject: string; html: string }) {
-  await sgMail.send({ to, from: FROM, subject, html });
+export async function sendEmail({
+  to,
+  subject,
+  html,
+  fromOverride,
+}: {
+  to: string;
+  subject: string;
+  html: string;
+  fromOverride?: { email: string; name: string };
+}) {
+  await sgMail.send({ to, from: fromOverride || DEFAULT_FROM, subject, html });
 }
 
 export async function sendPasswordResetEmail(to: string, resetToken: string) {

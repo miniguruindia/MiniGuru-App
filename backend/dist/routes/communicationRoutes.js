@@ -117,7 +117,7 @@ router.post('/broadcast', authMiddleware_1.authenticateToken, authMiddleware_1.a
         if (alsoEmail === true) {
             for (const user of users) {
                 try {
-                    await (0, emailService_1.sendEmail)({ to: user.email, subject, html: htmlWrap(subject, `<p>${message}</p>`) });
+                    await (0, emailService_1.sendEmail)({ to: user.email, subject, html: htmlWrap(subject, `<p>${message}</p>`), fromOverride: emailService_1.OFFICIAL_FROM });
                     sent++;
                 }
                 catch {
@@ -165,7 +165,7 @@ router.post('/send', authMiddleware_1.authenticateToken, authMiddleware_1.author
         });
         let emailed = false;
         if (alsoEmail === true) {
-            await (0, emailService_1.sendEmail)({ to: recipient.email, subject, html: htmlWrap(subject, `<p>${message}</p>`) });
+            await (0, emailService_1.sendEmail)({ to: recipient.email, subject, html: htmlWrap(subject, `<p>${message}</p>`), fromOverride: emailService_1.OFFICIAL_FROM });
             emailed = true;
         }
         logger_1.default.info(`Direct message sent to ${recipient.email} (in-app${emailed ? ' + email' : ' only'})`);

@@ -4,7 +4,7 @@ import express from 'express';
 import prisma from '../utils/prismaClient';
 import logger from '../logger';
 import { authenticateToken, authorizeAdmin } from '../middleware/authMiddleware';
-import { sendEmail } from '../services/email/emailService';
+import { sendEmail, OFFICIAL_FROM } from '../services/email/emailService';
 import { notifyUser, notifyManyUsers } from '../services/notificationService';
 
 const router = express.Router();
@@ -117,7 +117,7 @@ router.post('/broadcast', authenticateToken, authorizeAdmin, async (req, res) =>
     if (alsoEmail === true) {
       for (const user of users) {
         try {
-          await sendEmail({ to: user.email, subject, html: htmlWrap(subject, `<p>${message}</p>`) });
+          await sendEmail({ to: user.email, subject, html: htmlWrap(subject, `<p>${message}</p>`), fromOverride: OFFICIAL_FROM });
           sent++;
         } catch { failed++; }
       }
@@ -164,7 +164,7 @@ router.post('/send', authenticateToken, authorizeAdmin, async (req, res) => {
 
     let emailed = false;
     if (alsoEmail === true) {
-      await sendEmail({ to: recipient.email, subject, html: htmlWrap(subject, `<p>${message}</p>`) });
+      await sendEmail({ to: recipient.email, subject, html: htmlWrap(subject, `<p>${message}</p>`), fromOverride: OFFICIAL_FROM });
       emailed = true;
     }
     logger.info(`Direct message sent to ${recipient.email} (in-app${emailed ? ' + email' : ' only'})`);

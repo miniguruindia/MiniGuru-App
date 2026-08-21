@@ -841,11 +841,12 @@ class _LadderTab extends StatefulWidget {
 class _LadderTabState extends State<_LadderTab> {
 
   static const _levels = [
-    _Level('🌱', 'Sprout',    '0–99G',    'Just starting out',    Color(0xFF86EFAC), 0.0),
-    _Level('🔩', 'Tinkerer',  '100–299G', 'Getting handy',         Color(0xFF93C5FD), 0.15),
-    _Level('⚙️', 'Builder',   '300–599G', 'Serious maker',         Color(0xFFFDE68A), 0.35),
-    _Level('🔬', 'Inventor',  '600–999G', 'Creating new things',   Color(0xFFFCA5A5), 0.60),
-    _Level('🚀', 'Innovator', '1000G+',   'Top of the ladder',     Color(0xFFD8B4FE), 1.0),
+    _Level('🌱', 'Sprout',       '0–99G',          'Just starting out',    Color(0xFF86EFAC), 0.0),
+    _Level('🔧', 'Builder',      '100–999G',       'Getting handy',        Color(0xFF93C5FD), 0.15),
+    _Level('⚙️', 'Engineer',     '1,000–9,999G',   'Serious maker',        Color(0xFFFDE68A), 0.35),
+    _Level('🚀', 'Innovator',    '10,000–99,999G', 'Creating new things',  Color(0xFFFCA5A5), 0.60),
+    _Level('🏆', 'Master Maker', '100,000–999,999G','Top of the ladder',   Color(0xFFD8B4FE), 0.85),
+    _Level('🌟', 'Legend',       '1,000,000G+',    'MiniGuru Hall of Fame',Color(0xFFFDBA74), 1.0),
   ];
 
   static const _badges = [
@@ -868,16 +869,20 @@ class _LadderTabState extends State<_LadderTab> {
 
   bool _loading = true;
 
-  // Helper: return level info for a given score
-  String _levelName(int score) => score >= 1000 ? 'Innovator' :
-      score >= 600 ? 'Inventor' : score >= 300 ? 'Builder' :
-      score >= 100 ? 'Tinkerer' : 'Sprout';
-  String _levelEmoji(int score) => score >= 1000 ? '🚀' :
-      score >= 600 ? '🔬' : score >= 300 ? '⚙️' :
-      score >= 100 ? '🔩' : '🌱';
-  int _nextLevelAt(int score) => score >= 1000 ? 9999 :
-      score >= 600 ? 1000 : score >= 300 ? 600 :
-      score >= 100 ? 300 : 100;
+  // Helper: return level info for a given score — mirrors
+  // backend/src/utils/levelSystem.ts LEVELS (the canonical source; kept
+  // as a Dart mirror here purely as a fallback for when the API's own
+  // 'badge'/'level' fields aren't present, since Dart can't import a TS
+  // file directly). Keep these two lists in sync if levels ever change.
+  String _levelName(int score) => score >= 1000000 ? 'Legend' :
+      score >= 100000 ? 'Master Maker' : score >= 10000 ? 'Innovator' :
+      score >= 1000 ? 'Engineer' : score >= 100 ? 'Builder' : 'Sprout';
+  String _levelEmoji(int score) => score >= 1000000 ? '🌟' :
+      score >= 100000 ? '🏆' : score >= 10000 ? '🚀' :
+      score >= 1000 ? '⚙️' : score >= 100 ? '🔧' : '🌱';
+  int _nextLevelAt(int score) => score >= 1000000 ? score :
+      score >= 100000 ? 1000000 : score >= 10000 ? 100000 :
+      score >= 1000 ? 10000 : score >= 100 ? 1000 : 100;
   Color _levelColor(int score) => score >= 1000 ? const Color(0xFFD8B4FE) :
       score >= 600 ? const Color(0xFFFCA5A5) : score >= 300 ? const Color(0xFFFDE68A) :
       score >= 100 ? const Color(0xFF93C5FD) : const Color(0xFF86EFAC);

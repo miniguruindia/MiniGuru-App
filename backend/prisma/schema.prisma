@@ -140,25 +140,11 @@ model ChildProfile {
   isActive     Boolean             @default(true)
   createdAt    DateTime            @default(now())
   updatedAt    DateTime            @updatedAt
-  projects     ChildProject[]
   videoUploads ChildVideo[]
   orders       ChildOrder[]
 
   @@index([guardianId])
   @@map("child_profiles")
-}
-
-model ChildProject {
-  id             String       @id @default(auto()) @map("_id") @db.ObjectId
-  childProfileId String       @db.ObjectId
-  child          ChildProfile @relation(fields: [childProfileId], references: [id], onDelete: Cascade)
-  projectId      String       @db.ObjectId
-  role           String       @default("OWNER")
-  goinsShare     Int          @default(100)
-  createdAt      DateTime     @default(now())
-
-  @@unique([childProfileId, projectId])
-  @@map("child_projects")
 }
 
 model ChildVideo {

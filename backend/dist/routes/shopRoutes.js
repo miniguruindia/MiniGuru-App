@@ -58,6 +58,7 @@ ${amazonCartUrl ? '<div style="text-align:center;margin:28px 0"><a href="' + ama
             to: parentEmail,
             subject: `&#128722; ${childName || 'Your child'} needs materials for their STEAM project!`,
             html,
+            fromOverride: emailService_1.OFFICIAL_FROM, // lower-stakes mail, connect@ reserved for OTP/reset
         });
         return res.status(200).json({ success: true, amazonCartUrl, itemCount: items.length });
     }

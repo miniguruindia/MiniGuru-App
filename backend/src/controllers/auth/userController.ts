@@ -5,6 +5,7 @@ import prisma from '../../utils/prismaClient';
 import { handlePrismaError } from '../../utils/error';
 import logger from '../../logger';
 import bcrypt from 'bcryptjs';
+import { getLevelForScore } from '../../utils/levelSystem';
 
 const userSelectAttributes = {
     id: true,
@@ -57,6 +58,7 @@ const getUserDetails = async (req: Request, res: Response) => {
                 createdAt: user.createdAt,
                 updatedAt: user.updatedAt,
                 score: user.score ?? 0,
+                level: getLevelForScore(user.score ?? 0),
                 scoreHistory: user.scoreHistory ?? [],
                 phoneNumber: user.phoneNumber,
                 wallet: {
@@ -207,6 +209,7 @@ const getUserById = async (req: Request, res: Response) => {
                 createdAt: user.createdAt,
                 updatedAt: user.updatedAt,
                 score: user.score ?? 0,
+                level: getLevelForScore(user.score ?? 0),
                 scoreHistory: user.scoreHistory ?? [],
                 phoneNumber: user.phoneNumber,
                 wallet: {

@@ -2,8 +2,62 @@ import { Router, Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
 import prisma from '../utils/prismaClient';
 import { authenticateToken } from '../middleware/authMiddleware';
+import { sendEmail } from '../services/emailService';
+import logger from '../logger';
 
 const router = Router();
+
+// ── Verification-on-registration helpers ──────────────────────────────────
+// Parent/School self-registration never had an OTP step at all (unlike
+// child registration, which requires OTP confirmation before the account
+// even exists). Rebuilding this into a full pre-registration gate would be
+// a much bigger change — a pending-registration model, a new Flutter step,
+// deferred account creation — for a bigger risk than this pass should take.
+// Scoped, lower-risk version instead: fire off the SAME verification email
+// used by the existing on-demand "Verify Email" button (already wired on
+// every mentor's Profile tab) automatically right after account creation,
+// so a new Parent/School registrant gets a code waiting in their inbox
+// immediately rather than only if they later remember to tap Verify.
+// Always best-effort — registration itself must never fail or block on
+// this, matching the "verification is always optional, never blocking"
+// principle already established for contact verification generally.
+function generateOtp(): string {
+  return Math.floor(100000 + Math.random() * 900000).toString();
+}
+function otpExpiry(): Date {
+  return new Date(Date.now() + 15 * 60 * 1000);
+}
+function isGeneratedLoginId(email: string | null | undefined): boolean {
+  return !!email && email.trim().toLowerCase().endsWith('@miniguru.in');
+}
+async function sendRegistrationVerificationOtp(userId: string, destination: string) {
+  try {
+    const otp = generateOtp();
+    await prisma.user.update({
+      where: { id: userId },
+      data: {
+        verificationOtpHash: await bcrypt.hash(otp, 10),
+        verificationOtpExpiry: otpExpiry(),
+        verificationOtpTarget: 'email',
+      },
+    });
+    await sendEmail({
+      to: destination,
+      subject: 'Verify your MiniGuru account email',
+      html: `<div style="font-family:Arial,sans-serif;max-width:480px;margin:0 auto;padding:28px">
+        <h2 style="color:#5B6EF5">Welcome to MiniGuru!</h2>
+        <p>Use this code to verify your account's email address:</p>
+        <p style="font-size:32px;font-weight:800;letter-spacing:4px;color:#5B6EF5">${otp}</p>
+        <p style="color:#888;font-size:13px">This code expires in 15 minutes. You can also verify any time later from your Profile page — verification is optional and never blocks you from using MiniGuru.</p>
+      </div>`,
+    });
+  } catch (err: any) {
+    // Best-effort only — never let a flaky email service block or fail
+    // registration itself. The person can still verify manually later
+    // from Profile using the exact same underlying flow.
+    logger.warn(`Registration verification email failed (non-blocking): ${err?.message || err}`);
+  }
+}
 
 // ── Helpers — institutional login ID generation (mirrors schoolAccountRoutes.ts) ──
 function slugWord(w: string): string {
@@ -78,6 +132,17 @@ router.post('/register', async (req: Request, res: Response) => {
         score: true, role: true, createdAt: true,
       }
     });
+
+    // Fire off the verification email — best-effort, never blocks the
+    // response. Destination mirrors the exact same resolution logic
+    // contactVerificationController.ts already uses: guardianEmail (the
+    // real address typed in) for institutional School/T-LAB accounts with
+    // a generated login ID, or the account's own email for a genuinely
+    // self-registered individual parent.
+    const verifyDestination = guardianEmail || (isGeneratedLoginId(loginEmail) ? null : loginEmail);
+    if (verifyDestination) {
+      sendRegistrationVerificationOtp(user.id, verifyDestination);
+    }
 
     return res.status(201).json({ message: 'Mentor registered successfully', user });
   } catch (err: any) {

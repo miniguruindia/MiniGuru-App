@@ -46,6 +46,15 @@ class _UnifiedVideoPlayerState extends State<UnifiedVideoPlayer> {
   bool _isPlayerReady = false;
   StreamSubscription<Duration>? _positionSub;
   List<dynamic> _materials = [];
+  // BUGFIX (Aug 2026): the player had no offline/network-failure handling
+  // at all — a stuck video just silently sat there with no explanation.
+  // Watchdog: if playback stays in "buffering" for too long without ever
+  // reaching playing/paused/ended, it's almost always a real connectivity
+  // problem (YouTube itself rarely buffers indefinitely on a live network).
+  // Shows a small banner with a manual retry instead of leaving the
+  // screen looking simply broken.
+  Timer? _bufferWatchdog;
+  bool _showConnectionBanner = false;
 
   Map<String, bool> _likes = {
     'aesthetic': false,
@@ -143,7 +152,35 @@ class _UnifiedVideoPlayerState extends State<UnifiedVideoPlayer> {
           setState(() => _isPlayerReady = true);
         }
       }
+      // Connectivity watchdog — see field comment above for why buffering
+      // specifically is the signal we watch, not a dedicated "offline"
+      // callback (the iframe API doesn't expose one directly).
+      if (event.playerState == PlayerState.buffering) {
+        _bufferWatchdog ??= Timer(const Duration(seconds: 12), () {
+          if (mounted) setState(() => _showConnectionBanner = true);
+        });
+      } else {
+        _bufferWatchdog?.cancel();
+        _bufferWatchdog = null;
+        if (_showConnectionBanner && mounted) {
+          setState(() => _showConnectionBanner = false);
+        }
+      }
     });
+  }
+
+  void _retryAfterConnectionIssue() {
+    _bufferWatchdog?.cancel();
+    _bufferWatchdog = null;
+    _positionSub?.cancel();
+    _positionSub = null;
+    _hasTrackedView = false;
+    _controller.close();
+    setState(() {
+      _isPlayerReady = false;
+      _showConnectionBanner = false;
+    });
+    _initializePlayer();
   }
 
   // How much of the video must actually be watched before the view Goin is
@@ -382,6 +419,7 @@ class _UnifiedVideoPlayerState extends State<UnifiedVideoPlayer> {
 
   @override
   void dispose() {
+    _bufferWatchdog?.cancel();
     _positionSub?.cancel();
     _controller.close();
     _commentController.dispose();
@@ -437,6 +475,42 @@ class _UnifiedVideoPlayerState extends State<UnifiedVideoPlayer> {
     );
   }
 
+  // Small dismissible-by-retry banner shown when playback appears stuck
+  // buffering for an unusually long time (see _bufferWatchdog above).
+  Widget _connectionBannerOverlay() {
+    if (!_showConnectionBanner) return const SizedBox.shrink();
+    return Positioned(
+      left: 12,
+      right: 12,
+      bottom: 12,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        decoration: BoxDecoration(
+          color: Colors.black.withOpacity(0.85),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(
+          children: [
+            const Icon(Icons.wifi_off, color: Colors.white, size: 18),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                'Having trouble loading this video — check your internet connection.',
+                style: GoogleFonts.nunito(color: Colors.white, fontSize: 12),
+              ),
+            ),
+            TextButton(
+              onPressed: _retryAfterConnectionIssue,
+              child: Text('Retry',
+                  style: GoogleFonts.nunito(
+                      color: pastelBlueText, fontWeight: FontWeight.w800, fontSize: 12)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   // ── Narrow (phone/tablet-portrait) layout — UNCHANGED behavior ──────────
   // Full-width 16:9 video stays modest in height on narrow screens, so the
   // original fixed 55%-of-screen-height panel below it always fit. Left
@@ -448,9 +522,14 @@ class _UnifiedVideoPlayerState extends State<UnifiedVideoPlayer> {
         // ── YouTube player (no Flutter widgets overlaid on it) ──
         Container(
           color: Colors.black,
-          child: YoutubePlayer(
-            controller: _controller,
-            aspectRatio: 16 / 9,
+          child: Stack(
+            children: [
+              YoutubePlayer(
+                controller: _controller,
+                aspectRatio: 16 / 9,
+              ),
+              _connectionBannerOverlay(),
+            ],
           ),
         ),
         // ── Scrollable content below player ──
@@ -514,9 +593,14 @@ class _UnifiedVideoPlayerState extends State<UnifiedVideoPlayer> {
           child: SizedBox(
             width: videoWidth,
             height: videoWidth * 9 / 16,
-            child: YoutubePlayer(
-              controller: _controller,
-              aspectRatio: 16 / 9,
+            child: Stack(
+              children: [
+                YoutubePlayer(
+                  controller: _controller,
+                  aspectRatio: 16 / 9,
+                ),
+                _connectionBannerOverlay(),
+              ],
             ),
           ),
         ),

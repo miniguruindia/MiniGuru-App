@@ -5,6 +5,7 @@
 
 import { Router, Request, Response } from 'express';
 import prisma from '../utils/prismaClient';
+import { getLevelForScore } from '../utils/levelSystem';
 
 const router = Router();
 
@@ -26,20 +27,22 @@ router.get('/', async (_req: Request, res: Response) => {
       },
     });
 
-    const leaderboard = topUsers.map((u, i) => ({
-      rank:   i + 1,
-      userId: u.id,
-      name:   u.name,
-      score:  u.score,
-      badge:  u.score >= 1000 ? '🚀' :
-              u.score >= 600  ? '🔬' :
-              u.score >= 300  ? '⚙️' :
-              u.score >= 100  ? '🔩' : '🌱',
-      level:  u.score >= 1000 ? 'Innovator' :
-              u.score >= 600  ? 'Inventor'  :
-              u.score >= 300  ? 'Builder'   :
-              u.score >= 100  ? 'Tinkerer'  : 'Sprout',
-    }));
+    // BUGFIX (Aug 2026): this used to compute badge/level with its own
+    // inline thresholds (600/300/100), disagreeing with at least 3 OTHER
+    // hardcoded copies of "the level system" elsewhere in the codebase.
+    // Now uses the one canonical getLevelForScore() everywhere.
+    const leaderboard = topUsers.map((u, i) => {
+      const lvl = getLevelForScore(u.score);
+      return {
+        rank:   i + 1,
+        userId: u.id,
+        name:   u.name,
+        score:  u.score,
+        badge:  lvl.emoji,
+        level:  lvl.title,
+        levelNumber: lvl.level,
+      };
+    });
 
     return res.json({ leaderboard });
   } catch (err: any) {

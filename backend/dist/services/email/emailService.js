@@ -3,14 +3,23 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.OFFICIAL_FROM = void 0;
 exports.sendEmail = sendEmail;
 exports.sendPasswordResetEmail = sendPasswordResetEmail;
 exports.initializeEmailService = initializeEmailService;
 const mail_1 = __importDefault(require("@sendgrid/mail"));
 mail_1.default.setApiKey(process.env.SENDGRID_API_KEY || '');
-const FROM = { email: process.env.FROM_EMAIL || 'connect@miniguru.in', name: 'MiniGuru' };
-async function sendEmail({ to, subject, html }) {
-    await mail_1.default.send({ to, from: FROM, subject, html });
+const DEFAULT_FROM = { email: process.env.FROM_EMAIL || 'connect@miniguru.in', name: 'MiniGuru' };
+// Second, lower-stakes "official" sender — for materials-kit-to-parent
+// emails and admin broadcasts/announcements. connect@miniguru.in stays
+// reserved for OTP codes and password resets (highest-stakes, most
+// security-sensitive mail). Requires miniguru.in@gmail.com to be a
+// verified sender identity in SendGrid (same process connect@ went
+// through) — mail from an unverified sender is silently rejected or
+// spam-flagged, so confirm that's done before relying on this.
+exports.OFFICIAL_FROM = { email: 'miniguru.in@gmail.com', name: 'MiniGuru' };
+async function sendEmail({ to, subject, html, fromOverride, }) {
+    await mail_1.default.send({ to, from: fromOverride || DEFAULT_FROM, subject, html });
 }
 async function sendPasswordResetEmail(to, resetToken) {
     const resetUrl = `${process.env.FRONTEND_URL}/reset-password?token=${resetToken}`;
