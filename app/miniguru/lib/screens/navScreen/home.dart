@@ -779,17 +779,32 @@ class _HomeState extends State<Home> {
                 color: Colors.black87)),
       ),
       const SizedBox(height: 12),
-      Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            // All
-            Expanded(
-              child: GestureDetector(
+      // BUGFIX (Aug 2026): this used to be a fixed, non-scrolling Row with
+      // Expanded columns splitting the screen width evenly across every
+      // category. With real admin-managed category names (some genuinely
+      // 2-3 words, e.g. "Electronics & Circuits") that squeezed each
+      // column to a different width on mobile, and the label Text had no
+      // maxLines/fixed height — some names wrapped to 1 line, others to
+      // 2 or 3, so icons ended up sitting at different heights relative
+      // to each other despite all being the same 60x60 box. Fixed two
+      // ways at once: (1) switched to a horizontally-scrollable row (the
+      // same pattern already used for materials/video strips elsewhere in
+      // this app) so items are never force-squeezed by screen width, and
+      // (2) every label now has maxLines:2 + a fixed-height box, so every
+      // column is exactly the same total height regardless of name length.
+      SizedBox(
+        height: 96,
+        child: SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Row(
+            children: [
+              // All
+              GestureDetector(
                 onTap: () => _filterVideos('All'),
                 child: Container(
-                  margin: const EdgeInsets.only(right: 8),
+                  width: 64,
+                  margin: const EdgeInsets.only(right: 10),
                   child: Column(children: [
                     Container(
                       width: 60, height: 60,
@@ -805,30 +820,35 @@ class _HomeState extends State<Home> {
                               : Colors.black54,
                           size: 28),
                     ),
-                    const SizedBox(height: 8),
-                    Text('All',
-                        style: GoogleFonts.nunito(
-                          fontSize: 11,
-                          fontWeight: _selectedCategory == 'All'
-                              ? FontWeight.w700
-                              : FontWeight.normal,
-                          color: _selectedCategory == 'All'
-                              ? const Color(0xFF3B82F6)
-                              : Colors.black87,
-                        ),
-                        textAlign: TextAlign.center),
+                    const SizedBox(height: 6),
+                    SizedBox(
+                      height: 28,
+                      child: Text('All',
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: GoogleFonts.nunito(
+                            fontSize: 11,
+                            height: 1.15,
+                            fontWeight: _selectedCategory == 'All'
+                                ? FontWeight.w700
+                                : FontWeight.normal,
+                            color: _selectedCategory == 'All'
+                                ? const Color(0xFF3B82F6)
+                                : Colors.black87,
+                          ),
+                          textAlign: TextAlign.center),
+                    ),
                   ]),
                 ),
               ),
-            ),
-            // Other categories
-            ..._categories.map((cat) {
-              final isSelected = _selectedCategory == cat['name'];
-              return Expanded(
-                child: GestureDetector(
+              // Other categories
+              ..._categories.map((cat) {
+                final isSelected = _selectedCategory == cat['name'];
+                return GestureDetector(
                   onTap: () => _filterVideos(cat['name']),
                   child: Container(
-                    margin: const EdgeInsets.only(right: 8),
+                    width: 64,
+                    margin: const EdgeInsets.only(right: 10),
                     child: Column(children: [
                       Container(
                         width: 60, height: 60,
@@ -842,23 +862,29 @@ class _HomeState extends State<Home> {
                         child: Text((cat['icon'] ?? '📦').toString(),
                             style: const TextStyle(fontSize: 26)),
                       ),
-                      const SizedBox(height: 8),
-                      Text(cat['name'],
-                          style: GoogleFonts.nunito(
-                            fontSize: 11,
-                            fontWeight:
-                                isSelected ? FontWeight.w700 : FontWeight.normal,
-                            color: isSelected
-                                ? cat['color'] as Color
-                                : Colors.black87,
-                          ),
-                          textAlign: TextAlign.center),
+                      const SizedBox(height: 6),
+                      SizedBox(
+                        height: 28,
+                        child: Text(cat['name'],
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: GoogleFonts.nunito(
+                              fontSize: 11,
+                              height: 1.15,
+                              fontWeight:
+                                  isSelected ? FontWeight.w700 : FontWeight.normal,
+                              color: isSelected
+                                  ? cat['color'] as Color
+                                  : Colors.black87,
+                            ),
+                            textAlign: TextAlign.center),
+                      ),
                     ]),
                   ),
-                ),
-              );
-            }).toList(),
-          ],
+                );
+              }).toList(),
+            ],
+          ),
         ),
       ),
     ]);
