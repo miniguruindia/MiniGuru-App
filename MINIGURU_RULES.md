@@ -3,7 +3,7 @@
 
 **Project:** MiniGuru Innovation Private Limited | Ujjain MP
 **App:** miniguru.in | **Backend:** miniguru-backend-130420985234.asia-south1.run.app | **Admin:** admin.miniguru.in
-**Last updated:** July 8, 2026
+**Last updated:** August 21, 2026
 
 ---
 
@@ -108,6 +108,20 @@ firebase deploy --only hosting
 | 39 | Changing a VERIFIED contact requires OTP confirmation to the OLD contact, or falls back to manual admin approval — changing an UNVERIFIED one applies immediately | Prevents account takeover via a simple "change my email" call |
 | 40 | FIREBASE_SERVICE_ACCOUNT_JSON (for direct material image upload) goes in Secret Manager, never as a plain Cloud Run env var | Same `//`/newline-in-value problem as YOUTUBE_TOKENS (Rule 24) |
 | 41 | `ProductSuggestion.status` transitions (pending → approved/rejected/added) are admin-only and manual — "added" does NOT auto-create a Material | Admin must deliberately create the Material first, then mark the suggestion resolved, to avoid orphaned/mismatched entries |
+| 42 | Run `flutter pub get` before `flutter build web` after any Codespace disk cleanup that touched `~/.pub-cache`, and as a standing first step in the Flutter deploy sequence generally | A missing-package build can still partially compile and deploy (fewer files than normal, ~14 instead of ~41) before the failure is caught — `flutter clean` is a different tool (stale compiled output) and does NOT fix this |
+| 43 | Cloud Run enforces a hard, non-configurable 32MB limit on incoming request bodies — no memory/CPU/env setting can raise it | Any upload feature for files that can exceed a few MB must use the signed-URL-direct-to-Firebase-Storage pattern (`POST /project/request-upload-url` → client PUTs directly to Storage → small JSON POST with just the storage path), never a direct multipart POST to a Cloud Run endpoint |
+| 44 | When debugging a "CORS blocked" / "Failed to fetch" error on Flutter Web, check in this order: (1) is the target domain in `web/index.html`'s CSP `connect-src`? (2) if it's a GCS/Firebase Storage URL, does the *bucket's own* CORS policy (`gsutil cors get`, separate from the app's Express CORS) allow the method being used? | Both have independently caused this exact symptom multiple times in this project — img.youtube.com, Firebase Storage images, storage.googleapis.com direct-upload all hit one or the other |
+| 45 | Never throw a generic, hardcoded error message on a failed HTTP response in Flutter API/repository code — always surface the real status code and real response body text | A swallowed generic error cost this project 11 rounds of blind debugging on the July 2026 video-upload incident specifically |
+| 46 | `authMiddleware.ts`'s `authenticateToken` only selects `{id, email, name, role}` for `req.user` — `isMentor` is NOT populated | Any new middleware/route needing `isMentor` (or any other field not in that list) must fetch a fresh user record from the DB — never trust `req.user.isMentor` |
+| 47 | Never write `YOUTUBE_TOKENS` (or any Secret-Manager-bound secret) via `--update-env-vars` from application code — always `gcloud secrets versions add` | A plain env var with the same name as an existing secret binding can silently detach that binding — this was the real root cause of a token-loss incident in July 2026 |
+| 48 | A CMS value must be stored as a genuine JSON object, never a formatted/markdown string | Flutter's `getCmsContent()` JSON-decodes the stored value; a raw string silently fails that decode and returns `null` with zero indication anything is wrong — found twice (FAQ `q`/`a` mismatch, Legal stored as markdown) |
+| 49 | "Admin has an editable field for X" does not mean the app actually reads X — always verify both directions (what admin writes AND what the Flutter/web screen reads) when auditing any CMS-driven page | Found 3+ separate dead-field instances in one audit pass (About's Mission/Vision/Story, Consultancy's Services/FAQ, Community's old Happenings/Challenges/Ladder CMS tab) |
+| 50 | `"use server"` at the top of an admin `utils/api/*.ts` file routes every call through an extra Vercel server-function hop (browser → Vercel function → backend → back through Vercel → browser) instead of a direct browser fetch | If a page feels slow, check whether it's still importing from one of these files. Fix pattern: read the `auth_token` cookie directly (`document.cookie` — it's deliberately set `httpOnly: false`) and `fetch()` the backend straight from the client component, bypassing `apiClient.ts`/`userApi.ts`/etc. entirely for that call site. Confirmed live in `people/page.tsx` (July 29) and `users/[id]/page.tsx` (Aug 2026) |
+| 51 | Next.js 15's App Router hard-fails the production build (`next build` exits 1, not a warning) if a component uses `useSearchParams()` without a `<Suspense>` boundary | Vercel silently keeps serving the last successful deployment when this happens — always wrap from the start on any new page using it |
+| 52 | Before assuming a stat/filter/count that's mysteriously always 0 or empty is a deep bug, check the literal string being filtered against the real enum/status values in the schema | The exact string `'approved'` was used as a filter in two places when that status has never existed (real values: pending/published/rejected) — same class of bug as Rule 48's CMS-string issue, just on the backend side |
+| 53 | A UI element (button, form, card) that renders correctly and looks "built" is not proof it's wired to anything real | Found multiple instances of fully-styled, well-coded UI with nothing real behind it — a Daily Quest card and a Rank badge were both frozen hardcoded text for every user, forever, until rebuilt from scratch. Periodically ask "does this element's data genuinely come from somewhere live" when auditing an existing screen |
+| 54 | A login ID ending in `@miniguru.in` cannot receive real email — the actual contact address is `guardianEmail` for a child account or `user.email` for a genuinely self-registered mentor account, and these two are NOT interchangeable | Confirmed at least one real bug from conflating them (mentor contact-email changes silently writing to the wrong field); flagged as a pattern worth checking anywhere "email" is displayed or written to |
+| 55 | MongoDB/Prisma validates ObjectId format eagerly on *every* branch of an `OR` filter, even branches meant to match on an unrelated field type like email | A value that isn't a well-formed ObjectId anywhere in an `OR` array crashes the whole query, not just that one branch — construct OR-filters defensively when one branch may receive a non-ObjectId string |
 
 ---
 
@@ -192,5 +206,5 @@ firebase deploy --only hosting
 
 ---
 
-*MINIGURU_RULES.md — Last updated July 8, 2026*
-*41 rules across 15+ development sessions*
+*MINIGURU_RULES.md — Last updated August 21, 2026*
+*55 rules across 20+ development sessions*

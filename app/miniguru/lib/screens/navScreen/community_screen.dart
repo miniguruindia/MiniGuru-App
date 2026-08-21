@@ -869,23 +869,19 @@ class _LadderTabState extends State<_LadderTab> {
 
   bool _loading = true;
 
-  // Helper: return level info for a given score — mirrors
-  // backend/src/utils/levelSystem.ts LEVELS (the canonical source; kept
-  // as a Dart mirror here purely as a fallback for when the API's own
-  // 'badge'/'level' fields aren't present, since Dart can't import a TS
-  // file directly). Keep these two lists in sync if levels ever change.
-  String _levelName(int score) => score >= 1000000 ? 'Legend' :
-      score >= 100000 ? 'Master Maker' : score >= 10000 ? 'Innovator' :
-      score >= 1000 ? 'Engineer' : score >= 100 ? 'Builder' : 'Sprout';
+  // Helper: fallback badge emoji for a given score — mirrors
+  // backend/src/utils/levelSystem.ts LEVELS (the canonical source). Only
+  // used when the API response's own 'badge' field is missing, since
+  // Dart can't import a TS file directly. Keep in sync if levels change.
+  // (Aug 2026 cleanup: removed _levelName/_nextLevelAt/_levelColor —
+  // zero callers anywhere in this file; the Ladder tab renders level
+  // info straight from the server's canonical response instead. One of
+  // the three, _levelColor, had also drifted to the pre-rewrite
+  // thresholds and would have been a live bug the moment it was wired
+  // up — removing rather than fixing since nothing needs it.)
   String _levelEmoji(int score) => score >= 1000000 ? '🌟' :
       score >= 100000 ? '🏆' : score >= 10000 ? '🚀' :
       score >= 1000 ? '⚙️' : score >= 100 ? '🔧' : '🌱';
-  int _nextLevelAt(int score) => score >= 1000000 ? score :
-      score >= 100000 ? 1000000 : score >= 10000 ? 100000 :
-      score >= 1000 ? 10000 : score >= 100 ? 1000 : 100;
-  Color _levelColor(int score) => score >= 1000 ? const Color(0xFFD8B4FE) :
-      score >= 600 ? const Color(0xFFFCA5A5) : score >= 300 ? const Color(0xFFFDE68A) :
-      score >= 100 ? const Color(0xFF93C5FD) : const Color(0xFF86EFAC);
 
   @override
   void initState() {

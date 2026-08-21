@@ -9,7 +9,45 @@ import { Button } from "@/components/ui/button"
 import { SkeletonCard } from '@/components/SkeletonCard'    
 import { ErrorDisplay } from '@/components/ErrorDisplay'  // Import the ErrorDisplay component
 import { User } from '@/types/users'
-import { fetchUserDetails , updateUserDetails } from '@/utils/api/userApi'
+
+// BUGFIX (Aug 2026): this page used to import fetchUserDetails/updateUserDetails
+// from '@/utils/api/userApi', which (along with apiClient.ts and auth.ts) is
+// marked "use server" — every call routed browser → Vercel server function →
+// backend → back through Vercel → browser, an extra hop that made this page
+// slow to load. The People Directory LIST view hit and fixed the exact same
+// bug back on July 29, 2026, but only for its own component — the detail
+// page reached by clicking into an individual user from that list was
+// missed. Fixed the same way: read the (deliberately non-httpOnly) auth
+// cookie directly and fetch the backend straight from the browser.
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || ''
+
+function authToken(): string {
+  const m = document.cookie.match(/(?:^|; )auth_token=([^;]*)/)
+  return m ? decodeURIComponent(m[1]) : ''
+}
+
+async function fetchUserDetails(userId: string): Promise<User> {
+  const res = await fetch(`${API_BASE}/admin/users/${userId}`, {
+    headers: { Authorization: `Bearer ${authToken()}` },
+  })
+  if (res.status === 404) throw new Error(`User with ID ${userId} not found`)
+  if (res.status === 403) throw new Error(`Access to user ID ${userId} is forbidden`)
+  if (!res.ok) throw new Error(`Failed to load user (${res.status})`)
+  const data = await res.json()
+  return data.user
+}
+
+async function updateUserDetails(userId: string, updates: Partial<User>): Promise<User> {
+  const res = await fetch(`${API_BASE}/admin/users/${userId}`, {
+    method: 'PUT',
+    headers: { Authorization: `Bearer ${authToken()}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(updates),
+  })
+  if (res.status === 404) throw new Error(`User with ID ${userId} not found`)
+  if (res.status === 403) throw new Error(`Access to user ID ${userId} is forbidden`)
+  if (!res.ok) throw new Error('An error occurred while updating user details')
+  return res.json()
+}
 
 export default function UserDetailPage() {
   const params = useParams()
