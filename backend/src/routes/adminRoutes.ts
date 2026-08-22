@@ -238,7 +238,7 @@ adminRouter.get('/amazon/product', authenticateToken, authorizeAdmin, async (req
       description: description ?? '',
       imageUrl,
       price:       price       ?? 0,
-      affiliateUrl: `https://www.amazon.in/dp/${asin}?tag=miniguru08-21`,
+      affiliateUrl: `https://www.amazon.in/dp/${asin}?tag=miniguru04-21`,
     });
   } catch (err: any) {
     console.error('Amazon proxy error:', err.message);
@@ -249,7 +249,7 @@ adminRouter.get('/amazon/product', authenticateToken, authorizeAdmin, async (req
       description: '',
       imageUrl: `https://images-na.ssl-images-amazon.com/images/P/${asin}.01.LZZZZZZZ.jpg`,
       price: 0,
-      affiliateUrl: `https://www.amazon.in/dp/${asin}?tag=miniguru08-21`,
+      affiliateUrl: `https://www.amazon.in/dp/${asin}?tag=miniguru04-21`,
     });
   }
 });

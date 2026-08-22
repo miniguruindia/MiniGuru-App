@@ -1296,7 +1296,7 @@ class _HomeState extends State<Home> {
       final qty = (amazonItems[i]['quantity'] as int? ?? 1).clamp(1, 10);
       params.add('ASIN.${i + 1}=$asin&Quantity.${i + 1}=$qty');
     }
-    return 'https://www.amazon.in/gp/aws/cart/add.html?${params.join('&')}&AssociateTag=miniguru08-21';
+    return 'https://www.amazon.in/gp/aws/cart/add.html?${params.join('&')}&AssociateTag=miniguru04-21';
   }
 
   void _openAmazonCart(List<Map<String, dynamic>> materials) {

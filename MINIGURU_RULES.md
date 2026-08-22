@@ -14,7 +14,7 @@
 | 1 | **Goins = user.score ONLY — NEVER wallet.balance** | wallet.balance = real Razorpay money. Mixing causes financial corruption |
 | 25 | ~~Goins = motivation tracker ONLY. Never deducted.~~ **SUPERSEDED Aug 2026 — see Rule 25b** | Materials now cost Goins again; negative balance (debt) allowed |
 | 25b | **Materials cost Goins at video upload. If it goes negative, planning/upload is never blocked — debt is repaid by earning more Goins. Approving a MATERIAL_OVERSPEND audit record never credits Goins** | Reversing this without the debt-not-credit distinction breaks the whole design — materials become free again |
-| 26 | **Shop = Amazon affiliate (miniguru08-21) only. No own-store/Razorpay flows yet** | No own inventory until confirmed |
+| 26 | **Shop = Amazon affiliate (miniguru04-21) only. No own-store/Razorpay flows yet** | No own inventory until confirmed |
 | 19 | **Always --update-env-vars, NEVER --set-env-vars on Cloud Run** | --set-env-vars wipes ALL env vars including DATABASE_URL |
 | 23 | **Verify DATABASE_URL exists after any Cloud Run env operation** | Silent DB connection loss = all APIs return 500 |
 | 27 | **Always rebuild dist/ before Cloud Run deploy** | Cloud Run runs dist/ JS, not src/ TS — skipping this silently ignores every backend change |
@@ -92,7 +92,7 @@ firebase deploy --only hosting
 | 24 | YOUTUBE_TOKENS in Secret Manager only — never as env var | Double-slash `//` in token breaks gcloud parsing. Same applies to FIREBASE_SERVICE_ACCOUNT_JSON (Rule 40) |
 | 25 | ~~Goins = motivation tracker ONLY. Never deducted for anything~~ **SUPERSEDED Aug 2026** — see Rule 25b below | Was the June 2, 2026 architecture; formally reversed, not accidentally drifted |
 | 25b | Materials cost Goins, deducted once at video upload (not live during planning — drafts are local-only, upload is the one reliable server round-trip). If it goes negative, upload still proceeds; an already-resolved `GoinTopUpRequest` (requestType: MATERIAL_OVERSPEND, status: APPROVED, decidedByRole: AUTO) is logged for admin's audit trail. The debt is real and repaid by earning more Goins normally — approving/auto-resolving a MATERIAL_OVERSPEND record must NEVER credit Goins, or materials become free again | Confirmed design, Aug 2026. The original DIRECT_TOPUP flow (child/mentor directly asks for bonus Goins) is unaffected and still credits on approval — only MATERIAL_OVERSPEND is credit-free |
-| 26 | Shop = Amazon affiliate (miniguru08-21) only for now | No own-inventory Razorpay until explicitly confirmed |
+| 26 | Shop = Amazon affiliate (miniguru04-21) only for now | No own-inventory Razorpay until explicitly confirmed |
 | 27 | ALWAYS rebuild dist/ before Cloud Run deploy | Cloud Run runs dist/ JS — src/ TS changes are ignored otherwise |
 | 28 | Express route ordering: /admin/* routes MUST come before /:id | Express matches /:id for /admin/all — returns wrong handler |
 | 29 | Use 'key' in body (not !== undefined) to check request body fields | Destructuring assigns undefined to missing keys — checks always false |
@@ -137,7 +137,7 @@ firebase deploy --only hosting
 | Firebase bucket | miniguru-prod.firebasestorage.app (NOT .appspot.com) |
 | MongoDB | cluster0.ykoud6h.mongodb.net / db: miniguru |
 | Codespace | bug-free-fiesta-69xwgg4jwj6r34gpv |
-| Amazon tag | miniguru08-21 (ALWAYS this tag, hardcoded everywhere) |
+| Amazon tag | miniguru04-21 (ALWAYS this tag, hardcoded everywhere) |
 | Admin login | admin@miniguru.in / Nisarg@311 |
 | SendGrid | Free plan, 100/day, domain: miniguru.in |
 | FROM_EMAIL | connect@miniguru.in |
@@ -163,7 +163,7 @@ YouTube tokens                → Google Secret Manager (not env var)
 AI video review               → Gemini 3.5 Flash (free tier), local file
                                  before YouTube upload, confidence >= 0.85
                                  to auto-publish, else human review queue
-Amazon affiliate              → miniguru08-21 (Associates account)
+Amazon affiliate              → miniguru04-21 (Associates account)
 Contact verification          → On-demand OTP via SendGrid (email only —
                                  no SMS provider yet), approval-gated changes
 ```

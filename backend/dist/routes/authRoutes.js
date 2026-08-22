@@ -67,6 +67,11 @@ authRouter.post('/change-login-id', authMiddleware_1.authenticateToken, authCont
 authRouter.post('/generate-id', registrationController_1.generateId);
 authRouter.post('/send-otp', registrationController_1.sendOtp);
 authRouter.post('/verify-otp', registrationController_1.verifyOtp);
+// Aug 2026: replaces the blocking send-otp -> verify-otp two-step for the
+// primary Flutter registration flow — single-step, matches how Parent/
+// School registration already worked. Old two endpoints above kept in
+// place, unused by the app now, in case anything else still calls them.
+authRouter.post('/register-child', registrationController_1.registerChild);
 // ========================= CONTACT VERIFICATION =========================
 // On-demand, never blocking. Any account holder can request verification
 // of their current email/phone whenever they want, and can change either

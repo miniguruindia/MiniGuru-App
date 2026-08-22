@@ -204,7 +204,63 @@ class _RegisterScreenState extends State<RegisterScreen> {
     }
   }
 
+  // ─── Child registration — direct create (Aug 2026) ─────────────────────
+  // Replaces the old blocking send-otp -> verify-otp two-step flow, which
+  // was failing with "Failed to send OTP" (root cause: registrationController.ts's
+  // error handling only recognized old nodemailer/SMTP error codes, so a
+  // real SendGrid failure always fell through to a generic message — fixed
+  // separately on the backend). Regardless of that fix, the founder asked
+  // for this to behave like Parent/School registration: one tap, account
+  // created immediately, no waiting on an email. Mirrors
+  // _submitMentorOrSchool's validate -> POST -> navigate-to-login pattern.
+  Future<void> _createChildAccount() async {
+    if (!_formKey.currentState!.validate()) return;
+    if (!_isChecked) {
+      _snack('Please accept the Terms & Conditions', Colors.orange);
+      return;
+    }
+    if (_miniguruId.isEmpty) {
+      _snack('Please enter first and last name', Colors.orange);
+      return;
+    }
+    setState(() => _isLoading = true);
+    try {
+      final res = await http.post(
+        Uri.parse('$apiBaseUrl/auth/register-child'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'firstName':     _firstNameCtrl.text.trim(),
+          'lastName':      _lastNameCtrl.text.trim(),
+          'age':           int.tryParse(_ageCtrl.text.trim()) ?? 10,
+          'guardianName':  _guardianNameCtrl.text.trim(),
+          'guardianEmail': _guardianEmailCtrl.text.trim(),
+          'guardianPhone': _phoneCtrl.text.trim(),
+          'password':      _passwordCtrl.text,
+          'miniguruId':    _miniguruId,
+        }),
+      );
+      if (!mounted) return;
+      final data = jsonDecode(res.body);
+      if (res.statusCode == 201) {
+        _snack('🎉 Account created! Login with $_miniguruId', Colors.green);
+        await Future.delayed(const Duration(seconds: 1));
+        if (mounted) Navigator.of(context).pushNamedAndRemoveUntil(LoginScreen.id, (r) => false);
+      } else {
+        _snack(data['error'] ?? 'Registration failed. Please try again.', Colors.red);
+      }
+    } catch (_) {
+      if (mounted) _snack('Connection error. Please try again.', Colors.red);
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
   // ─── Child Step 2 → send OTP ──────────────────────────────────────────────
+  // NOTE (Aug 2026): no longer called by the primary registration button
+  // (see _createChildAccount above) — left in place only because the
+  // resend button inside the now-unreachable Step 3 OTP-entry screen still
+  // references it. Safe to remove in a future cleanup once confirmed
+  // nothing else needs it.
   Future<void> _sendOtp({bool resend = false}) async {
     if (!resend && !_formKey.currentState!.validate()) return;
     if (!resend && !_isChecked) {
@@ -756,7 +812,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   ? null
                   : () {
                       if (isChild) {
-                        _sendOtp();
+                        _createChildAccount();
                       } else {
                         _submitMentorOrSchool();
                       }
@@ -771,8 +827,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   ? const SizedBox(
                       width: 24, height: 24,
                       child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                  // BUGFIX (Aug 2026): child registration used to say
+                  // 'Send Verification Code →' and route through a
+                  // blocking pre-registration OTP step that was failing
+                  // ("Failed to send OTP"). Now matches Parent/School —
+                  // one tap, account created immediately, same as the
+                  // other two account types.
                   : Text(
-                      isChild ? 'Send Verification Code →' : 'Create Account',
+                      'Create Account',
                       style: GoogleFonts.nunito(fontSize: 16, fontWeight: FontWeight.w900)),
             ),
           ),

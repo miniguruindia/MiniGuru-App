@@ -2,7 +2,7 @@
 // MiniGuru Shop — fetches from /materials API (201 Firebase materials)
 // Browse tab: child adds materials to kit
 // My Kit tab: "Buy on Amazon" cart + "Send Kit to Parent" via SendGrid
-// No CartRepository, no Razorpay, no real money — Amazon affiliate only (tag: miniguru08-21)
+// No CartRepository, no Razorpay, no real money — Amazon affiliate only (tag: miniguru04-21)
 
 import 'dart:convert';
 import 'package:flutter/material.dart';
@@ -136,7 +136,7 @@ class _ShopState extends State<Shop>
     for (int i = 0; i < items.length && i < 10; i++) {
       params.add('ASIN.${i+1}=${items[i]['amazonASIN']}&Quantity.${i+1}=${(items[i]['qty'] as int).clamp(1,10)}');
     }
-    return 'https://www.amazon.in/gp/aws/cart/add.html?${params.join("&")}&AssociateTag=miniguru08-21';
+    return 'https://www.amazon.in/gp/aws/cart/add.html?${params.join("&")}&AssociateTag=miniguru04-21';
   }
 
   Future<void> _launchUrl(String url) async {

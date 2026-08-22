@@ -225,7 +225,7 @@ function MaterialsPageInner() {
         imageUrl:       form.imageUrl || null,
         priceEstimate:  form.priceEstimate ? Number(form.priceEstimate) : null,
         amazonASIN:     asin || null,
-        amazonUrl:      asin ? `https://www.amazon.in/dp/${asin}?tag=miniguru08-21` : null,
+        amazonUrl:      asin ? `https://www.amazon.in/dp/${asin}?tag=miniguru04-21` : null,
         showInShop:     form.showInShop,
         showInPlanning: form.showInPlanning,
       }
@@ -313,7 +313,7 @@ function MaterialsPageInner() {
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({
           amazonASIN:    asin || null,
-          amazonUrl:     asin ? `https://www.amazon.in/dp/${asin}?tag=miniguru08-21` : null,
+          amazonUrl:     asin ? `https://www.amazon.in/dp/${asin}?tag=miniguru04-21` : null,
           priceEstimate: priceValue ? Number(priceValue) : null,
         }),
       })
@@ -527,7 +527,7 @@ function MaterialsPageInner() {
 
             <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-800">
               <strong>How to find an ASIN:</strong> Search the item on amazon.in → open the product page → copy the code from the URL: amazon.in/dp/<strong>B0XXXXXXXX</strong> — that is the ASIN.
-              The affiliate tag <code>miniguru08-21</code> is added automatically.
+              The affiliate tag <code>miniguru04-21</code> is added automatically.
             </div>
 
             <Card className="border-0 shadow-md overflow-hidden">
@@ -646,7 +646,7 @@ function MaterialsPageInner() {
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm font-mono focus:outline-none focus:ring-2 focus:ring-orange-400" />
                 {form.amazonASIN && (
                   <p className="text-xs text-orange-600 mt-1">
-                    → amazon.in/dp/{form.amazonASIN}?tag=miniguru08-21
+                    → amazon.in/dp/{form.amazonASIN}?tag=miniguru04-21
                   </p>
                 )}
               </div>

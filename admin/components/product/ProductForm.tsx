@@ -5,7 +5,7 @@
  * Step 1: Choose source — MiniGuru (OWN) or Amazon Affiliate
  * Step 2a (AMAZON):
  *   - Paste any Amazon.in URL → ASIN auto-extracted
- *   - Affiliate tag appended automatically (miniguru08-21)
+ *   - Affiliate tag appended automatically (miniguru04-21)
  *   - "Fetch Product Info" → calls /admin/amazon/product?asin=XXX
  *   - Name, description, price, image auto-filled (editable)
  * Step 2b (OWN):
@@ -21,7 +21,7 @@ import { Label } from "@/components/ui/label"
 import { getAllProductCategories } from '@/utils/api/productApi'
 
 const API = process.env.NEXT_PUBLIC_API_URL || ''
-const AFFILIATE_TAG = 'miniguru08-21'
+const AFFILIATE_TAG = 'miniguru04-21'
 
 function extractAsin(url: string): string | null {
   const m = url.match(/\/dp\/([A-Z0-9]{10})|\/product\/([A-Z0-9]{10})|([A-Z0-9]{10})(?:\?|$|\/)/)
@@ -179,7 +179,7 @@ export function ProductForm({ product, onSubmit, onCancel }: Props) {
             </div>
             <div className="mt-3 text-xs font-semibold text-orange-500 bg-orange-100
                             group-hover:bg-orange-200 rounded-full px-3 py-1 inline-block">
-              Tag: miniguru08-21
+              Tag: miniguru04-21
             </div>
           </button>
 
@@ -222,7 +222,7 @@ export function ProductForm({ product, onSubmit, onCancel }: Props) {
           <div>
             <h2 className="text-xl font-bold text-gray-800">🛒 Amazon Affiliate Product</h2>
             <p className="text-xs text-gray-400">
-              Tag <code className="bg-orange-50 text-orange-600 px-1 rounded">miniguru08-21</code> is
+              Tag <code className="bg-orange-50 text-orange-600 px-1 rounded">miniguru04-21</code> is
               added automatically to every link.
             </p>
           </div>

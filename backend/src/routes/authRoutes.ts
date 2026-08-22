@@ -6,7 +6,7 @@ import { login, refreshToken, logout, register, changePassword, changeLoginId } 
 import { requestPasswordReset, resetPassword } from '../controllers/auth/passwordResetController';
 import { registerValidationRules } from '../middleware/validationMiddleware';
 import { authenticateToken } from '../middleware/authMiddleware';
-import { generateId, sendOtp, verifyOtp } from '../controllers/auth/registrationController'; // ✅ CHANGED: Use authenticateToken instead of authenticateUser
+import { generateId, sendOtp, verifyOtp, registerChild } from '../controllers/auth/registrationController'; // ✅ CHANGED: Use authenticateToken instead of authenticateUser
 import {
   sendVerificationOtp,
   confirmVerificationOtp,
@@ -80,6 +80,11 @@ authRouter.post('/change-login-id', authenticateToken, changeLoginId);
 authRouter.post('/generate-id', generateId);
 authRouter.post('/send-otp', sendOtp);
 authRouter.post('/verify-otp', verifyOtp);
+// Aug 2026: replaces the blocking send-otp -> verify-otp two-step for the
+// primary Flutter registration flow — single-step, matches how Parent/
+// School registration already worked. Old two endpoints above kept in
+// place, unused by the app now, in case anything else still calls them.
+authRouter.post('/register-child', registerChild);
 
 // ========================= CONTACT VERIFICATION =========================
 // On-demand, never blocking. Any account holder can request verification

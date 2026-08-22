@@ -6,7 +6,7 @@ const router = Router();
 
 
 
-const AMAZON_TAG = 'miniguru08-21';
+const AMAZON_TAG = 'miniguru04-21';
 const FROM_EMAIL = process.env.FROM_EMAIL || 'connect@miniguru.in';
 
 router.post('/send-to-parent', async (req: Request, res: Response) => {

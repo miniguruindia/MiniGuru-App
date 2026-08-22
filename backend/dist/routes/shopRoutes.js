@@ -7,7 +7,7 @@ const express_1 = require("express");
 const emailService_1 = require("../services/email/emailService");
 const prismaClient_1 = __importDefault(require("../utils/prismaClient"));
 const router = (0, express_1.Router)();
-const AMAZON_TAG = 'miniguru08-21';
+const AMAZON_TAG = 'miniguru04-21';
 const FROM_EMAIL = process.env.FROM_EMAIL || 'connect@miniguru.in';
 router.post('/send-to-parent', async (req, res) => {
     try {

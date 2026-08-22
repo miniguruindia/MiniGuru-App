@@ -125,7 +125,7 @@ router.post('/admin/create', authMiddleware_1.authenticateToken, requireAdmin, a
                 goinsPrice: Number(goinsPrice),
                 priceEstimate: priceEstimate ? Number(priceEstimate) : null,
                 amazonASIN: asin,
-                amazonUrl: asin ? ('https://www.amazon.in/dp/' + asin + '?tag=miniguru08-21') : null,
+                amazonUrl: asin ? ('https://www.amazon.in/dp/' + asin + '?tag=miniguru04-21') : null,
                 showInShop: showInShop !== undefined ? Boolean(showInShop) : true,
                 showInPlanning: showInPlanning !== undefined ? Boolean(showInPlanning) : true,
             },
@@ -169,7 +169,7 @@ router.put('/admin/:id', authMiddleware_1.authenticateToken, requireAdmin, async
         if ('amazonASIN' in body) {
             const asin = body.amazonASIN ? String(body.amazonASIN).trim() : null;
             data.amazonASIN = asin;
-            data.amazonUrl = asin ? ('https://www.amazon.in/dp/' + asin + '?tag=miniguru08-21') : null;
+            data.amazonUrl = asin ? ('https://www.amazon.in/dp/' + asin + '?tag=miniguru04-21') : null;
         }
         console.log('[PUT /admin/:id] data to save:', data);
         const updated = await prismaClient_1.default.material.update({ where: { id }, data });
@@ -274,7 +274,7 @@ router.post('/admin/bulk', authMiddleware_1.authenticateToken, requireAdmin, asy
                         goinsPrice: Number(m.goinsPrice),
                         priceEstimate: m.priceEstimate != null ? Number(m.priceEstimate) : null,
                         amazonASIN: asin,
-                        amazonUrl: asin ? ('https://www.amazon.in/dp/' + asin + '?tag=miniguru08-21') : null,
+                        amazonUrl: asin ? ('https://www.amazon.in/dp/' + asin + '?tag=miniguru04-21') : null,
                         showInShop: m.showInShop !== undefined ? Boolean(m.showInShop) : true,
                         showInPlanning: m.showInPlanning !== undefined ? Boolean(m.showInPlanning) : true,
                     },
