@@ -427,6 +427,17 @@ class _AddDraftScreenState extends State<AddDraftScreen>
     final myUserData = await UserRepository().getUserDataFromLocalDb();
     final emailCtrl = TextEditingController(text: myUserData?.guardianEmail ?? '');
     if (!mounted) return;
+    // BUGFIX (Aug 2026): sending/sent/err used to be declared INSIDE the
+    // StatefulBuilder's builder callback below, which re-runs on every
+    // setSt() rebuild — silently resetting all three to false/false/null
+    // the instant doSend() tried to show a spinner/error/success state.
+    // The button looked completely unresponsive even when a real request
+    // was firing in the background. Same fix as the identical copy-pasted
+    // bug in shop.dart's _showSendSheet(): declare these once, here,
+    // outside the rebuilding closure.
+    bool sending = false;
+    bool sent = false;
+    String? err;
     await showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -440,10 +451,6 @@ class _AddDraftScreenState extends State<AddDraftScreen>
           ),
           padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
           child: StatefulBuilder(builder: (ctx2, setSt) {
-            bool sending = false;
-            bool sent    = false;
-            String? err;
-
             Future<void> doSend() async {
               if (_isSendingKit) return;
               final email = emailCtrl.text.trim();

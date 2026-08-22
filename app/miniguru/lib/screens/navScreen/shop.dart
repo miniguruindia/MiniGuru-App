@@ -148,6 +148,23 @@ class _ShopState extends State<Shop>
 
   void _showSendSheet() {
     final emailCtrl = TextEditingController();
+    // BUGFIX (Aug 2026): sending/sent/err used to be declared INSIDE the
+    // StatefulBuilder's builder callback below. That callback re-runs on
+    // every setSt() rebuild, which re-declared all three as fresh
+    // false/false/null on every single rebuild — silently discarding
+    // whatever doSend() had just set (sending=true, an error, or
+    // sent=true) the instant it tried to render it. The button looked
+    // completely unresponsive: no spinner, no error, nothing — even
+    // though a real network request (and sometimes a real send) was
+    // happening invisibly in the background. Same bug class as Rule 31
+    // (StatefulBuilder local vars reset on rebuild) — that rule was only
+    // ever applied to the double-send guard (_isSending, class-level)
+    // and never to these three. Fix: declare them here, once, outside
+    // the rebuilding closure, so every setSt() rebuild closes over the
+    // SAME persistent variables instead of resetting them.
+    bool sending = false;
+    bool sent = false;
+    String? err;
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -161,10 +178,6 @@ class _ShopState extends State<Shop>
           ),
           padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
           child: StatefulBuilder(builder: (ctx2, setSt) {
-            bool sending = false;
-            bool sent    = false;
-            String? err;
-
             Future<void> doSend() async {
               if (_isSending) return; // prevent double-send
               final email = emailCtrl.text.trim();

@@ -23,8 +23,20 @@ const POLL_INTERVAL_MS = 5000;
 const DAILY_QUOTA_KEY = 'ai_review_quota';
 const DAILY_QUOTA_LIMIT = 1450; // stay safely under the free-tier daily cap
 const RPM_LIMIT = 10; // stay safely under the free-tier per-minute cap
-const MAX_FILE_SIZE_BYTES = 300 * 1024 * 1024; // 300MB safety cap — independent of whatever
-// limit is (or isn't) set on the upload route
+// BUGFIX (Aug 2026): was 300MB. Storage-download + AI-review + YouTube-upload
+// all run sequentially inside ONE Cloud Run HTTP request/response cycle.
+// Gemini's own upload+poll step (MAX_POLL_ATTEMPTS * POLL_INTERVAL_MS = up
+// to ~90s on top of the upload itself) adds real wall-clock time to that
+// single request — for a large video this was pushing the whole request
+// past Cloud Run's timeout, so the AI verdict never even got a chance to
+// return, the request just died, and the child saw a generic failure with
+// no clue why. Lowered to 150MB so videos above that skip Gemini ENTIRELY
+// (this check runs before any Gemini API call — just a local fs.statSync,
+// effectively instant) and go straight to UNSURE / human admin review,
+// while everyday-sized videos still get the full AI pass + auto-publish
+// fast lane. Gemini itself is unaffected either way — separate no-billing
+// project, this is purely about keeping the outer Cloud Run request fast.
+const MAX_FILE_SIZE_BYTES = 150 * 1024 * 1024; // 150MB — see note above
 const CUSTOM_FPS = 2; // default Gemini sampling is 1 frame/sec — doubling
 // this gives better odds of catching brief moments
 // (a spark, a quick movement) in short project clips,
