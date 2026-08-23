@@ -7,19 +7,43 @@ exports.OFFICIAL_FROM = void 0;
 exports.sendEmail = sendEmail;
 exports.sendPasswordResetEmail = sendPasswordResetEmail;
 exports.initializeEmailService = initializeEmailService;
+// STOPGAP (Aug 2026): same Resend/SendGrid dual-transport as the sibling
+// services/emailService.ts — see that file's header comment for the full
+// reasoning (SendGrid Consumer Trust review, Ticket #29128948). If
+// RESEND_API_KEY is set, sends go through Resend; otherwise, behavior is
+// unchanged (SendGrid). All existing exports kept identical so nothing
+// that imports this file needs to change.
 const mail_1 = __importDefault(require("@sendgrid/mail"));
+let resendClient = null;
+if (process.env.RESEND_API_KEY) {
+    const { Resend } = require('resend');
+    resendClient = new Resend(process.env.RESEND_API_KEY);
+}
 mail_1.default.setApiKey(process.env.SENDGRID_API_KEY || '');
 const DEFAULT_FROM = { email: process.env.FROM_EMAIL || 'connect@miniguru.in', name: 'MiniGuru' };
 // Second, lower-stakes "official" sender — for materials-kit-to-parent
 // emails and admin broadcasts/announcements. connect@miniguru.in stays
 // reserved for OTP codes and password resets (highest-stakes, most
 // security-sensitive mail). Requires miniguru.in@gmail.com to be a
-// verified sender identity in SendGrid (same process connect@ went
-// through) — mail from an unverified sender is silently rejected or
-// spam-flagged, so confirm that's done before relying on this.
+// verified sender identity with whichever provider is currently active
+// (SendGrid or Resend) — mail from an unverified sender is silently
+// rejected or spam-flagged, so confirm that's done before relying on this.
 exports.OFFICIAL_FROM = { email: 'miniguru.in@gmail.com', name: 'MiniGuru' };
 async function sendEmail({ to, subject, html, fromOverride, }) {
-    await mail_1.default.send({ to, from: fromOverride || DEFAULT_FROM, subject, html });
+    const from = fromOverride || DEFAULT_FROM;
+    if (resendClient) {
+        const { error } = await resendClient.emails.send({
+            from: `${from.name} <${from.email}>`,
+            to: [to],
+            subject,
+            html,
+        });
+        if (error) {
+            throw new Error(`Resend send failed: ${error.message || JSON.stringify(error)}`);
+        }
+        return;
+    }
+    await mail_1.default.send({ to, from, subject, html });
 }
 async function sendPasswordResetEmail(to, resetToken) {
     const resetUrl = `${process.env.FRONTEND_URL}/reset-password?token=${resetToken}`;
@@ -40,10 +64,14 @@ async function sendPasswordResetEmail(to, resetToken) {
     });
 }
 async function initializeEmailService() {
-    if (!process.env.SENDGRID_API_KEY) {
-        console.log('⚠️  Email service error: SENDGRID_API_KEY not set');
+    if (resendClient) {
+        console.log('✅ Email service ready (Resend)');
         return;
     }
-    console.log('✅ Email service ready');
+    if (!process.env.SENDGRID_API_KEY) {
+        console.log('⚠️  Email service error: neither RESEND_API_KEY nor SENDGRID_API_KEY is set');
+        return;
+    }
+    console.log('✅ Email service ready (SendGrid)');
 }
 exports.default = { sendEmail, sendPasswordResetEmail, initializeEmailService };

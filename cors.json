@@ -1,0 +1,8 @@
+[
+  {
+    "origin": ["https://miniguru.in", "https://miniguru-prod.web.app", "https://miniguru-prod.firebaseapp.com"],
+    "method": ["GET", "PUT", "POST", "HEAD", "OPTIONS"],
+    "responseHeader": ["Content-Type", "x-goog-resumable"],
+    "maxAgeSeconds": 3600
+  }
+]
