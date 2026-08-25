@@ -7,6 +7,7 @@ import 'package:miniguru/screens/registerScreen.dart';
 import 'package:miniguru/screens/splashScreen.dart';
 import 'package:miniguru/screens/getStartedScreen.dart';
 import 'package:miniguru/screens/resetPasswordScreen.dart';
+import 'package:miniguru/screens/legalScreen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -44,6 +45,22 @@ class MyApp extends StatelessWidget {
                 browserUri.path.contains('reset-password'))) {
           return MaterialPageRoute(
               builder: (_) => ResetPasswordScreen(token: resetToken));
+        }
+
+        // Direct, bookmarkable legal-page links (miniguru.in/privacy,
+        // miniguru.in/terms) — needed as real standalone URLs for external
+        // reviewers (e.g. Google API access requests) who won't click
+        // through in-app navigation. Same detection pattern as the
+        // password-reset link above: check the real browser path directly
+        // since settings.name doesn't always carry it depending on URL
+        // strategy. Falls through unchanged if neither path matches.
+        if (browserUri.path.contains('/privacy')) {
+          return MaterialPageRoute(
+              builder: (_) => const LegalScreen(initialTab: 0));
+        }
+        if (browserUri.path.contains('/terms')) {
+          return MaterialPageRoute(
+              builder: (_) => const LegalScreen(initialTab: 1));
         }
 
         switch (settings.name) {

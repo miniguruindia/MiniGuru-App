@@ -1393,6 +1393,28 @@ class _FooterSection extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 20),
+        // Required YouTube API Services attribution notice — must be
+        // visible on the site and link to Google's own Privacy Policy.
+        Wrap(
+          alignment: WrapAlignment.center,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          spacing: 6, runSpacing: 4,
+          children: [
+            Text(
+              'This app uses YouTube API Services.',
+              style: _b(12, Colors.white.withOpacity(0.55)),
+            ),
+            GestureDetector(
+              onTap: () => _launchUrl('https://policies.google.com/privacy'),
+              child: Text(
+                'Google Privacy Policy',
+                style: _b(12, Colors.white.withOpacity(0.8),
+                    w: FontWeight.w700),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
         Text(
           '© 2026 MiniGuru Innovation Pvt Ltd · Prakriti Initiatives · Ujjain, Madhya Pradesh, India',
           textAlign: TextAlign.center,
