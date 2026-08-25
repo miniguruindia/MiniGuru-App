@@ -1,0 +1,46 @@
+name: Build & Deploy Flutter Web
+
+# Runs entirely on GitHub's own servers — never touches Cloud Shell or Codespace disk.
+# Trigger it two ways:
+#   1. Automatically on every push to main that touches app/miniguru/**
+#   2. Manually any time from the Actions tab ("Run workflow" button) — useful when
+#      only the workflow itself changed, or to force a redeploy without a new commit.
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'app/miniguru/**'
+      - '.github/workflows/deploy-web.yml'
+  workflow_dispatch: {}
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repo
+        uses: actions/checkout@v4
+
+      # Pinned to the exact locked version — never let this drift (Rule: Flutter LOCKED at 3.27.4)
+      - name: Install Flutter 3.27.4
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.27.4'
+          channel: 'stable'
+          cache: true
+
+      - name: Flutter pub get
+        working-directory: app/miniguru
+        run: flutter pub get
+
+      - name: Flutter build web (release)
+        working-directory: app/miniguru
+        run: flutter build web --release --no-tree-shake-icons
+
+      - name: Deploy to Firebase Hosting
+        uses: FirebaseExtended/action-hosting-deploy@v0
+        with:
+          repoToken: '${{ secrets.GITHUB_TOKEN }}'
+          firebaseServiceAccount: '${{ secrets.FIREBASE_SERVICE_ACCOUNT_MINIGURU }}'
+          projectId: miniguru-prod
+          channelId: live
+          entryPoint: .
