@@ -313,9 +313,13 @@ router.get('/me/profile', authenticateToken, async (req: any, res) => {
 router.put('/me/profile', authenticateToken, async (req: any, res) => {
   try {
     const userId = req.user?.userId;
-    const { name, parentName, parentPhone, about, grade, schoolName, city, interests, guardianEmail } = req.body;
+    const { name, age, parentName, parentPhone, about, grade, schoolName, city, interests, guardianEmail } = req.body;
     const data: any = {};
     if (name !== undefined)        data.name        = String(name).trim();
+    if (age !== undefined) {
+      const parsedAge = parseInt(String(age), 10);
+      if (!Number.isNaN(parsedAge) && parsedAge > 0 && parsedAge < 120) data.age = parsedAge;
+    }
     if (parentName !== undefined)  data.parentName  = parentName  ? String(parentName).trim()  : null;
     if (parentPhone !== undefined) data.parentPhone = parentPhone ? String(parentPhone).trim() : null;
     if (about !== undefined)       data.about       = about       ? String(about).trim()       : null;
@@ -326,7 +330,7 @@ router.put('/me/profile', authenticateToken, async (req: any, res) => {
     if (guardianEmail !== undefined) data.guardianEmail = guardianEmail ? String(guardianEmail).trim() : null;
     const user = await prisma.user.update({
       where: { id: userId }, data,
-      select: { id: true, name: true, parentName: true, parentPhone: true,
+      select: { id: true, name: true, age: true, parentName: true, parentPhone: true,
                 about: true, grade: true, schoolName: true, city: true, interests: true, guardianEmail: true }
     });
     return res.json({ message: 'Profile updated', user });

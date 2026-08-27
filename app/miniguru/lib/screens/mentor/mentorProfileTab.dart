@@ -233,6 +233,10 @@ class _MentorProfileTabState extends State<MentorProfileTab> {
     final newCtrl = TextEditingController();
     final conCtrl = TextEditingController();
     bool changing = false;
+    // Declared outside StatefulBuilder's closure so toggling one doesn't
+    // reset on every rebuild (Rule 31 — the exact failure mode found and
+    // fixed for shop.dart / addDraftScreen.dart's Send-to-Parent sheets).
+    bool oCur = true, oNew = true, oCon = true;
 
     await showDialog(
       context: context,
@@ -244,20 +248,38 @@ class _MentorProfileTabState extends State<MentorProfileTab> {
           content: Column(mainAxisSize: MainAxisSize.min, children: [
             TextField(
               controller: curCtrl,
-              obscureText: true,
-              decoration: const InputDecoration(labelText: 'Current Password'),
+              obscureText: oCur,
+              decoration: InputDecoration(
+                labelText: 'Current Password',
+                suffixIcon: IconButton(
+                  icon: Icon(oCur ? Icons.visibility_off : Icons.visibility, size: 18),
+                  onPressed: () => setDlg(() => oCur = !oCur),
+                ),
+              ),
             ),
             const SizedBox(height: 10),
             TextField(
               controller: newCtrl,
-              obscureText: true,
-              decoration: const InputDecoration(labelText: 'New Password'),
+              obscureText: oNew,
+              decoration: InputDecoration(
+                labelText: 'New Password',
+                suffixIcon: IconButton(
+                  icon: Icon(oNew ? Icons.visibility_off : Icons.visibility, size: 18),
+                  onPressed: () => setDlg(() => oNew = !oNew),
+                ),
+              ),
             ),
             const SizedBox(height: 10),
             TextField(
               controller: conCtrl,
-              obscureText: true,
-              decoration: const InputDecoration(labelText: 'Confirm New Password'),
+              obscureText: oCon,
+              decoration: InputDecoration(
+                labelText: 'Confirm New Password',
+                suffixIcon: IconButton(
+                  icon: Icon(oCon ? Icons.visibility_off : Icons.visibility, size: 18),
+                  onPressed: () => setDlg(() => oCon = !oCon),
+                ),
+              ),
             ),
           ]),
           actions: [

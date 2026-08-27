@@ -68,9 +68,15 @@ ${amazonCartUrl ? '<div style="text-align:center;margin:28px 0"><a href="' + ama
 });
 router.post('/suggest', async (req, res) => {
     try {
-        const { childName, suggestion, category } = req.body;
+        const { childName, suggestion, category, requestedGoinsPrice } = req.body;
         if (!suggestion || suggestion.trim().length < 3) {
             return res.status(400).json({ error: 'suggestion required (min 3 chars)' });
+        }
+        let goinsPrice = null;
+        if (requestedGoinsPrice !== undefined && requestedGoinsPrice !== null && requestedGoinsPrice !== '') {
+            const parsed = parseInt(String(requestedGoinsPrice), 10);
+            if (!Number.isNaN(parsed) && parsed >= 0 && parsed <= 100000)
+                goinsPrice = parsed;
         }
         await prismaClient_1.default.productSuggestion.create({
             data: {
@@ -78,6 +84,7 @@ router.post('/suggest', async (req, res) => {
                 userId: null,
                 suggestion: suggestion.trim(),
                 category: category?.trim() || null,
+                requestedGoinsPrice: goinsPrice,
             },
         });
         return res.status(201).json({ success: true, message: 'Thanks for your suggestion!' });

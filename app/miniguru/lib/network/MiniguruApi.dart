@@ -144,6 +144,31 @@ class MiniguruApi {
     return [];
   }
 
+  // ── Suggest a material not in the picker list ─────────────────────────────
+  // No auth required (same public POST /shop/suggest already used by the
+  // shop page's "Suggest a product" box) — a child suggesting a material
+  // while planning a project may not always be mid-session-valid, so this
+  // stays open the same way the shop's version already is.
+  Future<bool> suggestMaterial({
+    required String suggestion,
+    String? childName,
+    String? category,
+    int? requestedGoinsPrice,
+  }) async {
+    final url = Uri.parse('$_baseUrl/shop/suggest');
+    final response = await http.post(
+      url,
+      headers: _buildHeaders(),
+      body: jsonEncode({
+        'suggestion': suggestion,
+        if (childName != null) 'childName': childName,
+        if (category != null) 'category': category,
+        if (requestedGoinsPrice != null) 'requestedGoinsPrice': requestedGoinsPrice,
+      }),
+    );
+    return response.statusCode == 201;
+  }
+
   // ── Contact verification (email/phone) — optional, on-demand ─────────────
   // See backend/src/controllers/auth/contactVerificationController.ts for
   // the full design: unverified contacts just show "Unverified" and can be

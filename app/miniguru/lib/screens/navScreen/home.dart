@@ -7,6 +7,7 @@ import 'package:miniguru/screens/loginScreen.dart';
 import 'package:miniguru/screens/registerScreen.dart';
 import 'package:miniguru/services/youtube_service.dart';
 import 'package:miniguru/screens/unifiedVideoPlayer.dart';
+import 'package:miniguru/screens/navScreen/profile.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -460,7 +461,25 @@ class _HomeState extends State<Home> {
             const Icon(Icons.arrow_drop_down, color: Colors.black54, size: 20),
           ],
         ),
-        onSelected: (v) { if (v == 'logout') _logout(); },
+        onSelected: (v) {
+          if (v == 'logout') _logout();
+          if (v == 'profile') {
+            Navigator.of(context).push(MaterialPageRoute(
+              builder: (_) => Scaffold(
+                backgroundColor: Colors.white,
+                appBar: AppBar(
+                  backgroundColor: Colors.white,
+                  foregroundColor: Colors.black87,
+                  elevation: 0,
+                  title: Text('Profile',
+                      style: GoogleFonts.nunito(
+                          fontWeight: FontWeight.w900, color: Colors.black87)),
+                ),
+                body: const Profile(),
+              ),
+            ));
+          }
+        },
         itemBuilder: (_) => [
           PopupMenuItem(
             value: 'profile',

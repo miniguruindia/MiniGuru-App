@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:miniguru/models/MaterialItem.dart';
 import 'package:miniguru/repository/GoinsRepository.dart';
+import 'package:miniguru/network/MiniguruApi.dart';
 
 // ─── Light theme colours ──────────────────────────────────────────────────────
 const _blue     = Color(0xFF5B6EF5);
@@ -160,6 +161,7 @@ class _MaterialPickerSheetState extends State<MaterialPickerSheet> {
           _buildSearch(),
           _buildCategoryRow(),
           Expanded(child: _loading ? _buildLoader() : _buildMaterialGrid()),
+          _buildSuggestLink(),
           _buildConfirmBar(),
         ],
       ),
@@ -223,6 +225,117 @@ class _MaterialPickerSheetState extends State<MaterialPickerSheet> {
         ],
       ),
     );
+  }
+
+  // ─── Suggest a material not in this list ──────────────────────────────
+  Widget _buildSuggestLink() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 6),
+      child: TextButton.icon(
+        onPressed: _showSuggestMaterialDialog,
+        icon: const Icon(Icons.add_circle_outline, size: 16, color: _blue),
+        label: Text("Can't find it? Suggest a material",
+            style: GoogleFonts.nunito(
+                fontSize: 12, fontWeight: FontWeight.w700, color: _blue)),
+        style: TextButton.styleFrom(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          minimumSize: Size.zero,
+          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        ),
+      ),
+    );
+  }
+
+  Future<void> _showSuggestMaterialDialog() async {
+    final nameCtrl = TextEditingController();
+    final rateCtrl = TextEditingController();
+    bool sending = false;
+    String? error;
+
+    await showDialog(
+      context: context,
+      builder: (dlgCtx) => StatefulBuilder(
+        builder: (ctx, setDlg) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Text('Suggest a Material',
+              style: GoogleFonts.nunito(fontWeight: FontWeight.w900, fontSize: 16)),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text("What material couldn't you find?",
+                  style: GoogleFonts.nunito(fontSize: 12, color: _muted)),
+              const SizedBox(height: 10),
+              TextField(
+                controller: nameCtrl,
+                decoration: const InputDecoration(
+                  labelText: 'Material name',
+                  hintText: 'e.g. Copper foil tape',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: rateCtrl,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(
+                  labelText: 'Suggested Goins rate (optional)',
+                  hintText: 'e.g. 10',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              if (error != null) ...[
+                const SizedBox(height: 8),
+                Text(error!, style: GoogleFonts.nunito(color: _red, fontSize: 12)),
+              ],
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: sending ? null : () => Navigator.of(dlgCtx).pop(),
+              child: Text('Cancel', style: GoogleFonts.nunito()),
+            ),
+            ElevatedButton(
+              onPressed: sending
+                  ? null
+                  : () async {
+                      final name = nameCtrl.text.trim();
+                      if (name.length < 3) {
+                        setDlg(() => error = 'Please enter at least 3 characters');
+                        return;
+                      }
+                      setDlg(() { sending = true; error = null; });
+                      try {
+                        final ok = await MiniguruApi().suggestMaterial(
+                          suggestion: name,
+                          category: 'custom_material_request',
+                          requestedGoinsPrice: int.tryParse(rateCtrl.text.trim()),
+                        );
+                        if (dlgCtx.mounted) Navigator.of(dlgCtx).pop();
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                            content: Text(ok
+                                ? "Thanks! We'll take a look and may add it soon."
+                                : 'Could not send your suggestion — try again later.'),
+                            backgroundColor: ok ? _green : _red,
+                          ));
+                        }
+                      } catch (_) {
+                        setDlg(() { sending = false; error = 'Something went wrong — try again.'; });
+                      }
+                    },
+              style: ElevatedButton.styleFrom(backgroundColor: _blue),
+              child: sending
+                  ? const SizedBox(width: 16, height: 16,
+                      child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                  : Text('Send', style: GoogleFonts.nunito(color: Colors.white, fontWeight: FontWeight.w700)),
+            ),
+          ],
+        ),
+      ),
+    );
+    nameCtrl.dispose();
+    rateCtrl.dispose();
   }
 
   // ─── Shortfall banner — informational only (Aug 2026) ────────

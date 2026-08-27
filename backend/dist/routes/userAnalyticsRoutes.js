@@ -280,10 +280,15 @@ router.get('/me/profile', authMiddleware_1.authenticateToken, async (req, res) =
 router.put('/me/profile', authMiddleware_1.authenticateToken, async (req, res) => {
     try {
         const userId = req.user?.userId;
-        const { name, parentName, parentPhone, about, grade, schoolName, city, interests, guardianEmail } = req.body;
+        const { name, age, parentName, parentPhone, about, grade, schoolName, city, interests, guardianEmail } = req.body;
         const data = {};
         if (name !== undefined)
             data.name = String(name).trim();
+        if (age !== undefined) {
+            const parsedAge = parseInt(String(age), 10);
+            if (!Number.isNaN(parsedAge) && parsedAge > 0 && parsedAge < 120)
+                data.age = parsedAge;
+        }
         if (parentName !== undefined)
             data.parentName = parentName ? String(parentName).trim() : null;
         if (parentPhone !== undefined)
@@ -302,7 +307,7 @@ router.put('/me/profile', authMiddleware_1.authenticateToken, async (req, res) =
             data.guardianEmail = guardianEmail ? String(guardianEmail).trim() : null;
         const user = await prismaClient_1.default.user.update({
             where: { id: userId }, data,
-            select: { id: true, name: true, parentName: true, parentPhone: true,
+            select: { id: true, name: true, age: true, parentName: true, parentPhone: true,
                 about: true, grade: true, schoolName: true, city: true, interests: true, guardianEmail: true }
         });
         return res.json({ message: 'Profile updated', user });

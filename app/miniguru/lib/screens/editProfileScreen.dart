@@ -15,6 +15,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   bool _saving  = false;
 
   final _nameCtrl        = TextEditingController();
+  final _ageCtrl         = TextEditingController();
   final _aboutCtrl       = TextEditingController();
   final _gradeCtrl       = TextEditingController();
   final _schoolCtrl      = TextEditingController();
@@ -45,6 +46,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       if (data != null && mounted) {
         setState(() {
           _nameCtrl.text        = data['name']        ?? '';
+          _ageCtrl.text         = data['age'] != null ? data['age'].toString() : '';
           _aboutCtrl.text       = data['about']        ?? '';
           _gradeCtrl.text       = data['grade']        ?? '';
           _schoolCtrl.text      = data['schoolName']   ?? '';
@@ -68,6 +70,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     try {
       final ok = await _api.updateProfile({
         'name':        _nameCtrl.text.trim(),
+        if (_ageCtrl.text.trim().isNotEmpty)
+          'age':       int.tryParse(_ageCtrl.text.trim()),
         'about':       _aboutCtrl.text.trim(),
         'grade':       _gradeCtrl.text.trim(),
         'schoolName':  _schoolCtrl.text.trim(),
@@ -139,12 +143,17 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                     maxLines: 3),
                 const SizedBox(height: 12),
                 Row(children: [
+                  Expanded(child: _field(_ageCtrl, 'Age',
+                      Icons.cake_outlined, hint: 'e.g. 11',
+                      keyboardType: TextInputType.number,
+                      formatters: [FilteringTextInputFormatter.digitsOnly])),
+                  const SizedBox(width: 12),
                   Expanded(child: _field(_gradeCtrl, 'Grade / Class',
                       Icons.school_outlined, hint: 'e.g. Grade 7')),
-                  const SizedBox(width: 12),
-                  Expanded(child: _field(_cityCtrl, 'City',
-                      Icons.location_city_outlined, hint: 'e.g. Bhopal')),
                 ]),
+                const SizedBox(height: 12),
+                _field(_cityCtrl, 'City',
+                    Icons.location_city_outlined, hint: 'e.g. Bhopal'),
                 const SizedBox(height: 12),
                 _field(_schoolCtrl, 'School Name',
                     Icons.account_balance_outlined,
@@ -300,7 +309,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
   @override
   void dispose() {
-    for (final c in [_nameCtrl, _aboutCtrl, _gradeCtrl, _schoolCtrl,
+    for (final c in [_nameCtrl, _ageCtrl, _aboutCtrl, _gradeCtrl, _schoolCtrl,
                      _cityCtrl, _parentNameCtrl, _parentPhoneCtrl]) c.dispose();
     super.dispose();
   }
