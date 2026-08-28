@@ -56,7 +56,7 @@ ${amazonCartUrl ? '<div style="text-align:center;margin:28px 0"><a href="' + ama
 </body></html>`;
         await (0, emailService_1.sendEmail)({
             to: parentEmail,
-            subject: `&#128722; ${childName || 'Your child'} needs materials for their STEAM project!`,
+            subject: `\u{1F6D2} ${childName || 'Your child'} needs materials for their STEAM project!`,
             html,
             fromOverride: emailService_1.OFFICIAL_FROM, // lower-stakes mail, connect@ reserved for OTP/reset
         });

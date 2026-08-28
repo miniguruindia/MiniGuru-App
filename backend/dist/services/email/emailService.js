@@ -28,7 +28,15 @@ const DEFAULT_FROM = { email: process.env.FROM_EMAIL || 'connect@miniguru.in', n
 // verified sender identity with whichever provider is currently active
 // (SendGrid or Resend) — mail from an unverified sender is silently
 // rejected or spam-flagged, so confirm that's done before relying on this.
-exports.OFFICIAL_FROM = { email: 'miniguru.in@gmail.com', name: 'MiniGuru' };
+// OFFICIAL_FROM was originally 'miniguru.in@gmail.com' — a Gmail address.
+// Resend (now the primary provider, since the Aug 23 SendGrid outage) can
+// only send FROM an address on a domain you've verified with them — only
+// miniguru.in is verified, never gmail.com (nobody can verify that, Google
+// owns it). Every send using OFFICIAL_FROM was silently failing at Resend's
+// API level (surfaced as "Failed to send email" — e.g. shop/send-to-parent).
+// Fixed to stay on the verified miniguru.in domain while still being a
+// separate, lower-stakes address from connect@ (reserved for OTP/reset).
+exports.OFFICIAL_FROM = { email: 'updates@miniguru.in', name: 'MiniGuru' };
 async function sendEmail({ to, subject, html, fromOverride, }) {
     const from = fromOverride || DEFAULT_FROM;
     if (resendClient) {

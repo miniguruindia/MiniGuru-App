@@ -193,9 +193,23 @@ class _AddDraftScreenState extends State<AddDraftScreen>
             type: FileType.video, allowMultiple: false,
             withData: false, withReadStream: true);
         if (result != null && result.files.isNotEmpty) {
-          final f      = result.files.first;
-          final chunks = await f.readStream!.expand((x) => x).toList();
-          final bytes  = Uint8List.fromList(chunks);
+          final f = result.files.first;
+          if (f.size > 150 * 1024 * 1024) {
+            _showSnack(
+                'This video is large (${(f.size / (1024 * 1024)).round()}MB) — '
+                'keep this tab open and stay on a strong connection while it uploads.',
+                isError: false);
+          }
+          // BytesBuilder accumulates chunks efficiently (append-only buffer)
+          // instead of boxing every byte individually via expand().toList(),
+          // which for a 100MB+ file can transiently need several times its
+          // size in real browser memory — a real cause of tab crashes on
+          // lower-RAM devices.
+          final builder = BytesBuilder(copy: false);
+          await for (final chunk in f.readStream!) {
+            builder.add(chunk);
+          }
+          final bytes = builder.takeBytes();
           setState(() => _video =
               XFile.fromData(bytes, name: f.name, mimeType: 'video/mp4'));
           _showSnack('Video selected: ${f.name}');
@@ -217,9 +231,12 @@ class _AddDraftScreenState extends State<AddDraftScreen>
             type: FileType.image, allowMultiple: false,
             withData: false, withReadStream: true);
         if (result != null && result.files.isNotEmpty) {
-          final f       = result.files.first;
-          final chunks2 = await f.readStream!.expand((x) => x).toList();
-          final bytes2  = Uint8List.fromList(chunks2);
+          final f = result.files.first;
+          final builder2 = BytesBuilder(copy: false);
+          await for (final chunk in f.readStream!) {
+            builder2.add(chunk);
+          }
+          final bytes2 = builder2.takeBytes();
           setState(() => _thumbnail =
               XFile.fromData(bytes2, name: f.name, mimeType: 'image/jpeg'));
         }

@@ -408,7 +408,7 @@ class MiniguruApi {
           'contentType': contentType,
           'kind': kind,
         }),
-      );
+      ).timeout(const Duration(seconds: 30));
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body) as Map<String, dynamic>;
         return {
@@ -442,15 +442,30 @@ class MiniguruApi {
           jsonEncode({'error': 'Could not prepare video upload. Please try again.'}),
           500);
     }
-    final videoBytes = await video.readAsBytes();
-    final videoPut = await http.put(
-      Uri.parse(videoUrlInfo['uploadUrl']!),
-      headers: {'Content-Type': 'video/mp4'},
-      body: videoBytes,
-    );
+    Uint8List videoBytes;
+    try {
+      videoBytes = await video.readAsBytes();
+    } catch (e) {
+      return http.Response(
+          jsonEncode({'error': 'Could not read the video file: $e'}), 500);
+    }
+    http.Response videoPut;
+    try {
+      videoPut = await http.put(
+        Uri.parse(videoUrlInfo['uploadUrl']!),
+        headers: {'Content-Type': 'video/mp4'},
+        body: videoBytes,
+      ).timeout(const Duration(minutes: 10));
+    } catch (e) {
+      return http.Response(
+          jsonEncode({'error': 'Video upload timed out or lost connection — '
+              'please check your internet and try again. ($e)'}),
+          500);
+    }
     if (videoPut.statusCode < 200 || videoPut.statusCode >= 300) {
       return http.Response(
-          jsonEncode({'error': 'Video upload failed (storage error). Please try again.'}),
+          jsonEncode({'error': 'Video upload failed (storage error ${videoPut.statusCode}). '
+              'Please try again.'}),
           500);
     }
 
@@ -458,18 +473,22 @@ class MiniguruApi {
     // without one if this fails) ─────────────────────────────────────────
     String? thumbnailStoragePath;
     if (thumbnail != null) {
-      final thumbUrlInfo =
-          await _requestUploadUrl(thumbnail.name, 'image/jpeg', 'thumbnail');
-      if (thumbUrlInfo != null) {
-        final thumbBytes = await thumbnail.readAsBytes();
-        final thumbPut = await http.put(
-          Uri.parse(thumbUrlInfo['uploadUrl']!),
-          headers: {'Content-Type': 'image/jpeg'},
-          body: thumbBytes,
-        );
-        if (thumbPut.statusCode >= 200 && thumbPut.statusCode < 300) {
-          thumbnailStoragePath = thumbUrlInfo['storagePath'];
+      try {
+        final thumbUrlInfo =
+            await _requestUploadUrl(thumbnail.name, 'image/jpeg', 'thumbnail');
+        if (thumbUrlInfo != null) {
+          final thumbBytes = await thumbnail.readAsBytes();
+          final thumbPut = await http.put(
+            Uri.parse(thumbUrlInfo['uploadUrl']!),
+            headers: {'Content-Type': 'image/jpeg'},
+            body: thumbBytes,
+          ).timeout(const Duration(seconds: 60));
+          if (thumbPut.statusCode >= 200 && thumbPut.statusCode < 300) {
+            thumbnailStoragePath = thumbUrlInfo['storagePath'];
+          }
         }
+      } catch (_) {
+        // Thumbnail is non-critical — proceed without one.
       }
     }
 
@@ -496,11 +515,20 @@ class MiniguruApi {
       if (data['challengeId'] != null) 'challengeId': data['challengeId'],
     };
 
-    final response = await http.post(
-      url,
-      headers: _buildHeaders(authToken.accessToken),
-      body: jsonEncode(body),
-    );
+    http.Response response;
+    try {
+      response = await http.post(
+        url,
+        headers: _buildHeaders(authToken.accessToken),
+        body: jsonEncode(body),
+      ).timeout(const Duration(minutes: 8));
+    } catch (e) {
+      return http.Response(
+          jsonEncode({'error': 'The video finished uploading, but finalizing the '
+              'project took too long or lost connection. Please try again — '
+              'if it keeps happening, contact support. ($e)'}),
+          500);
+    }
     _handleResponse(response);
     return response;
   }
