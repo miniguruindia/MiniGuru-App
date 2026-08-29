@@ -16,6 +16,15 @@
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
   <meta name="description" content="MiniGuru - Learn robotics, electronics, arts, and science">
 
+  <!-- Open Graph / link-preview tags — helps WhatsApp, email clients, and
+       other link-preview generators show real content instead of a blank
+       card, since none of them execute the Flutter Web JavaScript either. -->
+  <meta property="og:title" content="MiniGuru — STEAM Education for Indian Children">
+  <meta property="og:description" content="MiniGuru is a hands-on STEAM (Science, Technology, Engineering, Art, Mathematics) learning platform for children aged 8-14 in India. Children plan real projects, choose the exact materials they need, build, and share their work.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://miniguru.in">
+  <meta property="og:image" content="https://miniguru.in/icons/Icon-512.png">
+
   <!-- iOS meta tags & icons -->
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
@@ -51,6 +60,61 @@
   </script>
 </head>
 <body>
+  <!--
+    Why this block exists: MiniGuru is a Flutter Web single-page app —
+    everything visible (text, images, the shop, project videos) is rendered
+    by JavaScript after this page loads. A browser with JS enabled never
+    shows any of this <noscript> content at all (guaranteed by the HTML
+    spec, not by anything Flutter-specific) — real users see the app
+    exactly as before. But a crawler/bot that does NOT execute JavaScript
+    (common for automated compliance review, and many link-preview
+    generators) was previously seeing a completely blank page with no
+    visible text at all, which is very likely why Amazon Associates'
+    automated review reported the site as "unable to view" / "not publicly
+    available" despite it being live and working normally for real people.
+  -->
+  <noscript>
+    <div style="max-width:720px;margin:40px auto;padding:24px;font-family:sans-serif;line-height:1.6;color:#222;">
+      <h1>MiniGuru — STEAM Education for Indian Children (Ages 8–14)</h1>
+      <p>
+        MiniGuru is a hands-on STEAM (Science, Technology, Engineering, Art,
+        and Mathematics) learning platform, built by MiniGuru Innovation
+        Private Limited (Ujjain, Madhya Pradesh, India), and the digital
+        extension of T-LAB — a project-based tinkering methodology that has
+        been running in schools since 2015.
+      </p>
+      <p>
+        Children on MiniGuru plan real, hands-on projects — robotics,
+        electronics, art and craft, science experiments, and more — choose
+        the exact materials each project needs, build the project at home
+        or at school, and record and share a short video of the finished
+        work for feedback from a mentor and the wider MiniGuru community.
+      </p>
+      <h2>How materials are sourced</h2>
+      <p>
+        For each project, MiniGuru shows the specific real materials a
+        child needs — with a photo, description, and a direct link to buy
+        that exact item on Amazon.in. MiniGuru is an Amazon Associate and
+        earns from qualifying purchases made through these links. This
+        means a parent never has to guess what to buy or hunt for the
+        right item — MiniGuru points to the exact product the project
+        calls for.
+      </p>
+      <h2>Learn more</h2>
+      <ul>
+        <li><a href="https://miniguru.in/privacy">Privacy Policy</a></li>
+        <li><a href="https://miniguru.in/terms">Terms &amp; Conditions</a></li>
+        <li>Contact: <a href="mailto:connect@miniguru.in">connect@miniguru.in</a></li>
+      </ul>
+      <p>
+        This page requires JavaScript to show the full interactive
+        experience. Please enable JavaScript in your browser, or visit
+        <a href="https://miniguru.in">miniguru.in</a> in a modern browser
+        to use MiniGuru.
+      </p>
+    </div>
+  </noscript>
+
   <!-- YouTube API -->
   <script src="https://www.youtube.com/iframe_api"></script>
   
