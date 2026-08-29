@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Kept deliberately minimal. Firebase Hosting's SPA rewrite serves this same
+  index.html for every route (/privacy, /terms, /reset-password, etc.), so
+  right now a crawler sees identical generic content at every URL — only the
+  homepage is genuinely distinct. Listing routes with no unique crawlable
+  content as separate sitemap entries would look like thin/duplicate content
+  to Google, which can hurt rather than help. Add more <url> entries here
+  only once those routes render real, distinct, per-page content without JS
+  (the bigger SSR/prerendering question this needs first).
+-->
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>https://miniguru.in/</loc>
+    <changefreq>weekly</changefreq>
+    <priority>1.0</priority>
+  </url>
+</urlset>
