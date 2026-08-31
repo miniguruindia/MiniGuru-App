@@ -5,6 +5,7 @@
 // unchanged (SendGrid). All existing exports kept identical so nothing
 // that imports this file needs to change.
 import sgMail from '@sendgrid/mail';
+import { checkEmailQuota, recordEmailSent } from '../../utils/costTracking';
 
 let resendClient: any = null;
 if (process.env.RESEND_API_KEY) {
@@ -45,6 +46,19 @@ export async function sendEmail({
 }) {
   const from = fromOverride || DEFAULT_FROM;
 
+  // Stop 5 short of Resend's real 100/day free-tier cap so a burst landing
+  // at the same moment this check runs can never push the account over the
+  // real hard limit. EMAIL_QUOTA_EXCEEDED is a recognizable marker callers
+  // can check for (e.g. passwordResetController) to show a clear message
+  // instead of a generic failure.
+  const quota = await checkEmailQuota();
+  if (!quota.allowed) {
+    throw new Error(
+      `EMAIL_QUOTA_EXCEEDED: Daily email limit reached (${quota.sentToday} sent today). ` +
+      `Please try again tomorrow, or contact connect@miniguru.in directly.`
+    );
+  }
+
   if (resendClient) {
     const { error } = await resendClient.emails.send({
       from: `${from.name} <${from.email}>`,
@@ -55,10 +69,12 @@ export async function sendEmail({
     if (error) {
       throw new Error(`Resend send failed: ${error.message || JSON.stringify(error)}`);
     }
+    await recordEmailSent();
     return;
   }
 
   await sgMail.send({ to, from, subject, html });
+  await recordEmailSent();
 }
 
 export async function sendPasswordResetEmail(to: string, resetToken: string) {

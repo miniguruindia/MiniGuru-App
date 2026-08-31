@@ -7,6 +7,17 @@ const fs             = require('fs');
 const { execSync }   = require('child_process');
 const multer         = require('multer');
 
+// Best-effort YouTube-quota tracking for the admin cost dashboard — never
+// lets a tracking failure affect the real upload/publish call.
+function trackYoutubeUnits(units) {
+  try {
+    const { recordYoutubeUnits } = require('../utils/costTracking');
+    recordYoutubeUnits(units).catch(() => {});
+  } catch {
+    // costTracking not resolvable (e.g. dist/ layout differs) — never block.
+  }
+}
+
 // ── Multer for temporary video storage ───────────────────────────────────────
 const upload = multer({
   dest: 'temp/uploads/',
@@ -152,6 +163,7 @@ async function uploadToYouTube(videoPath, metadata) {
 
     console.log(`✅  Uploaded UNLISTED: ${res.data.id}`);
     if (fs.existsSync(videoPath)) fs.unlinkSync(videoPath);
+    trackYoutubeUnits(1600);
 
     return { videoId: res.data.id, url: `https://www.youtube.com/watch?v=${res.data.id}` };
   } catch (err) {
@@ -169,6 +181,7 @@ async function setVideoPublic(videoId) {
     requestBody: { id: videoId, status: { privacyStatus: 'public', selfDeclaredMadeForKids: false, embeddable: true } },
   });
   console.log(`✅  Video ${videoId} set to PUBLIC`);
+  trackYoutubeUnits(50);
   return true;
 }
 

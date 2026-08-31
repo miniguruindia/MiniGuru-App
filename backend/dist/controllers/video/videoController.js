@@ -11,6 +11,7 @@ const logger_1 = __importDefault(require("../../logger"));
 const googleapis_1 = require("googleapis");
 const resolveSubject_1 = require("../../middleware/resolveSubject");
 const dailyQuestService_1 = require("../../services/dailyQuestService");
+const costTracking_1 = require("../../utils/costTracking");
 const prisma = new client_1.PrismaClient();
 // YouTube API setup
 const youtube = googleapis_1.google.youtube({
@@ -631,6 +632,7 @@ const postCommentToYouTube = async (req, res) => {
             data: { postedToYouTube: true, youtubeCommentId },
         });
         logger_1.default.info(`✅ Comment manually pushed to YouTube by admin: ${youtubeCommentId}`);
+        (0, costTracking_1.recordYoutubeUnits)(50).catch(() => { });
         res.json({ success: true, youtubeCommentId });
     }
     catch (error) {

@@ -19,6 +19,7 @@
 // Twilio review clears, just remove/unset RESEND_API_KEY — no code
 // change needed either way.
 const sgMail = require('@sendgrid/mail');
+const { checkEmailQuota, recordEmailSent } = require('../utils/costTracking');
 
 let resendClient: any = null;
 if (process.env.RESEND_API_KEY) {
@@ -44,6 +45,14 @@ export async function sendEmail({
 }) {
   const fromEmail = process.env.FROM_EMAIL || 'connect@miniguru.in';
 
+  const quota = await checkEmailQuota();
+  if (!quota.allowed) {
+    throw new Error(
+      `EMAIL_QUOTA_EXCEEDED: Daily email limit reached (${quota.sentToday} sent today). ` +
+      `Please try again tomorrow, or contact connect@miniguru.in directly.`
+    );
+  }
+
   if (resendClient) {
     // Resend's Node SDK returns { data, error } instead of throwing on
     // API-level failures (e.g. unverified domain, bad recipient) — must
@@ -60,6 +69,7 @@ export async function sendEmail({
     if (error) {
       throw new Error(`Resend send failed: ${error.message || JSON.stringify(error)}`);
     }
+    await recordEmailSent();
     return;
   }
 
@@ -74,4 +84,5 @@ export async function sendEmail({
     subject,
     html,
   });
+  await recordEmailSent();
 }

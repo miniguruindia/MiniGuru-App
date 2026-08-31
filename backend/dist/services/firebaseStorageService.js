@@ -61,6 +61,7 @@ exports.deleteMaterialImage = deleteMaterialImage;
 exports.generateUploadUrl = generateUploadUrl;
 exports.downloadToTempFile = downloadToTempFile;
 exports.deleteFromStorage = deleteFromStorage;
+exports.getBucketTotalSizeBytes = getBucketTotalSizeBytes;
 const app_1 = require("firebase-admin/app");
 const storage_1 = require("firebase-admin/storage");
 const path = __importStar(require("path"));
@@ -198,4 +199,21 @@ async function deleteFromStorage(storagePath) {
         // Already gone / never existed / any other issue — logging would be
         // nice but this must never throw and never block a response.
     }
+}
+/**
+ * Sums the real size of every object in the bucket, in bytes. Used only by
+ * the admin cost dashboard (costTracking.ts), which caches this result —
+ * listing every file is not free to run on every dashboard refresh.
+ */
+async function getBucketTotalSizeBytes() {
+    const firebaseApp = ensureInitialized();
+    const bucket = (0, storage_1.getStorage)(firebaseApp).bucket();
+    const [files] = await bucket.getFiles();
+    let total = 0;
+    for (const file of files) {
+        const size = file.metadata?.size;
+        if (size)
+            total += parseInt(String(size), 10);
+    }
+    return total;
 }

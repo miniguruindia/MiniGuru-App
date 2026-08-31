@@ -52,6 +52,19 @@ const requestPasswordReset = async (req, res) => {
         });
     }
     catch (error) {
+        // A blocked-by-quota send is not a generic failure — show the real
+        // reason instead of a vague "something went wrong", per Rule
+        // (never swallow real error messages, and never silently fail a
+        // password reset — this is the account-recovery path, a user stuck
+        // here has no other way in).
+        if (typeof error?.message === 'string' && error.message.startsWith('EMAIL_QUOTA_EXCEEDED')) {
+            logger_1.default.warn({ email }, '⚠️  Password reset blocked — daily email quota reached');
+            return res.status(503).json({
+                error: "We've reached today's email sending limit. Please try again tomorrow, " +
+                    'or contact connect@miniguru.in directly for help resetting your password.',
+                quotaExceeded: true,
+            });
+        }
         logger_1.default.error({ error: error.message }, '❌ Password reset request error');
         return res.status(500).json({ error: 'Failed to process password reset request' });
     }

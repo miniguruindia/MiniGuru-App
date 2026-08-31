@@ -37,6 +37,7 @@ import goinsRouter from './routes/goinsRoutes';           // ← NEW
 import dailyQuestRouter from './routes/dailyQuestRoutes';
 import goinsTopupRouter from './routes/goinsTopupRoutes';
 import schoolAccountRouter from './routes/schoolAccountRoutes';   // ← NEW: school/T-LAB admin accounts
+import costDashboardRouter from './routes/costDashboardRoutes';   // ← NEW: admin cost/quota dashboard
 import communitySubmissionsRouter from './routes/communitySubmissionsRoutes';   // ← NEW: T-LAB Happenings + STEAM Challenges submission workflow
 
 // YouTube Upload Setup (optional)
@@ -301,6 +302,7 @@ try {
   app.use('/project', projectRouter);
   app.use('/admin', adminRouter);
   app.use('/admin', schoolAccountRouter);   // ← NEW: school/T-LAB admin accounts
+  app.use('/admin', costDashboardRouter);   // ← NEW: admin cost/quota dashboard
   app.use(communitySubmissionsRouter);   // ← NEW: serves /happenings, /admin/happenings, /challenges, /admin/challenges
   app.use('/payment', paymentRouter);
   app.use('/api/videos', videoRoutes);

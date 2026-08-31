@@ -19,7 +19,8 @@ import {
   Coins,
   Package,
   ShoppingBag,
-  Megaphone
+  Megaphone,
+  Gauge
 } from 'lucide-react'
 import Image from 'next/image'
 
@@ -111,6 +112,12 @@ export function AdminLayout({ children }: AdminLayoutProps) {
       href: '/content',
       icon: FileEdit,
       current: pathname.startsWith('/content')
+    },
+    { 
+      name: 'Cost & Quotas',
+      href: '/cost-dashboard',
+      icon: Gauge,
+      current: pathname.startsWith('/cost-dashboard')
     },
   ]
 

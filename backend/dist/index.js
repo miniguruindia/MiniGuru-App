@@ -40,6 +40,7 @@ const goinsRoutes_1 = __importDefault(require("./routes/goinsRoutes")); // ← N
 const dailyQuestRoutes_1 = __importDefault(require("./routes/dailyQuestRoutes"));
 const goinsTopupRoutes_1 = __importDefault(require("./routes/goinsTopupRoutes"));
 const schoolAccountRoutes_1 = __importDefault(require("./routes/schoolAccountRoutes")); // ← NEW: school/T-LAB admin accounts
+const costDashboardRoutes_1 = __importDefault(require("./routes/costDashboardRoutes")); // ← NEW: admin cost/quota dashboard
 const communitySubmissionsRoutes_1 = __importDefault(require("./routes/communitySubmissionsRoutes")); // ← NEW: T-LAB Happenings + STEAM Challenges submission workflow
 // YouTube Upload Setup (optional)
 let youtubeService = null;
@@ -287,6 +288,7 @@ try {
     app.use('/project', projectRoutes_1.default);
     app.use('/admin', adminRoutes_1.default);
     app.use('/admin', schoolAccountRoutes_1.default); // ← NEW: school/T-LAB admin accounts
+    app.use('/admin', costDashboardRoutes_1.default); // ← NEW: admin cost/quota dashboard
     app.use(communitySubmissionsRoutes_1.default); // ← NEW: serves /happenings, /admin/happenings, /challenges, /admin/challenges
     app.use('/payment', paymentRoutes_1.default);
     app.use('/api/videos', videoRoutes_1.default);

@@ -14,6 +14,7 @@ exports.initializeEmailService = initializeEmailService;
 // unchanged (SendGrid). All existing exports kept identical so nothing
 // that imports this file needs to change.
 const mail_1 = __importDefault(require("@sendgrid/mail"));
+const costTracking_1 = require("../../utils/costTracking");
 let resendClient = null;
 if (process.env.RESEND_API_KEY) {
     const { Resend } = require('resend');
@@ -39,6 +40,16 @@ const DEFAULT_FROM = { email: process.env.FROM_EMAIL || 'connect@miniguru.in', n
 exports.OFFICIAL_FROM = { email: 'updates@miniguru.in', name: 'MiniGuru' };
 async function sendEmail({ to, subject, html, fromOverride, }) {
     const from = fromOverride || DEFAULT_FROM;
+    // Stop 5 short of Resend's real 100/day free-tier cap so a burst landing
+    // at the same moment this check runs can never push the account over the
+    // real hard limit. EMAIL_QUOTA_EXCEEDED is a recognizable marker callers
+    // can check for (e.g. passwordResetController) to show a clear message
+    // instead of a generic failure.
+    const quota = await (0, costTracking_1.checkEmailQuota)();
+    if (!quota.allowed) {
+        throw new Error(`EMAIL_QUOTA_EXCEEDED: Daily email limit reached (${quota.sentToday} sent today). ` +
+            `Please try again tomorrow, or contact connect@miniguru.in directly.`);
+    }
     if (resendClient) {
         const { error } = await resendClient.emails.send({
             from: `${from.name} <${from.email}>`,
@@ -49,9 +60,11 @@ async function sendEmail({ to, subject, html, fromOverride, }) {
         if (error) {
             throw new Error(`Resend send failed: ${error.message || JSON.stringify(error)}`);
         }
+        await (0, costTracking_1.recordEmailSent)();
         return;
     }
     await mail_1.default.send({ to, from, subject, html });
+    await (0, costTracking_1.recordEmailSent)();
 }
 async function sendPasswordResetEmail(to, resetToken) {
     const resetUrl = `${process.env.FRONTEND_URL}/reset-password?token=${resetToken}`;

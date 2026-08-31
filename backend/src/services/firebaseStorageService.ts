@@ -62,8 +62,7 @@ function extensionFromMime(mimeType: string): string {
   return map[mimeType] || 'jpg';
 }
 
-export function publicUrlFor(storagePath: string): string {
-  const encoded = encodeURIComponent(storagePath);
+export function publicUrlFor(storagePath: string): string {const encoded = encodeURIComponent(storagePath);
   return `https://firebasestorage.googleapis.com/v0/b/${BUCKET_NAME}/o/${encoded}?alt=media`;
 }
 
@@ -172,4 +171,21 @@ export async function deleteFromStorage(storagePath: string): Promise<void> {
     // Already gone / never existed / any other issue — logging would be
     // nice but this must never throw and never block a response.
   }
+}
+
+/**
+ * Sums the real size of every object in the bucket, in bytes. Used only by
+ * the admin cost dashboard (costTracking.ts), which caches this result —
+ * listing every file is not free to run on every dashboard refresh.
+ */
+export async function getBucketTotalSizeBytes(): Promise<number> {
+  const firebaseApp = ensureInitialized();
+  const bucket = getStorage(firebaseApp).bucket();
+  const [files] = await bucket.getFiles();
+  let total = 0;
+  for (const file of files) {
+    const size = file.metadata?.size;
+    if (size) total += parseInt(String(size), 10);
+  }
+  return total;
 }

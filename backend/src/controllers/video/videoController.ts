@@ -7,6 +7,7 @@ import logger from '../../logger';
 import { google } from 'googleapis';
 import { resolveOwnerUserId } from '../../middleware/resolveSubject';
 import { recordQuestVideoWatched } from '../../services/dailyQuestService';
+import { recordYoutubeUnits } from '../../utils/costTracking';
 
 const prisma = new PrismaClient();
 
@@ -692,6 +693,7 @@ export const postCommentToYouTube = async (req: Request, res: Response) => {
     });
 
     logger.info(`✅ Comment manually pushed to YouTube by admin: ${youtubeCommentId}`);
+    recordYoutubeUnits(50).catch(() => {});
     res.json({ success: true, youtubeCommentId });
   } catch (error: any) {
     logger.error({ error }, '❌ Post comment to YouTube (admin) error');
