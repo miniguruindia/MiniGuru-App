@@ -15,7 +15,6 @@ import {
   LogOut,
   Menu,
   X,
-  Tag,
   Coins,
   Package,
   ShoppingBag,
@@ -47,6 +46,12 @@ export function AdminLayout({ children }: AdminLayoutProps) {
       current: pathname === '/'
     },
     { 
+      name: 'Cost & Quotas',
+      href: '/cost-dashboard',
+      icon: Gauge,
+      current: pathname.startsWith('/cost-dashboard')
+    },
+    { 
       name: 'People', 
       href: '/people', 
       icon: Users,
@@ -61,13 +66,14 @@ export function AdminLayout({ children }: AdminLayoutProps) {
       badge: 0
     },
     // ── Projects — browse/edit ANY project (title, materials,
-    // collaborators, replace video). Separate from Content Moderation,
-    // which is specifically the pending-approval queue. ────
+    // collaborators, replace video), plus Categories as a tab.
+    // Separate from Content Moderation, which is specifically the
+    // pending-approval queue. ────
     { 
       name: 'Projects', 
       href: '/projects', 
       icon: FolderOpen,
-      current: pathname.startsWith('/projects')
+      current: pathname.startsWith('/projects') || pathname.startsWith('/categories')
     },
     // ── Materials (shop) — replaces Products ──────────────
     { 
@@ -76,13 +82,6 @@ export function AdminLayout({ children }: AdminLayoutProps) {
       icon: Package,
       current: pathname.startsWith('/materials') || pathname.startsWith('/product-suggestions'),
       description: 'Set ASINs, prices, Goins, user suggestions'
-    },
-    // ── Project categories ─────────────────────────────────
-    { 
-      name: 'Categories', 
-      href: '/categories', 
-      icon: Tag,
-      current: pathname.startsWith('/categories')
     },
     // ── Community — moderation + stats/resources, both as tabs ──────
     { 
@@ -112,12 +111,6 @@ export function AdminLayout({ children }: AdminLayoutProps) {
       href: '/content',
       icon: FileEdit,
       current: pathname.startsWith('/content')
-    },
-    { 
-      name: 'Cost & Quotas',
-      href: '/cost-dashboard',
-      icon: Gauge,
-      current: pathname.startsWith('/cost-dashboard')
     },
   ]
 
