@@ -8,6 +8,8 @@ const multer_1 = __importDefault(require("multer"));
 const prismaClient_1 = __importDefault(require("../utils/prismaClient"));
 const authMiddleware_1 = require("../middleware/authMiddleware");
 const firebaseStorageService_1 = require("../services/firebaseStorageService");
+const amazonProductService_1 = require("../services/amazonProductService");
+const materialSearchAssistService_1 = require("../services/materialSearchAssistService");
 const router = (0, express_1.Router)();
 // Memory storage (not disk) — we hand the buffer straight to Firebase
 // Storage, never touching Cloud Run's ephemeral local disk for this.
@@ -291,6 +293,63 @@ router.post('/admin/bulk', authMiddleware_1.authenticateToken, requireAdmin, asy
     catch (err) {
         console.error('[materials] POST /admin/bulk error:', err);
         res.status(500).json({ error: 'Bulk upload failed' });
+    }
+});
+// ── POST /admin/:id/find-on-amazon — search PA API for candidate products ──
+// Gemini (best-effort, optional) refines the search phrase first; PA API
+// then does the actual product search. Never auto-links anything — always
+// returns candidates for an admin to pick from by hand.
+router.post('/admin/:id/find-on-amazon', authMiddleware_1.authenticateToken, requireAdmin, async (req, res) => {
+    try {
+        const material = await prismaClient_1.default.material.findUnique({ where: { id: req.params.id } });
+        if (!material)
+            return res.status(404).json({ error: 'Material not found' });
+        const rawQuery = (req.body?.query && String(req.body.query).trim()) || material.name;
+        let searchQuery = rawQuery;
+        try {
+            searchQuery = await (0, materialSearchAssistService_1.refineSearchQuery)(rawQuery, material.description || undefined);
+        }
+        catch {
+            searchQuery = rawQuery;
+        }
+        const result = await (0, amazonProductService_1.searchAmazonProducts)(searchQuery, 5);
+        res.json({ ...result, searchedFor: searchQuery, rawQuery });
+    }
+    catch (err) {
+        console.error('[materials] POST /admin/:id/find-on-amazon error:', err);
+        res.status(500).json({ configured: true, results: [], error: 'Search failed' });
+    }
+});
+// ── POST /admin/:id/link-amazon — save a chosen candidate onto a Material ──
+// Body: { asin, priceRupees?, imageUrl? }. Never overwrites an existing
+// Firebase imageUrl (Rule 30) — Amazon's image is only used as a fallback
+// when the material has no photo of its own yet.
+router.post('/admin/:id/link-amazon', authMiddleware_1.authenticateToken, requireAdmin, async (req, res) => {
+    try {
+        const { asin, priceRupees, imageUrl, tag } = req.body || {};
+        if (!asin || typeof asin !== 'string') {
+            return res.status(400).json({ error: 'asin is required' });
+        }
+        const existing = await prismaClient_1.default.material.findUnique({ where: { id: req.params.id } });
+        if (!existing)
+            return res.status(404).json({ error: 'Material not found' });
+        const cleanAsin = asin.trim();
+        const data = {
+            amazonASIN: cleanAsin,
+            amazonUrl: (0, amazonProductService_1.buildAffiliateUrl)(cleanAsin, tag),
+        };
+        if (priceRupees !== undefined && priceRupees !== null) {
+            data.priceEstimate = Math.round(Number(priceRupees));
+        }
+        if (!existing.imageUrl && imageUrl) {
+            data.imageUrl = String(imageUrl);
+        }
+        const updated = await prismaClient_1.default.material.update({ where: { id: req.params.id }, data });
+        res.json(toFlutterShape(updated));
+    }
+    catch (err) {
+        console.error('[materials] POST /admin/:id/link-amazon error:', err);
+        res.status(500).json({ error: 'Failed to link Amazon product' });
     }
 });
 // ── GET /:id — PUBLIC, must be LAST ──────────────────────────────────────────

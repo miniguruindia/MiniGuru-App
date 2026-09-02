@@ -38,6 +38,115 @@ const EMPTY_MAT = {
 }
 
 
+// ── "Find on Amazon" modal — search PA API (Gemini-refined), tap to link ────
+interface AmazonCandidate {
+  asin: string
+  title: string
+  imageUrl: string | null
+  priceRupees: number | null
+  detailPageUrl: string
+}
+
+function FindOnAmazonModal({ material: m, apiBase, onClose, onPicked }: {
+  material: { id: string; name: string }
+  apiBase: string
+  onClose: () => void
+  onPicked: (asin: string, priceRupees: number | null) => void
+}) {
+  const [loading, setLoading]   = React.useState(true)
+  const [configured, setConfigured] = React.useState(true)
+  const [error, setError]       = React.useState<string | null>(null)
+  const [results, setResults]   = React.useState<AmazonCandidate[]>([])
+  const [searchedFor, setSearchedFor] = React.useState('')
+
+  React.useEffect(() => {
+    (async () => {
+      try {
+        const token = await authToken()
+        const res = await fetch(`${apiBase}/materials/admin/${m.id}/find-on-amazon`, {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({}),
+        })
+        const data = await res.json()
+        setConfigured(!!data.configured)
+        setResults(data.results || [])
+        setSearchedFor(data.searchedFor || m.name)
+        if (data.error) setError(data.error)
+      } catch (e: any) {
+        setError(e.message || 'Search failed')
+      } finally {
+        setLoading(false)
+      }
+    })()
+  }, [m.id])
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-xl shadow-xl w-full max-w-lg max-h-[80vh] flex flex-col">
+        <div className="flex items-center justify-between p-4 border-b">
+          <div>
+            <h3 className="font-semibold text-gray-900">🔍 Find on Amazon</h3>
+            <p className="text-xs text-gray-400">for &ldquo;{m.name}&rdquo;</p>
+          </div>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X size={20} /></button>
+        </div>
+        <div className="flex-1 overflow-y-auto p-4">
+          {loading && (
+            <div className="flex items-center justify-center py-10 text-gray-400">
+              <Loader2 className="animate-spin mr-2" size={18} /> Searching Amazon…
+            </div>
+          )}
+          {!loading && !configured && (
+            <div className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg p-3">
+              Amazon Product Advertising API isn&apos;t connected yet — add
+              <code className="mx-1 px-1 bg-amber-100 rounded">AMAZON_PAAPI_ACCESS_KEY</code>,
+              <code className="mx-1 px-1 bg-amber-100 rounded">AMAZON_PAAPI_SECRET_KEY</code> and
+              <code className="mx-1 px-1 bg-amber-100 rounded">AMAZON_PAAPI_PARTNER_TAG</code> on
+              Cloud Run. Until then, ASINs can be entered by hand below.
+            </div>
+          )}
+          {!loading && configured && error && (
+            <div className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg p-3">
+              {error}
+            </div>
+          )}
+          {!loading && configured && !error && results.length === 0 && (
+            <p className="text-sm text-gray-400 text-center py-6">No matches found for &ldquo;{searchedFor}&rdquo;.</p>
+          )}
+          {!loading && results.length > 0 && (
+            <div className="space-y-2">
+              {searchedFor && searchedFor.toLowerCase() !== m.name.toLowerCase() && (
+                <p className="text-xs text-gray-400 mb-2">Searched as: &ldquo;{searchedFor}&rdquo;</p>
+              )}
+              {results.map(r => (
+                <button
+                  key={r.asin}
+                  onClick={() => onPicked(r.asin, r.priceRupees)}
+                  className="w-full flex items-center gap-3 p-2 border border-gray-200 rounded-lg hover:border-orange-400 hover:bg-orange-50 text-left transition-colors"
+                >
+                  <div className="w-14 h-14 flex-shrink-0 bg-white border rounded flex items-center justify-center overflow-hidden">
+                    {r.imageUrl
+                      ? <img src={r.imageUrl} alt="" className="max-w-full max-h-full object-contain" />
+                      : <Package size={20} className="text-gray-300" />}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm text-gray-900 line-clamp-2">{r.title}</p>
+                    <p className="text-xs text-gray-500 font-mono">{r.asin}</p>
+                  </div>
+                  <div className="text-sm font-semibold text-orange-600 whitespace-nowrap">
+                    {r.priceRupees != null ? `₹${r.priceRupees}` : '—'}
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ── Inline always-editable ASIN row ──────────────────────────────────────────
 function AsinRow({ material: m, apiBase, onSaved, onFlash }: {
   material: any
@@ -49,6 +158,7 @@ function AsinRow({ material: m, apiBase, onSaved, onFlash }: {
   const [price, setPrice] = React.useState(m.priceEstimate != null ? String(m.priceEstimate) : '')
   const [saving, setSaving] = React.useState(false)
   const [dirty,  setDirty]  = React.useState(false)
+  const [finding, setFinding] = React.useState(false)
 
   const save = async () => {
     setSaving(true)
@@ -110,14 +220,37 @@ function AsinRow({ material: m, apiBase, onSaved, onFlash }: {
         ) : <span className="text-xs text-gray-300">—</span>}
       </td>
       <td className="px-4 py-2">
-        <button
-          onClick={save}
-          disabled={saving || !dirty}
-          className="px-3 py-1 bg-orange-500 text-white rounded text-xs font-medium hover:bg-orange-600 disabled:opacity-30 disabled:cursor-not-allowed"
-        >
-          {saving ? '…' : 'Save'}
-        </button>
+        <div className="flex items-center gap-1.5">
+          <button
+            onClick={() => setFinding(true)}
+            title="Find on Amazon"
+            className="px-2 py-1 bg-white border border-orange-300 text-orange-600 rounded text-xs font-medium hover:bg-orange-50"
+          >
+            🔍 Find
+          </button>
+          <button
+            onClick={save}
+            disabled={saving || !dirty}
+            className="px-3 py-1 bg-orange-500 text-white rounded text-xs font-medium hover:bg-orange-600 disabled:opacity-30 disabled:cursor-not-allowed"
+          >
+            {saving ? '…' : 'Save'}
+          </button>
+        </div>
       </td>
+      {finding && (
+        <FindOnAmazonModal
+          material={{ id: m.id, name: m.name }}
+          apiBase={apiBase}
+          onClose={() => setFinding(false)}
+          onPicked={(pickedAsin, pickedPrice) => {
+            setAsin(pickedAsin)
+            if (pickedPrice != null) setPrice(String(pickedPrice))
+            setDirty(true)
+            setFinding(false)
+            onFlash('Picked — tap Save to confirm')
+          }}
+        />
+      )}
     </tr>
   )
 }

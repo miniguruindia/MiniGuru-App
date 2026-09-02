@@ -23,7 +23,8 @@
     "pino": "^9.14.0",
     "pino-http": "^10.5.0",
     "prisma": "^5.22.0",
-    "razorpay": "^2.9.6"
+    "razorpay": "^2.9.6",
+    "amazon-paapi": "^1.1.0"
   },
   "name": "miniguru-backend",
   "version": "1.0.0",

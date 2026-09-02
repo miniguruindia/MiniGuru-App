@@ -359,7 +359,7 @@ class _ProfileState extends State<Profile>
               ),
               const SizedBox(height: 10),
               _pwField('Current Password', pwCtrl, oPw,
-                  (v) => setDlg(() => oPw = !v),
+                  (v) => setDlg(() => oPw = v),
                   (v) => v!.isEmpty ? 'Required' : null),
             ]),
           ),

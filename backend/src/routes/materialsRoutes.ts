@@ -3,6 +3,8 @@ import multer from 'multer';
 import prisma from '../utils/prismaClient';
 import { authenticateToken } from '../middleware/authMiddleware';
 import { uploadMaterialImage, deleteMaterialImage } from '../services/firebaseStorageService';
+import { searchAmazonProducts, buildAffiliateUrl } from '../services/amazonProductService';
+import { refineSearchQuery } from '../services/materialSearchAssistService';
 
 const router = Router();
 
@@ -294,6 +296,64 @@ router.post('/admin/bulk', authenticateToken, requireAdmin, async (req: Request,
   } catch (err) {
     console.error('[materials] POST /admin/bulk error:', err);
     res.status(500).json({ error: 'Bulk upload failed' });
+  }
+});
+
+// ── POST /admin/:id/find-on-amazon — search PA API for candidate products ──
+// Gemini (best-effort, optional) refines the search phrase first; PA API
+// then does the actual product search. Never auto-links anything — always
+// returns candidates for an admin to pick from by hand.
+router.post('/admin/:id/find-on-amazon', authenticateToken, requireAdmin, async (req: any, res: any) => {
+  try {
+    const material = await prisma.material.findUnique({ where: { id: req.params.id } });
+    if (!material) return res.status(404).json({ error: 'Material not found' });
+
+    const rawQuery: string = (req.body?.query && String(req.body.query).trim()) || material.name;
+    let searchQuery = rawQuery;
+    try {
+      searchQuery = await refineSearchQuery(rawQuery, material.description || undefined);
+    } catch {
+      searchQuery = rawQuery;
+    }
+
+    const result = await searchAmazonProducts(searchQuery, 5);
+    res.json({ ...result, searchedFor: searchQuery, rawQuery });
+  } catch (err) {
+    console.error('[materials] POST /admin/:id/find-on-amazon error:', err);
+    res.status(500).json({ configured: true, results: [], error: 'Search failed' });
+  }
+});
+
+// ── POST /admin/:id/link-amazon — save a chosen candidate onto a Material ──
+// Body: { asin, priceRupees?, imageUrl? }. Never overwrites an existing
+// Firebase imageUrl (Rule 30) — Amazon's image is only used as a fallback
+// when the material has no photo of its own yet.
+router.post('/admin/:id/link-amazon', authenticateToken, requireAdmin, async (req: any, res: any) => {
+  try {
+    const { asin, priceRupees, imageUrl, tag } = req.body || {};
+    if (!asin || typeof asin !== 'string') {
+      return res.status(400).json({ error: 'asin is required' });
+    }
+    const existing = await prisma.material.findUnique({ where: { id: req.params.id } });
+    if (!existing) return res.status(404).json({ error: 'Material not found' });
+
+    const cleanAsin = asin.trim();
+    const data: any = {
+      amazonASIN: cleanAsin,
+      amazonUrl: buildAffiliateUrl(cleanAsin, tag),
+    };
+    if (priceRupees !== undefined && priceRupees !== null) {
+      data.priceEstimate = Math.round(Number(priceRupees));
+    }
+    if (!existing.imageUrl && imageUrl) {
+      data.imageUrl = String(imageUrl);
+    }
+
+    const updated = await prisma.material.update({ where: { id: req.params.id }, data });
+    res.json(toFlutterShape(updated));
+  } catch (err) {
+    console.error('[materials] POST /admin/:id/link-amazon error:', err);
+    res.status(500).json({ error: 'Failed to link Amazon product' });
   }
 });
 
