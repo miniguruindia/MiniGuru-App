@@ -118,3 +118,26 @@ export {
 
 // Alias for existing routes that use authenticateToken
 export const authenticateToken = authenticateUser;
+
+// Optional auth: populates req.user if a valid Bearer token is present,
+// but NEVER blocks the request either way — for public routes (like
+// material suggestions) that want to know who's asking when logged in,
+// without requiring login to use the feature at all.
+export const authenticateTokenOptional = async (req: Request, _res: Response, next: NextFunction) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ') || !process.env.JWT_SECRET) {
+      return next();
+    }
+    const token = authHeader.substring(7);
+    const decoded = jwt.verify(token, process.env.JWT_SECRET) as any;
+    const user = await prisma.user.findUnique({
+      where: { id: decoded.userId },
+      select: { id: true, email: true, name: true, role: true },
+    });
+    if (user) req.user = { ...user, userId: user.id };
+  } catch {
+    // Invalid/expired token on an optional route — just proceed logged-out.
+  }
+  next();
+};

@@ -25,6 +25,7 @@ Future<List<PickedMaterial>?> showMaterialPicker({
   required BuildContext context,
   required int currentGoinsBalance,
   List<PickedMaterial>? existingPicked,
+  String? projectContext,
 }) {
   return showModalBottomSheet<List<PickedMaterial>>(
     context: context,
@@ -33,6 +34,7 @@ Future<List<PickedMaterial>?> showMaterialPicker({
     builder: (_) => MaterialPickerSheet(
       currentGoinsBalance: currentGoinsBalance,
       existingPicked: existingPicked ?? [],
+      projectContext: projectContext,
     ),
   );
 }
@@ -41,11 +43,13 @@ Future<List<PickedMaterial>?> showMaterialPicker({
 class MaterialPickerSheet extends StatefulWidget {
   final int currentGoinsBalance;
   final List<PickedMaterial> existingPicked;
+  final String? projectContext;
 
   const MaterialPickerSheet({
     Key? key,
     required this.currentGoinsBalance,
     required this.existingPicked,
+    this.projectContext,
   }) : super(key: key);
 
   @override
@@ -310,6 +314,7 @@ class _MaterialPickerSheetState extends State<MaterialPickerSheet> {
                           suggestion: name,
                           category: 'custom_material_request',
                           requestedGoinsPrice: int.tryParse(rateCtrl.text.trim()),
+                          projectContext: widget.projectContext,
                         );
                         if (dlgCtx.mounted) Navigator.of(dlgCtx).pop();
                         if (mounted) {

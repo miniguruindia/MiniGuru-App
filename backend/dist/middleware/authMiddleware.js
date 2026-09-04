@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.authenticateToken = exports.authorizeAdmin = exports.authenticateAdmin = exports.authenticateUser = void 0;
+exports.authenticateTokenOptional = exports.authenticateToken = exports.authorizeAdmin = exports.authenticateAdmin = exports.authenticateUser = void 0;
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const prismaClient_1 = __importDefault(require("../utils/prismaClient"));
 // Authenticate any logged-in user
@@ -90,3 +90,28 @@ const authorizeAdmin = (req, res, next) => {
 exports.authorizeAdmin = authorizeAdmin;
 // Alias for existing routes that use authenticateToken
 exports.authenticateToken = authenticateUser;
+// Optional auth: populates req.user if a valid Bearer token is present,
+// but NEVER blocks the request either way — for public routes (like
+// material suggestions) that want to know who's asking when logged in,
+// without requiring login to use the feature at all.
+const authenticateTokenOptional = async (req, _res, next) => {
+    try {
+        const authHeader = req.headers.authorization;
+        if (!authHeader || !authHeader.startsWith('Bearer ') || !process.env.JWT_SECRET) {
+            return next();
+        }
+        const token = authHeader.substring(7);
+        const decoded = jsonwebtoken_1.default.verify(token, process.env.JWT_SECRET);
+        const user = await prismaClient_1.default.user.findUnique({
+            where: { id: decoded.userId },
+            select: { id: true, email: true, name: true, role: true },
+        });
+        if (user)
+            req.user = { ...user, userId: user.id };
+    }
+    catch {
+        // Invalid/expired token on an optional route — just proceed logged-out.
+    }
+    next();
+};
+exports.authenticateTokenOptional = authenticateTokenOptional;

@@ -10,6 +10,7 @@ const authMiddleware_1 = require("../middleware/authMiddleware");
 const firebaseStorageService_1 = require("../services/firebaseStorageService");
 const amazonProductService_1 = require("../services/amazonProductService");
 const materialSearchAssistService_1 = require("../services/materialSearchAssistService");
+const amazonSuggestionService_1 = require("../services/amazonSuggestionService");
 const router = (0, express_1.Router)();
 // Memory storage (not disk) — we hand the buffer straight to Firebase
 // Storage, never touching Cloud Run's ephemeral local disk for this.
@@ -51,6 +52,9 @@ function toFlutterShape(m) {
         amazonUrl: m.amazonUrl,
         showInShop: m.showInShop,
         showInPlanning: m.showInPlanning,
+        amazonNeedsAttention: m.amazonNeedsAttention || false,
+        amazonAttentionReason: m.amazonAttentionReason || null,
+        amazonLastCheckedAt: m.amazonLastCheckedAt,
         createdAt: m.createdAt,
     };
 }
@@ -310,6 +314,7 @@ router.post('/admin/:id/find-on-amazon', authMiddleware_1.authenticateToken, req
             searchQuery = await (0, materialSearchAssistService_1.refineSearchQuery)(rawQuery, material.description || undefined);
         }
         catch {
+            // refineSearchQuery already never throws, but stay defensive here too
             searchQuery = rawQuery;
         }
         const result = await (0, amazonProductService_1.searchAmazonProducts)(searchQuery, 5);
@@ -341,6 +346,7 @@ router.post('/admin/:id/link-amazon', authMiddleware_1.authenticateToken, requir
         if (priceRupees !== undefined && priceRupees !== null) {
             data.priceEstimate = Math.round(Number(priceRupees));
         }
+        // Only fill in an image if this material genuinely has none yet.
         if (!existing.imageUrl && imageUrl) {
             data.imageUrl = String(imageUrl);
         }
@@ -350,6 +356,100 @@ router.post('/admin/:id/link-amazon', authMiddleware_1.authenticateToken, requir
     catch (err) {
         console.error('[materials] POST /admin/:id/link-amazon error:', err);
         res.status(500).json({ error: 'Failed to link Amazon product' });
+    }
+});
+// ── AI Suggestions queue — bulk scan, list, approve, reject ────────────────
+// Trigger a bulk scan of materials with no ASIN yet. Runs synchronously
+// within the request (bounded by an internal time budget well under Cloud
+// Run's timeout) — call again with the same or a higher limit to continue
+// where it left off, since already-suggested materials are skipped.
+router.post('/admin/amazon-suggestions/scan', authMiddleware_1.authenticateToken, requireAdmin, async (req, res) => {
+    try {
+        const limit = Math.min(Math.max(parseInt(req.body?.limit, 10) || 25, 1), 100);
+        const summary = await (0, amazonSuggestionService_1.runAmazonSuggestionScan)(limit);
+        res.json(summary);
+    }
+    catch (err) {
+        console.error('[materials] POST /admin/amazon-suggestions/scan error:', err);
+        res.status(500).json({ error: 'Scan failed' });
+    }
+});
+router.get('/admin/amazon-suggestions', authMiddleware_1.authenticateToken, requireAdmin, async (req, res) => {
+    try {
+        const status = typeof req.query.status === 'string' ? req.query.status : 'PENDING';
+        const suggestions = await prismaClient_1.default.amazonSuggestion.findMany({
+            where: { status },
+            orderBy: { createdAt: 'desc' },
+            take: 200,
+        });
+        res.json(suggestions);
+    }
+    catch (err) {
+        console.error('[materials] GET /admin/amazon-suggestions error:', err);
+        res.status(500).json({ error: 'Failed to load suggestions' });
+    }
+});
+router.post('/admin/amazon-suggestions/:id/approve', authMiddleware_1.authenticateToken, requireAdmin, async (req, res) => {
+    try {
+        const forceImage = !!req.body?.forceImage;
+        const updated = await (0, amazonSuggestionService_1.approveAmazonSuggestion)(req.params.id, req.user.userId, forceImage);
+        res.json(toFlutterShape(updated));
+    }
+    catch (err) {
+        console.error('[materials] POST /admin/amazon-suggestions/:id/approve error:', err);
+        res.status(400).json({ error: err?.message || 'Failed to approve suggestion' });
+    }
+});
+router.post('/admin/amazon-suggestions/:id/reject', authMiddleware_1.authenticateToken, requireAdmin, async (req, res) => {
+    try {
+        await (0, amazonSuggestionService_1.rejectAmazonSuggestion)(req.params.id, req.user.userId);
+        res.json({ success: true });
+    }
+    catch (err) {
+        console.error('[materials] POST /admin/amazon-suggestions/:id/reject error:', err);
+        res.status(400).json({ error: err?.message || 'Failed to reject suggestion' });
+    }
+});
+// ── Nightly refresh — re-checks already-linked ASINs for price/availability
+// drift, flags Material.amazonNeedsAttention. Never writes price/image
+// itself. Two ways to call this: manually from admin, or via Cloud
+// Scheduler with a shared secret (see MINIGURU_RULES.md deploy notes).
+router.post('/admin/amazon-refresh/run', async (req, res) => {
+    const schedulerSecret = req.headers['x-refresh-secret'];
+    const isScheduler = !!process.env.AMAZON_REFRESH_SECRET && schedulerSecret === process.env.AMAZON_REFRESH_SECRET;
+    if (!isScheduler) {
+        // Not the scheduler — fall back to requiring a real admin login.
+        return (0, authMiddleware_1.authenticateToken)(req, res, () => requireAdmin(req, res, async () => {
+            try {
+                const summary = await (0, amazonSuggestionService_1.runAmazonRefreshCheck)(Math.min(Math.max(parseInt(req.body?.limit, 10) || 50, 1), 200));
+                res.json(summary);
+            }
+            catch (err) {
+                console.error('[materials] POST /admin/amazon-refresh/run error:', err);
+                res.status(500).json({ error: 'Refresh failed' });
+            }
+        }));
+    }
+    try {
+        const summary = await (0, amazonSuggestionService_1.runAmazonRefreshCheck)(100);
+        res.json(summary);
+    }
+    catch (err) {
+        console.error('[materials] POST /admin/amazon-refresh/run (scheduler) error:', err);
+        res.status(500).json({ error: 'Refresh failed' });
+    }
+});
+router.get('/admin/amazon-needs-attention', authMiddleware_1.authenticateToken, requireAdmin, async (req, res) => {
+    try {
+        const materials = await prismaClient_1.default.material.findMany({
+            where: { amazonNeedsAttention: true, isActive: true },
+            orderBy: { amazonLastCheckedAt: 'desc' },
+        });
+        res.json(materials.map(toFlutterShape));
+    }
+    catch (err) {
+        console.error('[materials] GET /admin/amazon-needs-attention error:', err);
+        res.status(500).json({ error: 'Failed to load needs-attention list' });
     }
 });
 // ── GET /:id — PUBLIC, must be LAST ──────────────────────────────────────────

@@ -279,10 +279,16 @@ class _AddDraftScreenState extends State<AddDraftScreen>
     // now passed so the picker's shortfall banner reflects reality instead
     // of always reporting "plenty of Goins" via the old 999999 placeholder.
     final myUserData = await UserRepository().getUserDataFromLocalDb();
+    final title = _titleCtrl.text.trim();
+    final category = _categoryCtrl.text.trim();
+    final draftContext = title.isEmpty
+        ? null
+        : 'Project: "$title"${category.isNotEmpty ? ' ($category)' : ''}';
     final result = await showMaterialPicker(
         context: context,
         currentGoinsBalance: myUserData?.score ?? 0,
-        existingPicked: _pickedMaterials);
+        existingPicked: _pickedMaterials,
+        projectContext: draftContext);
     if (result != null) setState(() => _pickedMaterials = result);
   }
 

@@ -6,6 +6,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = require("express");
 const emailService_1 = require("../services/email/emailService");
 const prismaClient_1 = __importDefault(require("../utils/prismaClient"));
+const authMiddleware_1 = require("../middleware/authMiddleware");
 const router = (0, express_1.Router)();
 const AMAZON_TAG = 'miniguru04-21';
 const FROM_EMAIL = process.env.FROM_EMAIL || 'connect@miniguru.in';
@@ -66,9 +67,13 @@ ${amazonCartUrl ? '<div style="text-align:center;margin:28px 0"><a href="' + ama
         return res.status(500).json({ error: 'Failed to send email', detail: err.message });
     }
 });
-router.post('/suggest', async (req, res) => {
+// Stays public/no-auth-required — a child suggesting a material while
+// planning may not always be mid-session-valid. But when a valid token
+// IS present, authenticateTokenOptional attaches it so the suggestion
+// isn't attributed to "Anonymous" for no reason.
+router.post('/suggest', authMiddleware_1.authenticateTokenOptional, async (req, res) => {
     try {
-        const { childName, suggestion, category, requestedGoinsPrice } = req.body;
+        const { childName, suggestion, category, requestedGoinsPrice, projectContext } = req.body;
         if (!suggestion || suggestion.trim().length < 3) {
             return res.status(400).json({ error: 'suggestion required (min 3 chars)' });
         }
@@ -78,13 +83,15 @@ router.post('/suggest', async (req, res) => {
             if (!Number.isNaN(parsed) && parsed >= 0 && parsed <= 100000)
                 goinsPrice = parsed;
         }
+        const loggedInUser = req.user;
         await prismaClient_1.default.productSuggestion.create({
             data: {
-                childName: childName?.trim() || null,
-                userId: null,
+                childName: loggedInUser?.name || childName?.trim() || null,
+                userId: loggedInUser?.id || null,
                 suggestion: suggestion.trim(),
                 category: category?.trim() || null,
                 requestedGoinsPrice: goinsPrice,
+                projectContext: projectContext?.trim() || null,
             },
         });
         return res.status(201).json({ success: true, message: 'Thanks for your suggestion!' });

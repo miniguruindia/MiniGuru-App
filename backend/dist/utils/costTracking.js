@@ -24,6 +24,7 @@ exports.FIREBASE_STORAGE_LIMIT_GB = exports.YOUTUBE_UNIT_COSTS = exports.YOUTUBE
 exports.checkEmailQuota = checkEmailQuota;
 exports.recordEmailSent = recordEmailSent;
 exports.recordYoutubeUnits = recordYoutubeUnits;
+exports.recordAmazonApiCall = recordAmazonApiCall;
 exports.getCostDashboardSnapshot = getCostDashboardSnapshot;
 const prismaClient_1 = __importDefault(require("./prismaClient"));
 const firebaseStorageService_1 = require("../services/firebaseStorageService");
@@ -51,6 +52,12 @@ exports.YOUTUBE_UNIT_COSTS = {
 };
 // ── Gemini AI review — read-only here, aiVideoReviewService.ts owns writes
 const GEMINI_QUOTA_KEY = 'ai_review_quota';
+// ── Amazon Creators API ──────────────────────────────────────────────────
+// Amazon's real rate limit for Creators API is tied to trailing-30-day
+// affiliate revenue and isn't exposed via a simple header we can read —
+// this is just OUR OWN call-count tracker so the dashboard shows usage
+// trends, not an authoritative "X remaining" figure.
+const AMAZON_QUOTA_KEY = 'amazon_creators_api_calls';
 // ── Firebase Storage — cached point-in-time check
 const FIREBASE_STORAGE_CACHE_KEY = 'firebase_storage_usage_cache';
 const FIREBASE_STORAGE_CACHE_TTL_MS = 15 * 60 * 1000; // 15 minutes
@@ -110,6 +117,16 @@ async function getGeminiQuotaStatus() {
     const data = await readDailyCounter(GEMINI_QUOTA_KEY);
     return { callsToday: data.count };
 }
+// ── Amazon Creators API (search + getItems calls) ────────────────────────
+async function recordAmazonApiCall() {
+    const data = await readDailyCounter(AMAZON_QUOTA_KEY);
+    data.count += 1;
+    await writeDailyCounter(AMAZON_QUOTA_KEY, data);
+}
+async function getAmazonQuotaStatus() {
+    const data = await readDailyCounter(AMAZON_QUOTA_KEY);
+    return { callsToday: data.count };
+}
 // ── MongoDB Atlas storage — real, live, cheap to query (no caching needed)
 async function getMongoStorageStatus() {
     try {
@@ -146,12 +163,13 @@ async function getFirebaseStorageStatus() {
 }
 // ── Full dashboard snapshot ──────────────────────────────────────────────
 async function getCostDashboardSnapshot() {
-    const [email, gemini, youtube, mongo, firebase] = await Promise.all([
+    const [email, gemini, youtube, mongo, firebase, amazon] = await Promise.all([
         checkEmailQuota(),
         getGeminiQuotaStatus(),
         getYoutubeQuotaStatus(),
         getMongoStorageStatus(),
         getFirebaseStorageStatus(),
+        getAmazonQuotaStatus(),
     ]);
     return {
         email: {
@@ -174,6 +192,10 @@ async function getCostDashboardSnapshot() {
         },
         mongodb: mongo,
         firebaseStorage: firebase,
+        amazon: {
+            callsToday: amazon.callsToday,
+            note: 'Best-effort call count from our own tracker — Amazon does not expose a live quota-remaining figure. Rate limit scales automatically with trailing-30-day affiliate revenue.',
+        },
         gcpConsoleOnly: {
             note: 'Cloud Run request volume and Artifact Registry storage cost are only visible via the GCP Billing console — not trackable from application code. Check Cloud Console → Billing → Reports periodically.',
         },

@@ -73,3 +73,46 @@ Search phrase:`;
     return fallback;
   }
 }
+
+/**
+ * Gemini vision check: does a candidate product photo actually look like
+ * the material described? Best-effort only — on ANY failure (missing key,
+ * fetch error, malformed response) this returns a neutral, non-blocking
+ * result rather than throwing, so a suggestion queue item is never lost
+ * because of a verification hiccup. The admin always sees the real photo
+ * too, so this is a second opinion, not a gate.
+ */
+export async function verifyImageMatch(
+  materialName: string,
+  candidateTitle: string,
+  candidateImageUrl: string
+): Promise<{ confidence: number; note: string }> {
+  const NEUTRAL = { confidence: 0.5, note: 'Not verified — check the photo yourself.' };
+  const ai = getClient();
+  if (!ai || !candidateImageUrl) return NEUTRAL;
+
+  try {
+    const imgRes = await fetch(candidateImageUrl);
+    if (!imgRes.ok) return NEUTRAL;
+    const arrayBuffer = await imgRes.arrayBuffer();
+    const base64 = Buffer.from(arrayBuffer).toString('base64');
+    const contentType = imgRes.headers.get('content-type') || 'image/jpeg';
+
+    const prompt = `A children's STEAM-education materials catalog needs "${materialName}". A search found a product titled "${candidateTitle}" with the attached photo. Does the PHOTO plausibly show that item (or the correct packaging for it)? Reply with ONLY a JSON object, no markdown: {"confidence": 0.0-1.0, "note": "one short sentence"}`;
+
+    const parts: any[] = [prompt, { inlineData: { mimeType: contentType, data: base64 } }];
+    const response = await ai.models.generateContent({
+      model: MODEL,
+      contents: createUserContent(parts),
+    });
+
+    const text = (response?.text ?? '').trim().replace(/^```json\s*|\s*```$/g, '');
+    const parsed = JSON.parse(text);
+    const confidence = typeof parsed.confidence === 'number' ? Math.min(1, Math.max(0, parsed.confidence)) : 0.5;
+    const note = typeof parsed.note === 'string' ? parsed.note.slice(0, 200) : NEUTRAL.note;
+    return { confidence, note };
+  } catch (err) {
+    console.error('[materialSearchAssistService] verifyImageMatch failed, neutral result:', err);
+    return NEUTRAL;
+  }
+}

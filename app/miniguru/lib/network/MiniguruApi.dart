@@ -155,6 +155,7 @@ class MiniguruApi {
     String? childName,
     String? category,
     int? requestedGoinsPrice,
+    String? projectContext,
   }) async {
     final url = Uri.parse('$_baseUrl/shop/suggest');
     final response = await http.post(
@@ -165,6 +166,7 @@ class MiniguruApi {
         if (childName != null) 'childName': childName,
         if (category != null) 'category': category,
         if (requestedGoinsPrice != null) 'requestedGoinsPrice': requestedGoinsPrice,
+        if (projectContext != null) 'projectContext': projectContext,
       }),
     );
     return response.statusCode == 201;

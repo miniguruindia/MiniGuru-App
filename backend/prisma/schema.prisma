@@ -532,8 +532,42 @@ model Material {
   isActive       Boolean  @default(true)
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
+  // AI-assisted Amazon matching (never auto-applied — see AmazonSuggestion)
+  amazonNeedsAttention Boolean   @default(false)
+  amazonAttentionReason String?
+  amazonLastCheckedAt   DateTime?
 
   @@map("materials")
+}
+
+// A single AI-found Amazon candidate for one Material, awaiting admin
+// approval. Never auto-applied to the Material — approving/rejecting is
+// always a deliberate human action (backend/src/routes/materialsRoutes.ts
+// POST /admin/amazon-suggestions/:id/approve|reject).
+model AmazonSuggestion {
+  id                  String    @id @default(auto()) @map("_id") @db.ObjectId
+  materialId          String    @db.ObjectId
+  materialName        String
+  suggestedAsin        String?
+  suggestedTitle       String?
+  suggestedImageUrl    String?
+  suggestedPriceRupees Int?
+  // Gemini's best-effort visual check that the candidate's photo actually
+  // looks like the material (0-1). Null if verification wasn't run/failed —
+  // never blocks the suggestion, just informs the admin's decision.
+  imageConfidence      Float?
+  imageConfidenceNote  String?
+  searchedQuery        String?
+  // PENDING | APPROVED | REJECTED | NO_MATCH
+  status               String    @default("PENDING")
+  reason               String?
+  createdAt            DateTime  @default(now())
+  resolvedAt           DateTime?
+  resolvedByAdminId     String?   @db.ObjectId
+
+  @@index([materialId])
+  @@index([status])
+  @@map("amazon_suggestions")
 }
 
 model ProductSuggestion {
@@ -543,6 +577,19 @@ model ProductSuggestion {
   suggestion          String
   category            String?
   requestedGoinsPrice Int?
+  // What the child was working on when they suggested this, e.g.
+  // "Project: Solar Car (Electronics & Circuits)" — best-effort, captured
+  // client-side since a project draft isn't a DB record until upload.
+  projectContext      String?
+  // Auto-filled by the same AI scan job that handles Material ASIN gaps —
+  // a pre-fetched Amazon candidate for this suggestion, so an admin
+  // reviewing it already has a starting point instead of searching from
+  // scratch. Never auto-creates a Material — admin still does that by hand.
+  amazonAsinFound     String?
+  amazonTitleFound    String?
+  amazonImageUrlFound String?
+  amazonPriceFound    Int?
+  amazonSearchedAt    DateTime?
   // pending: just submitted, not yet looked at
   // approved: admin liked it, plans to add as a real Material
   // added: admin actually created the Material — resolvedMaterialId links to it
