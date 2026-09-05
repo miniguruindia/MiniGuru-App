@@ -71,7 +71,11 @@ export async function publishAndAwardProject(id: string) {
   }
 
   // ── YouTube ───────────────────────────────────────────────────
-  if (project.video?.url) {
+  // Respect the uploader's own privacy-status choice from upload time —
+  // "PRIVATE" means never go Public on YouTube, no matter what review
+  // decides. This is what actually gives the choice real effect, not
+  // just a cosmetic form field.
+  if (project.video?.url && project.desiredPrivacyStatus !== 'PRIVATE') {
     try {
       await setVideoPublic(extractYouTubeId(project.video.url));
       logger.info(`YouTube video set to PUBLIC for project ${id}`);
@@ -79,6 +83,8 @@ export async function publishAndAwardProject(id: string) {
       logger.error(`YouTube publish failed: ${(ytError as Error).message}`);
       throw new ApprovalError('Failed to publish on YouTube. Project not approved.', 502);
     }
+  } else if (project.desiredPrivacyStatus === 'PRIVATE') {
+    logger.info(`Project ${id} uploader chose PRIVATE — staying Unlisted on YouTube, not publishing.`);
   } else {
     logger.warn(`Project ${id} has no video URL — skipping YouTube step`);
   }

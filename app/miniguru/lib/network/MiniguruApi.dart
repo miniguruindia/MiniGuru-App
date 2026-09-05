@@ -516,6 +516,7 @@ class MiniguruApi {
       // reached the backend even after transformProject started passing it
       // through — the "Join a STEAM Challenge" feature silently did nothing.
       if (data['challengeId'] != null) 'challengeId': data['challengeId'],
+      'desiredPrivacyStatus': data['desiredPrivacyStatus'] ?? 'PUBLIC',
     };
 
     http.Response response;

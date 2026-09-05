@@ -48,6 +48,7 @@ class ProjectService {
       aiReason,
       aiConfidence,
       aiReviewedAt,
+      desiredPrivacyStatus,
     } = projectData;
 
     const category = await prisma.projectCategory.findUnique({
@@ -74,6 +75,7 @@ class ProjectService {
         aiReason: aiReason ?? undefined,
         aiConfidence: typeof aiConfidence === "number" ? aiConfidence : undefined,
         aiReviewedAt: aiReviewedAt ?? undefined,
+        desiredPrivacyStatus: desiredPrivacyStatus === "PRIVATE" ? "PRIVATE" : "PUBLIC",
       },
     });
   }

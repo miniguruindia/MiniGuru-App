@@ -1366,12 +1366,11 @@ class _FooterSection extends StatelessWidget {
               'https://photos.app.goo.gl/nJDG4s6FTt5KCDCLA',
               _AC.amber,
             ),
-            _SocialBtn(
-              Icons.play_circle_outline,
-              'YouTube',
-              'https://www.youtube.com/@MiniGuru.innovation',
-              const Color(0xFFFF0000),
-            ),
+            // Uses the official YouTube icon asset (never a generic Material
+            // icon — YouTube's brand guidelines require their exact,
+            // unaltered mark, not an approximation). See
+            // assets/README_youtube_icon.txt for where this file comes from.
+            _YouTubeSocialBtn(),
             _SocialBtn(
               Icons.link,
               'LinkedIn',
@@ -1421,6 +1420,38 @@ class _FooterSection extends StatelessWidget {
           style: _b(12, Colors.white.withOpacity(0.6)),
         ),
       ]),
+    );
+  }
+
+  // Official YouTube icon — brand guidelines require the exact, unaltered
+  // mark (not a generic "play" icon approximation). Falls back to the old
+  // generic icon gracefully if the asset file hasn't been added yet, so a
+  // missing asset never crashes the page — but the real asset should be
+  // added before this is considered fully resolved (see
+  // assets/social/README_youtube_icon.txt for where to get it).
+  Widget _YouTubeSocialBtn() {
+    const color = Color(0xFFFF0000);
+    return GestureDetector(
+      onTap: () => _launchUrl('https://www.youtube.com/@MiniGuru.innovation'),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.15),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: color.withOpacity(0.5)),
+        ),
+        child: Row(mainAxisSize: MainAxisSize.min, children: [
+          Image.asset(
+            'assets/social/youtube_icon.png',
+            height: 20,
+            width: 20,
+            errorBuilder: (_, __, ___) =>
+                const Icon(Icons.smart_display, color: color, size: 18),
+          ),
+          const SizedBox(width: 8),
+          Text('YouTube', style: _b(13, Colors.white, w: FontWeight.w700)),
+        ]),
+      ),
     );
   }
 

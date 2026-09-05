@@ -61,6 +61,7 @@ class _AddDraftScreenState extends State<AddDraftScreen>
   // STEAM Challenge join (optional) -- see mg_award_challenge_bonus_on_approval.py
   List<Map<String, dynamic>> _openChallenges = [];
   String? _selectedChallengeId;
+  String _desiredPrivacyStatus = 'PUBLIC'; // 'PUBLIC' | 'PRIVATE'
   bool _collabSearching = false;
   final TextEditingController _collabCtrl = TextEditingController();
   bool                 _loading             = true;
@@ -368,6 +369,7 @@ class _AddDraftScreenState extends State<AddDraftScreen>
           'materials':   materialsMap,
           'collaboratorIds': _collaborators.map((c) => c['id']!).toList(),
           if (_selectedChallengeId != null) 'challengeId': _selectedChallengeId,
+          'desiredPrivacyStatus': _desiredPrivacyStatus,
         },
         _video!,
         _thumbnail,
@@ -637,6 +639,8 @@ class _AddDraftScreenState extends State<AddDraftScreen>
                             const SizedBox(height: 12),
                             _buildChallengePicker(),
                           ],
+                          const SizedBox(height: 12),
+                          _buildPrivacyStatusSelector(),
                         ]),
                       ),
                     ),
@@ -973,6 +977,71 @@ class _AddDraftScreenState extends State<AddDraftScreen>
           onChanged: (v) => setState(() => _selectedChallengeId = v),
         ),
       ]),
+    );
+  }
+
+  // Required by YouTube API Services' Required Minimum Functionality —
+  // the uploader must be able to set the video's privacy status
+  // themselves, not have it decided entirely behind the scenes. PRIVATE
+  // genuinely means "stays Unlisted on YouTube forever" (see
+  // publishAndAwardProject on the backend) — this isn't cosmetic.
+  Widget _buildPrivacyStatusSelector() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: _cardBorder),
+        boxShadow: [
+          BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 8, offset: const Offset(0, 2)),
+        ],
+      ),
+      padding: const EdgeInsets.all(16),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          const Text('🔒', style: TextStyle(fontSize: 16)),
+          const SizedBox(width: 8),
+          Text('Who can see this video?',
+              style: GoogleFonts.nunito(color: _ink, fontWeight: FontWeight.w900, fontSize: 14)),
+        ]),
+        const SizedBox(height: 10),
+        _privacyOption(
+          value: 'PUBLIC',
+          title: 'Everyone (after it passes review)',
+          subtitle: 'Our team checks every video first. Once approved, it can be seen by anyone on MiniGuru and YouTube.',
+        ),
+        const SizedBox(height: 8),
+        _privacyOption(
+          value: 'PRIVATE',
+          title: 'Just me and my reviewer',
+          subtitle: "Stays private — only visible with a direct link, never shown publicly, even after review.",
+        ),
+      ]),
+    );
+  }
+
+  Widget _privacyOption({required String value, required String title, required String subtitle}) {
+    final selected = _desiredPrivacyStatus == value;
+    return GestureDetector(
+      onTap: () => setState(() => _desiredPrivacyStatus = value),
+      child: Container(
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          color: selected ? const Color(0xFFEEF0FF) : Colors.white,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: selected ? const Color(0xFF5B6EF5) : _cardBorder, width: selected ? 1.5 : 1),
+        ),
+        child: Row(children: [
+          Icon(selected ? Icons.radio_button_checked : Icons.radio_button_off,
+              size: 20, color: selected ? const Color(0xFF5B6EF5) : _muted),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(title, style: GoogleFonts.nunito(fontSize: 13, fontWeight: FontWeight.w800, color: _ink)),
+              Text(subtitle, style: GoogleFonts.nunito(fontSize: 11, color: _muted)),
+            ]),
+          ),
+        ]),
+      ),
     );
   }
 

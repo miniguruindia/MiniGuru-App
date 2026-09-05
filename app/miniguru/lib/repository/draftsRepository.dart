@@ -161,6 +161,9 @@ class DraftRepository {
       // and it would silently never reach the backend (no participant
       // count, no bonus Goins, no error shown). Pass it through if present.
       if (project['challengeId'] != null) 'challengeId': project['challengeId'],
+      // Uploader's own privacy-status choice — PRIVATE means the video
+      // stays Unlisted on YouTube forever regardless of review outcome.
+      'desiredPrivacyStatus': project['desiredPrivacyStatus'] ?? 'PUBLIC',
     };
 
     return transformedProject;

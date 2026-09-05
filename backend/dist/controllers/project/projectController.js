@@ -58,7 +58,7 @@ const createProject = async (req, res) => {
         }
         ownerUserId = req.subject.linkedUserId;
     }
-    const { title, description, startDate, endDate, materials, categoryName, collaboratorIds, videoStoragePath, thumbnailStoragePath, challengeId, } = req.body;
+    const { title, description, startDate, endDate, materials, categoryName, collaboratorIds, videoStoragePath, thumbnailStoragePath, challengeId, desiredPrivacyStatus, } = req.body;
     if (!title || !description || !startDate || !endDate || !materials || !categoryName) {
         return res.status(400).json({ error: "All fields are required" });
     }
@@ -266,6 +266,7 @@ const createProject = async (req, res) => {
             aiReason: aiReview.reason,
             aiConfidence: aiReview.confidence,
             aiReviewedAt,
+            desiredPrivacyStatus: desiredPrivacyStatus === 'PRIVATE' ? 'PRIVATE' : 'PUBLIC',
         });
         // ── Material Goins cost (Aug 2026 — Rule 25 reversal, confirmed) ────
         // Deduction happens HERE, once, at upload — not live during planning.

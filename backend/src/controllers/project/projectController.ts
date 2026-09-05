@@ -59,7 +59,7 @@ export const createProject = async (req: Request, res: Response) => {
 
   const {
     title, description, startDate, endDate, materials, categoryName, collaboratorIds,
-    videoStoragePath, thumbnailStoragePath, challengeId,
+    videoStoragePath, thumbnailStoragePath, challengeId, desiredPrivacyStatus,
   } = req.body;
 
   if (!title || !description || !startDate || !endDate || !materials || !categoryName) {
@@ -277,6 +277,7 @@ export const createProject = async (req: Request, res: Response) => {
       aiReason: aiReview.reason,
       aiConfidence: aiReview.confidence,
       aiReviewedAt,
+      desiredPrivacyStatus: desiredPrivacyStatus === 'PRIVATE' ? 'PRIVATE' : 'PUBLIC',
     });
 
     // ── Material Goins cost (Aug 2026 — Rule 25 reversal, confirmed) ────
