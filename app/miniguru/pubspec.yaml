@@ -60,6 +60,7 @@ flutter:
     - assets/Founder_Pramod.jpg
     - assets/NLM.webp
     - assets/T-LAB.png
+    - assets/social/
 
 
 flutter_launcher_icons:
