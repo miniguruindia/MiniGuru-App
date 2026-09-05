@@ -13,6 +13,7 @@ import 'package:miniguru/screens/legalScreen.dart';
 import 'package:miniguru/widgets/contactVerificationCard.dart';
 import 'package:miniguru/screens/mentor/submitHappeningScreen.dart';
 import 'package:miniguru/screens/mentor/submitChallengeScreen.dart';
+import 'package:miniguru/screens/about.dart';
 
 class MentorProfileTab extends StatefulWidget {
   const MentorProfileTab({super.key});
@@ -396,6 +397,15 @@ class _MentorProfileTabState extends State<MentorProfileTab> {
             color: const Color(0xFF60A5FA),
             onTap: () => Navigator.push(context,
                 MaterialPageRoute(builder: (_) => const LegalScreen(initialTab: 1))),
+          ),
+          const SizedBox(height: 10),
+          _actionTile(
+            icon: Icons.info_outline,
+            label: 'About MiniGuru',
+            subtitle: 'Our story, contact info, and platform details',
+            color: const Color(0xFF60A5FA),
+            onTap: () => Navigator.push(context,
+                MaterialPageRoute(builder: (_) => const AboutScreen())),
           ),
           const SizedBox(height: 10),
           _actionTile(

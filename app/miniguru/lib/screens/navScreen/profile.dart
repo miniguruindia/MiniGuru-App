@@ -16,6 +16,7 @@ import 'package:miniguru/screens/loginScreen.dart';
 import 'package:miniguru/screens/walletPage.dart';
 import 'package:miniguru/screens/editProfileScreen.dart';
 import 'package:miniguru/widgets/contactVerificationCard.dart';
+import 'package:miniguru/screens/about.dart';
 
 class Profile extends StatefulWidget {
   const Profile({super.key});
@@ -550,6 +551,10 @@ class _ProfileState extends State<Profile>
                         _tile(Icons.description_outlined, 'Terms & Conditions',
                             const Color(0xFF60A5FA),
                             () => Navigator.push(context, MaterialPageRoute(builder: (_) => const LegalScreen(initialTab: 1)))),
+                        const SizedBox(height: 8),
+                        _tile(Icons.info_outline, 'About MiniGuru',
+                            const Color(0xFF60A5FA),
+                            () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AboutScreen()))),
 
                         const SizedBox(height: 24),
                         _buildLogoutBtn(),

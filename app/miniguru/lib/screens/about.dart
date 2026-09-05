@@ -1430,26 +1430,23 @@ class _FooterSection extends StatelessWidget {
   // added before this is considered fully resolved (see
   // assets/social/README_youtube_icon.txt for where to get it).
   Widget _YouTubeSocialBtn() {
-    const color = Color(0xFFFF0000);
     return GestureDetector(
       onTap: () => _launchUrl('https://www.youtube.com/@MiniGuru.innovation'),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
         decoration: BoxDecoration(
-          color: color.withOpacity(0.15),
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: color.withOpacity(0.5)),
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(24),
         ),
         child: Row(mainAxisSize: MainAxisSize.min, children: [
           Image.asset(
             'assets/social/youtube_icon.png',
-            height: 20,
-            width: 20,
+            height: 22,
             errorBuilder: (_, __, ___) =>
-                const Icon(Icons.smart_display, color: color, size: 18),
+                const Icon(Icons.smart_display, color: Color(0xFFFF0000), size: 22),
           ),
           const SizedBox(width: 8),
-          Text('YouTube', style: _b(13, Colors.white, w: FontWeight.w700)),
+          Text('YouTube', style: _b(14, Colors.black87, w: FontWeight.w700)),
         ]),
       ),
     );
@@ -1460,18 +1457,16 @@ class _FooterSection extends StatelessWidget {
     return GestureDetector(
       onTap: () => _launchUrl(url),
       child: Container(
-        padding:
-            const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
         decoration: BoxDecoration(
-          color: color.withOpacity(0.15),
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: color.withOpacity(0.5)),
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(24),
         ),
         child: Row(mainAxisSize: MainAxisSize.min, children: [
-          Icon(icon, color: color, size: 18),
+          Icon(icon, color: color, size: 22),
           const SizedBox(width: 8),
           Text(label,
-              style: _b(13, Colors.white, w: FontWeight.w700)),
+              style: _b(14, Colors.black87, w: FontWeight.w700)),
         ]),
       ),
     );
