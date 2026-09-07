@@ -53,7 +53,7 @@ function FindOnAmazonModal({ material: m, apiBase, onClose, onPicked }: {
   material: { id: string; name: string }
   apiBase: string
   onClose: () => void
-  onPicked: (asin: string, priceRupees: number | null) => void
+  onPicked: (asin: string, priceRupees: number | null, imageUrl: string | null) => void
 }) {
   const [loading, setLoading]   = React.useState(true)
   const [configured, setConfigured] = React.useState(true)
@@ -124,7 +124,7 @@ function FindOnAmazonModal({ material: m, apiBase, onClose, onPicked }: {
               {results.map(r => (
                 <button
                   key={r.asin}
-                  onClick={() => onPicked(r.asin, r.priceRupees)}
+                  onClick={() => onPicked(r.asin, r.priceRupees, r.imageUrl)}
                   className="w-full flex items-center gap-3 p-2 border border-gray-200 rounded-lg hover:border-orange-400 hover:bg-orange-50 text-left transition-colors"
                 >
                   <div className="w-14 h-14 flex-shrink-0 bg-white border rounded flex items-center justify-center overflow-hidden">
@@ -247,7 +247,7 @@ function AsinRow({ material: m, apiBase, onSaved, onFlash }: {
           material={{ id: m.id, name: m.name }}
           apiBase={apiBase}
           onClose={() => setFinding(false)}
-          onPicked={(pickedAsin, pickedPrice) => {
+          onPicked={(pickedAsin, pickedPrice, _pickedImageUrl) => {
             setAsin(pickedAsin)
             if (pickedPrice != null) setPrice(String(pickedPrice))
             setDirty(true)
@@ -275,6 +275,129 @@ interface AmazonSuggestionRow {
   status: string
 }
 
+// ── Image Issues tab — materials with no photo, or a low-confidence AI
+// image match from a past scan. Reuses the same Find-on-Amazon modal so an
+// admin can pull a real product photo straight from a search result.
+function ImageIssuesTab({ apiBase, onMaterialsChanged, flash }: {
+  apiBase: string
+  onMaterialsChanged: () => void
+  flash: (msg: string, isError?: boolean) => void
+}) {
+  const [loading, setLoading] = React.useState(true)
+  const [missingImage, setMissingImage] = React.useState<Material[]>([])
+  const [lowConfidence, setLowConfidence] = React.useState<AmazonSuggestionRow[]>([])
+  const [findingMat, setFindingMat] = React.useState<Material | null>(null)
+
+  const loadAll = React.useCallback(async () => {
+    setLoading(true)
+    try {
+      const token = await authToken()
+      const headers = { Authorization: `Bearer ${token}` }
+      const [allMats, pending] = await Promise.all([
+        fetch(`${apiBase}/materials/admin/all`, { headers }).then(r => r.json()),
+        fetch(`${apiBase}/materials/admin/amazon-suggestions?status=PENDING`, { headers }).then(r => r.json()),
+      ])
+      setMissingImage((Array.isArray(allMats) ? allMats : []).filter((m: Material) => m.isActive && !m.imageUrl))
+      setLowConfidence((Array.isArray(pending) ? pending : []).filter((s: AmazonSuggestionRow) => s.imageConfidence != null && s.imageConfidence < 0.6))
+    } catch (e: any) {
+      flash('Failed to load image issues: ' + e.message, true)
+    } finally {
+      setLoading(false)
+    }
+  }, [apiBase])
+
+  React.useEffect(() => { loadAll() }, [loadAll])
+
+  return (
+    <div className="space-y-4">
+      <Card className="p-4 border-0 shadow-sm">
+        <p className="text-sm text-gray-500">
+          Materials with no photo at all, or where the AI's last Amazon match had a
+          low-confidence photo comparison (may not actually show the right product).
+          Tap 🔍 Find to pull a real photo from an Amazon search result.
+        </p>
+      </Card>
+
+      {loading ? (
+        <p className="text-sm text-gray-400 text-center py-8">Loading…</p>
+      ) : (
+        <>
+          <Card className="p-4 border-0 shadow-sm">
+            <h3 className="font-semibold text-gray-900 mb-3">📷 No Photo Yet ({missingImage.length})</h3>
+            {missingImage.length === 0 ? (
+              <p className="text-sm text-gray-400 py-4 text-center">Every active material has a photo. 🎉</p>
+            ) : (
+              <div className="space-y-2">
+                {missingImage.map(m => (
+                  <div key={m.id} className="flex items-center gap-3 p-2 border border-gray-200 rounded-lg">
+                    <div className="w-10 h-10 flex-shrink-0 bg-gray-50 border rounded flex items-center justify-center text-gray-300">
+                      <Package size={18} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm text-gray-900">{m.name}</p>
+                      <p className="text-xs text-gray-400">{m.category}</p>
+                    </div>
+                    <button onClick={() => setFindingMat(m)}
+                      className="px-2 py-1 bg-white border border-orange-300 text-orange-600 rounded text-xs hover:bg-orange-50 whitespace-nowrap">
+                      🔍 Find
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </Card>
+
+          <Card className="p-4 border-0 shadow-sm">
+            <h3 className="font-semibold text-gray-900 mb-3">⚠️ Possible Photo Mismatch ({lowConfidence.length})</h3>
+            {lowConfidence.length === 0 ? (
+              <p className="text-sm text-gray-400 py-4 text-center">No low-confidence matches waiting for review.</p>
+            ) : (
+              <div className="space-y-2">
+                {lowConfidence.map(s => (
+                  <div key={s.id} className="flex items-center gap-3 p-2 bg-amber-50 border border-amber-200 rounded-lg">
+                    {s.suggestedImageUrl && (
+                      <img src={s.suggestedImageUrl} alt="" className="w-10 h-10 object-contain bg-white rounded border" />
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm text-gray-900">{s.materialName}</p>
+                      <p className="text-xs text-amber-700">{s.imageConfidenceNote || 'Low confidence photo match'} ({Math.round((s.imageConfidence || 0) * 100)}%)</p>
+                    </div>
+                    <p className="text-xs text-gray-400 whitespace-nowrap">Review in AI Scan &amp; Refresh tab</p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </Card>
+        </>
+      )}
+
+      {findingMat && (
+        <FindOnAmazonModal
+          material={{ id: findingMat.id, name: findingMat.name }}
+          apiBase={apiBase}
+          onClose={() => setFindingMat(null)}
+          onPicked={async (asin, priceRupees, imageUrl) => {
+            setFindingMat(null)
+            const token = await authToken()
+            await fetch(`${apiBase}/materials/admin/${findingMat.id}`, {
+              method: 'PUT',
+              headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                amazonASIN: asin,
+                ...(priceRupees != null ? { priceEstimate: priceRupees } : {}),
+                ...(imageUrl ? { imageUrl } : {}),
+              }),
+            })
+            flash(`Linked "${findingMat.name}"${imageUrl ? ' with its Amazon photo' : ''}`)
+            await loadAll()
+            onMaterialsChanged()
+          }}
+        />
+      )}
+    </div>
+  )
+}
+
 function AiSuggestionsTab({ apiBase, onMaterialsChanged, flash }: {
   apiBase: string
   onMaterialsChanged: () => void
@@ -286,6 +409,7 @@ function AiSuggestionsTab({ apiBase, onMaterialsChanged, flash }: {
   const [needsAttention, setNeedsAttention] = React.useState<any[]>([])
   const [loading, setLoading] = React.useState(true)
   const [lastScan, setLastScan] = React.useState<string | null>(null)
+  const [findingFor, setFindingFor] = React.useState<{ id: string; name: string } | null>(null)
 
   const loadAll = React.useCallback(async () => {
     setLoading(true)
@@ -440,6 +564,9 @@ function AiSuggestionsTab({ apiBase, onMaterialsChanged, flash }: {
                       {s.imageConfidenceNote && <p className="text-xs text-gray-400">{s.imageConfidenceNote}</p>}
                     </div>
                     <div className="flex gap-1">
+                      <button onClick={() => setFindingFor({ id: s.materialId, name: s.materialName })}
+                        title="Search again"
+                        className="px-2 py-1 bg-white border border-orange-300 text-orange-600 rounded text-xs hover:bg-orange-50">🔍 Find</button>
                       <button onClick={() => resolveSuggestion(s.id, 'approve')}
                         className="px-2 py-1 bg-green-600 text-white rounded text-xs hover:bg-green-700">✓ Link</button>
                       <button onClick={() => resolveSuggestion(s.id, 'reject')}
@@ -475,15 +602,41 @@ function AiSuggestionsTab({ apiBase, onMaterialsChanged, flash }: {
           </Card>
         </>
       )}
+      {findingFor && (
+        <FindOnAmazonModal
+          material={findingFor}
+          apiBase={apiBase}
+          onClose={() => setFindingFor(null)}
+          onPicked={async (asin, priceRupees, imageUrl) => {
+            const pickedFor = findingFor
+            setFindingFor(null)
+            if (!pickedFor) return
+            try {
+              const token = await authToken()
+              const res = await fetch(`${apiBase}/materials/admin/${pickedFor.id}/link-amazon`, {
+                method: 'POST',
+                headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify({ asin, priceRupees, imageUrl }),
+              })
+              if (!res.ok) throw new Error((await res.json()).error || 'Failed to link')
+              flash(`Linked "${pickedFor.name}" directly`)
+              await loadAll()
+              onMaterialsChanged()
+            } catch (e: any) {
+              flash('Could not link: ' + e.message, true)
+            }
+          }}
+        />
+      )}
     </div>
   )
 }
 
 function MaterialsPageInner() {
   const searchParams = useSearchParams()
-  const initialTab = (['materials', 'amazon', 'ai', 'bulk', 'suggestions'].includes(searchParams.get('tab') || '')
-    ? searchParams.get('tab') : 'materials') as 'materials'|'amazon'|'ai'|'bulk'|'suggestions'
-  const [tab, setTab]             = useState<'materials'|'amazon'|'ai'|'bulk'|'suggestions'>(initialTab)
+  const initialTab = (['materials', 'ai', 'suggestions', 'images'].includes(searchParams.get('tab') || '')
+    ? searchParams.get('tab') : 'materials') as 'materials'|'ai'|'suggestions'|'images'
+  const [tab, setTab]             = useState<'materials'|'ai'|'suggestions'|'images'>(initialTab)
   const [materials, setMaterials] = useState<Material[]>([])
   const [filtered, setFiltered]   = useState<Material[]>([])
   const [catFilter, setCatFilter] = useState('All')
@@ -770,7 +923,7 @@ function MaterialsPageInner() {
         <Card className="p-4 border-0 shadow-sm">
           <div className="flex items-center justify-between mb-2">
             <p className="text-sm font-medium text-gray-700">Amazon ASIN setup progress</p>
-            <button onClick={() => setTab('amazon')} className="text-xs text-orange-600 hover:underline">
+            <button onClick={() => setTab('ai')} className="text-xs text-orange-600 hover:underline">
               Add ASINs →
             </button>
           </div>
@@ -787,11 +940,10 @@ function MaterialsPageInner() {
         {/* Tabs */}
         <div className="flex gap-1 bg-gray-100 rounded-xl p-1 w-fit">
           {[
-            { key: 'materials', label: '📦 All Materials' },
-            { key: 'amazon',   label: '🟠 Amazon Setup' },
-            { key: 'ai',       label: '🤖 AI Suggestions' },
-            { key: 'bulk',     label: '📋 Bulk Upload' },
+            { key: 'materials', label: '📦 Materials' },
+            { key: 'ai',       label: '🤖 AI Scan & Refresh' },
             { key: 'suggestions', label: '💡 Suggestions' },
+            { key: 'images',   label: '🖼️ Image Issues' },
           ].map(t => (
             <button key={t.key} onClick={() => setTab(t.key as any)}
               className={`px-5 py-2 rounded-lg text-sm font-medium transition-all ${
@@ -905,7 +1057,7 @@ function MaterialsPageInner() {
                 material={{ id: findingMat.id, name: findingMat.name }}
                 apiBase={API_BASE}
                 onClose={() => setFindingMat(null)}
-                onPicked={async (asin, priceRupees) => {
+                onPicked={async (asin, priceRupees, _imageUrl) => {
                   setFindingMat(null)
                   const token = await authToken()
                   await fetch(`${API_BASE}/materials/admin/${findingMat.id}`, {
@@ -922,81 +1074,14 @@ function MaterialsPageInner() {
         )}
 
         {/* ── AMAZON SETUP TAB ── */}
-        {tab === 'amazon' && (
-          <>
-            <div className="flex items-center gap-4">
-              <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer">
-                <input type="checkbox" checked={showAllInAmazonTab}
-                  onChange={e => setShowAllInAmazonTab(e.target.checked)}
-                  className="rounded" />
-                Show all materials, not just ones needing attention
-              </label>
-              <span className="text-xs text-gray-400">
-                {materials.filter(m => (!m.amazonASIN || m.amazonNeedsAttention) && m.isActive).length} need attention
-                {' · '}{materials.filter(m => !m.amazonASIN && m.isActive).length} without ASIN
-              </span>
-            </div>
-
-            <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-800">
-              <strong>How to find an ASIN:</strong> Search the item on amazon.in → open the product page → copy the code from the URL: amazon.in/dp/<strong>B0XXXXXXXX</strong> — that is the ASIN.
-              The affiliate tag <code>miniguru04-21</code> is added automatically.
-            </div>
-
-            <Card className="border-0 shadow-md overflow-hidden">
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead className="bg-gray-50 border-b">
-                    <tr>
-                      <th className="text-left text-xs font-semibold text-gray-500 uppercase px-4 py-3 w-8"></th>
-                      <th className="text-left text-xs font-semibold text-gray-500 uppercase px-4 py-3">Material</th>
-                      <th className="text-left text-xs font-semibold text-gray-500 uppercase px-4 py-3">Amazon ASIN</th>
-                      <th className="text-left text-xs font-semibold text-gray-500 uppercase px-4 py-3">₹ Price estimate</th>
-                      <th className="text-left text-xs font-semibold text-gray-500 uppercase px-4 py-3">Link</th>
-                      <th className="text-left text-xs font-semibold text-gray-500 uppercase px-4 py-3">Action</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-50">
-                    {amazonList.map(m => (
-                      <AsinRow
-                        key={m.id}
-                        material={m}
-                        apiBase={API_BASE}
-                        onSaved={load}
-                        onFlash={flash}
-                      />
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </Card>
-          </>
-        )}
-
-        {/* ── AI SUGGESTIONS TAB ── */}
+        {/* ── AI SCAN & REFRESH TAB ── */}
         {tab === 'ai' && <AiSuggestionsTab apiBase={API_BASE} onMaterialsChanged={load} flash={flash} />}
-
-        {/* ── BULK UPLOAD TAB ── */}
-        {tab === 'bulk' && (
-          <Card className="p-6 border-0 shadow-sm">
-            <h2 className="text-lg font-semibold mb-1">Bulk upload materials</h2>
-            <p className="text-sm text-gray-500 mb-4">Paste a JSON array. Duplicates (same name + category) are skipped.</p>
-            <textarea value={bulkText} onChange={e => setBulkText(e.target.value)} rows={12}
-              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-xs font-mono focus:outline-none focus:border-indigo-400 resize-none"
-              placeholder={'[\n  { "name": "LED", "category": "Electronics", "goinsPrice": 15, "unit": "piece", "icon": "💡" },\n  ...\n]'} />
-            {bulkResult && (
-              <div className={`mt-3 p-3 rounded-lg text-sm ${bulkResult.error ? 'bg-red-50 text-red-700' : 'bg-green-50 text-green-800'}`}>
-                {bulkResult.error ? `Error: ${bulkResult.error}` : `${bulkResult.created} created, ${bulkResult.skipped} skipped.`}
-              </div>
-            )}
-            <button onClick={handleBulk} disabled={bulkLoading || !bulkText.trim()}
-              className="mt-4 px-6 py-2.5 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 disabled:opacity-50">
-              {bulkLoading ? 'Uploading…' : 'Upload'}
-            </button>
-          </Card>
-        )}
 
         {/* ── SUGGESTIONS FROM USERS TAB ── */}
         {tab === 'suggestions' && <SuggestionsTab onCreateMaterial={openAddFromSuggestion} />}
+
+        {/* ── IMAGE ISSUES TAB ── */}
+        {tab === 'images' && <ImageIssuesTab apiBase={API_BASE} onMaterialsChanged={load} flash={flash} />}
       </div>
 
       {/* ── EDIT / ADD MODAL ── */}

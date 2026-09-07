@@ -27,7 +27,6 @@ const amazonProductService_1 = require("./amazonProductService");
 const materialSearchAssistService_1 = require("./materialSearchAssistService");
 const SCAN_DELAY_MS = 1100; // conservative spacing between Amazon calls
 const SCAN_TIME_BUDGET_MS = 8 * 60 * 1000; // stay well under Cloud Run's 600s timeout
-const PRICE_DRIFT_THRESHOLD = 0.15; // 15% price change flags for review
 function sleep(ms) {
     return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -192,6 +191,7 @@ async function runAmazonRefreshCheck(limit = 50) {
             const live = material.amazonASIN ? byAsin.get(material.amazonASIN) : undefined;
             let needsAttention = false;
             let reason = null;
+            let priceUpdate;
             if (!live) {
                 needsAttention = true;
                 reason = 'Amazon no longer returns this ASIN — item may have been removed.';
@@ -202,12 +202,15 @@ async function runAmazonRefreshCheck(limit = 50) {
             }
             else if (material.priceEstimate != null &&
                 live.priceRupees != null &&
-                material.priceEstimate > 0) {
-                const drift = Math.abs(live.priceRupees - material.priceEstimate) / material.priceEstimate;
-                if (drift >= PRICE_DRIFT_THRESHOLD) {
-                    needsAttention = true;
-                    reason = `Price moved from your saved ₹${material.priceEstimate} to ₹${live.priceRupees} on Amazon.`;
-                }
+                material.priceEstimate > 0 &&
+                live.priceRupees !== material.priceEstimate) {
+                // Price-only changes are auto-corrected (not a real problem — just
+                // Amazon's price moving) and logged as an informational remark,
+                // never a red "needs attention" flag. Anything else (missing ASIN,
+                // gone unavailable) still requires a human look.
+                const oldPrice = material.priceEstimate;
+                priceUpdate = live.priceRupees;
+                reason = `Price auto-updated from ₹${oldPrice} to ₹${live.priceRupees} by the daily Amazon refresh on ${new Date().toLocaleDateString()}.`;
             }
             await prismaClient_1.default.material.update({
                 where: { id: material.id },
@@ -215,6 +218,7 @@ async function runAmazonRefreshCheck(limit = 50) {
                     amazonNeedsAttention: needsAttention,
                     amazonAttentionReason: reason,
                     amazonLastCheckedAt: new Date(),
+                    ...(priceUpdate !== undefined ? { priceEstimate: priceUpdate } : {}),
                 },
             });
             if (needsAttention)

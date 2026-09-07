@@ -174,6 +174,14 @@ router.put('/admin/:id', authenticateToken, requireAdmin, async (req: any, res: 
       data.amazonASIN = asin;
       data.amazonUrl  = asin ? ('https://www.amazon.in/dp/' + asin + '?tag=miniguru04-21') : null;
     }
+    // A manual admin save of ASIN or price is a fresh, human-confirmed
+    // answer — clear any stale "needs attention" flag from a prior
+    // automated refresh so the exclamation mark doesn't linger forever.
+    if ('amazonASIN' in body || 'priceEstimate' in body) {
+      data.amazonNeedsAttention = false;
+      data.amazonAttentionReason = null;
+      data.amazonLastCheckedAt = new Date();
+    }
 
     console.log('[PUT /admin/:id] data to save:', data);
 
@@ -359,6 +367,10 @@ router.post('/admin/:id/link-amazon', authenticateToken, requireAdmin, async (re
     if (!existing.imageUrl && imageUrl) {
       data.imageUrl = String(imageUrl);
     }
+    // Same as the manual PUT path — a fresh link clears any stale flag.
+    data.amazonNeedsAttention = false;
+    data.amazonAttentionReason = null;
+    data.amazonLastCheckedAt = new Date();
 
     const updated = await prisma.material.update({ where: { id: req.params.id }, data });
     res.json(toFlutterShape(updated));

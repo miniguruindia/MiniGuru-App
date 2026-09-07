@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { AdminLayout } from '@/components/AdminLayout'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { RefreshCw, Mail, Sparkles, Youtube, Database, HardDrive, ExternalLink, AlertTriangle } from 'lucide-react'
+import { RefreshCw, Mail, Sparkles, Youtube, Database, HardDrive, ExternalLink, AlertTriangle, ShoppingCart } from 'lucide-react'
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || ''
 
@@ -26,6 +26,7 @@ interface Snapshot {
   youtube: { estimatedUnitsToday: number; dailyLimit: number; authoritative: boolean; note: string }
   mongodb: { usedMB: number | null; limitMB: number; checkedLive: boolean }
   firebaseStorage: { usedGB: number | null; limitGB: number; cached: boolean; error?: string }
+  amazon: { callsToday: number; note: string }
   gcpConsoleOnly: { note: string }
 }
 
@@ -157,6 +158,14 @@ export default function CostDashboardPage() {
                 limit={data.firebaseStorage.limitGB}
                 unit="GB"
                 subtitle={data.firebaseStorage.error || (data.firebaseStorage.cached ? 'Cached (refreshed every 15 min).' : 'Checked live.')}
+              />
+              <QuotaCard
+                icon={ShoppingCart}
+                title="Amazon Creators API"
+                used={data.amazon.callsToday}
+                limit={200}
+                unit="calls today (informational)"
+                note={data.amazon.note}
               />
             </div>
 

@@ -20,7 +20,6 @@ import { refineSearchQuery, verifyImageMatch } from './materialSearchAssistServi
 
 const SCAN_DELAY_MS = 1100; // conservative spacing between Amazon calls
 const SCAN_TIME_BUDGET_MS = 8 * 60 * 1000; // stay well under Cloud Run's 600s timeout
-const PRICE_DRIFT_THRESHOLD = 0.15; // 15% price change flags for review
 
 function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -216,6 +215,7 @@ export async function runAmazonRefreshCheck(limit: number = 50): Promise<Refresh
       const live = material.amazonASIN ? byAsin.get(material.amazonASIN) : undefined;
       let needsAttention = false;
       let reason: string | null = null;
+      let priceUpdate: number | undefined;
 
       if (!live) {
         needsAttention = true;
@@ -226,13 +226,16 @@ export async function runAmazonRefreshCheck(limit: number = 50): Promise<Refresh
       } else if (
         material.priceEstimate != null &&
         live.priceRupees != null &&
-        material.priceEstimate > 0
+        material.priceEstimate > 0 &&
+        live.priceRupees !== material.priceEstimate
       ) {
-        const drift = Math.abs(live.priceRupees - material.priceEstimate) / material.priceEstimate;
-        if (drift >= PRICE_DRIFT_THRESHOLD) {
-          needsAttention = true;
-          reason = `Price moved from your saved ₹${material.priceEstimate} to ₹${live.priceRupees} on Amazon.`;
-        }
+        // Price-only changes are auto-corrected (not a real problem — just
+        // Amazon's price moving) and logged as an informational remark,
+        // never a red "needs attention" flag. Anything else (missing ASIN,
+        // gone unavailable) still requires a human look.
+        const oldPrice = material.priceEstimate;
+        priceUpdate = live.priceRupees;
+        reason = `Price auto-updated from ₹${oldPrice} to ₹${live.priceRupees} by the daily Amazon refresh on ${new Date().toLocaleDateString()}.`;
       }
 
       await prisma.material.update({
@@ -241,6 +244,7 @@ export async function runAmazonRefreshCheck(limit: number = 50): Promise<Refresh
           amazonNeedsAttention: needsAttention,
           amazonAttentionReason: reason,
           amazonLastCheckedAt: new Date(),
+          ...(priceUpdate !== undefined ? { priceEstimate: priceUpdate } : {}),
         },
       });
 

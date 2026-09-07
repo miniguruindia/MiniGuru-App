@@ -257,7 +257,7 @@ export default function DashboardPage() {
                 {asinCount} of {materialCount} materials have Amazon ASINs linked
               </p>
             </div>
-            <button onClick={() => router.push('/materials?tab=amazon')}
+            <button onClick={() => router.push('/materials?tab=ai')}
               className="text-sm text-orange-600 hover:text-orange-700 font-medium">
               Add ASINs →
             </button>
