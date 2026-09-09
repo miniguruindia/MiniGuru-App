@@ -296,11 +296,16 @@ model Project {
   comments    Comment[]
   status      String            @default("pending")
   aiVerdict   String?
-  // What the uploader chose at upload time — "PUBLIC" (default; may go
-  // public once it passes review) or "PRIVATE" (stays Unlisted on YouTube
-  // permanently, regardless of review outcome — their explicit choice is
-  // always honoured). Required so the app genuinely lets users set privacy
-  // status per YouTube API Services' RMF, not just moderation-only.
+  // What the uploader chose at upload time — one of YouTube's own three
+  // real privacy states, per YouTube API Services' RMF:
+  //   "PUBLIC"   (default) — may become public once it passes review
+  //   "UNLISTED" — stays Unlisted (accessible only via direct link) forever
+  //   "PRIVATE"  — set to YouTube's true Private status once review passes
+  //                (not merely "we never publish it" — a real, distinct
+  //                YouTube visibility state, applied via videos.update)
+  // Every video starts Unlisted at upload time regardless of this choice,
+  // so reviewers can access it; this field only affects the FINAL state
+  // once review concludes. The choice is always honoured.
   desiredPrivacyStatus String @default("PUBLIC")
   aiReason    String?
   aiConfidence Float?

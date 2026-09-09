@@ -7,8 +7,9 @@ import { useRouter } from 'next/navigation'
 import {
   Users, Video, Package, ArrowUpRight,
   RefreshCw, Coins, Megaphone, ShieldAlert,
-  Lightbulb, HandCoins, AlertTriangle, Globe, TrendingUp, FolderOpen,
+  Lightbulb, HandCoins, AlertTriangle, Globe, TrendingUp, FolderOpen, ExternalLink,
 } from 'lucide-react'
+import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts'
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001'
 
@@ -66,8 +67,11 @@ export default function DashboardPage() {
   // ── Website traffic (Google Analytics GA4) ─────────────────────────────
   const [webAnalytics, setWebAnalytics] = useState<{
     configured: boolean
+    propertyUrl?: string
     last7Days?: { sessions: number; activeUsers: number; pageViews: number }
     last30Days?: { sessions: number; activeUsers: number; pageViews: number }
+    allTime?: { sessions: number; activeUsers: number; pageViews: number; sinceDate: string }
+    dailySeries?: { date: string; sessions: number }[]
     topPages?: { path: string; views: number }[]
     error?: string
   }>({ configured: false })
@@ -369,9 +373,17 @@ export default function DashboardPage() {
             configured. Shows setup instructions instead of a fake chart
             until GA4_PROPERTY_ID + service account access are added. */}
         <Card className="p-6 border-0 shadow-md">
-          <div className="flex items-center gap-2 mb-4">
-            <Globe className="h-5 w-5 text-sky-600" />
-            <h3 className="text-lg font-semibold text-gray-900">Website Traffic</h3>
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <Globe className="h-5 w-5 text-sky-600" />
+              <h3 className="text-lg font-semibold text-gray-900">Website Traffic</h3>
+            </div>
+            {webAnalytics.configured && webAnalytics.propertyUrl && (
+              <a href={webAnalytics.propertyUrl} target="_blank" rel="noopener"
+                className="text-xs text-sky-600 hover:underline flex items-center gap-1">
+                Open in Google Analytics <ExternalLink className="h-3 w-3" />
+              </a>
+            )}
           </div>
           {webAnalytics.configured ? (
             webAnalytics.error ? (
@@ -380,9 +392,9 @@ export default function DashboardPage() {
               <div className="space-y-4">
                 <div className="grid grid-cols-3 gap-4">
                   {[
-                    { label: 'Visits (7d)', value: webAnalytics.last7Days?.sessions ?? 0 },
-                    { label: 'Visitors (7d)', value: webAnalytics.last7Days?.activeUsers ?? 0 },
-                    { label: 'Page views (7d)', value: webAnalytics.last7Days?.pageViews ?? 0 },
+                    { label: 'Visits (all time)', value: webAnalytics.allTime?.sessions ?? 0 },
+                    { label: 'Visitors (all time)', value: webAnalytics.allTime?.activeUsers ?? 0 },
+                    { label: 'Page views (all time)', value: webAnalytics.allTime?.pageViews ?? 0 },
                   ].map((s) => (
                     <div key={s.label} className="text-center p-3 bg-sky-50 rounded-lg">
                       <p className="text-2xl font-bold text-sky-900">{s.value.toLocaleString('en-IN')}</p>
@@ -390,8 +402,21 @@ export default function DashboardPage() {
                     </div>
                   ))}
                 </div>
+                {webAnalytics.dailySeries && webAnalytics.dailySeries.length > 1 && (
+                  <div className="pt-2">
+                    <p className="text-xs font-medium text-gray-500 mb-2">Visits per day, since tracking began</p>
+                    <ResponsiveContainer width="100%" height={140}>
+                      <AreaChart data={webAnalytics.dailySeries} margin={{ top: 4, right: 4, left: -28, bottom: 0 }}>
+                        <XAxis dataKey="date" tick={{ fontSize: 9 }} tickFormatter={(d) => d.slice(5)} minTickGap={30} />
+                        <YAxis tick={{ fontSize: 9 }} allowDecimals={false} />
+                        <Tooltip labelFormatter={(d) => d} formatter={(v: any) => [v, 'Visits']} />
+                        <Area type="monotone" dataKey="sessions" stroke="#0284c7" fill="#bae6fd" strokeWidth={2} />
+                      </AreaChart>
+                    </ResponsiveContainer>
+                  </div>
+                )}
                 <p className="text-xs text-gray-400 flex items-center gap-1">
-                  <TrendingUp className="h-3 w-3" /> {webAnalytics.last30Days?.sessions ?? 0} visits in the last 30 days
+                  <TrendingUp className="h-3 w-3" /> {webAnalytics.last7Days?.sessions ?? 0} visits in the last 7 days · {webAnalytics.last30Days?.sessions ?? 0} in the last 30
                 </p>
                 {webAnalytics.topPages && webAnalytics.topPages.length > 0 && (
                   <div className="pt-2 border-t border-gray-100">

@@ -55,7 +55,7 @@ class ProjectService {
                 aiReason: aiReason ?? undefined,
                 aiConfidence: typeof aiConfidence === "number" ? aiConfidence : undefined,
                 aiReviewedAt: aiReviewedAt ?? undefined,
-                desiredPrivacyStatus: desiredPrivacyStatus === "PRIVATE" ? "PRIVATE" : "PUBLIC",
+                desiredPrivacyStatus: ["PUBLIC", "UNLISTED", "PRIVATE"].includes(desiredPrivacyStatus) ? desiredPrivacyStatus : "PUBLIC",
             },
         });
     }

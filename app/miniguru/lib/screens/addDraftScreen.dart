@@ -61,7 +61,7 @@ class _AddDraftScreenState extends State<AddDraftScreen>
   // STEAM Challenge join (optional) -- see mg_award_challenge_bonus_on_approval.py
   List<Map<String, dynamic>> _openChallenges = [];
   String? _selectedChallengeId;
-  String _desiredPrivacyStatus = 'PUBLIC'; // 'PUBLIC' | 'PRIVATE'
+  String _desiredPrivacyStatus = 'PUBLIC'; // 'PUBLIC' | 'UNLISTED' | 'PRIVATE'
   bool _collabSearching = false;
   final TextEditingController _collabCtrl = TextEditingController();
   bool                 _loading             = true;
@@ -1000,20 +1000,26 @@ class _AddDraftScreenState extends State<AddDraftScreen>
         Row(children: [
           const Text('🔒', style: TextStyle(fontSize: 16)),
           const SizedBox(width: 8),
-          Text('Who can see this video?',
+          Text('Privacy Status — who can see this video?',
               style: GoogleFonts.nunito(color: _ink, fontWeight: FontWeight.w900, fontSize: 14)),
         ]),
         const SizedBox(height: 10),
         _privacyOption(
           value: 'PUBLIC',
-          title: 'Everyone (after it passes review)',
-          subtitle: 'Our team checks every video first. Once approved, it can be seen by anyone on MiniGuru and YouTube.',
+          title: 'Public',
+          subtitle: 'Our team checks every video first. Once approved, anyone can find and watch it on MiniGuru and YouTube.',
+        ),
+        const SizedBox(height: 8),
+        _privacyOption(
+          value: 'UNLISTED',
+          title: 'Unlisted',
+          subtitle: 'Only people with the exact video link can watch it. It will never appear in search or on public listings, even after review.',
         ),
         const SizedBox(height: 8),
         _privacyOption(
           value: 'PRIVATE',
-          title: 'Just me and my reviewer',
-          subtitle: "Stays private — only visible with a direct link, never shown publicly, even after review.",
+          title: 'Private',
+          subtitle: 'Only you and your reviewer can watch it — the most restricted option. Never shown publicly, even after review.',
         ),
       ]),
     );

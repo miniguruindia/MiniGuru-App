@@ -2,7 +2,7 @@ import { Request, Response } from 'express';
 import prisma from '../../utils/prismaClient';
 import logger from '../../logger';
 
-const { setVideoPublic, deleteVideo } = require('../../services/youtubeUploadService');
+const { setVideoPublic, setVideoPrivate, deleteVideo } = require('../../services/youtubeUploadService');
 
 export function extractYouTubeId(videoUrl: string): string {
   const match = videoUrl.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/shorts\/)([a-zA-Z0-9_-]{11})/);
@@ -75,7 +75,20 @@ export async function publishAndAwardProject(id: string) {
   // "PRIVATE" means never go Public on YouTube, no matter what review
   // decides. This is what actually gives the choice real effect, not
   // just a cosmetic form field.
-  if (project.video?.url && project.desiredPrivacyStatus !== 'PRIVATE') {
+  // ── YouTube ───────────────────────────────────────────────────
+  // Respect the uploader's own privacy-status choice from upload time —
+  // this is what actually gives the choice real effect on YouTube itself,
+  // not just a cosmetic form field. Every video starts Unlisted (so it's
+  // reviewable by link); this step applies the final, user-chosen state
+  // once review has passed:
+  //   PUBLIC   → videos.update privacyStatus=public
+  //   UNLISTED → no call needed, already Unlisted from upload
+  //   PRIVATE  → videos.update privacyStatus=private (a real, distinct
+  //              YouTube state — not merely "we never publish it")
+  const status = project.desiredPrivacyStatus || 'PUBLIC';
+  if (!project.video?.url) {
+    logger.warn(`Project ${id} has no video URL — skipping YouTube step`);
+  } else if (status === 'PUBLIC') {
     try {
       await setVideoPublic(extractYouTubeId(project.video.url));
       logger.info(`YouTube video set to PUBLIC for project ${id}`);
@@ -83,10 +96,17 @@ export async function publishAndAwardProject(id: string) {
       logger.error(`YouTube publish failed: ${(ytError as Error).message}`);
       throw new ApprovalError('Failed to publish on YouTube. Project not approved.', 502);
     }
-  } else if (project.desiredPrivacyStatus === 'PRIVATE') {
-    logger.info(`Project ${id} uploader chose PRIVATE — staying Unlisted on YouTube, not publishing.`);
+  } else if (status === 'PRIVATE') {
+    try {
+      await setVideoPrivate(extractYouTubeId(project.video.url));
+      logger.info(`YouTube video set to PRIVATE for project ${id} (uploader's choice)`);
+    } catch (ytError) {
+      logger.error(`YouTube set-private failed: ${(ytError as Error).message}`);
+      throw new ApprovalError('Failed to apply Private status on YouTube. Project not approved.', 502);
+    }
   } else {
-    logger.warn(`Project ${id} has no video URL — skipping YouTube step`);
+    // UNLISTED — already the state every video starts in; nothing to do.
+    logger.info(`Project ${id} uploader chose UNLISTED — staying as-is, not publishing.`);
   }
 
   // ── Re-calculate material cost in Goins ───────────────────────

@@ -277,7 +277,7 @@ export const createProject = async (req: Request, res: Response) => {
       aiReason: aiReview.reason,
       aiConfidence: aiReview.confidence,
       aiReviewedAt,
-      desiredPrivacyStatus: desiredPrivacyStatus === 'PRIVATE' ? 'PRIVATE' : 'PUBLIC',
+      desiredPrivacyStatus: ['PUBLIC', 'UNLISTED', 'PRIVATE'].includes(desiredPrivacyStatus) ? desiredPrivacyStatus : 'PUBLIC',
     });
 
     // ── Material Goins cost (Aug 2026 — Rule 25 reversal, confirmed) ────

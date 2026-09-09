@@ -185,6 +185,21 @@ async function setVideoPublic(videoId) {
   return true;
 }
 
+// ── Set video PRIVATE (called on approval when the uploader explicitly
+// chose Private — true YouTube Private, distinct from the Unlisted state
+// every video starts in. Only reachable via videos.update, never at
+// upload time, for the same reviewability reason Unlisted is used first. ──
+async function setVideoPrivate(videoId) {
+  const youtube = google.youtube({ version: 'v3', auth: getOAuth2Client() });
+  await youtube.videos.update({
+    part: 'status',
+    requestBody: { id: videoId, status: { privacyStatus: 'private', selfDeclaredMadeForKids: false, embeddable: true } },
+  });
+  console.log(`🔒  Video ${videoId} set to PRIVATE`);
+  trackYoutubeUnits(50);
+  return true;
+}
+
 // ── Delete video (called on admin rejection) ──────────────────────────────────
 async function deleteVideo(videoId) {
   const youtube = google.youtube({ version: 'v3', auth: getOAuth2Client() });
@@ -193,4 +208,4 @@ async function deleteVideo(videoId) {
   return true;
 }
 
-module.exports = { upload, getAuthUrl, handleCallback, uploadToYouTube, setVideoPublic, deleteVideo, refreshTokenNow, getOAuth2Client };
+module.exports = { upload, getAuthUrl, handleCallback, uploadToYouTube, setVideoPublic, setVideoPrivate, deleteVideo, refreshTokenNow, getOAuth2Client };
