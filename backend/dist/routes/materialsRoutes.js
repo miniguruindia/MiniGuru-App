@@ -334,12 +334,15 @@ router.post('/admin/:id/find-on-amazon', authMiddleware_1.authenticateToken, req
     }
 });
 // ── POST /admin/:id/link-amazon — save a chosen candidate onto a Material ──
-// Body: { asin, priceRupees?, imageUrl? }. Never overwrites an existing
-// Firebase imageUrl (Rule 30) — Amazon's image is only used as a fallback
-// when the material has no photo of its own yet.
+// Body: { asin, priceRupees?, imageUrl?, extractedUnit? }. Never overwrites
+// an existing Firebase imageUrl (Rule 30) — Amazon's image is only used as
+// a fallback when the material has no photo of its own yet. extractedUnit
+// (a best-effort quantity guess parsed from the Amazon title, e.g. "Pack
+// of 5") is only applied when the material's unit is still the untouched
+// default "piece" — never overwrites something an admin deliberately set.
 router.post('/admin/:id/link-amazon', authMiddleware_1.authenticateToken, requireAdmin, async (req, res) => {
     try {
-        const { asin, priceRupees, imageUrl, tag } = req.body || {};
+        const { asin, priceRupees, imageUrl, extractedUnit, tag } = req.body || {};
         if (!asin || typeof asin !== 'string') {
             return res.status(400).json({ error: 'asin is required' });
         }
@@ -357,6 +360,9 @@ router.post('/admin/:id/link-amazon', authMiddleware_1.authenticateToken, requir
         // Only fill in an image if this material genuinely has none yet.
         if (!existing.imageUrl && imageUrl) {
             data.imageUrl = String(imageUrl);
+        }
+        if (extractedUnit && (!existing.unit || existing.unit === 'piece')) {
+            data.unit = String(extractedUnit);
         }
         // Same as the manual PUT path — a fresh link clears any stale flag.
         data.amazonNeedsAttention = false;
@@ -462,6 +468,21 @@ router.get('/admin/amazon-needs-attention', authMiddleware_1.authenticateToken, 
     catch (err) {
         console.error('[materials] GET /admin/amazon-needs-attention error:', err);
         res.status(500).json({ error: 'Failed to load needs-attention list' });
+    }
+});
+// ── POST /admin/amazon-photo-audit — on-demand side-by-side photo check ──
+// Never changes anything itself; just returns pairs where the app's stored
+// photo differs from Amazon's current one, for a human to look at and
+// decide whether to download and replace.
+router.post('/admin/amazon-photo-audit', authMiddleware_1.authenticateToken, requireAdmin, async (req, res) => {
+    try {
+        const limit = Math.min(Math.max(parseInt(req.body?.limit, 10) || 100, 1), 300);
+        const result = await (0, amazonSuggestionService_1.runPhotoAudit)(limit);
+        res.json(result);
+    }
+    catch (err) {
+        console.error('[materials] POST /admin/amazon-photo-audit error:', err);
+        res.status(500).json({ error: 'Photo audit failed' });
     }
 });
 // ── GET /:id — PUBLIC, must be LAST ──────────────────────────────────────────

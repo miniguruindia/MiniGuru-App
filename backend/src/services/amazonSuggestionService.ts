@@ -184,6 +184,64 @@ export interface RefreshSummary {
  * going unavailable. NEVER changes priceEstimate/imageUrl itself — only
  * flags amazonNeedsAttention so an admin decides. Oldest-checked first.
  */
+export interface PhotoAuditRow {
+  materialId: string;
+  materialName: string;
+  appImageUrl: string | null;
+  amazonImageUrl: string;
+}
+
+/**
+ * On-demand photo audit — for every linked material, checks whether the
+ * photo currently stored in the app differs from what Amazon's ASIN
+ * returns right now. Returns pairs for the admin to visually compare and
+ * decide; NEVER changes anything itself — purely informational, since a
+ * URL difference alone doesn't tell you which photo is actually correct.
+ */
+export async function runPhotoAudit(limit: number = 100): Promise<{ checked: number; differences: PhotoAuditRow[]; stoppedEarly: boolean }> {
+  const startedAt = Date.now();
+  const differences: PhotoAuditRow[] = [];
+  let checked = 0;
+  let stoppedEarly = false;
+
+  const materials = await prisma.material.findMany({
+    where: { amazonASIN: { not: null }, isActive: true },
+    take: limit,
+    orderBy: { amazonLastCheckedAt: 'asc' },
+  });
+
+  for (let i = 0; i < materials.length; i += 10) {
+    if (Date.now() - startedAt > SCAN_TIME_BUDGET_MS) {
+      stoppedEarly = true;
+      break;
+    }
+    const batch = materials.slice(i, i + 10);
+    const asins = batch.map((m) => m.amazonASIN!).filter(Boolean);
+    const result = await getAmazonItems(asins);
+    if (!result.configured) {
+      stoppedEarly = true;
+      break;
+    }
+    const byAsin = new Map(result.results.map((r) => [r.asin, r]));
+
+    for (const material of batch) {
+      checked += 1;
+      const live = material.amazonASIN ? byAsin.get(material.amazonASIN) : undefined;
+      if (live?.imageUrl && live.imageUrl !== material.imageUrl) {
+        differences.push({
+          materialId: material.id,
+          materialName: material.name,
+          appImageUrl: material.imageUrl,
+          amazonImageUrl: live.imageUrl,
+        });
+      }
+    }
+    await sleep(SCAN_DELAY_MS);
+  }
+
+  return { checked, differences, stoppedEarly };
+}
+
 export async function runAmazonRefreshCheck(limit: number = 50): Promise<RefreshSummary> {
   const startedAt = Date.now();
   const summary: RefreshSummary = { checked: 0, flagged: 0, cleared: 0, stoppedEarly: false };

@@ -47,13 +47,14 @@ interface AmazonCandidate {
   imageUrl: string | null
   priceRupees: number | null
   detailPageUrl: string
+  extractedUnit: string | null
 }
 
 function FindOnAmazonModal({ material: m, apiBase, onClose, onPicked }: {
   material: { id: string; name: string }
   apiBase: string
   onClose: () => void
-  onPicked: (asin: string, priceRupees: number | null, imageUrl: string | null) => void
+  onPicked: (asin: string, priceRupees: number | null, imageUrl: string | null, extractedUnit: string | null) => void
 }) {
   const [loading, setLoading]   = React.useState(true)
   const [configured, setConfigured] = React.useState(true)
@@ -124,7 +125,7 @@ function FindOnAmazonModal({ material: m, apiBase, onClose, onPicked }: {
               {results.map(r => (
                 <button
                   key={r.asin}
-                  onClick={() => onPicked(r.asin, r.priceRupees, r.imageUrl)}
+                  onClick={() => onPicked(r.asin, r.priceRupees, r.imageUrl, r.extractedUnit)}
                   className="w-full flex items-center gap-3 p-2 border border-gray-200 rounded-lg hover:border-orange-400 hover:bg-orange-50 text-left transition-colors"
                 >
                   <div className="w-14 h-14 flex-shrink-0 bg-white border rounded flex items-center justify-center overflow-hidden">
@@ -135,6 +136,9 @@ function FindOnAmazonModal({ material: m, apiBase, onClose, onPicked }: {
                   <div className="flex-1 min-w-0">
                     <p className="text-sm text-gray-900 line-clamp-2">{r.title}</p>
                     <p className="text-xs text-gray-500 font-mono">{r.asin}</p>
+                    {r.extractedUnit && (
+                      <p className="text-xs text-indigo-600">📦 {r.extractedUnit}</p>
+                    )}
                   </div>
                   <div className="text-sm font-semibold text-orange-600 whitespace-nowrap">
                     {r.priceRupees != null ? `₹${r.priceRupees}` : '—'}
@@ -247,7 +251,7 @@ function AsinRow({ material: m, apiBase, onSaved, onFlash }: {
           material={{ id: m.id, name: m.name }}
           apiBase={apiBase}
           onClose={() => setFinding(false)}
-          onPicked={(pickedAsin, pickedPrice, _pickedImageUrl) => {
+          onPicked={(pickedAsin, pickedPrice, _pickedImageUrl, _pickedUnit) => {
             setAsin(pickedAsin)
             if (pickedPrice != null) setPrice(String(pickedPrice))
             setDirty(true)
@@ -272,6 +276,7 @@ interface AmazonSuggestionRow {
   imageConfidence: number | null
   imageConfidenceNote: string | null
   reason: string | null
+  searchedQuery: string | null
   status: string
 }
 
@@ -376,7 +381,7 @@ function ImageIssuesTab({ apiBase, onMaterialsChanged, flash }: {
           material={{ id: findingMat.id, name: findingMat.name }}
           apiBase={apiBase}
           onClose={() => setFindingMat(null)}
-          onPicked={async (asin, priceRupees, imageUrl) => {
+          onPicked={async (asin, priceRupees, imageUrl, extractedUnit) => {
             setFindingMat(null)
             const token = await authToken()
             await fetch(`${apiBase}/materials/admin/${findingMat.id}`, {
@@ -386,6 +391,7 @@ function ImageIssuesTab({ apiBase, onMaterialsChanged, flash }: {
                 amazonASIN: asin,
                 ...(priceRupees != null ? { priceEstimate: priceRupees } : {}),
                 ...(imageUrl ? { imageUrl } : {}),
+                ...(extractedUnit ? { unit: extractedUnit } : {}),
               }),
             })
             flash(`Linked "${findingMat.name}"${imageUrl ? ' with its Amazon photo' : ''}`)
@@ -586,15 +592,24 @@ function AiSuggestionsTab({ apiBase, onMaterialsChanged, flash }: {
               <div className="space-y-2">
                 {noMatch.map(s => (
                   <div key={s.id} className="flex items-center justify-between p-2 bg-amber-50 border border-amber-200 rounded-lg">
-                    <div>
+                    <div className="min-w-0">
                       <p className="text-sm text-gray-900">{s.materialName}</p>
                       <p className="text-xs text-amber-700">{s.reason}</p>
+                      {s.searchedQuery && (
+                        <p className="text-xs text-gray-400">Searched: &ldquo;{s.searchedQuery}&rdquo;</p>
+                      )}
                     </div>
-                    <a href={`https://www.amazon.in/s?k=${encodeURIComponent(s.materialName)}&tag=miniguru04-21`}
-                      target="_blank" rel="noopener"
-                      className="text-xs text-orange-600 hover:underline whitespace-nowrap">
-                      Search manually ↗
-                    </a>
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      <button onClick={() => setFindingFor({ id: s.materialId, name: s.materialName })}
+                        className="px-2 py-1 bg-white border border-orange-300 text-orange-600 rounded text-xs hover:bg-orange-50 whitespace-nowrap">
+                        🔍 Find
+                      </button>
+                      <a href={`https://www.amazon.in/s?k=${encodeURIComponent(s.searchedQuery || s.materialName)}&tag=miniguru04-21`}
+                        target="_blank" rel="noopener"
+                        className="text-xs text-orange-600 hover:underline whitespace-nowrap">
+                        Search on Amazon ↗
+                      </a>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -607,7 +622,7 @@ function AiSuggestionsTab({ apiBase, onMaterialsChanged, flash }: {
           material={findingFor}
           apiBase={apiBase}
           onClose={() => setFindingFor(null)}
-          onPicked={async (asin, priceRupees, imageUrl) => {
+          onPicked={async (asin, priceRupees, imageUrl, extractedUnit) => {
             const pickedFor = findingFor
             setFindingFor(null)
             if (!pickedFor) return
@@ -616,7 +631,7 @@ function AiSuggestionsTab({ apiBase, onMaterialsChanged, flash }: {
               const res = await fetch(`${apiBase}/materials/admin/${pickedFor.id}/link-amazon`, {
                 method: 'POST',
                 headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-                body: JSON.stringify({ asin, priceRupees, imageUrl }),
+                body: JSON.stringify({ asin, priceRupees, imageUrl, extractedUnit }),
               })
               if (!res.ok) throw new Error((await res.json()).error || 'Failed to link')
               flash(`Linked "${pickedFor.name}" directly`)
@@ -1057,13 +1072,20 @@ function MaterialsPageInner() {
                 material={{ id: findingMat.id, name: findingMat.name }}
                 apiBase={API_BASE}
                 onClose={() => setFindingMat(null)}
-                onPicked={async (asin, priceRupees, _imageUrl) => {
+                onPicked={async (asin, priceRupees, imageUrl, extractedUnit) => {
                   setFindingMat(null)
                   const token = await authToken()
                   await fetch(`${API_BASE}/materials/admin/${findingMat.id}`, {
                     method: 'PUT',
                     headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ amazonASIN: asin, ...(priceRupees != null ? { priceEstimate: priceRupees } : {}) }),
+                    body: JSON.stringify({
+                      amazonASIN: asin,
+                      ...(priceRupees != null ? { priceEstimate: priceRupees } : {}),
+                      // Only fill the image if this material has none yet —
+                      // never silently overwrite an existing photo here.
+                      ...(!findingMat.imageUrl && imageUrl ? { imageUrl } : {}),
+                      ...(extractedUnit && (!findingMat.unit || findingMat.unit === 'piece') ? { unit: extractedUnit } : {}),
+                    }),
                   })
                   flash(`Linked ASIN for "${findingMat.name}"`)
                   load()

@@ -21,6 +21,11 @@ export interface AmazonProductCandidate {
   priceRupees: number | null; // GST-inclusive, as Amazon India always displays it
   detailPageUrl: string;
   available: boolean;
+  // Best-effort unit/quantity guess parsed from the title (e.g. "Pack of
+  // 5", "500ml", "1kg"). Null when nothing confident was found — the
+  // caller should leave the material's unit field untouched in that case,
+  // never guess or overwrite with a placeholder.
+  extractedUnit: string | null;
 }
 
 export interface AmazonSearchResult {
@@ -54,20 +59,43 @@ function getApi(): any {
   return new DefaultApi(client);
 }
 
+// Best-effort quantity/unit extraction from a product title. Only returns
+// a value when a recognisable pattern is confidently matched — anything
+// ambiguous returns null so the admin fills it in by hand, never a guess.
+function extractUnitFromTitle(title: string): string | null {
+  if (!title) return null;
+  const patterns: RegExp[] = [
+    /\bpack of (\d+)\b/i,
+    /\bset of (\d+)\b/i,
+    /\b(\d+)\s*(?:pcs|pieces|pc)\b/i,
+    /\b(\d+)\s*count\b/i,
+    /\b(\d+(?:\.\d+)?)\s*(ml|l|litre|liter)\b/i,
+    /\b(\d+(?:\.\d+)?)\s*(g|gm|gram|grams|kg|kilogram)\b/i,
+    /\b(\d+)\s*(?:x|X)\s*(\d+(?:\.\d+)?)\s*(ml|g|kg|l)\b/i,
+  ];
+  for (const re of patterns) {
+    const m = title.match(re);
+    if (m) return m[0].trim();
+  }
+  return null;
+}
+
 function toCandidate(item: any): AmazonProductCandidate | null {
   if (!item?.asin) return null;
   const listing = item?.offersV2?.listings?.[0];
   const money = listing?.price?.money;
   const availability = listing?.availability;
+  const title = item?.itemInfo?.title?.displayValue || '(no title)';
   return {
     asin: item.asin,
-    title: item?.itemInfo?.title?.displayValue || '(no title)',
+    title,
     imageUrl: item?.images?.primary?.large?.url || null,
     priceRupees: typeof money?.amount === 'number' ? money.amount : null,
     detailPageUrl: item?.detailPageURL || '',
     // Availability model varies by field; absence of an explicit
     // "out of stock"-style message is treated as available.
     available: !availability?.message || !/out of stock|unavailable/i.test(availability.message),
+    extractedUnit: extractUnitFromTitle(title),
   };
 }
 
