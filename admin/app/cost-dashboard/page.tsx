@@ -23,7 +23,12 @@ interface Snapshot {
     currentlyBlocked: boolean
   }
   gemini: { callsToday: number; note: string }
-  youtube: { estimatedUnitsToday: number; dailyLimit: number; authoritative: boolean; note: string }
+  youtube: {
+    uploads: { uploadsToday: number; dailyLimit: number; label: string }
+    otherCalls: { estimatedUnitsToday: number; dailyLimit: number; label: string }
+    authoritative: boolean
+    note: string
+  }
   mongodb: { usedMB: number | null; limitMB: number; checkedLive: boolean }
   firebaseStorage: { usedGB: number | null; limitGB: number; cached: boolean; error?: string }
   amazon: { callsToday: number; note: string }
@@ -137,10 +142,19 @@ export default function CostDashboardPage() {
               />
               <QuotaCard
                 icon={Youtube}
-                title="YouTube Data API v3"
-                used={data.youtube.estimatedUnitsToday}
-                limit={data.youtube.dailyLimit}
+                title="YouTube — Video Uploads"
+                used={data.youtube.uploads.uploadsToday}
+                limit={data.youtube.uploads.dailyLimit}
+                unit="uploads today"
+                subtitle="videos.insert has its own separate daily bucket, cost 1 per call — never shares quota with anything else below."
+              />
+              <QuotaCard
+                icon={Youtube}
+                title="YouTube — Other API Calls"
+                used={data.youtube.otherCalls.estimatedUnitsToday}
+                limit={data.youtube.otherCalls.dailyLimit}
                 unit="units (estimated)"
+                subtitle="Shared pool: publish/private status changes (50 each), comment pushes (50 each), list calls (1 each)."
                 note={data.youtube.note}
               />
               <QuotaCard

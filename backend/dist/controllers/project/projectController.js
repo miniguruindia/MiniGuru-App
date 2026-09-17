@@ -349,45 +349,43 @@ const createProject = async (req, res) => {
         // line awarded +100 Goins immediately on upload, which double-paid
         // every child (once here, again on approval) and paid out even for
         // videos that were later rejected. Removed — do not re-add.
-        // ── Route the project based on the AI verdict ──────────────────────
-        // APPROVE: the service itself only returns APPROVE when confidence is
-        //   already >= MIN_CONFIDENCE_FOR_APPROVE (0.85) — that check lives in
-        //   aiVideoReviewService.ts, not duplicated here. Auto-publish uses the
-        //   SAME publishAndAwardProject() function the admin "Approve" button
-        //   calls, so both paths always stay in sync.
-        // REJECT: video stays uploaded (Unlisted) and project stays 'pending' —
-        //   admin sees a red badge with the AI's reason and has final say.
-        // UNSURE: same as REJECT, plus an email alert so nothing sits unnoticed.
-        if (aiReview.verdict === "APPROVE" && videoUrl) {
+        // ── The AI verdict is ADVISORY ONLY — never publishes anything ─────
+        // Every video, regardless of AI confidence, sits in 'pending' with its
+        // AI verdict/reason/confidence shown as a badge on admin.miniguru.in/
+        // videos until a human admin explicitly clicks Approve or Reject.
+        //
+        // This used to auto-publish on a high-confidence APPROVE (>= 0.85) via
+        // publishAndAwardProject() directly from here — removed (Sept 2026)
+        // after a video went live without ever being seen by an admin. AI
+        // review still runs, still guides the admin's decision via the badge,
+        // but a project's status can now ONLY become 'published' through the
+        // admin-authenticated POST /admin/projects/:id/approve route (see
+        // videoApprovalController.ts's approveProject / authorizeAdmin
+        // middleware) — there is deliberately no other code path to it.
+        if (aiReview.verdict === "APPROVE" || aiReview.verdict === "UNSURE") {
             try {
-                await (0, videoApprovalController_1.publishAndAwardProject)(project.id);
-                logger_1.default.info(`🤖 AI auto-approved + published project ${project.id}`);
-            }
-            catch (publishError) {
-                // Never fail the upload response over this — the project already
-                // exists and sits in the normal admin queue as a safe fallback.
-                logger_1.default.error(`AI auto-approve failed for project ${project.id}, left pending for manual review: ` +
-                    `${publishError.message}`);
-            }
-        }
-        else if (aiReview.verdict === "UNSURE") {
-            try {
-                // In-app notification, not email — admin already sees this project
-                // with its AI badge on admin.miniguru.in/videos; this just makes
-                // sure it doesn't sit unnoticed without adding to email quota.
+                // In-app notification only (not email) — admin already sees this
+                // project with its AI badge in the pending queue; this just makes
+                // sure a confident APPROVE or a genuine UNSURE doesn't sit
+                // unnoticed, without adding to the email quota.
                 await (0, notificationService_1.notifyAllAdmins)({
-                    type: "ai_review_unsure",
-                    emoji: "🤔",
-                    message: `AI review UNSURE on "${title}" — ${aiReview.reason}`,
+                    type: aiReview.verdict === "APPROVE" ? "ai_review_approve" : "ai_review_unsure",
+                    emoji: aiReview.verdict === "APPROVE" ? "✅" : "🤔",
+                    message: aiReview.verdict === "APPROVE"
+                        ? `AI review APPROVE on "${title}" (confidence ${aiReview.confidence}) — ready for your final approval.`
+                        : `AI review UNSURE on "${title}" — ${aiReview.reason}`,
                     link: "/videos",
                 });
             }
             catch (notifyError) {
                 // Non-fatal — the project still sits correctly in the pending
                 // queue with its AI badge even if this in-app notification fails.
-                logger_1.default.warn(`Failed to create AI-UNSURE admin notification (non-fatal): ${notifyError.message}`);
+                logger_1.default.warn(`Failed to create AI-review admin notification (non-fatal): ${notifyError.message}`);
             }
         }
+        // REJECT: video stays uploaded (Unlisted) and project stays 'pending' —
+        // admin sees a red badge with the AI's reason and has final say, same
+        // as always.
         res.status(201).json(project);
     }
     catch (error) {

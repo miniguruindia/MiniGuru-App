@@ -259,4 +259,5 @@ adminRouter.post('/contact-change-requests/:userId/reject', authMiddleware_1.aut
 // ==================== PRODUCT SUGGESTIONS ====================
 adminRouter.get('/product-suggestions', authMiddleware_1.authenticateToken, authMiddleware_1.authorizeAdmin, productSuggestionController_1.listProductSuggestions);
 adminRouter.put('/product-suggestions/:id', authMiddleware_1.authenticateToken, authMiddleware_1.authorizeAdmin, productSuggestionController_1.updateProductSuggestion);
+adminRouter.post('/product-suggestions/:id/approve', authMiddleware_1.authenticateToken, authMiddleware_1.authorizeAdmin, productSuggestionController_1.approveProductSuggestion);
 exports.default = adminRouter;

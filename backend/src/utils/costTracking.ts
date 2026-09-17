@@ -34,14 +34,35 @@ export const EMAIL_MONTHLY_LIMIT = 3000;
 // best-effort estimate of unit cost per call type, so the dashboard has
 // something to show. Not authoritative; Google's own Cloud Console quota
 // page is the source of truth if these ever disagree.
+//
+// CORRECTED (Sept 2026) — Google's current cost table (developers.google.
+// com/youtube/v3/determine_quota_cost, confirmed live) has TWO independent
+// buckets, not one:
+//   1. videos.insert (upload) — its OWN separate daily bucket, cost 1 per
+//      call. Default allocation is 100/day; MiniGuru requested an increase
+//      (200/day) — update YOUTUBE_UPLOAD_DAILY_LIMIT below once Google
+//      confirms the actual granted number.
+//   2. Everything else (videos.update, videos.delete, videos.rate,
+//      commentThreads.insert, videos.list, etc.) — a SHARED 10,000/day
+//      pool, unchanged from before.
+// The old model here charged 1600 units per upload against the shared
+// pool — that was the PRE-June-2026 methodology and was wrong under the
+// current rules; it made the dashboard look like it was blowing through
+// quota on days that, under Google's real accounting, were nowhere close
+// (confirmed live: 13 real uploads in one day, all succeeded with zero
+// quota errors — 13 units against a 100+/day upload bucket is trivial).
 const YOUTUBE_QUOTA_KEY = 'youtube_quota_estimate';
-export const YOUTUBE_DAILY_LIMIT = 10000; // update if/when Google approves the increase request
+export const YOUTUBE_DAILY_LIMIT = 10000; // shared pool — everything EXCEPT uploads
 export const YOUTUBE_UNIT_COSTS = {
-  upload: 1600,
+  // upload intentionally NOT here — it never touches this shared pool,
+  // see recordYoutubeUpload() / YOUTUBE_UPLOAD_QUOTA_KEY below instead.
   update: 50,
   comment: 50,
   list: 1,
 } as const;
+
+const YOUTUBE_UPLOAD_QUOTA_KEY = 'youtube_upload_quota_estimate';
+export const YOUTUBE_UPLOAD_DAILY_LIMIT = 100; // Google's default for videos.insert's own bucket — raise this once a confirmed higher grant is in hand
 
 // ── Gemini AI review — read-only here, aiVideoReviewService.ts owns writes
 const GEMINI_QUOTA_KEY = 'ai_review_quota';
@@ -114,6 +135,19 @@ async function getYoutubeQuotaStatus() {
   return { estimatedUnitsToday: data.count, dailyLimit: YOUTUBE_DAILY_LIMIT, authoritative: false };
 }
 
+/** Call AFTER a real videos.insert (upload) call succeeds. Its own separate
+ * 1-unit-per-call bucket — never mixed into the shared 10,000/day pool. */
+export async function recordYoutubeUpload(): Promise<void> {
+  const data = await readDailyCounter(YOUTUBE_UPLOAD_QUOTA_KEY);
+  data.count += 1;
+  await writeDailyCounter(YOUTUBE_UPLOAD_QUOTA_KEY, data);
+}
+
+async function getYoutubeUploadQuotaStatus() {
+  const data = await readDailyCounter(YOUTUBE_UPLOAD_QUOTA_KEY);
+  return { uploadsToday: data.count, dailyLimit: YOUTUBE_UPLOAD_DAILY_LIMIT, authoritative: false };
+}
+
 // ── Gemini quota (read-only mirror of aiVideoReviewService's own counter)
 
 async function getGeminiQuotaStatus() {
@@ -173,10 +207,11 @@ async function getFirebaseStorageStatus() {
 // ── Full dashboard snapshot ──────────────────────────────────────────────
 
 export async function getCostDashboardSnapshot() {
-  const [email, gemini, youtube, mongo, firebase, amazon] = await Promise.all([
+  const [email, gemini, youtube, youtubeUploads, mongo, firebase, amazon] = await Promise.all([
     checkEmailQuota(),
     getGeminiQuotaStatus(),
     getYoutubeQuotaStatus(),
+    getYoutubeUploadQuotaStatus(),
     getMongoStorageStatus(),
     getFirebaseStorageStatus(),
     getAmazonQuotaStatus(),
@@ -196,8 +231,19 @@ export async function getCostDashboardSnapshot() {
       note: 'Runs in a separate, no-billing GCP project — always free tier, never bills.',
     },
     youtube: {
-      estimatedUnitsToday: youtube.estimatedUnitsToday,
-      dailyLimit: youtube.dailyLimit,
+      // Two independent buckets — see the comment above YOUTUBE_UNIT_COSTS
+      // for why they're separate. Combining them into one number is what
+      // made the dashboard look wrong before (Sept 2026 fix).
+      uploads: {
+        uploadsToday: youtubeUploads.uploadsToday,
+        dailyLimit: youtubeUploads.dailyLimit,
+        label: 'Video uploads (videos.insert)',
+      },
+      otherCalls: {
+        estimatedUnitsToday: youtube.estimatedUnitsToday,
+        dailyLimit: youtube.dailyLimit,
+        label: 'Everything else (update/comment/list/etc., shared pool)',
+      },
       authoritative: false,
       note: 'Best-effort estimate from our own call counts — Google Cloud Console → YouTube Data API v3 → Quotas is the real source of truth.',
     },

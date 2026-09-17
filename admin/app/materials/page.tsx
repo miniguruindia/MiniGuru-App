@@ -733,22 +733,6 @@ function MaterialsPageInner() {
     setShowForm(true)
   }
 
-  // Pre-fills the Add Material form from a child's suggestion + whatever
-  // Amazon candidate the AI scan already found for it — admin still
-  // reviews and taps Save, nothing is created automatically.
-  const openAddFromSuggestion = (s: Suggestion) => {
-    setEditingMat(null)
-    setForm({
-      ...EMPTY_MAT,
-      name: s.suggestion,
-      goinsPrice: s.requestedGoinsPrice != null ? String(s.requestedGoinsPrice) : '',
-      amazonASIN: s.amazonAsinFound || '',
-      priceEstimate: s.amazonPriceFound != null ? String(s.amazonPriceFound) : '',
-      imageUrl: s.amazonImageUrlFound || '',
-    })
-    setShowForm(true)
-  }
-
   const handleSave = async () => {
     if (!form.name || !form.goinsPrice || !form.category) {
       flash('Name, Goins cost, and category are required', true); return
@@ -1100,7 +1084,7 @@ function MaterialsPageInner() {
         {tab === 'ai' && <AiSuggestionsTab apiBase={API_BASE} onMaterialsChanged={load} flash={flash} />}
 
         {/* ── SUGGESTIONS FROM USERS TAB ── */}
-        {tab === 'suggestions' && <SuggestionsTab onCreateMaterial={openAddFromSuggestion} />}
+        {tab === 'suggestions' && <SuggestionsTab />}
 
         {/* ── IMAGE ISSUES TAB ── */}
         {tab === 'images' && <ImageIssuesTab apiBase={API_BASE} onMaterialsChanged={load} flash={flash} />}
@@ -1299,7 +1283,7 @@ const SUGGESTION_STATUS_STYLES: Record<string, string> = {
   rejected: 'bg-red-50 text-red-600 border-red-200',
 }
 
-function SuggestionsTab({ onCreateMaterial }: { onCreateMaterial: (s: Suggestion) => void }) {
+function SuggestionsTab() {
   const [suggestions, setSuggestions] = useState<Suggestion[]>([])
   const [filter, setFilter] = useState<'all' | 'pending' | 'approved' | 'added' | 'rejected'>('pending')
   const [loading, setLoading] = useState(true)
@@ -1335,6 +1319,31 @@ function SuggestionsTab({ onCreateMaterial }: { onCreateMaterial: (s: Suggestion
         body: JSON.stringify({ status, adminNotes: notesDraft[id] ?? undefined }),
       })
       await load()
+    } finally {
+      setBusyId(null)
+    }
+  }
+
+  // Single action: approving a child's suggestion immediately creates the
+  // real Material (autofilled from the child's own suggested Goins rate +
+  // whatever the AI scan already found on Amazon) and marks the suggestion
+  // resolved, in one backend call -- there is no longer a separate
+  // "mark added without creating anything" step to accidentally use
+  // instead. Admin can still fine-tune any field afterward from the
+  // Materials tab, same as editing any other material.
+  const approveAndAdd = async (s: Suggestion) => {
+    setBusyId(s.id)
+    try {
+      const token = await authToken()
+      const res = await fetch(`${API_BASE}/admin/product-suggestions/${s.id}/approve`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      })
+      if (!res.ok) throw new Error((await res.json()).error || 'Failed')
+      await load()
+    } catch (e: any) {
+      alert(`Could not approve: ${e.message}`)
     } finally {
       setBusyId(null)
     }
@@ -1411,12 +1420,6 @@ function SuggestionsTab({ onCreateMaterial }: { onCreateMaterial: (s: Suggestion
                           {s.amazonAsinFound}{s.amazonPriceFound != null ? ` · ₹${s.amazonPriceFound}` : ''}
                         </p>
                       </div>
-                      {s.status === 'pending' && (
-                        <button onClick={() => onCreateMaterial(s)}
-                          className="px-2 py-1 bg-green-600 text-white rounded text-xs hover:bg-green-700 whitespace-nowrap">
-                          + Create Material
-                        </button>
-                      )}
                     </div>
                   ) : s.amazonSearchedAt ? (
                     <p className="text-xs text-amber-600 mt-1">🤖 AI searched but found no confident match — try the manual search link above.</p>
@@ -1436,21 +1439,12 @@ function SuggestionsTab({ onCreateMaterial }: { onCreateMaterial: (s: Suggestion
                 </div>
                 {(s.status === 'pending' || s.status === 'approved') && (
                   <div className="flex flex-col gap-1 shrink-0">
-                    {s.status === 'pending' && (
-                      <button
-                        disabled={busyId === s.id}
-                        onClick={() => resolve(s.id, 'approved')}
-                        className="text-xs px-2 py-1 rounded bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100"
-                      >
-                        Mark approved
-                      </button>
-                    )}
                     <button
                       disabled={busyId === s.id}
-                      onClick={() => resolve(s.id, 'added')}
+                      onClick={() => approveAndAdd(s)}
                       className="text-xs px-2 py-1 rounded bg-green-50 text-green-700 border border-green-200 hover:bg-green-100 flex items-center gap-1"
                     >
-                      <Check className="w-3 h-3" /> Mark added
+                      <Check className="w-3 h-3" /> Approve & Add
                     </button>
                     <button
                       disabled={busyId === s.id}

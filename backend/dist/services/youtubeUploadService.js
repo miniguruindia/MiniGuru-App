@@ -9,10 +9,24 @@ const multer         = require('multer');
 
 // Best-effort YouTube-quota tracking for the admin cost dashboard — never
 // lets a tracking failure affect the real upload/publish call.
+//
+// (Sept 2026) videos.insert (upload) has its OWN separate quota bucket on
+// Google's side, distinct from the shared 10,000/day pool everything else
+// draws from — trackYoutubeUpload() below records against that separate
+// bucket, never the shared one. See costTracking.ts for the full context.
 function trackYoutubeUnits(units) {
   try {
     const { recordYoutubeUnits } = require('../utils/costTracking');
     recordYoutubeUnits(units).catch(() => {});
+  } catch {
+    // costTracking not resolvable (e.g. dist/ layout differs) — never block.
+  }
+}
+
+function trackYoutubeUpload() {
+  try {
+    const { recordYoutubeUpload } = require('../utils/costTracking');
+    recordYoutubeUpload().catch(() => {});
   } catch {
     // costTracking not resolvable (e.g. dist/ layout differs) — never block.
   }
@@ -163,7 +177,7 @@ async function uploadToYouTube(videoPath, metadata) {
 
     console.log(`✅  Uploaded UNLISTED: ${res.data.id}`);
     if (fs.existsSync(videoPath)) fs.unlinkSync(videoPath);
-    trackYoutubeUnits(1600);
+    trackYoutubeUpload(); // videos.insert — own separate bucket, cost 1
 
     return { videoId: res.data.id, url: `https://www.youtube.com/watch?v=${res.data.id}` };
   } catch (err) {

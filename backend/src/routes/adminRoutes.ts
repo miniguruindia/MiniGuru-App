@@ -16,7 +16,7 @@ import {
   approveContactChange,
   rejectContactChange,
 } from '../controllers/auth/contactVerificationController';
-import { listProductSuggestions, updateProductSuggestion } from '../controllers/admin/productSuggestionController';
+import { listProductSuggestions, updateProductSuggestion, approveProductSuggestion } from '../controllers/admin/productSuggestionController';
 import prisma from '../utils/prismaClient';
 
 const adminRouter = express.Router();
@@ -264,5 +264,6 @@ adminRouter.post('/contact-change-requests/:userId/reject', authenticateToken, a
 // ==================== PRODUCT SUGGESTIONS ====================
 adminRouter.get('/product-suggestions', authenticateToken, authorizeAdmin, listProductSuggestions);
 adminRouter.put('/product-suggestions/:id', authenticateToken, authorizeAdmin, updateProductSuggestion);
+adminRouter.post('/product-suggestions/:id/approve', authenticateToken, authorizeAdmin, approveProductSuggestion);
 
 export default adminRouter;

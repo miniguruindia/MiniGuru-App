@@ -32,9 +32,22 @@ function sleep(ms) {
     return new Promise((resolve) => setTimeout(resolve, ms));
 }
 /**
- * Scans materials with no amazonASIN, up to `limit`, creating a PENDING
- * (or NO_MATCH) AmazonSuggestion for each. Skips any material that already
- * has an unresolved PENDING suggestion, so it's safe to run repeatedly.
+ * Scans SHOP-VISIBLE materials with no amazonASIN, up to `limit`, creating
+ * a PENDING (or NO_MATCH) AmazonSuggestion for each. Skips any material
+ * that already has an unresolved suggestion of EITHER kind, so it's safe
+ * to run repeatedly without ever piling up duplicates.
+ *
+ * BUGFIX (Sept 2026), two bugs found together:
+ *  1. The candidate query had no showInShop filter at all -- planning-only
+ *     materials (never meant to need a Shop/Amazon listing) were being
+ *     needlessly searched for on Amazon every scan. Added showInShop: true.
+ *  2. Only materials with a PENDING suggestion were skipped -- a NO_MATCH
+ *     result isn't PENDING, so a material that failed to match kept
+ *     getting rescanned and got a brand-new duplicate NO_MATCH row on
+ *     every single run (this is exactly why "HgCl2" showed up 6 times).
+ *     Now both PENDING and NO_MATCH count as "already has an unresolved
+ *     suggestion, skip it" -- a NO_MATCH material stays put until an admin
+ *     either finds it manually or excludes it from the Shop.
  */
 async function runAmazonSuggestionScan(limit = 25) {
     const startedAt = Date.now();
@@ -46,13 +59,13 @@ async function runAmazonSuggestionScan(limit = 25) {
         stoppedEarly: false,
         suggestionsEnriched: 0,
     };
-    const pendingMaterialIds = new Set((await prismaClient_1.default.amazonSuggestion.findMany({
-        where: { status: 'PENDING' },
+    const unresolvedMaterialIds = new Set((await prismaClient_1.default.amazonSuggestion.findMany({
+        where: { status: { in: ['PENDING', 'NO_MATCH'] } },
         select: { materialId: true },
     })).map((s) => s.materialId));
     const candidates = await prismaClient_1.default.material.findMany({
-        where: { amazonASIN: null, isActive: true },
-        take: limit * 2, // over-fetch a bit since some will be skipped (already pending)
+        where: { amazonASIN: null, isActive: true, showInShop: true },
+        take: limit * 2, // over-fetch a bit since some will be skipped (already has a result)
         orderBy: { createdAt: 'asc' },
     });
     for (const material of candidates) {
@@ -62,7 +75,7 @@ async function runAmazonSuggestionScan(limit = 25) {
             summary.stoppedEarly = true;
             break;
         }
-        if (pendingMaterialIds.has(material.id)) {
+        if (unresolvedMaterialIds.has(material.id)) {
             summary.skipped += 1;
             continue;
         }
