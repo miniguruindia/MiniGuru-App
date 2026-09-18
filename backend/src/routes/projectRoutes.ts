@@ -50,8 +50,11 @@ projectRouter.get('/find-collaborator/:miniguruId', authenticateToken, findColla
 projectRouter.get('/feed', getPublishedVideoFeed);
 
 
-// Update a project
-projectRouter.put('/:id', authenticateToken, updateProject);
+// Update a project — resolveSubject added (Sept 2026): without it, a
+// mentor inside a child's PIN session editing a project would attribute
+// the edit's ownership check to the MENTOR's own id, not the child's real
+// owning id, and fail the new ownership check in projectService.update().
+projectRouter.put('/:id', authenticateToken, resolveSubject, updateProject);
 
 projectRouter.get('/all',authenticateToken,getAllProjects);
 

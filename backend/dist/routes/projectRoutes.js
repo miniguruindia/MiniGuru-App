@@ -44,8 +44,11 @@ projectRouter.get('/find-collaborator/:miniguruId', authMiddleware_1.authenticat
 // logged-out visitor could already see embedded from YouTube anyway.
 // MUST be registered before get('/:id') below (Rule 28).
 projectRouter.get('/feed', projectController_1.getPublishedVideoFeed);
-// Update a project
-projectRouter.put('/:id', authMiddleware_1.authenticateToken, projectController_1.updateProject);
+// Update a project — resolveSubject added (Sept 2026): without it, a
+// mentor inside a child's PIN session editing a project would attribute
+// the edit's ownership check to the MENTOR's own id, not the child's real
+// owning id, and fail the new ownership check in projectService.update().
+projectRouter.put('/:id', authMiddleware_1.authenticateToken, resolveSubject_1.resolveSubject, projectController_1.updateProject);
 projectRouter.get('/all', authMiddleware_1.authenticateToken, projectController_1.getAllProjects);
 // Get project details
 projectRouter.get('/:id', authMiddleware_1.authenticateToken, projectController_1.getProjectById);

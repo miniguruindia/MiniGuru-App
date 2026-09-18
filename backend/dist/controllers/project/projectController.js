@@ -426,26 +426,115 @@ const updateProject = async (req, res) => {
     const userId = req.user?.userId;
     if (!userId)
         return res.status(401).json({ error: "Unauthorized" });
+    // Same child-session resolution createProject uses — during a mentor's
+    // PIN session, req.subject.linkedUserId is the child's own real login
+    // id, which is what must own (and now, thanks to the ownership-check
+    // fix in projectService.update(), must MATCH to be allowed to edit) the
+    // project — not the mentor's own JWT id.
+    let ownerUserId = userId;
+    if (req.subject?.isChild) {
+        if (!req.subject.linkedUserId) {
+            return res.status(400).json({
+                error: "This child profile has no independent login yet — ask an admin to create one before editing projects for this child.",
+            });
+        }
+        ownerUserId = req.subject.linkedUserId;
+    }
     const { id } = req.params;
-    const { title, description, startDate, endDate, materials, categoryName, thumbnailStoragePath, } = req.body;
-    // Same signed-URL pattern as createProject — no multer, no risk of
-    // hitting Cloud Run's hard 32MB request-body limit for a new thumbnail.
-    // Only set when the caller actually uploaded a new one; leaving this
-    // undefined (not "") when unchanged is what lets projectService.update()
-    // below correctly preserve the existing thumbnail instead of wiping it.
+    const { title, description, startDate, endDate, materials, categoryName, thumbnailStoragePath, videoStoragePath, // Firebase Storage path — same signed-upload flow as createProject/request-upload-url
+    desiredPrivacyStatus, // optional — only changed if the child explicitly picks a new one
+     } = req.body;
     const thumbnailPath = thumbnailStoragePath
         ? (0, firebaseStorageService_1.publicUrlFor)(thumbnailStoragePath)
         : undefined;
-    // NOTE — deliberately scoped out of this fix: full video replacement
-    // (re-uploading a new video to YouTube for an existing project) is not
-    // supported here. That's a genuinely separate feature with real product
-    // questions attached — does editing an already-approved/published video
-    // un-publish it? does it need to go through AI review again? — and
-    // shouldn't be silently bolted on. Title/description/materials/category/
-    // thumbnail edits work correctly; video replacement still requires a
-    // product decision before it's built.
+    // ── Video replacement (Sept 2026) ───────────────────────────────────
+    // Product decision: replacing the video on ANY project — regardless of
+    // its current status — always resets it to 'pending' with a fresh AI
+    // review, and NEVER auto-publishes even on a high-confidence APPROVE
+    // (same rule the Sept 17 fix applied to first-time uploads). Everything
+    // else about the project (title, description, materials, category,
+    // collaborators, challenge) carries over untouched — only the video and
+    // its review state change. This closes the same "video went live
+    // without review" class of gap the Sept 17 fix addressed for new
+    // uploads — replacing a video is functionally a fresh submission and
+    // must go through the exact same gate.
+    let newVideoUrl;
+    let resetFields = {};
+    if (videoStoragePath) {
+        const existing = await prismaClient_1.default.project.findUnique({
+            where: { id },
+            select: { userId: true, title: true, description: true, video: true, status: true },
+        });
+        if (!existing || existing.userId !== ownerUserId) {
+            return res.status(404).json({ error: "Project not found" });
+        }
+        let localVideoPath;
+        try {
+            localVideoPath = await (0, firebaseStorageService_1.downloadToTempFile)(videoStoragePath);
+        }
+        catch (downloadError) {
+            logger_1.default.error(`Failed to download replacement video from storage: ${downloadError.message}`);
+            return res.status(500).json({ error: "Could not retrieve the uploaded video. Please try again." });
+        }
+        let aiReview;
+        try {
+            aiReview = await (0, aiVideoReviewService_1.reviewVideoFile)(localVideoPath, "video/mp4");
+        }
+        catch (aiError) {
+            logger_1.default.error(`AI review threw unexpectedly on video replacement: ${aiError.message}`);
+            aiReview = { verdict: "UNSURE", reason: "AI review failed unexpectedly — needs human review.", confidence: 0 };
+        }
+        const aiReviewedAt = new Date();
+        try {
+            if (uploadToYouTube) {
+                const result = await uploadToYouTube(localVideoPath, {
+                    title: title !== undefined ? title : existing.title,
+                    description: description !== undefined ? description : (existing.description || ""),
+                    tags: ["MiniGuru", "STEM", "Education", "India"],
+                });
+                newVideoUrl = result?.url;
+                // Old video is being fully replaced — clean it up on YouTube too,
+                // same helper the admin-side replacement and rejectProject both
+                // already use in production.
+                const oldVideoUrl = existing.video?.url;
+                if (oldVideoUrl && deleteVideo) {
+                    await deleteVideo((0, videoApprovalController_1.extractYouTubeId)(oldVideoUrl)).catch((e) => logger_1.default.warn({ e }, "⚠️ Could not delete old YouTube video after replacement — it may need manual cleanup"));
+                }
+            }
+        }
+        catch (uploadError) {
+            logger_1.default.error(`❌ Replacement video YouTube upload failed: ${uploadError.message}`);
+            return res.status(500).json({ error: "Failed to upload the replacement video. Please try again." });
+        }
+        finally {
+            if (localVideoPath && fs_1.default.existsSync(localVideoPath))
+                fs_1.default.promises.unlink(localVideoPath).catch(() => { });
+            await (0, firebaseStorageService_1.deleteFromStorage)(videoStoragePath).catch(() => { });
+        }
+        resetFields = {
+            status: "pending",
+            aiVerdict: aiReview.verdict,
+            aiReason: aiReview.reason,
+            aiConfidence: aiReview.confidence,
+            aiReviewedAt,
+        };
+        // Same advisory-only notification pattern as a first-time upload —
+        // never auto-publishes, just makes sure admin knows a replacement is
+        // waiting, same as any fresh submission would.
+        try {
+            await (0, notificationService_1.notifyAllAdmins)({
+                type: "video_replaced",
+                emoji: "🔁",
+                message: `"${title || existing.title}" had its video replaced and needs review again.`,
+                link: "/videos",
+            });
+        }
+        catch (notifyError) {
+            logger_1.default.warn(`Failed to create video-replacement admin notification (non-fatal): ${notifyError.message}`);
+        }
+    }
     try {
-        const project = await projectService.update(userId, id, {
+        const project = await projectService.update(ownerUserId, id, {
             title,
             description,
             startDate,
@@ -453,6 +542,9 @@ const updateProject = async (req, res) => {
             materials,
             categoryName,
             thumbnailPath,
+            videoUrl: newVideoUrl,
+            desiredPrivacyStatus,
+            ...resetFields,
         });
         res.json(project);
     }
@@ -544,17 +636,45 @@ const adminUpdateProject = async (req, res) => {
                 .map((u) => ({ userId: u.id, name: u.name }));
         }
         // Video replacement — only runs if the admin actually uploaded a new
-        // file. Uploads the new video to YouTube, matches the OLD video's
-        // public/unlisted state, deletes the old YouTube video (deleteVideo is
-        // the same helper rejectProject already uses — proven in production),
-        // then cleans up the temp Firebase Storage copy. Never touches
-        // AI-review fields or resets status — an admin replacing a video is a
-        // deliberate, already-reviewed correction, not a fresh submission.
+        // file. Uploads the new video to YouTube, deletes the old YouTube
+        // video (deleteVideo is the same helper rejectProject already uses —
+        // proven in production), then cleans up the temp Firebase Storage
+        // copy.
+        //
+        // BEHAVIOUR CHANGED (Sept 2026): this used to skip AI review entirely
+        // and preserve whatever status the project already had, on the theory
+        // that an admin replacing a video is "already reviewed." That's the
+        // same shape of gap the Sept 17 fix closed for first-time uploads — a
+        // NEW video file is new content, whoever uploads it, and must go
+        // through the same AI-review-then-admin-approval gate as anything
+        // else. An admin replacing a video now resets it to 'pending' with a
+        // fresh AI review too, exactly like the child-facing updateProject
+        // path — the admin can still approve it again in one click right
+        // after if they're confident, but there's no code path left, admin or
+        // otherwise, where a new video file goes live without ever being
+        // reviewed.
         let newVideoUrl = undefined;
+        let resetFields = {};
         if (videoStoragePath && uploadToYouTube) {
             let tempPath = null;
             try {
                 tempPath = await (0, firebaseStorageService_1.downloadToTempFile)(videoStoragePath);
+                let aiReview;
+                try {
+                    aiReview = await (0, aiVideoReviewService_1.reviewVideoFile)(tempPath, "video/mp4");
+                }
+                catch (aiError) {
+                    logger_1.default.error(`AI review threw unexpectedly on admin video replacement: ${aiError.message}`);
+                    aiReview = { verdict: "UNSURE", reason: "AI review failed unexpectedly — needs human review.", confidence: 0 };
+                }
+                const aiReviewedAt = new Date();
+                resetFields = {
+                    status: "pending",
+                    aiVerdict: aiReview.verdict,
+                    aiReason: aiReview.reason,
+                    aiConfidence: aiReview.confidence,
+                    aiReviewedAt,
+                };
                 const enrichedDescription = await buildMaterialsEnrichedDescription(description !== undefined ? description : (project.description || ""), materials || []);
                 const result = await uploadToYouTube(tempPath, {
                     title: title !== undefined ? title : project.title,
@@ -562,10 +682,10 @@ const adminUpdateProject = async (req, res) => {
                     tags: ["MiniGuru", "STEM", "Education", "India"],
                 });
                 newVideoUrl = result?.url;
-                const newVideoId = result?.videoId;
-                if (project.status === "published" && newVideoId && setVideoPublic) {
-                    await setVideoPublic(newVideoId).catch((e) => logger_1.default.warn({ e }, "⚠️ Could not set replacement video public — it stays unlisted, admin can fix manually on YouTube"));
-                }
+                // Deliberately NOT calling setVideoPublic here anymore — the
+                // project is 'pending' again now, same as any project awaiting
+                // approval; publishAndAwardProject (admin's own Approve click)
+                // is the only place that ever makes a video public.
                 const oldVideoUrl = project.video?.url;
                 if (oldVideoUrl && deleteVideo) {
                     await deleteVideo((0, videoApprovalController_1.extractYouTubeId)(oldVideoUrl)).catch((e) => logger_1.default.warn({ e }, "⚠️ Could not delete old YouTube video after replacement — it may need manual cleanup"));
@@ -587,6 +707,7 @@ const adminUpdateProject = async (req, res) => {
             thumbnailPath,
             videoUrl: newVideoUrl,
             collaborators: resolvedCollaborators,
+            ...resetFields,
         });
         res.json(updated);
     }

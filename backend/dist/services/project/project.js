@@ -61,7 +61,11 @@ class ProjectService {
     }
     async update(userId, id, projectData) {
         const { title, description, startDate, endDate, materials, categoryName, thumbnailPath, videoUrl, collaborators, // admin-only field — see adminUpdateProject in projectController.ts
-         } = projectData;
+        // Sept 2026 — video-replacement support. When a video is replaced,
+        // the controller passes ALL of these together so the reset happens
+        // atomically with the new video, never as a separate follow-up call:
+        status, // 'pending' on any video replacement — see controller
+        aiVerdict, aiReason, aiConfidence, aiReviewedAt, desiredPrivacyStatus, } = projectData;
         let category;
         if (categoryName) {
             category = await prismaClient_1.default.projectCategory.findUnique({
@@ -73,27 +77,54 @@ class ProjectService {
         const enrichedMaterials = materials
             ? await this.addNameToMaterials(materials)
             : undefined;
-        return await prismaClient_1.default.project.update({
-            where: { id },
-            data: {
-                title,
-                description,
-                startDate: startDate ? new Date(startDate) : undefined,
-                endDate: endDate ? new Date(endDate) : undefined,
-                // Guard against wiping the existing thumbnail: only ever write a
-                // new value when one was genuinely provided. This used to receive
-                // "" on every edit that didn't touch the thumbnail, silently
-                // deleting it — undefined here means "leave field untouched" to
-                // Prisma, "" would have meant "set it to blank".
-                thumbnail: thumbnailPath || undefined,
-                video: videoUrl ? { url: videoUrl } : undefined,
-                materials: enrichedMaterials,
-                categoryId: category?.id,
-                // undefined = leave untouched; an actual array (even []) replaces
-                // it wholesale — matches how title/description already behave.
-                collaborators: collaborators !== undefined ? collaborators : undefined,
-            },
-        });
+        // BUGFIX (Sept 2026): this used to filter only by `id` — ANY
+        // authenticated user could edit ANY other user's project by guessing
+        // its id. `userId` is now part of the where clause too, so a mismatch
+        // fails exactly like a genuinely missing project (never confirms
+        // whether the id exists for someone else, which is the right call —
+        // no need to leak that). Callers must pass the real owning userId:
+        // updateProject resolves it the same way createProject does (child's
+        // own id during a mentor's PIN session), adminUpdateProject already
+        // fetches and passes the real project.userId, not the admin's own id.
+        try {
+            return await prismaClient_1.default.project.update({
+                where: { id, userId },
+                data: {
+                    title,
+                    description,
+                    startDate: startDate ? new Date(startDate) : undefined,
+                    endDate: endDate ? new Date(endDate) : undefined,
+                    // Guard against wiping the existing thumbnail: only ever write a
+                    // new value when one was genuinely provided. This used to receive
+                    // "" on every edit that didn't touch the thumbnail, silently
+                    // deleting it — undefined here means "leave field untouched" to
+                    // Prisma, "" would have meant "set it to blank".
+                    thumbnail: thumbnailPath || undefined,
+                    video: videoUrl ? { url: videoUrl } : undefined,
+                    materials: enrichedMaterials,
+                    categoryId: category?.id,
+                    // undefined = leave untouched; an actual array (even []) replaces
+                    // it wholesale — matches how title/description already behave.
+                    collaborators: collaborators !== undefined ? collaborators : undefined,
+                    status: status || undefined,
+                    aiVerdict: aiVerdict !== undefined ? aiVerdict : undefined,
+                    aiReason: aiReason !== undefined ? aiReason : undefined,
+                    aiConfidence: typeof aiConfidence === "number" ? aiConfidence : undefined,
+                    aiReviewedAt: aiReviewedAt || undefined,
+                    desiredPrivacyStatus: desiredPrivacyStatus && ["PUBLIC", "UNLISTED", "PRIVATE"].includes(desiredPrivacyStatus)
+                        ? desiredPrivacyStatus
+                        : undefined,
+                },
+            });
+        }
+        catch (err) {
+            // Prisma throws P2025 ("record to update not found") for a
+            // where-clause mismatch — exactly what a wrong-owner attempt or a
+            // genuinely missing id both look like from here.
+            if (err?.code === "P2025")
+                throw new error_1.NotFoundError("Project not found");
+            throw err;
+        }
     }
     async getById(userId, id) {
         const project = await prismaClient_1.default.project.findUnique({
