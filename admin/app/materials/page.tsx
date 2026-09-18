@@ -54,7 +54,7 @@ function FindOnAmazonModal({ material: m, apiBase, onClose, onPicked }: {
   material: { id: string; name: string }
   apiBase: string
   onClose: () => void
-  onPicked: (asin: string, priceRupees: number | null, imageUrl: string | null, extractedUnit: string | null) => void
+  onPicked: (asin: string, priceRupees: number | null, imageUrl: string | null, extractedUnit: string | null, title: string | null) => void
 }) {
   const [loading, setLoading]   = React.useState(true)
   const [configured, setConfigured] = React.useState(true)
@@ -125,7 +125,7 @@ function FindOnAmazonModal({ material: m, apiBase, onClose, onPicked }: {
               {results.map(r => (
                 <button
                   key={r.asin}
-                  onClick={() => onPicked(r.asin, r.priceRupees, r.imageUrl, r.extractedUnit)}
+                  onClick={() => onPicked(r.asin, r.priceRupees, r.imageUrl, r.extractedUnit, r.title ?? null)}
                   className="w-full flex items-center gap-3 p-2 border border-gray-200 rounded-lg hover:border-orange-400 hover:bg-orange-50 text-left transition-colors"
                 >
                   <div className="w-14 h-14 flex-shrink-0 bg-white border rounded flex items-center justify-center overflow-hidden">
@@ -381,7 +381,7 @@ function ImageIssuesTab({ apiBase, onMaterialsChanged, flash }: {
           material={{ id: findingMat.id, name: findingMat.name }}
           apiBase={apiBase}
           onClose={() => setFindingMat(null)}
-          onPicked={async (asin, priceRupees, imageUrl, extractedUnit) => {
+          onPicked={async (asin, priceRupees, imageUrl, extractedUnit, title) => {
             setFindingMat(null)
             const token = await authToken()
             await fetch(`${apiBase}/materials/admin/${findingMat.id}`, {
@@ -392,6 +392,9 @@ function ImageIssuesTab({ apiBase, onMaterialsChanged, flash }: {
                 ...(priceRupees != null ? { priceEstimate: priceRupees } : {}),
                 ...(imageUrl ? { imageUrl } : {}),
                 ...(extractedUnit ? { unit: extractedUnit } : {}),
+                // A Find pick is a deliberate correction -- always refresh
+                // the description to match whatever was actually chosen.
+                ...(title ? { description: title } : {}),
               }),
             })
             flash(`Linked "${findingMat.name}"${imageUrl ? ' with its Amazon photo' : ''}`)
@@ -404,10 +407,11 @@ function ImageIssuesTab({ apiBase, onMaterialsChanged, flash }: {
   )
 }
 
-function AiSuggestionsTab({ apiBase, onMaterialsChanged, flash }: {
+function AiSuggestionsTab({ apiBase, onMaterialsChanged, flash, onEditMaterial }: {
   apiBase: string
   onMaterialsChanged: () => void
   flash: (msg: string, isError?: boolean) => void
+  onEditMaterial: (materialId: string) => void
 }) {
   const [scanning, setScanning] = React.useState(false)
   const [pending, setPending] = React.useState<AmazonSuggestionRow[]>([])
@@ -416,6 +420,58 @@ function AiSuggestionsTab({ apiBase, onMaterialsChanged, flash }: {
   const [loading, setLoading] = React.useState(true)
   const [lastScan, setLastScan] = React.useState<string | null>(null)
   const [findingFor, setFindingFor] = React.useState<{ id: string; name: string } | null>(null)
+  const [photoAudit, setPhotoAudit] = React.useState<{ checked: number; differences: any[]; stoppedEarly: boolean } | null>(null)
+  const [auditRunning, setAuditRunning] = React.useState(false)
+
+  const runPhotoAudit = async () => {
+    setAuditRunning(true)
+    try {
+      const token = await authToken()
+      const res = await fetch(`${apiBase}/materials/admin/amazon-photo-audit`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ limit: 200 }),
+      })
+      if (!res.ok) throw new Error((await res.json()).error || 'Failed')
+      setPhotoAudit(await res.json())
+    } catch (e: any) {
+      flash('Photo audit failed: ' + e.message, true)
+    } finally {
+      setAuditRunning(false)
+    }
+  }
+
+  const useAmazonPhoto = async (materialId: string, amazonImageUrl: string, materialName: string) => {
+    try {
+      const token = await authToken()
+      await fetch(`${apiBase}/materials/admin/${materialId}`, {
+        method: 'PUT',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ imageUrl: amazonImageUrl }),
+      })
+      flash(`Updated "${materialName}"'s photo from Amazon.`)
+      setPhotoAudit(prev => prev ? { ...prev, differences: prev.differences.filter((d: any) => d.materialId !== materialId) } : prev)
+      onMaterialsChanged()
+    } catch (e: any) {
+      flash('Could not update photo: ' + e.message, true)
+    }
+  }
+
+  const excludeMaterialFromShop = async (materialId: string, materialName: string) => {
+    try {
+      const token = await authToken()
+      await fetch(`${apiBase}/materials/admin/${materialId}`, {
+        method: 'PUT',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ showInShop: false }),
+      })
+      flash(`"${materialName}" excluded from Shop — stays available for planning.`)
+      setPhotoAudit(prev => prev ? { ...prev, differences: prev.differences.filter((d: any) => d.materialId !== materialId) } : prev)
+      onMaterialsChanged()
+    } catch (e: any) {
+      flash('Could not exclude: ' + e.message, true)
+    }
+  }
 
   const loadAll = React.useCallback(async () => {
     setLoading(true)
@@ -499,6 +555,26 @@ function AiSuggestionsTab({ apiBase, onMaterialsChanged, flash }: {
     }
   }
 
+  // "Keep it planning-only, don't try to sell it via Amazon" — one action:
+  // sets the material's showInShop off AND dismisses this suggestion so it
+  // stops showing up here (and, since scans are shop-only now, never gets
+  // rescanned either).
+  const excludeFromShop = async (suggestionId: string, materialName: string) => {
+    try {
+      const token = await authToken()
+      const res = await fetch(`${apiBase}/materials/admin/amazon-suggestions/${suggestionId}/exclude-from-shop`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      if (!res.ok) throw new Error((await res.json()).error || 'Failed')
+      flash(`"${materialName}" excluded from Shop — stays available for planning.`)
+      await loadAll()
+      onMaterialsChanged()
+    } catch (e: any) {
+      flash('Could not exclude: ' + e.message, true)
+    }
+  }
+
   return (
     <div className="space-y-4">
       <Card className="p-4 border-0 shadow-sm">
@@ -532,10 +608,20 @@ function AiSuggestionsTab({ apiBase, onMaterialsChanged, flash }: {
                       <p className="text-sm text-gray-900">{m.name}</p>
                       <p className="text-xs text-red-600">{m.amazonAttentionReason}</p>
                     </div>
-                    {m.amazonUrl && (
-                      <a href={m.amazonUrl} target="_blank" rel="noopener"
-                        className="text-xs text-orange-600 hover:underline whitespace-nowrap">View ↗</a>
-                    )}
+                    <div className="flex items-center gap-1 flex-shrink-0">
+                      {m.amazonUrl && (
+                        <a href={m.amazonUrl} target="_blank" rel="noopener"
+                          className="text-xs text-orange-600 hover:underline whitespace-nowrap px-1">View ↗</a>
+                      )}
+                      <button onClick={() => setFindingFor({ id: m.id, name: m.name })}
+                        className="px-2 py-1 bg-white border border-orange-300 text-orange-600 rounded text-xs hover:bg-orange-50 whitespace-nowrap">
+                        🔍 Find
+                      </button>
+                      <button onClick={() => onEditMaterial(m.id)}
+                        className="px-2 py-1 bg-white border border-gray-300 text-gray-600 rounded text-xs hover:bg-gray-50 whitespace-nowrap">
+                        ✎ Edit
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -575,6 +661,12 @@ function AiSuggestionsTab({ apiBase, onMaterialsChanged, flash }: {
                         className="px-2 py-1 bg-white border border-orange-300 text-orange-600 rounded text-xs hover:bg-orange-50">🔍 Find</button>
                       <button onClick={() => resolveSuggestion(s.id, 'approve')}
                         className="px-2 py-1 bg-green-600 text-white rounded text-xs hover:bg-green-700">✓ Link</button>
+                      <button onClick={() => onEditMaterial(s.materialId)}
+                        title="Edit this material"
+                        className="px-2 py-1 bg-white border border-gray-300 text-gray-600 rounded text-xs hover:bg-gray-50">✎</button>
+                      <button onClick={() => excludeFromShop(s.id, s.materialName)}
+                        title="Keep planning-only, don't sell via Amazon"
+                        className="px-2 py-1 bg-white border border-amber-300 text-amber-700 rounded text-xs hover:bg-amber-50 whitespace-nowrap">Exclude</button>
                       <button onClick={() => resolveSuggestion(s.id, 'reject')}
                         className="px-2 py-1 border border-gray-300 text-gray-600 rounded text-xs hover:bg-gray-50">✕</button>
                     </div>
@@ -609,6 +701,72 @@ function AiSuggestionsTab({ apiBase, onMaterialsChanged, flash }: {
                         className="text-xs text-orange-600 hover:underline whitespace-nowrap">
                         Search on Amazon ↗
                       </a>
+                      <button onClick={() => excludeFromShop(s.id, s.materialName)}
+                        title="Keep planning-only, don't sell via Amazon"
+                        className="px-2 py-1 bg-white border border-amber-300 text-amber-700 rounded text-xs hover:bg-amber-50 whitespace-nowrap">
+                        Exclude
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </Card>
+
+          <Card className="p-4 border-0 shadow-sm">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="font-semibold text-gray-900">
+                🖼️ Image Mismatch{photoAudit ? ` (${photoAudit.differences.length})` : ''}
+              </h3>
+              <button onClick={runPhotoAudit} disabled={auditRunning}
+                className="px-3 py-1.5 bg-white border border-gray-300 text-gray-700 rounded text-xs hover:bg-gray-50 disabled:opacity-50 flex items-center gap-1">
+                {auditRunning ? <Loader2 className="animate-spin" size={14} /> : null}
+                {auditRunning ? 'Checking…' : '🔎 Run Photo Audit'}
+              </button>
+            </div>
+            <p className="text-xs text-gray-400 mb-3">
+              Checks every linked material's current photo against what Amazon shows for its ASIN today
+              — flags anything different, or missing entirely. Never changes anything on its own; you
+              decide per item below.
+            </p>
+            {!photoAudit ? (
+              <p className="text-sm text-gray-400 py-4 text-center">Not run yet this session — click "Run Photo Audit" above.</p>
+            ) : photoAudit.differences.length === 0 ? (
+              <p className="text-sm text-gray-400 py-4 text-center">Checked {photoAudit.checked} linked materials — all photos match. ✅</p>
+            ) : (
+              <div className="space-y-2">
+                {photoAudit.differences.map((d: any) => (
+                  <div key={d.materialId} className="flex items-center gap-3 p-2 bg-purple-50 border border-purple-200 rounded-lg">
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      <div className="text-center">
+                        <div className="w-12 h-12 bg-white border rounded flex items-center justify-center overflow-hidden">
+                          {d.appImageUrl
+                            ? <img src={d.appImageUrl} alt="" className="max-w-full max-h-full object-contain" />
+                            : <Package size={16} className="text-gray-300" />}
+                        </div>
+                        <p className="text-[10px] text-gray-400 mt-0.5">In app</p>
+                      </div>
+                      <span className="text-gray-300">→</span>
+                      <div className="text-center">
+                        <div className="w-12 h-12 bg-white border rounded flex items-center justify-center overflow-hidden">
+                          {d.amazonImageUrl
+                            ? <img src={d.amazonImageUrl} alt="" className="max-w-full max-h-full object-contain" />
+                            : <Package size={16} className="text-gray-300" />}
+                        </div>
+                        <p className="text-[10px] text-gray-400 mt-0.5">On Amazon</p>
+                      </div>
+                    </div>
+                    <p className="text-sm text-gray-900 flex-1 min-w-0">{d.materialName}</p>
+                    <div className="flex flex-col gap-1 flex-shrink-0">
+                      <button onClick={() => useAmazonPhoto(d.materialId, d.amazonImageUrl, d.materialName)}
+                        className="px-2 py-1 bg-purple-600 text-white rounded text-xs hover:bg-purple-700 whitespace-nowrap">
+                        Use Amazon Photo
+                      </button>
+                      <button onClick={() => excludeMaterialFromShop(d.materialId, d.materialName)}
+                        title="Keep planning-only, don't sell via Amazon"
+                        className="px-2 py-1 bg-white border border-amber-300 text-amber-700 rounded text-xs hover:bg-amber-50 whitespace-nowrap">
+                        Exclude
+                      </button>
                     </div>
                   </div>
                 ))}
@@ -622,7 +780,7 @@ function AiSuggestionsTab({ apiBase, onMaterialsChanged, flash }: {
           material={findingFor}
           apiBase={apiBase}
           onClose={() => setFindingFor(null)}
-          onPicked={async (asin, priceRupees, imageUrl, extractedUnit) => {
+          onPicked={async (asin, priceRupees, imageUrl, extractedUnit, title) => {
             const pickedFor = findingFor
             setFindingFor(null)
             if (!pickedFor) return
@@ -631,7 +789,7 @@ function AiSuggestionsTab({ apiBase, onMaterialsChanged, flash }: {
               const res = await fetch(`${apiBase}/materials/admin/${pickedFor.id}/link-amazon`, {
                 method: 'POST',
                 headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-                body: JSON.stringify({ asin, priceRupees, imageUrl, extractedUnit }),
+                body: JSON.stringify({ asin, priceRupees, imageUrl, extractedUnit, description: title }),
               })
               if (!res.ok) throw new Error((await res.json()).error || 'Failed to link')
               flash(`Linked "${pickedFor.name}" directly`)
@@ -725,6 +883,20 @@ function MaterialsPageInner() {
       showInPlanning: m.showInPlanning ?? true,
     })
     setShowForm(true)
+  }
+
+  // Used by the AI Scan & Refresh tab's Edit buttons (Needs Attention,
+  // Pending Suggestions) -- those rows only carry a materialId, so look the
+  // full Material up from what's already loaded for the main tab, switch
+  // to it, and open the same edit form used everywhere else.
+  const onEditMaterial = (materialId: string) => {
+    const found = materials.find(x => x.id === materialId)
+    if (!found) {
+      flash('Could not find that material to edit — try refreshing.', true)
+      return
+    }
+    setTab('materials')
+    openEdit(found)
   }
 
   const openAdd = () => {
@@ -1056,7 +1228,7 @@ function MaterialsPageInner() {
                 material={{ id: findingMat.id, name: findingMat.name }}
                 apiBase={API_BASE}
                 onClose={() => setFindingMat(null)}
-                onPicked={async (asin, priceRupees, imageUrl, extractedUnit) => {
+                onPicked={async (asin, priceRupees, imageUrl, extractedUnit, title) => {
                   setFindingMat(null)
                   const token = await authToken()
                   await fetch(`${API_BASE}/materials/admin/${findingMat.id}`, {
@@ -1069,6 +1241,7 @@ function MaterialsPageInner() {
                       // never silently overwrite an existing photo here.
                       ...(!findingMat.imageUrl && imageUrl ? { imageUrl } : {}),
                       ...(extractedUnit && (!findingMat.unit || findingMat.unit === 'piece') ? { unit: extractedUnit } : {}),
+                      ...(title ? { description: title } : {}),
                     }),
                   })
                   flash(`Linked ASIN for "${findingMat.name}"`)
@@ -1081,7 +1254,7 @@ function MaterialsPageInner() {
 
         {/* ── AMAZON SETUP TAB ── */}
         {/* ── AI SCAN & REFRESH TAB ── */}
-        {tab === 'ai' && <AiSuggestionsTab apiBase={API_BASE} onMaterialsChanged={load} flash={flash} />}
+        {tab === 'ai' && <AiSuggestionsTab apiBase={API_BASE} onMaterialsChanged={load} flash={flash} onEditMaterial={onEditMaterial} />}
 
         {/* ── SUGGESTIONS FROM USERS TAB ── */}
         {tab === 'suggestions' && <SuggestionsTab />}

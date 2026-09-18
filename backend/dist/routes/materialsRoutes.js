@@ -342,7 +342,7 @@ router.post('/admin/:id/find-on-amazon', authMiddleware_1.authenticateToken, req
 // default "piece" — never overwrites something an admin deliberately set.
 router.post('/admin/:id/link-amazon', authMiddleware_1.authenticateToken, requireAdmin, async (req, res) => {
     try {
-        const { asin, priceRupees, imageUrl, extractedUnit, tag } = req.body || {};
+        const { asin, priceRupees, imageUrl, extractedUnit, tag, description } = req.body || {};
         if (!asin || typeof asin !== 'string') {
             return res.status(400).json({ error: 'asin is required' });
         }
@@ -364,6 +364,14 @@ router.post('/admin/:id/link-amazon', authMiddleware_1.authenticateToken, requir
         if (extractedUnit && (!existing.unit || existing.unit === 'piece')) {
             data.unit = String(extractedUnit);
         }
+        // Description is different from image/unit: linking an ASIN via Find is
+        // always a DELIBERATE admin action (they searched, saw a title, and
+        // picked it) — so unlike the image/unit fallbacks above, the found
+        // product's title always overwrites the description, since the whole
+        // point of a correction is matching what's actually being linked.
+        if (description && String(description).trim()) {
+            data.description = String(description).trim();
+        }
         // Same as the manual PUT path — a fresh link clears any stale flag.
         data.amazonNeedsAttention = false;
         data.amazonAttentionReason = null;
@@ -374,6 +382,29 @@ router.post('/admin/:id/link-amazon', authMiddleware_1.authenticateToken, requir
     catch (err) {
         console.error('[materials] POST /admin/:id/link-amazon error:', err);
         res.status(500).json({ error: 'Failed to link Amazon product' });
+    }
+});
+// ── POST /admin/amazon-suggestions/:id/exclude-from-shop ───────────────────
+// "This material should stay planning-only, don't try to sell it via
+// Amazon at all" — sets the underlying Material's showInShop to false AND
+// dismisses the suggestion (so it stops appearing in Pending/No-Match
+// lists and, since the scan itself is shop-only now, never gets rescanned
+// either). One action instead of two separate manual steps.
+router.post('/admin/amazon-suggestions/:id/exclude-from-shop', authMiddleware_1.authenticateToken, requireAdmin, async (req, res) => {
+    try {
+        const suggestion = await prismaClient_1.default.amazonSuggestion.findUnique({ where: { id: req.params.id } });
+        if (!suggestion)
+            return res.status(404).json({ error: 'Suggestion not found' });
+        await prismaClient_1.default.material.update({
+            where: { id: suggestion.materialId },
+            data: { showInShop: false, amazonNeedsAttention: false, amazonAttentionReason: null },
+        });
+        const updated = await (0, amazonSuggestionService_1.rejectAmazonSuggestion)(req.params.id, req.user.userId);
+        res.json({ message: 'Excluded from shop — stays available for planning only.', suggestion: updated });
+    }
+    catch (err) {
+        console.error('[materials] POST /admin/amazon-suggestions/:id/exclude-from-shop error:', err);
+        res.status(500).json({ error: 'Failed to exclude from shop' });
     }
 });
 // ── AI Suggestions queue — bulk scan, list, approve, reject ────────────────
