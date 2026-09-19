@@ -15,6 +15,7 @@ class Project {
   final String materials; // List of Material objects
   final DateTime createdAt;
   final DateTime updatedAt;
+  final String status; // pending | published | rejected — used by the Replace Video flow to show current review state
 
   Project({
     required this.id,
@@ -31,6 +32,7 @@ class Project {
     required this.materials, // Updated to include list of Materials
     required this.createdAt,
     required this.updatedAt,
+    this.status = 'pending',
   });
 
   // Convert JSON to Project object
@@ -50,6 +52,7 @@ class Project {
       materials: jsonEncode(json['materials']), // Handle list of materials
       createdAt: DateTime.parse(json['createdAt']),
       updatedAt: DateTime.parse(json['updatedAt']),
+      status: (json['status'] as String?) ?? 'pending',
     );
   }
 

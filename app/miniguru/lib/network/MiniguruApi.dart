@@ -537,6 +537,66 @@ class MiniguruApi {
     return response;
   }
 
+  /// Replaces an existing project's video (Sept 2026). Same direct-to-
+  /// Firebase-Storage upload as a fresh project — Cloud Run's 32MB body
+  /// limit still applies to everything else this app does. The project
+  /// always goes back to 'pending' for a fresh AI+admin review once this
+  /// succeeds; this call never publishes anything on its own.
+  Future<http.Response?> replaceProjectVideo(String projectId, XFile video) async {
+    final authToken = await _getValidToken();
+    if (authToken == null) return null;
+
+    final videoUrlInfo = await _requestUploadUrl(video.name, 'video/mp4', 'video');
+    if (videoUrlInfo == null) {
+      return http.Response(
+          jsonEncode({'error': 'Could not prepare the upload. Please try again.'}),
+          500);
+    }
+    Uint8List videoBytes;
+    try {
+      videoBytes = await video.readAsBytes();
+    } catch (e) {
+      return http.Response(
+          jsonEncode({'error': 'Could not read the video file: $e'}), 500);
+    }
+    http.Response videoPut;
+    try {
+      videoPut = await http.put(
+        Uri.parse(videoUrlInfo['uploadUrl']!),
+        headers: {'Content-Type': 'video/mp4'},
+        body: videoBytes,
+      ).timeout(const Duration(minutes: 10));
+    } catch (e) {
+      return http.Response(
+          jsonEncode({'error': 'Upload timed out or lost connection — please '
+              'check your internet and try again. ($e)'}),
+          500);
+    }
+    if (videoPut.statusCode < 200 || videoPut.statusCode >= 300) {
+      return http.Response(
+          jsonEncode({'error': 'Upload failed (storage error ${videoPut.statusCode}). '
+              'Please try again.'}),
+          500);
+    }
+
+    http.Response response;
+    try {
+      response = await http.put(
+        Uri.parse('$_baseUrl/project/$projectId'),
+        headers: _buildHeaders(authToken.accessToken),
+        body: jsonEncode({'videoStoragePath': videoUrlInfo['storagePath']}),
+      ).timeout(const Duration(minutes: 8));
+    } catch (e) {
+      return http.Response(
+          jsonEncode({'error': 'The new video finished uploading, but saving it '
+              'to your project took too long or lost connection. Please try '
+              'again — if it keeps happening, contact support. ($e)'}),
+          500);
+    }
+    _handleResponse(response);
+    return response;
+  }
+
   /// Looks up another user by their MiniGuru ID (login email) so a child
   /// can add them as a project collaborator while planning. Returns
   /// {'id':..., 'name':...} on success, or null if not found / any error.

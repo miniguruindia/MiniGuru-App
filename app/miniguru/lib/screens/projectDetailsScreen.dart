@@ -1,6 +1,11 @@
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:file_picker/file_picker.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:miniguru/constants.dart';
 import 'package:miniguru/models/Projects.dart';
 import 'package:miniguru/models/User.dart';
@@ -54,6 +59,99 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
     // an empty list instead of crashing the whole screen.
     materialList = _safeDoubleDecodeList(widget.project.materials);
     comments = _safeDoubleDecodeList(widget.project.comments);
+  }
+
+  bool get _isOwner => widget.user.id == widget.project.userId;
+  bool _replacingVideo = false;
+
+  // ── Replace Video (Sept 2026) ───────────────────────────────────────
+  // Only the project's owner sees this. Picking and uploading a new video
+  // always sends the project back for a fresh AI + admin review — same
+  // reset the backend enforces regardless of what this screen does, so
+  // there's no way to accidentally publish a new video without review.
+  Future<void> _pickAndReplaceVideo() async {
+    XFile? picked;
+    try {
+      if (kIsWeb) {
+        final result = await FilePicker.platform.pickFiles(
+            type: FileType.video, allowMultiple: false,
+            withData: false, withReadStream: true);
+        if (result != null && result.files.isNotEmpty) {
+          final f = result.files.first;
+          if (f.size > 150 * 1024 * 1024) {
+            _showReplaceSnack(
+                'This video is large (${(f.size / (1024 * 1024)).round()}MB) — '
+                'keep this tab open and stay on a strong connection while it uploads.');
+          }
+          final builder = BytesBuilder(copy: false);
+          await for (final chunk in f.readStream!) {
+            builder.add(chunk);
+          }
+          picked = XFile.fromData(builder.takeBytes(), name: f.name, mimeType: 'video/mp4');
+        }
+      } else {
+        await [Permission.storage].request();
+        picked = await ImagePicker().pickVideo(source: ImageSource.gallery);
+      }
+    } catch (e) {
+      _showReplaceSnack('Could not pick that video: $e', isError: true);
+      return;
+    }
+    if (picked == null) return;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Replace this video?'),
+        content: const Text(
+            'Your project will go back to Pending — an admin will need to '
+            'review and approve it again before it\'s visible to anyone else. '
+            'Everything else (title, materials, category) stays the same.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          ElevatedButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Replace')),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+
+    setState(() => _replacingVideo = true);
+    try {
+      final response = await _miniguruApi.replaceProjectVideo(widget.project.id, picked);
+      if (response != null && response.statusCode >= 200 && response.statusCode < 300) {
+        _showReplaceSnack('New video uploaded! Your project is back under review.');
+      } else {
+        String message = 'Could not replace the video. Please try again.';
+        try {
+          final body = jsonDecode(response?.body ?? '{}') as Map<String, dynamic>;
+          if (body['error'] is String) message = body['error'];
+        } catch (_) {}
+        _showReplaceSnack(message, isError: true);
+      }
+    } catch (e) {
+      _showReplaceSnack('Could not replace the video: $e', isError: true);
+    } finally {
+      if (mounted) setState(() => _replacingVideo = false);
+    }
+  }
+
+  void _showReplaceSnack(String message, {bool isError = false}) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(message),
+      backgroundColor: isError ? Colors.red[400] : null,
+    ));
+  }
+
+  ({String label, Color color, IconData icon}) _statusDisplay() {
+    switch (widget.project.status) {
+      case 'published':
+        return (label: 'Published', color: Colors.green, icon: Icons.check_circle_outline);
+      case 'rejected':
+        return (label: 'Needs changes — see admin notes', color: Colors.red, icon: Icons.error_outline);
+      default:
+        return (label: 'Pending review', color: Colors.orange, icon: Icons.hourglass_top_outlined);
+    }
   }
 
   String? _safeVideoUrl() {
@@ -433,6 +531,49 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
               ),
             ),
             const SizedBox(height: 24.0),
+
+            // Review status + Replace Video — owner only. Any owner can
+            // replace their video at any time, whatever the current
+            // status; doing so always resets the project to Pending for a
+            // fresh review (enforced server-side regardless of this UI).
+            if (_isOwner) ...[
+              Builder(builder: (context) {
+                final status = _statusDisplay();
+                return Container(
+                  padding: const EdgeInsets.all(12.0),
+                  decoration: BoxDecoration(
+                    color: status.color.withOpacity(0.08),
+                    borderRadius: BorderRadius.circular(12.0),
+                    border: Border.all(color: status.color.withOpacity(0.3)),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(status.icon, color: status.color, size: 20),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(status.label,
+                            style: bodyTextStyle.copyWith(
+                                color: status.color, fontWeight: FontWeight.w600)),
+                      ),
+                      OutlinedButton.icon(
+                        onPressed: _replacingVideo ? null : _pickAndReplaceVideo,
+                        icon: _replacingVideo
+                            ? const SizedBox(
+                                width: 14, height: 14,
+                                child: CircularProgressIndicator(strokeWidth: 2))
+                            : const Icon(Icons.refresh, size: 16),
+                        label: Text(_replacingVideo ? 'Uploading…' : 'Replace Video'),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: status.color,
+                          side: BorderSide(color: status.color),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }),
+              const SizedBox(height: 24.0),
+            ],
 
             // Author and Category
             SizedBox(
