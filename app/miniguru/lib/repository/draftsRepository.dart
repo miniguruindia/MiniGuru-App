@@ -3,7 +3,8 @@ import 'dart:core';
 
 import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
-import 'package:file_picker/file_picker.dart' show PlatformFile;
+import 'package:miniguru/network/web_video_helper_stub.dart'
+    if (dart.library.html) 'package:miniguru/network/web_video_helper_web.dart';
 import 'package:miniguru/database/database_helper.dart';
 import 'package:miniguru/models/Draft.dart';
 import 'package:miniguru/network/MiniguruApi.dart';
@@ -101,14 +102,15 @@ class DraftRepository {
     return _db.getDraftById(id);
   }
 
-  /// Same as [uploadProjects], but streams the video straight from its
-  /// PlatformFile source instead of an already-materialized XFile — see
-  /// MiniguruApi.uploadProjectWithMediaStreamed for why (Sept 2026 fix for
-  /// large-video memory crashes on phone browsers).
-  Future<int> uploadProjectsStreamed(
-      Map<String, dynamic> project, PlatformFile video, XFile? thumbnail) async {
+  /// The REAL large-video fix (Sept 2026) — routes through the browser's
+  /// native File-upload mechanism on web. See MiniguruApi
+  /// .uploadProjectWithMediaWebNative and web_video_helper_web.dart for
+  /// why (http.StreamedRequest does not actually stream on web at all —
+  /// a documented bug in package:http, not something fixable from here).
+  Future<int> uploadProjectsWebNative(
+      Map<String, dynamic> project, WebFilePick video, XFile? thumbnail) async {
     final data = transformProject(project);
-    final response = await _api.uploadProjectWithMediaStreamed(data, video, thumbnail);
+    final response = await _api.uploadProjectWithMediaWebNative(data, video, thumbnail);
     return _handleUploadResponse(response);
   }
 

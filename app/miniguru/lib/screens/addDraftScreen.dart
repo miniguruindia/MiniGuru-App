@@ -6,6 +6,8 @@ import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:miniguru/network/web_video_helper_stub.dart'
+    if (dart.library.html) 'package:miniguru/network/web_video_helper_web.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:miniguru/state/sessionState.dart';
 import 'package:http/http.dart' as http;
@@ -70,11 +72,13 @@ class _AddDraftScreenState extends State<AddDraftScreen>
   DateTime?            _startDate;
   DateTime?            _endDate;
   XFile?               _video;
-  // Web only — holds the picked video's stream reference WITHOUT ever
-  // reading it into memory. Set instead of _video when picking on web, so
-  // a 300MB+ file never needs to exist as one big buffer on a phone
-  // browser before upload even starts. See _pickVideo() and _submit().
-  PlatformFile?         _webVideoFile;
+  // Web only — a real browser File object (never its bytes) obtained via
+  // dart:html directly. This is what makes large uploads actually work on
+  // web (see web_video_helper_web.dart) — package:http's own web upload
+  // path was found NOT to stream at all, a documented bug, not something
+  // fixable by "streaming" through it. Set instead of _video when picking
+  // on web. See _pickVideo() and the submit handler below.
+  WebFilePick?         _webNativePick;
   XFile?               _thumbnail;
 
   final _titleCtrl    = TextEditingController();
@@ -195,38 +199,34 @@ class _AddDraftScreenState extends State<AddDraftScreen>
   Future<void> _pickVideo() async {
     try {
       if (kIsWeb) {
-        final result = await FilePicker.platform.pickFiles(
-            type: FileType.video, allowMultiple: false,
-            withData: false, withReadStream: true);
-        if (result != null && result.files.isNotEmpty) {
-          final f = result.files.first;
-          if (f.size > 150 * 1024 * 1024) {
+        // FIXED PROPERLY (Sept 2026): the previous fix here used
+        // FilePicker + a "streamed" http request — but package:http's
+        // StreamedRequest turned out NOT to actually stream on web at all
+        // (a documented upstream bug: dart-lang/http#1030). Using the
+        // browser's own native file input + raw XHR (see
+        // web_video_helper_web.dart) is the real fix — the browser moves
+        // the file using its own disk-backed mechanism, never as one big
+        // Dart/JS array, which is what was crashing on large videos.
+        final pick = await pickVideoFileWeb();
+        if (pick != null) {
+          if (pick.size > 150 * 1024 * 1024) {
             _showSnack(
-                'This video is large (${(f.size / (1024 * 1024)).round()}MB) — '
+                'This video is large (${(pick.size / (1024 * 1024)).round()}MB) — '
                 'keep this tab open and stay on a strong connection while it uploads.',
                 isError: false);
           }
-          // FIXED (Sept 2026): this used to drain the whole stream into one
-          // big buffer right here, at PICK time — meaning even opening a
-          // 300MB+ file already needed to hold it entirely in memory before
-          // Submit was ever tapped. That's what caused "Invalid array
-          // length" crashes on memory-limited phone browsers. Now we just
-          // keep the PlatformFile's stream reference untouched — the actual
-          // bytes are read in small chunks and streamed straight to
-          // Firebase Storage only once upload genuinely starts (see
-          // _submit() below and uploadProjectWithMediaStreamed).
           setState(() {
-            _webVideoFile = f;
+            _webNativePick = pick;
             _video = null;
           });
-          _showSnack('Video selected: ${f.name}');
+          _showSnack('Video selected: ${pick.name}');
         }
       } else {
         await [Permission.storage].request();
         final f = await _picker.pickVideo(source: ImageSource.gallery);
         if (f != null) setState(() {
           _video = f;
-          _webVideoFile = null;
+          _webNativePick = null;
         });
       }
     } catch (e) {
@@ -234,8 +234,8 @@ class _AddDraftScreenState extends State<AddDraftScreen>
     }
   }
 
-  bool get _hasVideo => _video != null || _webVideoFile != null;
-  String? get _pickedVideoName => _webVideoFile?.name ?? _video?.name;
+  bool get _hasVideo => _video != null || _webNativePick != null;
+  String? get _pickedVideoName => _webNativePick?.name ?? _video?.name;
 
   Future<void> _pickThumbnail() async {
     try {
@@ -384,10 +384,11 @@ class _AddDraftScreenState extends State<AddDraftScreen>
       };
       // Web with a large-file-safe stream reference still available ->
       // stream it straight through, never buffering the whole video.
-      // Otherwise (mobile, or a web pick that's somehow already an XFile)
-      // -> the original path, unchanged.
-      final statusCode = _webVideoFile != null
-          ? await _draftRepo.uploadProjectsStreamed(projectData, _webVideoFile!, _thumbnail)
+      // Web with a native file pick -> the real fix, native browser
+      // upload (see web_video_helper_web.dart). Otherwise (mobile) -> the
+      // original path, unchanged.
+      final statusCode = _webNativePick != null
+          ? await _draftRepo.uploadProjectsWebNative(projectData, _webNativePick!, _thumbnail)
           : await _draftRepo.uploadProjects(projectData, _video!, _thumbnail);
       if (mounted) Navigator.pop(context);
 

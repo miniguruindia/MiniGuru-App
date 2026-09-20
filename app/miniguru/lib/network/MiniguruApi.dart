@@ -4,7 +4,8 @@ import 'dart:typed_data';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
-import 'package:file_picker/file_picker.dart' show PlatformFile;
+import 'web_video_helper_stub.dart'
+    if (dart.library.html) 'web_video_helper_web.dart';
 import 'package:miniguru/database/database_helper.dart';
 import 'package:miniguru/models/AuthToken.dart';
 import 'package:miniguru/models/User.dart';
@@ -478,28 +479,20 @@ class MiniguruApi {
     return _finishProjectUpload(authToken.accessToken, data, videoUrlInfo['storagePath']!, thumbnail);
   }
 
-  /// Same as [uploadProjectWithMedia], but for web specifically: streams
-  /// the video's bytes directly from FilePicker's own readStream into the
-  /// PUT request, WITHOUT ever materializing the whole file as one big
-  /// in-memory buffer first. This is the structural fix for large videos
-  /// (300MB+) failing with "Invalid argument(s): Invalid array length" on
-  /// memory-constrained mobile browsers — that error is a real allocation
-  /// failure (mobile Chrome tabs often have well under 1GB of usable heap),
-  /// not a network timeout, even though the old error message said so.
-  /// [video] must still have its readStream available (i.e. picked with
-  /// withReadStream: true and not yet consumed).
-  Future<http.Response?> uploadProjectWithMediaStreamed(
+  /// The REAL large-video fix (Sept 2026, replacing an earlier attempt
+  /// that used http.StreamedRequest and did NOT actually work — see
+  /// web_video_helper_web.dart's top comment for the full story). On web,
+  /// [video] must be a WebFilePick from pickVideoFileWeb() so the upload
+  /// can go through the browser's own native File-upload mechanism,
+  /// bypassing package:http entirely for the one call that actually
+  /// carries the large payload.
+  Future<http.Response?> uploadProjectWithMediaWebNative(
     Map<String, dynamic> data,
-    PlatformFile video,
+    WebFilePick video,
     XFile? thumbnail,
   ) async {
     final authToken = await _getValidToken();
     if (authToken == null) return null;
-    if (video.readStream == null) {
-      return http.Response(
-          jsonEncode({'error': 'This video can no longer be uploaded — please pick it again.'}),
-          500);
-    }
 
     final videoUrlInfo = await _requestUploadUrl(video.name, 'video/mp4', 'video');
     if (videoUrlInfo == null) {
@@ -508,31 +501,19 @@ class MiniguruApi {
           500);
     }
 
-    http.StreamedResponse streamed;
+    int status;
     try {
-      final request = http.StreamedRequest('PUT', Uri.parse(videoUrlInfo['uploadUrl']!));
-      request.headers['Content-Type'] = 'video/mp4';
-      request.contentLength = video.size;
-      // Pipe chunks straight through — at no point does this app hold more
-      // than one chunk of the video in memory at once.
-      video.readStream!.listen(
-        (chunk) => request.sink.add(chunk),
-        onDone: () => request.sink.close(),
-        onError: (e) => request.sink.addError(e),
-        cancelOnError: true,
-      );
-      streamed = await http.Client()
-          .send(request)
-          .timeout(const Duration(minutes: 20));
+      status = await uploadFileToSignedUrlWeb(
+          videoUrlInfo['uploadUrl']!, video.nativeFile, 'video/mp4');
     } catch (e) {
       return http.Response(
-          jsonEncode({'error': 'Video upload timed out or lost connection — '
-              'please check your internet and try again. ($e)'}),
+          jsonEncode({'error': 'Video upload failed — please check your internet '
+              'connection and try again. ($e)'}),
           500);
     }
-    if (streamed.statusCode < 200 || streamed.statusCode >= 300) {
+    if (status < 200 || status >= 300) {
       return http.Response(
-          jsonEncode({'error': 'Video upload failed (storage error ${streamed.statusCode}). '
+          jsonEncode({'error': 'Video upload failed (storage error $status). '
               'Please try again.'}),
           500);
     }
@@ -661,18 +642,12 @@ class MiniguruApi {
     return _finishVideoReplace(authToken.accessToken, projectId, videoUrlInfo['storagePath']!);
   }
 
-  /// Same as [replaceProjectVideo], but streams the video directly from
-  /// FilePicker's readStream — see uploadProjectWithMediaStreamed for why
-  /// (large-file memory crash fix, Sept 2026). Use this on web whenever
-  /// the picked file's stream reference is still available.
-  Future<http.Response?> replaceProjectVideoStreamed(String projectId, PlatformFile video) async {
+  /// Same real fix as [uploadProjectWithMediaWebNative], applied to video
+  /// replacement — see web_video_helper_web.dart for the full story on
+  /// why this bypasses package:http for the actual upload call.
+  Future<http.Response?> replaceProjectVideoWebNative(String projectId, WebFilePick video) async {
     final authToken = await _getValidToken();
     if (authToken == null) return null;
-    if (video.readStream == null) {
-      return http.Response(
-          jsonEncode({'error': 'This video can no longer be uploaded — please pick it again.'}),
-          500);
-    }
 
     final videoUrlInfo = await _requestUploadUrl(video.name, 'video/mp4', 'video');
     if (videoUrlInfo == null) {
@@ -681,29 +656,19 @@ class MiniguruApi {
           500);
     }
 
-    http.StreamedResponse streamed;
+    int status;
     try {
-      final request = http.StreamedRequest('PUT', Uri.parse(videoUrlInfo['uploadUrl']!));
-      request.headers['Content-Type'] = 'video/mp4';
-      request.contentLength = video.size;
-      video.readStream!.listen(
-        (chunk) => request.sink.add(chunk),
-        onDone: () => request.sink.close(),
-        onError: (e) => request.sink.addError(e),
-        cancelOnError: true,
-      );
-      streamed = await http.Client()
-          .send(request)
-          .timeout(const Duration(minutes: 20));
+      status = await uploadFileToSignedUrlWeb(
+          videoUrlInfo['uploadUrl']!, video.nativeFile, 'video/mp4');
     } catch (e) {
       return http.Response(
-          jsonEncode({'error': 'Upload timed out or lost connection — please '
-              'check your internet and try again. ($e)'}),
+          jsonEncode({'error': 'Upload failed — please check your internet '
+              'connection and try again. ($e)'}),
           500);
     }
-    if (streamed.statusCode < 200 || streamed.statusCode >= 300) {
+    if (status < 200 || status >= 300) {
       return http.Response(
-          jsonEncode({'error': 'Upload failed (storage error ${streamed.statusCode}). '
+          jsonEncode({'error': 'Upload failed (storage error $status). '
               'Please try again.'}),
           500);
     }

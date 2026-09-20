@@ -4,6 +4,8 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:file_picker/file_picker.dart';
+import 'package:miniguru/network/web_video_helper_stub.dart'
+    if (dart.library.html) 'package:miniguru/network/web_video_helper_web.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:miniguru/constants.dart';
@@ -71,24 +73,23 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
   // there's no way to accidentally publish a new video without review.
   Future<void> _pickAndReplaceVideo() async {
     XFile? pickedMobile;
-    PlatformFile? pickedWeb;
+    WebFilePick? pickedWeb;
     try {
       if (kIsWeb) {
-        final result = await FilePicker.platform.pickFiles(
-            type: FileType.video, allowMultiple: false,
-            withData: false, withReadStream: true);
-        if (result != null && result.files.isNotEmpty) {
-          final f = result.files.first;
-          if (f.size > 150 * 1024 * 1024) {
+        // FIXED PROPERLY (Sept 2026): the previous version here used
+        // FilePicker + a "streamed" upload — but package:http's
+        // StreamedRequest turned out NOT to actually stream on web at all
+        // (documented upstream bug: dart-lang/http#1030). Using the
+        // browser's own native file input + raw XHR (web_video_helper_web
+        // .dart) is the real fix.
+        final pick = await pickVideoFileWeb();
+        if (pick != null) {
+          if (pick.size > 150 * 1024 * 1024) {
             _showReplaceSnack(
-                'This video is large (${(f.size / (1024 * 1024)).round()}MB) — '
+                'This video is large (${(pick.size / (1024 * 1024)).round()}MB) — '
                 'keep this tab open and stay on a strong connection while it uploads.');
           }
-          // FIXED (Sept 2026): don't drain the stream here — hold the
-          // reference and stream it straight to Storage only once upload
-          // genuinely starts, so a 300MB+ pick never needs a full in-memory
-          // copy on a phone browser. See replaceProjectVideoStreamed.
-          pickedWeb = f;
+          pickedWeb = pick;
         }
       } else {
         await [Permission.storage].request();
@@ -119,7 +120,7 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
     setState(() => _replacingVideo = true);
     try {
       final response = pickedWeb != null
-          ? await _miniguruApi.replaceProjectVideoStreamed(widget.project.id, pickedWeb)
+          ? await _miniguruApi.replaceProjectVideoWebNative(widget.project.id, pickedWeb)
           : await _miniguruApi.replaceProjectVideo(widget.project.id, pickedMobile!);
       if (response != null && response.statusCode >= 200 && response.statusCode < 300) {
         _showReplaceSnack('New video uploaded! Your project is back under review.');
