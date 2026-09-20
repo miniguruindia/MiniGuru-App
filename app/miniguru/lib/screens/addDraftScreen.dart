@@ -70,6 +70,11 @@ class _AddDraftScreenState extends State<AddDraftScreen>
   DateTime?            _startDate;
   DateTime?            _endDate;
   XFile?               _video;
+  // Web only — holds the picked video's stream reference WITHOUT ever
+  // reading it into memory. Set instead of _video when picking on web, so
+  // a 300MB+ file never needs to exist as one big buffer on a phone
+  // browser before upload even starts. See _pickVideo() and _submit().
+  PlatformFile?         _webVideoFile;
   XFile?               _thumbnail;
 
   final _titleCtrl    = TextEditingController();
@@ -201,29 +206,36 @@ class _AddDraftScreenState extends State<AddDraftScreen>
                 'keep this tab open and stay on a strong connection while it uploads.',
                 isError: false);
           }
-          // BytesBuilder accumulates chunks efficiently (append-only buffer)
-          // instead of boxing every byte individually via expand().toList(),
-          // which for a 100MB+ file can transiently need several times its
-          // size in real browser memory — a real cause of tab crashes on
-          // lower-RAM devices.
-          final builder = BytesBuilder(copy: false);
-          await for (final chunk in f.readStream!) {
-            builder.add(chunk);
-          }
-          final bytes = builder.takeBytes();
-          setState(() => _video =
-              XFile.fromData(bytes, name: f.name, mimeType: 'video/mp4'));
+          // FIXED (Sept 2026): this used to drain the whole stream into one
+          // big buffer right here, at PICK time — meaning even opening a
+          // 300MB+ file already needed to hold it entirely in memory before
+          // Submit was ever tapped. That's what caused "Invalid array
+          // length" crashes on memory-limited phone browsers. Now we just
+          // keep the PlatformFile's stream reference untouched — the actual
+          // bytes are read in small chunks and streamed straight to
+          // Firebase Storage only once upload genuinely starts (see
+          // _submit() below and uploadProjectWithMediaStreamed).
+          setState(() {
+            _webVideoFile = f;
+            _video = null;
+          });
           _showSnack('Video selected: ${f.name}');
         }
       } else {
         await [Permission.storage].request();
         final f = await _picker.pickVideo(source: ImageSource.gallery);
-        if (f != null) setState(() => _video = f);
+        if (f != null) setState(() {
+          _video = f;
+          _webVideoFile = null;
+        });
       }
     } catch (e) {
       _showSnack('Could not pick video: $e', isError: true);
     }
   }
+
+  bool get _hasVideo => _video != null || _webVideoFile != null;
+  String? get _pickedVideoName => _webVideoFile?.name ?? _video?.name;
 
   Future<void> _pickThumbnail() async {
     try {
@@ -305,7 +317,7 @@ class _AddDraftScreenState extends State<AddDraftScreen>
     if (d != null) return d;
     if (_startDate == null) return 'Start date is required.';
     if (_endDate == null)   return 'End date is required.';
-    if (_video == null)     return 'Please pick a project video.';
+    if (!_hasVideo)          return 'Please pick a project video.';
     return null;
   }
 
@@ -359,21 +371,24 @@ class _AddDraftScreenState extends State<AddDraftScreen>
         builder: (_) => const _UploadingDialog());
 
     try {
-      final statusCode = await _draftRepo.uploadProjects(
-        {
-          'title':       _titleCtrl.text,
-          'description': _descCtrl.text,
-          'startDate':   _startDate,
-          'endDate':     _endDate,
-          'category':    _categoryCtrl.text,
-          'materials':   materialsMap,
-          'collaboratorIds': _collaborators.map((c) => c['id']!).toList(),
-          if (_selectedChallengeId != null) 'challengeId': _selectedChallengeId,
-          'desiredPrivacyStatus': _desiredPrivacyStatus,
-        },
-        _video!,
-        _thumbnail,
-      );
+      final projectData = {
+        'title':       _titleCtrl.text,
+        'description': _descCtrl.text,
+        'startDate':   _startDate,
+        'endDate':     _endDate,
+        'category':    _categoryCtrl.text,
+        'materials':   materialsMap,
+        'collaboratorIds': _collaborators.map((c) => c['id']!).toList(),
+        if (_selectedChallengeId != null) 'challengeId': _selectedChallengeId,
+        'desiredPrivacyStatus': _desiredPrivacyStatus,
+      };
+      // Web with a large-file-safe stream reference still available ->
+      // stream it straight through, never buffering the whole video.
+      // Otherwise (mobile, or a web pick that's somehow already an XFile)
+      // -> the original path, unchanged.
+      final statusCode = _webVideoFile != null
+          ? await _draftRepo.uploadProjectsStreamed(projectData, _webVideoFile!, _thumbnail)
+          : await _draftRepo.uploadProjects(projectData, _video!, _thumbnail);
       if (mounted) Navigator.pop(context);
 
       if (statusCode == 201) {
@@ -838,8 +853,8 @@ class _AddDraftScreenState extends State<AddDraftScreen>
         _mediaTile(
           Icons.video_library_rounded,
           'Project Video',
-          _video != null ? '✅ ${_video!.name}' : 'Tap to pick a video file',
-          _video != null,
+          _hasVideo ? '✅ ${_pickedVideoName}' : 'Tap to pick a video file',
+          _hasVideo,
           _pickVideo,
           _purple,
         ),

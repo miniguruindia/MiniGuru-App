@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
+import 'package:file_picker/file_picker.dart' show PlatformFile;
 import 'package:miniguru/database/database_helper.dart';
 import 'package:miniguru/models/AuthToken.dart';
 import 'package:miniguru/models/User.dart';
@@ -461,8 +462,10 @@ class MiniguruApi {
       ).timeout(const Duration(minutes: 10));
     } catch (e) {
       return http.Response(
-          jsonEncode({'error': 'Video upload timed out or lost connection — '
-              'please check your internet and try again. ($e)'}),
+          jsonEncode({'error': 'Video upload failed — the file could not be sent '
+              'in one piece (this can happen with very large videos on '
+              'memory-limited devices). Try again, or use the web app on a '
+              'desktop/laptop browser for large files. ($e)'}),
           500);
     }
     if (videoPut.statusCode < 200 || videoPut.statusCode >= 300) {
@@ -472,8 +475,82 @@ class MiniguruApi {
           500);
     }
 
-    // ── Step 2: same for the thumbnail, if any (non-critical — proceed
-    // without one if this fails) ─────────────────────────────────────────
+    return _finishProjectUpload(authToken.accessToken, data, videoUrlInfo['storagePath']!, thumbnail);
+  }
+
+  /// Same as [uploadProjectWithMedia], but for web specifically: streams
+  /// the video's bytes directly from FilePicker's own readStream into the
+  /// PUT request, WITHOUT ever materializing the whole file as one big
+  /// in-memory buffer first. This is the structural fix for large videos
+  /// (300MB+) failing with "Invalid argument(s): Invalid array length" on
+  /// memory-constrained mobile browsers — that error is a real allocation
+  /// failure (mobile Chrome tabs often have well under 1GB of usable heap),
+  /// not a network timeout, even though the old error message said so.
+  /// [video] must still have its readStream available (i.e. picked with
+  /// withReadStream: true and not yet consumed).
+  Future<http.Response?> uploadProjectWithMediaStreamed(
+    Map<String, dynamic> data,
+    PlatformFile video,
+    XFile? thumbnail,
+  ) async {
+    final authToken = await _getValidToken();
+    if (authToken == null) return null;
+    if (video.readStream == null) {
+      return http.Response(
+          jsonEncode({'error': 'This video can no longer be uploaded — please pick it again.'}),
+          500);
+    }
+
+    final videoUrlInfo = await _requestUploadUrl(video.name, 'video/mp4', 'video');
+    if (videoUrlInfo == null) {
+      return http.Response(
+          jsonEncode({'error': 'Could not prepare video upload. Please try again.'}),
+          500);
+    }
+
+    http.StreamedResponse streamed;
+    try {
+      final request = http.StreamedRequest('PUT', Uri.parse(videoUrlInfo['uploadUrl']!));
+      request.headers['Content-Type'] = 'video/mp4';
+      request.contentLength = video.size;
+      // Pipe chunks straight through — at no point does this app hold more
+      // than one chunk of the video in memory at once.
+      video.readStream!.listen(
+        (chunk) => request.sink.add(chunk),
+        onDone: () => request.sink.close(),
+        onError: (e) => request.sink.addError(e),
+        cancelOnError: true,
+      );
+      streamed = await http.Client()
+          .send(request)
+          .timeout(const Duration(minutes: 20));
+    } catch (e) {
+      return http.Response(
+          jsonEncode({'error': 'Video upload timed out or lost connection — '
+              'please check your internet and try again. ($e)'}),
+          500);
+    }
+    if (streamed.statusCode < 200 || streamed.statusCode >= 300) {
+      return http.Response(
+          jsonEncode({'error': 'Video upload failed (storage error ${streamed.statusCode}). '
+              'Please try again.'}),
+          500);
+    }
+
+    return _finishProjectUpload(authToken.accessToken, data, videoUrlInfo['storagePath']!, thumbnail);
+  }
+
+  /// Shared tail for both upload paths above: the (non-critical) thumbnail
+  /// upload, then the small plain-JSON POST /project/ call that actually
+  /// creates the project record. Wrapped in its own try/catch so a
+  /// genuine failure here always surfaces a real, readable message rather
+  /// than an unrelated exception's raw toString().
+  Future<http.Response?> _finishProjectUpload(
+    String accessToken,
+    Map<String, dynamic> data,
+    String videoStoragePath,
+    XFile? thumbnail,
+  ) async {
     String? thumbnailStoragePath;
     if (thumbnail != null) {
       try {
@@ -495,10 +572,6 @@ class MiniguruApi {
       }
     }
 
-    // ── Step 3: a small, plain JSON request with just the metadata +
-    // storage paths — comfortably under Cloud Run's 32MB limit no matter
-    // how large the actual video is, since the video itself is never in
-    // this request body. ─────────────────────────────────────────────────
     final url = Uri.parse('$_baseUrl/project/');
     final body = {
       'title': data['title'],
@@ -507,14 +580,11 @@ class MiniguruApi {
       'endDate': data['endDate'],
       'categoryName': data['categoryName'],
       'materials': data['materials'],
-      'videoStoragePath': videoUrlInfo['storagePath'],
+      'videoStoragePath': videoStoragePath,
       if (thumbnailStoragePath != null) 'thumbnailStoragePath': thumbnailStoragePath,
       if (data['collaboratorIds'] != null &&
           (data['collaboratorIds'] as List).isNotEmpty)
         'collaboratorIds': data['collaboratorIds'],
-      // BUGFIX: challengeId was missing from this whitelist, so it never
-      // reached the backend even after transformProject started passing it
-      // through — the "Join a STEAM Challenge" feature silently did nothing.
       if (data['challengeId'] != null) 'challengeId': data['challengeId'],
       'desiredPrivacyStatus': data['desiredPrivacyStatus'] ?? 'PUBLIC',
     };
@@ -523,15 +593,22 @@ class MiniguruApi {
     try {
       response = await http.post(
         url,
-        headers: _buildHeaders(authToken.accessToken),
+        headers: _buildHeaders(accessToken),
         body: jsonEncode(body),
       ).timeout(const Duration(minutes: 8));
     } catch (e) {
-      return http.Response(
-          jsonEncode({'error': 'The video finished uploading, but finalizing the '
-              'project took too long or lost connection. Please try again — '
-              'if it keeps happening, contact support. ($e)'}),
-          500);
+      String safeMessage;
+      try {
+        safeMessage = 'The video finished uploading, but finalizing the '
+            'project took too long or lost connection. Please try again — '
+            'if it keeps happening, contact support. ($e)';
+      } catch (_) {
+        // Defensive: never let constructing THIS message itself throw and
+        // surface an unrelated, confusing secondary error to the user.
+        safeMessage = 'The video finished uploading, but finalizing the '
+            'project failed. Please try again.';
+      }
+      return http.Response(jsonEncode({'error': safeMessage}), 500);
     }
     _handleResponse(response);
     return response;
@@ -568,8 +645,10 @@ class MiniguruApi {
       ).timeout(const Duration(minutes: 10));
     } catch (e) {
       return http.Response(
-          jsonEncode({'error': 'Upload timed out or lost connection — please '
-              'check your internet and try again. ($e)'}),
+          jsonEncode({'error': 'Upload failed — the file could not be sent in '
+              'one piece (this can happen with very large videos on '
+              'memory-limited devices). Try again, or use a desktop/laptop '
+              'browser for large files. ($e)'}),
           500);
     }
     if (videoPut.statusCode < 200 || videoPut.statusCode >= 300) {
@@ -579,12 +658,67 @@ class MiniguruApi {
           500);
     }
 
+    return _finishVideoReplace(authToken.accessToken, projectId, videoUrlInfo['storagePath']!);
+  }
+
+  /// Same as [replaceProjectVideo], but streams the video directly from
+  /// FilePicker's readStream — see uploadProjectWithMediaStreamed for why
+  /// (large-file memory crash fix, Sept 2026). Use this on web whenever
+  /// the picked file's stream reference is still available.
+  Future<http.Response?> replaceProjectVideoStreamed(String projectId, PlatformFile video) async {
+    final authToken = await _getValidToken();
+    if (authToken == null) return null;
+    if (video.readStream == null) {
+      return http.Response(
+          jsonEncode({'error': 'This video can no longer be uploaded — please pick it again.'}),
+          500);
+    }
+
+    final videoUrlInfo = await _requestUploadUrl(video.name, 'video/mp4', 'video');
+    if (videoUrlInfo == null) {
+      return http.Response(
+          jsonEncode({'error': 'Could not prepare the upload. Please try again.'}),
+          500);
+    }
+
+    http.StreamedResponse streamed;
+    try {
+      final request = http.StreamedRequest('PUT', Uri.parse(videoUrlInfo['uploadUrl']!));
+      request.headers['Content-Type'] = 'video/mp4';
+      request.contentLength = video.size;
+      video.readStream!.listen(
+        (chunk) => request.sink.add(chunk),
+        onDone: () => request.sink.close(),
+        onError: (e) => request.sink.addError(e),
+        cancelOnError: true,
+      );
+      streamed = await http.Client()
+          .send(request)
+          .timeout(const Duration(minutes: 20));
+    } catch (e) {
+      return http.Response(
+          jsonEncode({'error': 'Upload timed out or lost connection — please '
+              'check your internet and try again. ($e)'}),
+          500);
+    }
+    if (streamed.statusCode < 200 || streamed.statusCode >= 300) {
+      return http.Response(
+          jsonEncode({'error': 'Upload failed (storage error ${streamed.statusCode}). '
+              'Please try again.'}),
+          500);
+    }
+
+    return _finishVideoReplace(authToken.accessToken, projectId, videoUrlInfo['storagePath']!);
+  }
+
+  Future<http.Response?> _finishVideoReplace(
+      String accessToken, String projectId, String videoStoragePath) async {
     http.Response response;
     try {
       response = await http.put(
         Uri.parse('$_baseUrl/project/$projectId'),
-        headers: _buildHeaders(authToken.accessToken),
-        body: jsonEncode({'videoStoragePath': videoUrlInfo['storagePath']}),
+        headers: _buildHeaders(accessToken),
+        body: jsonEncode({'videoStoragePath': videoStoragePath}),
       ).timeout(const Duration(minutes: 8));
     } catch (e) {
       return http.Response(

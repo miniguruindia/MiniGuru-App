@@ -70,7 +70,8 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
   // reset the backend enforces regardless of what this screen does, so
   // there's no way to accidentally publish a new video without review.
   Future<void> _pickAndReplaceVideo() async {
-    XFile? picked;
+    XFile? pickedMobile;
+    PlatformFile? pickedWeb;
     try {
       if (kIsWeb) {
         final result = await FilePicker.platform.pickFiles(
@@ -83,21 +84,21 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
                 'This video is large (${(f.size / (1024 * 1024)).round()}MB) — '
                 'keep this tab open and stay on a strong connection while it uploads.');
           }
-          final builder = BytesBuilder(copy: false);
-          await for (final chunk in f.readStream!) {
-            builder.add(chunk);
-          }
-          picked = XFile.fromData(builder.takeBytes(), name: f.name, mimeType: 'video/mp4');
+          // FIXED (Sept 2026): don't drain the stream here — hold the
+          // reference and stream it straight to Storage only once upload
+          // genuinely starts, so a 300MB+ pick never needs a full in-memory
+          // copy on a phone browser. See replaceProjectVideoStreamed.
+          pickedWeb = f;
         }
       } else {
         await [Permission.storage].request();
-        picked = await ImagePicker().pickVideo(source: ImageSource.gallery);
+        pickedMobile = await ImagePicker().pickVideo(source: ImageSource.gallery);
       }
     } catch (e) {
       _showReplaceSnack('Could not pick that video: $e', isError: true);
       return;
     }
-    if (picked == null) return;
+    if (pickedMobile == null && pickedWeb == null) return;
 
     final confirmed = await showDialog<bool>(
       context: context,
@@ -117,7 +118,9 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
 
     setState(() => _replacingVideo = true);
     try {
-      final response = await _miniguruApi.replaceProjectVideo(widget.project.id, picked);
+      final response = pickedWeb != null
+          ? await _miniguruApi.replaceProjectVideoStreamed(widget.project.id, pickedWeb)
+          : await _miniguruApi.replaceProjectVideo(widget.project.id, pickedMobile!);
       if (response != null && response.statusCode >= 200 && response.statusCode < 300) {
         _showReplaceSnack('New video uploaded! Your project is back under review.');
       } else {

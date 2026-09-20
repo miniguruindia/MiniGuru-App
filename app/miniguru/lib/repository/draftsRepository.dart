@@ -1,7 +1,9 @@
 import 'dart:convert';
 import 'dart:core';
 
+import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
+import 'package:file_picker/file_picker.dart' show PlatformFile;
 import 'package:miniguru/database/database_helper.dart';
 import 'package:miniguru/models/Draft.dart';
 import 'package:miniguru/network/MiniguruApi.dart';
@@ -99,11 +101,25 @@ class DraftRepository {
     return _db.getDraftById(id);
   }
 
+  /// Same as [uploadProjects], but streams the video straight from its
+  /// PlatformFile source instead of an already-materialized XFile — see
+  /// MiniguruApi.uploadProjectWithMediaStreamed for why (Sept 2026 fix for
+  /// large-video memory crashes on phone browsers).
+  Future<int> uploadProjectsStreamed(
+      Map<String, dynamic> project, PlatformFile video, XFile? thumbnail) async {
+    final data = transformProject(project);
+    final response = await _api.uploadProjectWithMediaStreamed(data, video, thumbnail);
+    return _handleUploadResponse(response);
+  }
+
   Future<int> uploadProjects(
       Map<String, dynamic> project, XFile video, XFile? thumbnail) async {
     final data = transformProject(project);
     final response = await _api.uploadProjectWithMedia(data, video, thumbnail);
+    return _handleUploadResponse(response);
+  }
 
+  int _handleUploadResponse(http.Response? response) {
     if (response != null && response.statusCode == 201) {
       jsonDecode(response.body);
       return response.statusCode;
