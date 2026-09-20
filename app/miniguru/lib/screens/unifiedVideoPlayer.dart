@@ -127,13 +127,6 @@ class _UnifiedVideoPlayerState extends State<UnifiedVideoPlayer> {
         enableCaption: true,
         strictRelatedVideos: true,
         showVideoAnnotations: false,
-        // privacyEnhanced -> embeds via youtube-nocookie.com instead of
-        // youtube.com. This is Google's own recommended fix for the
-        // intermittent "sign in to confirm..." prompt some embedded videos
-        // show — caused by browsers (increasingly Chrome/Safari/Firefox)
-        // blocking third-party cookies from youtube.com in an iframe.
-        // Nothing else changes: same controls, same playback, same API.
-        privacyEnhanced: true,
       ),
     );
 
