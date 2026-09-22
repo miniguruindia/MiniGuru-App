@@ -280,6 +280,235 @@ interface AmazonSuggestionRow {
   status: string
 }
 
+// ── Collections tab (Sept 2026) ──────────────────────────────────────────
+// Named, curated bundles of existing materials ("🚁 Drone Building Kit",
+// "🏫 School T-LAB Refill Pack") for the Shop's quick-order flow. This is
+// the ONLY place these are managed — deliberately not a separate product
+// with its own price/photo, just a pointer to a set of Material ids.
+interface CollectionSummary {
+  id: string
+  name: string
+  description: string | null
+  icon: string | null
+  materialIds: string[]
+  isActive: boolean
+}
+
+function CollectionsTab({ apiBase, allMaterials, flash }: {
+  apiBase: string
+  allMaterials: Material[]
+  flash: (msg: string, isError?: boolean) => void
+}) {
+  const [collections, setCollections] = useState<CollectionSummary[]>([])
+  const [loading, setLoading] = useState(true)
+  const [editing, setEditing] = useState<CollectionSummary | null>(null) // null id = new
+  const [showForm, setShowForm] = useState(false)
+  const [form, setForm] = useState<{ name: string; description: string; icon: string; materialIds: string[] }>({
+    name: '', description: '', icon: '🧰', materialIds: [],
+  })
+  const [materialSearch, setMaterialSearch] = useState('')
+
+  const load = async () => {
+    setLoading(true)
+    try {
+      const token = await authToken()
+      const res = await fetch(`${apiBase}/materials/admin/collections`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      setCollections(await res.json())
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => { load() }, [])
+
+  const openNew = () => {
+    setEditing(null)
+    setForm({ name: '', description: '', icon: '🧰', materialIds: [] })
+    setMaterialSearch('')
+    setShowForm(true)
+  }
+
+  const openEdit = (c: CollectionSummary) => {
+    setEditing(c)
+    setForm({ name: c.name, description: c.description || '', icon: c.icon || '🧰', materialIds: [...c.materialIds] })
+    setMaterialSearch('')
+    setShowForm(true)
+  }
+
+  const save = async () => {
+    if (!form.name.trim()) { flash('Give the collection a name first.', true); return }
+    if (form.materialIds.length === 0) { flash('Add at least one material to the collection.', true); return }
+    try {
+      const token = await authToken()
+      const url = editing
+        ? `${apiBase}/materials/admin/collections/${editing.id}`
+        : `${apiBase}/materials/admin/collections`
+      const res = await fetch(url, {
+        method: editing ? 'PUT' : 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify(form),
+      })
+      if (!res.ok) throw new Error((await res.json()).message || 'Failed')
+      flash(editing ? 'Collection updated.' : 'Collection created.')
+      setShowForm(false)
+      await load()
+    } catch (e: any) {
+      flash(e.message, true)
+    }
+  }
+
+  const remove = async (c: CollectionSummary) => {
+    if (!confirm(`Delete "${c.name}"? This only removes the collection grouping — the materials themselves are untouched.`)) return
+    try {
+      const token = await authToken()
+      await fetch(`${apiBase}/materials/admin/collections/${c.id}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      flash('Collection deleted.')
+      await load()
+    } catch (e: any) {
+      flash('Could not delete: ' + e.message, true)
+    }
+  }
+
+  const toggleActive = async (c: CollectionSummary) => {
+    try {
+      const token = await authToken()
+      await fetch(`${apiBase}/materials/admin/collections/${c.id}`, {
+        method: 'PUT',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ isActive: !c.isActive }),
+      })
+      await load()
+    } catch (e: any) {
+      flash('Could not update: ' + e.message, true)
+    }
+  }
+
+  const toggleMaterialInForm = (id: string) => {
+    setForm((f) => ({
+      ...f,
+      materialIds: f.materialIds.includes(id)
+        ? f.materialIds.filter((x) => x !== id)
+        : [...f.materialIds, id],
+    }))
+  }
+
+  const filteredMaterials = allMaterials.filter((m) =>
+    m.name.toLowerCase().includes(materialSearch.toLowerCase())
+  )
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <p className="text-sm text-gray-500">
+          Curated bundles children can add to their kit in one tap — a collection is just a
+          named set of materials that already exist below; nothing new is created for the Shop.
+        </p>
+        <button onClick={openNew}
+          className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 whitespace-nowrap">
+          + New Collection
+        </button>
+      </div>
+
+      {loading ? (
+        <p className="text-sm text-gray-400 py-8 text-center">Loading…</p>
+      ) : collections.length === 0 ? (
+        <Card className="p-8 text-center border-0 shadow-sm">
+          <p className="text-sm text-gray-400">No collections yet — create one to let children add a whole project's worth of materials in one tap.</p>
+        </Card>
+      ) : (
+        <div className="grid gap-3 sm:grid-cols-2">
+          {collections.map((c) => (
+            <Card key={c.id} className={`p-4 border-0 shadow-sm ${!c.isActive ? 'opacity-50' : ''}`}>
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="text-2xl">{c.icon || '🧰'}</span>
+                  <div className="min-w-0">
+                    <p className="font-semibold text-gray-900 truncate">{c.name}</p>
+                    <p className="text-xs text-gray-400">{c.materialIds.length} items{!c.isActive ? ' · hidden from Shop' : ''}</p>
+                  </div>
+                </div>
+              </div>
+              {c.description && <p className="text-xs text-gray-500 mt-2">{c.description}</p>}
+              <div className="flex gap-2 mt-3">
+                <button onClick={() => openEdit(c)}
+                  className="flex-1 px-3 py-1.5 bg-white border border-gray-300 text-gray-700 rounded text-xs hover:bg-gray-50">
+                  Edit
+                </button>
+                <button onClick={() => toggleActive(c)}
+                  className="flex-1 px-3 py-1.5 bg-white border border-gray-300 text-gray-700 rounded text-xs hover:bg-gray-50">
+                  {c.isActive ? 'Hide' : 'Show'}
+                </button>
+                <button onClick={() => remove(c)}
+                  className="px-3 py-1.5 bg-white border border-red-200 text-red-600 rounded text-xs hover:bg-red-50">
+                  Delete
+                </button>
+              </div>
+            </Card>
+          ))}
+        </div>
+      )}
+
+      {showForm && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[85vh] overflow-y-auto p-6 space-y-4">
+            <h3 className="font-semibold text-lg text-gray-900">
+              {editing ? 'Edit Collection' : 'New Collection'}
+            </h3>
+            <div className="grid grid-cols-[80px_1fr] gap-3">
+              <input value={form.icon} onChange={(e) => setForm({ ...form, icon: e.target.value })}
+                placeholder="🧰" className="border rounded-lg px-3 py-2 text-center text-xl" />
+              <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })}
+                placeholder="e.g. Drone Building Kit" className="border rounded-lg px-3 py-2" />
+            </div>
+            <textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })}
+              placeholder="Optional short description shown to the child" rows={2}
+              className="w-full border rounded-lg px-3 py-2 text-sm" />
+
+            <div>
+              <p className="text-sm font-medium text-gray-700 mb-2">
+                Materials in this collection ({form.materialIds.length} selected)
+              </p>
+              <input value={materialSearch} onChange={(e) => setMaterialSearch(e.target.value)}
+                placeholder="Search materials to add…"
+                className="w-full border rounded-lg px-3 py-2 text-sm mb-2" />
+              <div className="border rounded-lg max-h-64 overflow-y-auto divide-y">
+                {filteredMaterials.map((m) => (
+                  <label key={m.id} className="flex items-center gap-3 px-3 py-2 text-sm cursor-pointer hover:bg-gray-50">
+                    <input type="checkbox" checked={form.materialIds.includes(m.id)}
+                      onChange={() => toggleMaterialInForm(m.id)} />
+                    <span>{m.icon || '📦'}</span>
+                    <span className="flex-1">{m.name}</span>
+                    <span className="text-xs text-gray-400">{m.category}</span>
+                  </label>
+                ))}
+                {filteredMaterials.length === 0 && (
+                  <p className="text-xs text-gray-400 px-3 py-4 text-center">No materials match "{materialSearch}"</p>
+                )}
+              </div>
+            </div>
+
+            <div className="flex gap-2 justify-end pt-2">
+              <button onClick={() => setShowForm(false)}
+                className="px-4 py-2 border border-gray-300 rounded-lg text-sm hover:bg-gray-50">
+                Cancel
+              </button>
+              <button onClick={save}
+                className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700">
+                {editing ? 'Save Changes' : 'Create Collection'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ── Image Issues tab — materials with no photo, or a low-confidence AI
 // image match from a past scan. Reuses the same Find-on-Amazon modal so an
 // admin can pull a real product photo straight from a search result.
@@ -807,9 +1036,9 @@ function AiSuggestionsTab({ apiBase, onMaterialsChanged, flash, onEditMaterial }
 
 function MaterialsPageInner() {
   const searchParams = useSearchParams()
-  const initialTab = (['materials', 'ai', 'suggestions', 'images'].includes(searchParams.get('tab') || '')
-    ? searchParams.get('tab') : 'materials') as 'materials'|'ai'|'suggestions'|'images'
-  const [tab, setTab]             = useState<'materials'|'ai'|'suggestions'|'images'>(initialTab)
+  const initialTab = (['materials', 'ai', 'suggestions', 'images', 'collections'].includes(searchParams.get('tab') || '')
+    ? searchParams.get('tab') : 'materials') as 'materials'|'ai'|'suggestions'|'images'|'collections'
+  const [tab, setTab]             = useState<'materials'|'ai'|'suggestions'|'images'|'collections'>(initialTab)
   const [materials, setMaterials] = useState<Material[]>([])
   const [filtered, setFiltered]   = useState<Material[]>([])
   const [catFilter, setCatFilter] = useState('All')
@@ -1115,6 +1344,7 @@ function MaterialsPageInner() {
             { key: 'ai',       label: '🤖 AI Scan & Refresh' },
             { key: 'suggestions', label: '💡 Suggestions' },
             { key: 'images',   label: '🖼️ Image Issues' },
+            { key: 'collections', label: '🗂️ Collections' },
           ].map(t => (
             <button key={t.key} onClick={() => setTab(t.key as any)}
               className={`px-5 py-2 rounded-lg text-sm font-medium transition-all ${
@@ -1261,6 +1491,9 @@ function MaterialsPageInner() {
 
         {/* ── IMAGE ISSUES TAB ── */}
         {tab === 'images' && <ImageIssuesTab apiBase={API_BASE} onMaterialsChanged={load} flash={flash} />}
+
+        {/* ── COLLECTIONS TAB ── */}
+        {tab === 'collections' && <CollectionsTab apiBase={API_BASE} allMaterials={materials} flash={flash} />}
       </div>
 
       {/* ── EDIT / ADD MODAL ── */}

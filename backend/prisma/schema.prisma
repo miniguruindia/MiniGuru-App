@@ -551,6 +551,26 @@ model Material {
   @@map("materials")
 }
 
+// A named, curated bundle of existing materials for a specific project or
+// use case (e.g. "🚁 Drone Building Kit", "🏫 School T-LAB Refill Pack") —
+// Sept 2026. Deliberately NOT a separate product with its own price/photo;
+// it's just a pointer to a set of existing Material records so a child can
+// find everything for a project in one tap instead of hunting through the
+// full catalog by type. Admin-managed only — materialIds is just an
+// ordered list of Material ids, resolved to full records at read time.
+model MaterialCollection {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  name        String
+  description String?
+  icon        String?  @default("🧰")
+  materialIds String[] @db.ObjectId
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("material_collections")
+}
+
 // A single AI-found Amazon candidate for one Material, awaiting admin
 // approval. Never auto-applied to the Material — approving/rejecting is
 // always a deliberate human action (backend/src/routes/materialsRoutes.ts

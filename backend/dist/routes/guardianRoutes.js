@@ -402,7 +402,6 @@ router.post('/children/bulk', authMiddleware_1.authenticateToken, async (req, re
             return res.status(403).json({ message: 'Only mentor accounts can bulk add children' });
         const gi = mentor.guardianInfo;
         const schoolCode = gi?.institutionName ? getSchoolCode(gi.institutionName) : 'mg';
-        const cityCode = gi?.city ? getCityCode(gi.city) : 'in';
         const year = new Date().getFullYear();
         const results = [];
         for (const row of children) {
@@ -410,12 +409,19 @@ router.post('/children/bulk', authMiddleware_1.authenticateToken, async (req, re
             if (!childName?.trim())
                 continue;
             const firstName = childName.trim().split(' ')[0].toLowerCase();
-            const parentInitial = (parentName?.trim()?.[0] ?? 'x').toLowerCase();
-            const baseEmail = `${firstName}${parentInitial}.${schoolCode}.${cityCode}@miniguru.in`;
+            // Sept 2026: shortened from firstname+parentinitial.schoolcode.citycode
+            // to just firstname.schoolcode — per founder's request, this reads
+            // much more naturally to a child memorizing/sharing their own ID
+            // (e.g. for adding a friend as a project collaborator), and the
+            // child can always change it via Profile if they want something
+            // else entirely. The existing counter-suffix mechanism below already
+            // handles collisions once a school's first-name pool is exhausted —
+            // unchanged, just applied to the shorter base pattern now.
+            const baseEmail = `${firstName}.${schoolCode}@miniguru.in`;
             let email = baseEmail;
             let counter = 2;
             while (await prismaClient_1.default.user.findUnique({ where: { email } })) {
-                email = `${firstName}${parentInitial}${counter}.${schoolCode}.${cityCode}@miniguru.in`;
+                email = `${firstName}${counter}.${schoolCode}@miniguru.in`;
                 counter++;
             }
             const displayFirst = childName.trim().split(' ')[0];

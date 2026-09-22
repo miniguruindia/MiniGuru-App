@@ -37,6 +37,7 @@ class _ShopState extends State<Shop>
   List<Map<String, dynamic>> _all      = [];
   List<Map<String, dynamic>> _filtered = [];
   List<Map<String, dynamic>> _cats     = [];
+  List<Map<String, dynamic>> _collections = [];
   bool   _loading = true;
   String _error   = '';
   String _selCat  = '';
@@ -49,7 +50,7 @@ class _ShopState extends State<Shop>
   @override bool get wantKeepAlive => true;
 
   @override
-  void initState() { super.initState(); _loadMaterials(); }
+  void initState() { super.initState(); _loadMaterials(); _loadCollections(); }
 
   @override
   void dispose() { _tabCtrl.dispose(); _searchCtrl.dispose(); super.dispose(); }
@@ -87,6 +88,83 @@ class _ShopState extends State<Shop>
     }
   }
 
+  // ── Collections (Sept 2026) — "Shop by Project" quick-order ────────────
+  // Curated bundles an admin assembled (e.g. "🚁 Drone Building Kit") —
+  // tapping one shows everything for that project pre-checked, so a child
+  // can add a whole kit in one tap instead of hunting the catalog by type.
+  Future<void> _loadCollections() async {
+    try {
+      final res = await http.get(Uri.parse('$apiBaseUrl/materials/collections'));
+      if (res.statusCode == 200) {
+        final list = jsonDecode(res.body);
+        if (mounted) setState(() => _collections = List<Map<String, dynamic>>.from(list));
+      }
+    } catch (_) {
+      // Non-critical — Shop works fine without the collections row if this fails.
+    }
+  }
+
+  Future<void> _openCollection(String id, String name) async {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (ctx) => _CollectionSheet(
+        collectionId: id,
+        collectionName: name,
+        onAddAll: (items) {
+          for (final m in items) { _addToKit(m, silent: true); }
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text('${items.length} items added to your kit! 🎉'),
+            backgroundColor: _green,
+          ));
+        },
+      ),
+    );
+  }
+
+  Widget _buildCollectionsRow() {
+    if (_collections.isEmpty) return const SizedBox.shrink();
+    return SizedBox(
+      height: 76,
+      child: ListView(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.fromLTRB(12, 6, 12, 2),
+        children: _collections.map((c) {
+          final name = (c['name'] ?? '').toString();
+          final icon = (c['icon'] ?? '🧰').toString();
+          final count = (c['itemCount'] ?? 0).toString();
+          return GestureDetector(
+            onTap: () => _openCollection(c['id'].toString(), name),
+            child: Container(
+              width: 132,
+              margin: const EdgeInsets.only(right: 10),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+              decoration: BoxDecoration(
+                color: _orange.withOpacity(0.08),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: _orange.withOpacity(0.35)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(icon, style: const TextStyle(fontSize: 22)),
+                  const SizedBox(height: 4),
+                  Text(name, maxLines: 2, overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.nunito(fontSize: 11, fontWeight: FontWeight.w800, color: _ink)),
+                  Text('$count items', style: GoogleFonts.nunito(fontSize: 10, color: _muted)),
+                ],
+              ),
+            ),
+          );
+        }).toList(),
+      ),
+    );
+  }
+
+
   void _filter() {
     setState(() {
       _filtered = _all.where((m) {
@@ -101,7 +179,7 @@ class _ShopState extends State<Shop>
   String _matId(Map<String, dynamic> m) =>
       m['id']?.toString() ?? m['_id']?.toString() ?? '';
 
-  void _addToKit(Map<String, dynamic> mat) {
+  void _addToKit(Map<String, dynamic> mat, {bool silent = false}) {
     final id = _matId(mat);
     if (id.isEmpty) return;
     setState(() {
@@ -111,6 +189,7 @@ class _ShopState extends State<Shop>
         _kit[id] = { ...mat, 'qty': 1 };
       }
     });
+    if (silent) return; // bulk-add from a Collection shows one summary snack instead
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
       content: Text('${mat['name']} added to kit',
           style: GoogleFonts.nunito(fontWeight: FontWeight.w700)),
@@ -389,6 +468,7 @@ class _ShopState extends State<Shop>
     return RefreshIndicator(
       onRefresh: _loadMaterials, color: _accent,
       child: CustomScrollView(slivers: [
+        if (_collections.isNotEmpty) SliverToBoxAdapter(child: _buildCollectionsRow()),
         if (_cats.isNotEmpty) SliverToBoxAdapter(child: _buildCatRow()),
         SliverToBoxAdapter(child: _buildSearchBar()),
         SliverToBoxAdapter(child: Padding(
@@ -753,4 +833,145 @@ class _MaterialTile extends StatelessWidget {
       decoration: BoxDecoration(color: _accent, borderRadius: BorderRadius.circular(6)),
       child: Icon(icon, color: Colors.white, size: 13)),
   );
+}
+
+// ── Collection quick-order sheet (Sept 2026) ────────────────────────────
+// Shows everything in a curated collection pre-checked; the child can
+// uncheck anything they don't need, then add the rest to their kit in one
+// tap. Reuses whatever shape the /materials endpoint already returns
+// (same toFlutterShape as everywhere else in the app) — no special casing.
+class _CollectionSheet extends StatefulWidget {
+  final String collectionId;
+  final String collectionName;
+  final void Function(List<Map<String, dynamic>> items) onAddAll;
+  const _CollectionSheet({
+    required this.collectionId,
+    required this.collectionName,
+    required this.onAddAll,
+  });
+
+  @override
+  State<_CollectionSheet> createState() => _CollectionSheetState();
+}
+
+class _CollectionSheetState extends State<_CollectionSheet> {
+  bool _loading = true;
+  String? _error;
+  String? _description;
+  String _icon = '🧰';
+  List<Map<String, dynamic>> _materials = [];
+  final Set<String> _checked = {};
+
+  @override
+  void initState() { super.initState(); _load(); }
+
+  Future<void> _load() async {
+    try {
+      final res = await http.get(
+          Uri.parse('$apiBaseUrl/materials/collections/${widget.collectionId}'));
+      if (res.statusCode != 200) throw Exception('Could not load this collection.');
+      final data = jsonDecode(res.body);
+      final mats = List<Map<String, dynamic>>.from(data['materials'] ?? []);
+      if (mounted) {
+        setState(() {
+          _materials = mats;
+          _description = data['description'];
+          _icon = (data['icon'] ?? '🧰').toString();
+          _checked.addAll(mats.map((m) => (m['id'] ?? m['_id']).toString()));
+          _loading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) setState(() { _error = 'Could not load this collection. Please try again.'; _loading = false; });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return DraggableScrollableSheet(
+      initialChildSize: 0.75,
+      minChildSize: 0.4,
+      maxChildSize: 0.95,
+      expand: false,
+      builder: (context, scrollController) => Padding(
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+        child: Column(children: [
+          Container(width: 40, height: 4,
+              decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2))),
+          const SizedBox(height: 12),
+          Row(children: [
+            Text(_icon, style: const TextStyle(fontSize: 26)),
+            const SizedBox(width: 8),
+            Expanded(child: Text(widget.collectionName,
+                style: GoogleFonts.nunito(fontSize: 18, fontWeight: FontWeight.w900, color: _ink))),
+          ]),
+          if (_description != null && _description!.isNotEmpty) ...[
+            const SizedBox(height: 4),
+            Align(alignment: Alignment.centerLeft,
+              child: Text(_description!, style: GoogleFonts.nunito(fontSize: 12, color: _muted))),
+          ],
+          const SizedBox(height: 8),
+          if (!_loading && _error == null)
+            Align(alignment: Alignment.centerLeft,
+              child: Text('Everything is pre-checked — tap to remove anything you don\'t need.',
+                  style: GoogleFonts.nunito(fontSize: 12, color: _muted, fontStyle: FontStyle.italic))),
+          const SizedBox(height: 10),
+          Expanded(
+            child: _loading
+                ? const Center(child: CircularProgressIndicator())
+                : _error != null
+                    ? Center(child: Text(_error!, style: GoogleFonts.nunito(color: Colors.red)))
+                    : ListView.separated(
+                        controller: scrollController,
+                        itemCount: _materials.length,
+                        separatorBuilder: (_, __) => const Divider(height: 1),
+                        itemBuilder: (context, i) {
+                          final m = _materials[i];
+                          final id = (m['id'] ?? m['_id']).toString();
+                          final checked = _checked.contains(id);
+                          return CheckboxListTile(
+                            value: checked,
+                            onChanged: (v) => setState(() {
+                              if (v == true) _checked.add(id); else _checked.remove(id);
+                            }),
+                            controlAffinity: ListTileControlAffinity.leading,
+                            secondary: ClipRRect(
+                              borderRadius: BorderRadius.circular(8),
+                              child: (m['imageUrl'] ?? '').toString().isNotEmpty
+                                  ? Image.network(m['imageUrl'], width: 40, height: 40, fit: BoxFit.cover,
+                                      errorBuilder: (_, __, ___) => const Icon(Icons.inventory_2_outlined))
+                                  : const SizedBox(width: 40, height: 40, child: Icon(Icons.inventory_2_outlined)),
+                            ),
+                            title: Text(m['name']?.toString() ?? '', style: GoogleFonts.nunito(fontWeight: FontWeight.w700, fontSize: 13)),
+                            subtitle: (m['priceEstimate'] != null)
+                                ? Text('₹${m['priceEstimate']} / ${m['unit'] ?? 'piece'}', style: GoogleFonts.nunito(fontSize: 11, color: _muted))
+                                : null,
+                          );
+                        },
+                      ),
+          ),
+          const SizedBox(height: 8),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: _checked.isEmpty ? null : () {
+                final toAdd = _materials.where((m) => _checked.contains((m['id'] ?? m['_id']).toString())).toList();
+                Navigator.pop(context);
+                widget.onAddAll(toAdd);
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: _accent, foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+              child: Text(
+                _checked.isEmpty ? 'Select at least one item' : 'Add ${_checked.length} items to Kit',
+                style: GoogleFonts.nunito(fontWeight: FontWeight.w800),
+              ),
+            ),
+          ),
+        ]),
+      ),
+    );
+  }
 }

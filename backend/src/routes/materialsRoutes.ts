@@ -107,7 +107,125 @@ router.get('/categories', async (_req: Request, res: Response) => {
   }
 });
 
+// ── COLLECTIONS (public) — Sept 2026 ─────────────────────────────────────
+// "🚁 Drone Building Kit" style curated bundles for the Shop's quick-order
+// flow. Public, read-only here — admin management is further down.
+
+// GET /collections — light list for the Shop's chip row (name/icon/count).
+router.get('/collections', async (_req: Request, res: Response) => {
+  try {
+    const collections = await prisma.materialCollection.findMany({
+      where: { isActive: true },
+      orderBy: { name: 'asc' },
+    });
+    res.json(
+      collections.map((c) => ({
+        id: c.id,
+        name: c.name,
+        description: c.description,
+        icon: c.icon || '🧰',
+        itemCount: c.materialIds.length,
+      }))
+    );
+  } catch (err) {
+    console.error('[materials] GET /collections error:', err);
+    res.status(500).json({ message: 'Failed to fetch collections.' });
+  }
+});
+
+// GET /collections/:id — full collection with resolved, shop-shaped
+// materials, for the "tap a collection, see everything pre-checked" sheet.
+router.get('/collections/:id', async (req: Request, res: Response) => {
+  try {
+    const collection = await prisma.materialCollection.findUnique({
+      where: { id: req.params.id },
+    });
+    if (!collection || !collection.isActive) {
+      return res.status(404).json({ message: 'Collection not found' });
+    }
+    const materials = await prisma.material.findMany({
+      where: { id: { in: collection.materialIds }, isActive: true },
+    });
+    // Preserve the admin's chosen ordering rather than whatever order
+    // MongoDB happens to return them in.
+    const ordered = collection.materialIds
+      .map((id) => materials.find((m) => m.id === id))
+      .filter((m): m is NonNullable<typeof m> => Boolean(m));
+    res.json({
+      id: collection.id,
+      name: collection.name,
+      description: collection.description,
+      icon: collection.icon || '🧰',
+      materials: ordered.map(toFlutterShape),
+    });
+  } catch (err) {
+    console.error('[materials] GET /collections/:id error:', err);
+    res.status(500).json({ message: 'Failed to fetch collection.' });
+  }
+});
+
 // ── ADMIN ROUTES — must come before /:id ─────────────────────────────────────
+
+// GET /admin/collections — full list (including inactive) for the admin tab.
+router.get('/admin/collections', authenticateToken, requireAdmin, async (_req: Request, res: Response) => {
+  try {
+    const collections = await prisma.materialCollection.findMany({ orderBy: { name: 'asc' } });
+    res.json(collections);
+  } catch (err) {
+    res.status(500).json({ message: 'Failed to fetch collections.' });
+  }
+});
+
+router.post('/admin/collections', authenticateToken, requireAdmin, async (req: Request, res: Response) => {
+  try {
+    const { name, description, icon, materialIds } = req.body || {};
+    if (!name || typeof name !== 'string') {
+      return res.status(400).json({ message: 'name is required.' });
+    }
+    const collection = await prisma.materialCollection.create({
+      data: {
+        name: name.trim(),
+        description: description || undefined,
+        icon: icon || '🧰',
+        materialIds: Array.isArray(materialIds) ? materialIds : [],
+      },
+    });
+    res.status(201).json(collection);
+  } catch (err) {
+    console.error('[materials] POST /admin/collections error:', err);
+    res.status(500).json({ message: 'Failed to create collection.' });
+  }
+});
+
+router.put('/admin/collections/:id', authenticateToken, requireAdmin, async (req: Request, res: Response) => {
+  try {
+    const { name, description, icon, materialIds, isActive } = req.body || {};
+    const data: any = {};
+    if ('name' in req.body) data.name = name;
+    if ('description' in req.body) data.description = description;
+    if ('icon' in req.body) data.icon = icon;
+    if ('materialIds' in req.body) data.materialIds = Array.isArray(materialIds) ? materialIds : [];
+    if ('isActive' in req.body) data.isActive = Boolean(isActive);
+    const collection = await prisma.materialCollection.update({
+      where: { id: req.params.id },
+      data,
+    });
+    res.json(collection);
+  } catch (err) {
+    console.error('[materials] PUT /admin/collections/:id error:', err);
+    res.status(500).json({ message: 'Failed to update collection.' });
+  }
+});
+
+router.delete('/admin/collections/:id', authenticateToken, requireAdmin, async (req: Request, res: Response) => {
+  try {
+    await prisma.materialCollection.delete({ where: { id: req.params.id } });
+    res.json({ message: 'Collection deleted.' });
+  } catch (err) {
+    console.error('[materials] DELETE /admin/collections/:id error:', err);
+    res.status(500).json({ message: 'Failed to delete collection.' });
+  }
+});
 
 router.get('/admin/all', authenticateToken, requireAdmin, async (_req: Request, res: Response) => {
   try {
