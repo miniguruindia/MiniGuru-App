@@ -214,6 +214,55 @@ async function setVideoPrivate(videoId) {
   return true;
 }
 
+// ── Check YouTube's own reported status for a video (Sept 2026) ───────────────
+// This is the mechanism for surfacing a Content ID block into MiniGuru's own
+// admin review queue, WITHOUT needing YouTube Content Manager / CMS partner
+// access (which this project does not have and is unlikely to ever qualify
+// for at this scale). The public Data API does not expose live Content ID
+// match results directly — but when a claim actually REJECTS the video (the
+// common outcome for a full, unmodified copyrighted upload), that shows up
+// as status.uploadStatus === 'rejected' with status.rejectionReason ===
+// 'claim'. A claim that merely tracks/monetizes a video without blocking it
+// is genuinely invisible via this API — be upfront about that limitation
+// anywhere this result is surfaced (see the admin badge tooltip).
+//
+// Never throws — every caller treats a check failure as "unknown", never as
+// a reason to block anything on its own (the ONE place this DOES block an
+// action — publishAndAwardProject — only blocks on an actual, positive
+// 'rejected'/'failed'/'deleted' result, never on a failed check itself).
+async function checkVideoStatus(videoId) {
+  try {
+    const youtube = google.youtube({ version: 'v3', auth: getOAuth2Client() });
+    const res = await youtube.videos.list({ part: 'status,contentDetails', id: videoId });
+    trackYoutubeUnits(1); // videos.list — cheap, shared 10,000/day pool
+
+    const item = res.data.items && res.data.items[0];
+    if (!item) {
+      // Not found via the API at all (deleted, or id somehow wrong).
+      return {
+        uploadStatus: 'notFound', statusReason: null, regionsBlocked: 0, checkedAt: new Date(),
+      };
+    }
+
+    const status = item.status || {};
+    const blocked = (item.contentDetails && item.contentDetails.regionRestriction &&
+      item.contentDetails.regionRestriction.blocked) || [];
+
+    return {
+      uploadStatus: status.uploadStatus || null,
+      // rejectionReason (e.g. "claim") only present when uploadStatus is
+      // 'rejected'; failureReason only present when it's 'failed'. Never
+      // both at once — collapse to one field for simplicity downstream.
+      statusReason: status.rejectionReason || status.failureReason || null,
+      regionsBlocked: blocked.length,
+      checkedAt: new Date(),
+    };
+  } catch (err) {
+    console.warn(`⚠️  checkVideoStatus(${videoId}) failed (non-fatal):`, err.message);
+    return { uploadStatus: null, statusReason: null, regionsBlocked: 0, checkedAt: new Date(), error: err.message };
+  }
+}
+
 // ── Delete video (called on admin rejection) ──────────────────────────────────
 async function deleteVideo(videoId) {
   const youtube = google.youtube({ version: 'v3', auth: getOAuth2Client() });
@@ -222,4 +271,4 @@ async function deleteVideo(videoId) {
   return true;
 }
 
-module.exports = { upload, getAuthUrl, handleCallback, uploadToYouTube, setVideoPublic, setVideoPrivate, deleteVideo, refreshTokenNow, getOAuth2Client };
+module.exports = { upload, getAuthUrl, handleCallback, uploadToYouTube, setVideoPublic, setVideoPrivate, deleteVideo, checkVideoStatus, refreshTokenNow, getOAuth2Client };

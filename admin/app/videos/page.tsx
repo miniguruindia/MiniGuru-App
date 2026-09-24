@@ -27,6 +27,15 @@ interface PendingProject {
   aiVerdict?: 'APPROVE' | 'REJECT' | 'UNSURE' | null
   aiReason?: string | null
   aiConfidence?: number | null
+  // YouTube's OWN reported status — distinct from the AI verdict above.
+  // See checkVideoStatus() in youtubeUploadService.js for exactly what
+  // this can detect (a full block/claim rejection, yes — a claim that
+  // just tracks/monetizes without blocking, no, that needs Content
+  // Manager access this project doesn't have).
+  youtubeUploadStatus?: string | null
+  youtubeStatusReason?: string | null
+  youtubeRegionsBlocked?: number | null
+  youtubeStatusCheckedAt?: string | null
 }
 
 function AiVerdictBadge({ p }: { p: PendingProject }) {
@@ -48,6 +57,67 @@ function AiVerdictBadge({ p }: { p: PendingProject }) {
       {p.aiReason && (
         <p className="text-xs text-gray-400 mt-1 line-clamp-2 max-w-[220px]">{p.aiReason}</p>
       )}
+    </div>
+  )
+}
+
+const YT_REASON_LABELS: Record<string, string> = {
+  claim: 'Blocked by content owner (Content ID claim)',
+  copyright: 'Copyright infringement',
+  trademark: 'Trademark infringement',
+  duplicate: 'Duplicate upload on this channel',
+  inappropriate: 'Inappropriate content',
+  termsOfUse: 'Terms of use violation',
+  legal: 'Unspecified legal reason',
+  uploaderAccountSuspended: 'Uploader account suspended',
+  uploaderAccountClosed: 'Uploader account closed',
+  length: 'Video duration too long',
+  codec: 'Unsupported codec',
+  conversion: 'Video conversion failed',
+  invalidFile: 'Invalid file',
+  emptyFile: 'Empty file',
+  tooSmall: 'File too small',
+  uploadAborted: 'Upload aborted',
+}
+
+function YoutubeStatusBadge({ p, onCheck, checking }: { p: PendingProject; onCheck: () => void; checking: boolean }) {
+  const tooltip =
+    'YouTube\u2019s own reported status. This can catch a full block (e.g. a Content ID ' +
+    'claim that rejects the upload), but NOT a claim that only tracks/monetizes a video ' +
+    'without blocking it \u2014 that level of detail needs YouTube Content Manager access, ' +
+    'which this project does not have.'
+
+  let badge: React.ReactNode
+  if (!p.youtubeStatusCheckedAt) {
+    badge = <span className="text-xs text-gray-300">Not checked</span>
+  } else if (['rejected', 'failed', 'deleted'].includes(p.youtubeUploadStatus || '')) {
+    const label = p.youtubeStatusReason ? (YT_REASON_LABELS[p.youtubeStatusReason] || p.youtubeStatusReason) : p.youtubeUploadStatus
+    badge = (
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-red-50 text-red-600" title={label}>
+        🛑 {p.youtubeUploadStatus} {label ? `· ${label}` : ''}
+      </span>
+    )
+  } else if ((p.youtubeRegionsBlocked || 0) > 0) {
+    badge = (
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-amber-50 text-amber-700">
+        🌐 Blocked in {p.youtubeRegionsBlocked} region{p.youtubeRegionsBlocked === 1 ? '' : 's'}
+      </span>
+    )
+  } else {
+    badge = (
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-gray-50 text-gray-500">
+        ✅ Clear
+      </span>
+    )
+  }
+
+  return (
+    <div className="text-left" title={tooltip}>
+      {badge}
+      <button onClick={onCheck} disabled={checking}
+        className="block text-xs text-blue-500 hover:underline mt-1 disabled:opacity-40">
+        {checking ? 'Checking…' : p.youtubeStatusCheckedAt ? 'Recheck' : 'Check'}
+      </button>
     </div>
   )
 }
@@ -83,6 +153,7 @@ function ApprovalsTab() {
   const [loading, setLoading]           = useState(true)
   const [error, setError]               = useState('')
   const [processingId, setProcessingId] = useState<string | null>(null)
+  const [checkingId, setCheckingId]     = useState<string | null>(null)
   const [rejectTarget, setRejectTarget] = useState<PendingProject | null>(null)
   const [rejectReason, setRejectReason] = useState('')
   const [deleteFromYT, setDeleteFromYT] = useState(false)
@@ -124,6 +195,25 @@ function ApprovalsTab() {
     } catch (e: any) {
       showToast(e.message || 'Approval failed', false)
     } finally { setProcessingId(null) }
+  }
+
+  // On-demand re-poll of YouTube's own reported status for one project —
+  // purely informational (see YoutubeStatusBadge above for what it can and
+  // can't detect). Approve itself also does a fresh check automatically
+  // right before publishing, so this button is for checking ahead of time,
+  // not something you have to remember to click before every approval.
+  const checkYoutube = async (id: string) => {
+    setCheckingId(id)
+    try {
+      const res = await fetch(`${API_BASE}/admin/projects/${id}/youtube-check`, {
+        method: 'POST', headers: await authHeader(),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.message || 'Failed')
+      setProjects(prev => prev.map(p => p.id === id ? { ...p, ...data } : p))
+    } catch (e: any) {
+      showToast(e.message || 'Could not check YouTube status', false)
+    } finally { setCheckingId(null) }
   }
 
   const reject = async () => {
@@ -221,6 +311,7 @@ function ApprovalsTab() {
                 <th className="text-left text-xs font-semibold text-gray-500 uppercase px-5 py-3">Project</th>
                 <th className="text-left text-xs font-semibold text-gray-500 uppercase px-5 py-3 hidden md:table-cell">Category</th>
                 <th className="text-left text-xs font-semibold text-gray-500 uppercase px-5 py-3">AI Review</th>
+                <th className="text-left text-xs font-semibold text-gray-500 uppercase px-5 py-3">YouTube Status</th>
                 <th className="text-center text-xs font-semibold text-gray-500 uppercase px-5 py-3 hidden md:table-cell">Video</th>
                 <th className="text-center text-xs font-semibold text-gray-500 uppercase px-5 py-3 hidden lg:table-cell">Submitted</th>
                 <th className="text-center text-xs font-semibold text-gray-500 uppercase px-5 py-3">Actions</th>
@@ -228,11 +319,11 @@ function ApprovalsTab() {
             </thead>
             <tbody className="divide-y divide-gray-50">
               {loading ? (
-                <tr><td colSpan={7} className="text-center py-12">
+                <tr><td colSpan={8} className="text-center py-12">
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto" />
                 </td></tr>
               ) : projects.length === 0 ? (
-                <tr><td colSpan={7} className="text-center py-16">
+                <tr><td colSpan={8} className="text-center py-16">
                   <div className="text-5xl mb-3">🎉</div>
                   <p className="text-gray-500 font-medium">No pending projects — all caught up!</p>
                 </td></tr>
@@ -253,6 +344,9 @@ function ApprovalsTab() {
                   </td>
                   <td className="px-5 py-4">
                     <AiVerdictBadge p={p} />
+                  </td>
+                  <td className="px-5 py-4">
+                    <YoutubeStatusBadge p={p} checking={checkingId === p.id} onCheck={() => checkYoutube(p.id)} />
                   </td>
                   <td className="px-5 py-4 hidden md:table-cell text-center">
                     {p.video?.url ? (

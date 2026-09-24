@@ -13,11 +13,13 @@ import { generateUploadUrl, downloadToTempFile, deleteFromStorage, publicUrlFor 
 let uploadToYouTube: any = null;
 let setVideoPublic: any = null;
 let deleteVideo: any = null;
+let checkVideoStatus: any = null;
 try {
   const youtubeService = require("../../services/youtubeUploadService");
   uploadToYouTube = youtubeService.uploadToYouTube;
   setVideoPublic = youtubeService.setVideoPublic;
   deleteVideo = youtubeService.deleteVideo;
+  checkVideoStatus = youtubeService.checkVideoStatus;
   logger.info('YouTube service loaded in project controller');
 } catch (error) {
   logger.warn({ error: (error as Error).message }, 'YouTube service not available in project controller - YouTube features will be disabled');
@@ -227,6 +229,13 @@ export const createProject = async (req: Request, res: Response) => {
   }
 
   let videoUrl = "";
+  // YouTube's own reported status snapshot (Sept 2026) — see
+  // checkVideoStatus() in youtubeUploadService.js. Populated best-effort
+  // right after upload, below. Note Content ID matching is not instant —
+  // this first snapshot is usually clean; the meaningful re-check happens
+  // automatically right before admin approval (publishAndAwardProject),
+  // and admin can also trigger a fresh check on demand from the queue.
+  let ytStatus: { uploadStatus?: string; statusReason?: string; regionsBlocked?: number; checkedAt?: Date } = {};
   if (uploadToYouTube) {
     try {
       logger.info(`📤 Uploading video to YouTube for project: "${title}"`);
@@ -242,6 +251,16 @@ export const createProject = async (req: Request, res: Response) => {
 
       videoUrl = result.url; // e.g. https://www.youtube.com/watch?v=ABC123
       logger.info(`✅ YouTube upload successful. Video ID: ${result.videoId}`);
+
+      if (checkVideoStatus) {
+        try {
+          ytStatus = await checkVideoStatus(result.videoId);
+        } catch (statusError) {
+          // Never fatal — a project with no status snapshot yet just shows
+          // "—" in admin until the next check (auto, on approval, or manual).
+          logger.warn(`Could not fetch initial YouTube status: ${(statusError as Error).message}`);
+        }
+      }
     } catch (error) {
       logger.error(`❌ YouTube upload failed: ${(error as Error).message}`);
       return res.status(500).json({
@@ -278,6 +297,10 @@ export const createProject = async (req: Request, res: Response) => {
       aiConfidence: aiReview.confidence,
       aiReviewedAt,
       desiredPrivacyStatus: ['PUBLIC', 'UNLISTED', 'PRIVATE'].includes(desiredPrivacyStatus) ? desiredPrivacyStatus : 'PUBLIC',
+      youtubeUploadStatus: ytStatus.uploadStatus,
+      youtubeStatusReason: ytStatus.statusReason,
+      youtubeRegionsBlocked: ytStatus.regionsBlocked,
+      youtubeStatusCheckedAt: ytStatus.checkedAt,
     });
 
     // ── Material Goins cost (Aug 2026 — Rule 25 reversal, confirmed) ────
@@ -493,6 +516,8 @@ export const updateProject = async (req: Request, res: Response) => {
   let newVideoUrl: string | undefined;
   let resetFields: {
     status?: string; aiVerdict?: string; aiReason?: string; aiConfidence?: number; aiReviewedAt?: Date;
+    youtubeUploadStatus?: string | null; youtubeStatusReason?: string | null;
+    youtubeRegionsBlocked?: number | null; youtubeStatusCheckedAt?: Date | null;
   } = {};
 
   if (videoStoragePath) {
@@ -520,6 +545,12 @@ export const updateProject = async (req: Request, res: Response) => {
       aiReview = { verdict: "UNSURE", reason: "AI review failed unexpectedly — needs human review.", confidence: 0 };
     }
     const aiReviewedAt = new Date();
+    // Fresh YouTube status for the NEW video — the old video's snapshot
+    // must not linger on the project once it's been replaced. Defaults to
+    // nulls (explicit reset) below; overwritten if the check succeeds.
+    let newYtStatus: { uploadStatus?: string | null; statusReason?: string | null; regionsBlocked?: number | null; checkedAt?: Date | null } = {
+      uploadStatus: null, statusReason: null, regionsBlocked: null, checkedAt: null,
+    };
 
     try {
       if (uploadToYouTube) {
@@ -529,6 +560,14 @@ export const updateProject = async (req: Request, res: Response) => {
           tags: ["MiniGuru", "STEM", "Education", "India"],
         });
         newVideoUrl = result?.url;
+
+        if (checkVideoStatus && result?.videoId) {
+          try {
+            newYtStatus = await checkVideoStatus(result.videoId);
+          } catch (statusError) {
+            logger.warn(`Could not fetch YouTube status for replacement video: ${(statusError as Error).message}`);
+          }
+        }
 
         // Old video is being fully replaced — clean it up on YouTube too,
         // same helper the admin-side replacement and rejectProject both
@@ -554,6 +593,10 @@ export const updateProject = async (req: Request, res: Response) => {
       aiReason: aiReview.reason,
       aiConfidence: aiReview.confidence,
       aiReviewedAt,
+      youtubeUploadStatus: newYtStatus.uploadStatus,
+      youtubeStatusReason: newYtStatus.statusReason,
+      youtubeRegionsBlocked: newYtStatus.regionsBlocked,
+      youtubeStatusCheckedAt: newYtStatus.checkedAt,
     };
 
     // Same advisory-only notification pattern as a first-time upload —
@@ -702,6 +745,8 @@ export const adminUpdateProject = async (req: Request, res: Response) => {
     let newVideoUrl: string | undefined = undefined;
     let resetFields: {
       status?: string; aiVerdict?: string; aiReason?: string; aiConfidence?: number; aiReviewedAt?: Date;
+      youtubeUploadStatus?: string | null; youtubeStatusReason?: string | null;
+      youtubeRegionsBlocked?: number | null; youtubeStatusCheckedAt?: Date | null;
     } = {};
 
     if (videoStoragePath && uploadToYouTube) {
@@ -723,6 +768,13 @@ export const adminUpdateProject = async (req: Request, res: Response) => {
           aiReason: aiReview.reason,
           aiConfidence: aiReview.confidence,
           aiReviewedAt,
+          // Old video's YouTube status no longer applies — reset to null
+          // now, overwritten below with a fresh snapshot if the upload +
+          // check succeed.
+          youtubeUploadStatus: null,
+          youtubeStatusReason: null,
+          youtubeRegionsBlocked: null,
+          youtubeStatusCheckedAt: null,
         };
 
         const enrichedDescription = await buildMaterialsEnrichedDescription(
@@ -739,6 +791,18 @@ export const adminUpdateProject = async (req: Request, res: Response) => {
         // project is 'pending' again now, same as any project awaiting
         // approval; publishAndAwardProject (admin's own Approve click)
         // is the only place that ever makes a video public.
+
+        if (checkVideoStatus && result?.videoId) {
+          try {
+            const freshStatus = await checkVideoStatus(result.videoId);
+            resetFields.youtubeUploadStatus = freshStatus.uploadStatus ?? null;
+            resetFields.youtubeStatusReason = freshStatus.statusReason ?? null;
+            resetFields.youtubeRegionsBlocked = freshStatus.regionsBlocked ?? null;
+            resetFields.youtubeStatusCheckedAt = freshStatus.checkedAt ?? null;
+          } catch (statusError) {
+            logger.warn(`Could not fetch YouTube status for admin-replaced video: ${(statusError as Error).message}`);
+          }
+        }
 
         const oldVideoUrl = (project.video as any)?.url;
         if (oldVideoUrl && deleteVideo) {

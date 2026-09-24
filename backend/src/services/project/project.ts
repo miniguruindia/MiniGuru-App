@@ -49,6 +49,15 @@ class ProjectService {
       aiConfidence,
       aiReviewedAt,
       desiredPrivacyStatus,
+      // YouTube's own reported status (Sept 2026) — a best-effort snapshot
+      // taken right after upload in createProject. See checkVideoStatus()
+      // in youtubeUploadService.js. Undefined when the check itself failed
+      // or was skipped (e.g. YouTube service unavailable) — never blocks
+      // project creation either way.
+      youtubeUploadStatus,
+      youtubeStatusReason,
+      youtubeRegionsBlocked,
+      youtubeStatusCheckedAt,
     } = projectData;
 
     const category = await prisma.projectCategory.findUnique({
@@ -76,6 +85,10 @@ class ProjectService {
         aiConfidence: typeof aiConfidence === "number" ? aiConfidence : undefined,
         aiReviewedAt: aiReviewedAt ?? undefined,
         desiredPrivacyStatus: ["PUBLIC", "UNLISTED", "PRIVATE"].includes(desiredPrivacyStatus) ? desiredPrivacyStatus : "PUBLIC",
+        youtubeUploadStatus: youtubeUploadStatus ?? undefined,
+        youtubeStatusReason: youtubeStatusReason ?? undefined,
+        youtubeRegionsBlocked: typeof youtubeRegionsBlocked === "number" ? youtubeRegionsBlocked : undefined,
+        youtubeStatusCheckedAt: youtubeStatusCheckedAt ?? undefined,
       },
     });
   }
@@ -100,6 +113,16 @@ class ProjectService {
       aiConfidence,
       aiReviewedAt,
       desiredPrivacyStatus,
+      // YouTube's own reported status (Sept 2026) — see create() above and
+      // checkVideoStatus() in youtubeUploadService.js. On a video
+      // replacement, callers pass explicit nulls here (the old video's
+      // status no longer applies to the new file) alongside a fresh
+      // post-upload snapshot, same "reset then re-fill" pattern already
+      // used for aiVerdict/aiReason/aiConfidence above.
+      youtubeUploadStatus,
+      youtubeStatusReason,
+      youtubeRegionsBlocked,
+      youtubeStatusCheckedAt,
     } = projectData;
 
     let category;
@@ -152,6 +175,10 @@ class ProjectService {
             desiredPrivacyStatus && ["PUBLIC", "UNLISTED", "PRIVATE"].includes(desiredPrivacyStatus)
               ? desiredPrivacyStatus
               : undefined,
+          youtubeUploadStatus: youtubeUploadStatus !== undefined ? youtubeUploadStatus : undefined,
+          youtubeStatusReason: youtubeStatusReason !== undefined ? youtubeStatusReason : undefined,
+          youtubeRegionsBlocked: youtubeRegionsBlocked !== undefined ? youtubeRegionsBlocked : undefined,
+          youtubeStatusCheckedAt: youtubeStatusCheckedAt !== undefined ? youtubeStatusCheckedAt : undefined,
         },
       });
     } catch (err: any) {

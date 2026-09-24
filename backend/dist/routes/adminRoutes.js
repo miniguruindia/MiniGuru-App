@@ -86,6 +86,7 @@ adminRouter.get('/analytics/website', authMiddleware_1.authenticateToken, authMi
 adminRouter.get('/projects/pending', authMiddleware_1.authenticateToken, authMiddleware_1.authorizeAdmin, videoApprovalController_1.getPendingProjects);
 adminRouter.post('/projects/:id/approve', authMiddleware_1.authenticateToken, authMiddleware_1.authorizeAdmin, videoApprovalController_1.approveProject);
 adminRouter.post('/projects/:id/reject', authMiddleware_1.authenticateToken, authMiddleware_1.authorizeAdmin, videoApprovalController_1.rejectProject);
+adminRouter.post('/projects/:id/youtube-check', authMiddleware_1.authenticateToken, authMiddleware_1.authorizeAdmin, videoApprovalController_1.checkYoutubeStatus);
 adminRouter.get('/drafts', authMiddleware_1.authenticateToken, authMiddleware_1.authorizeAdmin, videoApprovalController_1.getAllDrafts);
 // ==================== ADMIN GOINS ====================
 // NOTE: Goins = user.score. ScoreHistory is an embedded array on User.

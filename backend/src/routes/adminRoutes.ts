@@ -10,7 +10,7 @@ import { listUsers, getUserById , deleteUserById, updateUserDetails } from '../c
 import { getAllOrdersController } from '../controllers/ecom/orderController';
 import { fetchStats } from '../controllers/admin/statsController';
 import { getWebsiteAnalyticsSummary } from '../services/googleAnalyticsService';
-import { getPendingProjects, approveProject, rejectProject, getAllDrafts } from '../controllers/admin/videoApprovalController';
+import { getPendingProjects, approveProject, rejectProject, getAllDrafts, checkYoutubeStatus } from '../controllers/admin/videoApprovalController';
 import {
   getPendingContactChangeRequests,
   approveContactChange,
@@ -92,6 +92,7 @@ adminRouter.get('/analytics/website', authenticateToken, authorizeAdmin, async (
 adminRouter.get('/projects/pending', authenticateToken, authorizeAdmin, getPendingProjects);
 adminRouter.post('/projects/:id/approve', authenticateToken, authorizeAdmin, approveProject);
 adminRouter.post('/projects/:id/reject', authenticateToken, authorizeAdmin, rejectProject);
+adminRouter.post('/projects/:id/youtube-check', authenticateToken, authorizeAdmin, checkYoutubeStatus);
 adminRouter.get('/drafts', authenticateToken, authorizeAdmin, getAllDrafts);
 
 // ==================== ADMIN GOINS ====================

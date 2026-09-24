@@ -310,6 +310,25 @@ model Project {
   aiReason    String?
   aiConfidence Float?
   aiReviewedAt DateTime?
+  // ── YouTube's own reported video status (Sept 2026) ─────────────────
+  // This is DISTINCT from the aiVerdict/aiReason/aiConfidence fields above
+  // (our own Gemini pre-screen). These fields instead surface what YOUTUBE
+  // ITSELF reports via videos.list (part=status,contentDetails) for this
+  // video — including, notably, status.rejectionReason: "claim", which is
+  // how a Content ID block from a rights holder becomes visible through
+  // the public Data API without any Content ID / CMS partner access.
+  // IMPORTANT LIMITATION (do not oversell this in UI copy): this can only
+  // ever show a claim that actually REJECTS/BLOCKS the video, or a region
+  // restriction. Content ID claims that just track/monetize a video
+  // without blocking it are invisible via this public API — that detail
+  // only exists in YouTube Studio / Content Manager, which this project
+  // does not have partner access to. See checkVideoStatus() in
+  // youtubeUploadService.js and publishAndAwardProject() for where this
+  // gets populated.
+  youtubeUploadStatus    String?   // e.g. "uploaded" | "processed" | "rejected" | "failed" | "deleted" | "notFound"
+  youtubeStatusReason    String?   // status.rejectionReason or status.failureReason, whichever is present
+  youtubeRegionsBlocked  Int?      // contentDetails.regionRestriction.blocked.length, if any
+  youtubeStatusCheckedAt DateTime? // when this snapshot was last fetched from YouTube
   // Shared/group projects — additional children working on this project
   // alongside the owner (userId above). Set only at upload time (never
   // editable afterward — collaborators can only be added while planning,

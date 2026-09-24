@@ -2,7 +2,7 @@ import { Request, Response } from 'express';
 import prisma from '../../utils/prismaClient';
 import logger from '../../logger';
 
-const { setVideoPublic, setVideoPrivate, deleteVideo } = require('../../services/youtubeUploadService');
+const { setVideoPublic, setVideoPrivate, deleteVideo, checkVideoStatus } = require('../../services/youtubeUploadService');
 
 export function extractYouTubeId(videoUrl: string): string {
   const match = videoUrl.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/shorts\/)([a-zA-Z0-9_-]{11})/);
@@ -68,6 +68,63 @@ export async function publishAndAwardProject(id: string) {
   // needs re-approving). Only 'published' (already live) is blocked.
   if (!['pending', 'rejected'].includes(project.status)) {
     throw new ApprovalError(`Cannot approve — status is '${project.status}', expected 'pending' or 'rejected'.`, 400);
+  }
+
+  // ── Fresh YouTube status check, right before publishing (Sept 2026) ──
+  // Content ID matching isn't instant, so the snapshot taken right after
+  // upload is usually stale by the time an admin gets around to
+  // approving — this is the moment it actually matters, so re-check here,
+  // every time, rather than trusting whatever was last stored. A genuine
+  // 'rejected'/'failed'/'deleted' result (which is how a full-block
+  // Content ID claim — status.rejectionReason === 'claim' — surfaces via
+  // the public API) blocks the approval outright: publishing over a video
+  // YouTube itself has already rejected would either fail anyway or leave
+  // admin believing something is live that isn't. A region restriction
+  // alone does NOT block approval — that's visible in the admin badge but
+  // left to the admin's judgement, since a video can be entirely
+  // legitimate and still be restricted in specific territories.
+  // Never let a FAILED CHECK itself block anything — only a genuine
+  // positive result from YouTube does.
+  let freshYtStatus: { uploadStatus?: string | null; statusReason?: string | null; regionsBlocked?: number | null; checkedAt?: Date | null } | null = null;
+  if (checkVideoStatus && project.video?.url) {
+    try {
+      freshYtStatus = await checkVideoStatus(extractYouTubeId(project.video.url));
+    } catch (statusError) {
+      logger.warn(`YouTube status re-check failed before approval (non-fatal, proceeding): ${(statusError as Error).message}`);
+    }
+  }
+  if (freshYtStatus && ['rejected', 'failed', 'deleted'].includes(freshYtStatus.uploadStatus || '')) {
+    // Persist what we found even though we're about to block — admin
+    // needs to see the reason in the queue without re-clicking Check.
+    await prisma.project.update({
+      where: { id },
+      data: {
+        youtubeUploadStatus: freshYtStatus.uploadStatus,
+        youtubeStatusReason: freshYtStatus.statusReason,
+        youtubeRegionsBlocked: freshYtStatus.regionsBlocked,
+        youtubeStatusCheckedAt: freshYtStatus.checkedAt,
+      },
+    }).catch(() => {});
+    throw new ApprovalError(
+      `YouTube itself reports this video as '${freshYtStatus.uploadStatus}'` +
+      (freshYtStatus.statusReason ? ` (${freshYtStatus.statusReason})` : '') +
+      ' — cannot approve until this is resolved (check the video directly on YouTube).',
+      409,
+    );
+  }
+  // Clean (or check unavailable) — still worth persisting a fresh
+  // timestamp/snapshot so the admin queue reflects the latest check even
+  // after approval, without blocking anything.
+  if (freshYtStatus) {
+    await prisma.project.update({
+      where: { id },
+      data: {
+        youtubeUploadStatus: freshYtStatus.uploadStatus,
+        youtubeStatusReason: freshYtStatus.statusReason,
+        youtubeRegionsBlocked: freshYtStatus.regionsBlocked,
+        youtubeStatusCheckedAt: freshYtStatus.checkedAt,
+      },
+    }).catch(() => {});
   }
 
   // ── YouTube ───────────────────────────────────────────────────
@@ -292,5 +349,45 @@ export const getAllDrafts = async (req: Request, res: Response) => {
   } catch (error) {
     logger.error(`Error fetching drafts: ${(error as Error).message}`);
     return res.status(500).json({ message: 'Failed to fetch drafts.' });
+  }
+};
+
+// POST /admin/projects/:id/youtube-check — on-demand re-poll of YouTube's
+// own reported status for this project's video, surfaced as a badge next
+// to the AI verdict on the admin queue (see checkVideoStatus() in
+// youtubeUploadService.js for exactly what this can and can't detect —
+// short version: a full block/claim rejection, yes; a claim that just
+// tracks/monetizes without blocking, no, that's Content Manager-only).
+// Does NOT approve/reject/publish anything by itself — purely informational,
+// same spirit as the AI badge. The one place a status check DOES change
+// approval behaviour is the automatic re-check inside publishAndAwardProject
+// above, right before it would actually publish.
+export const checkYoutubeStatus = async (req: Request, res: Response) => {
+  const { id } = req.params;
+  try {
+    const project = await prisma.project.findUnique({ where: { id }, select: { video: true } });
+    if (!project) return res.status(404).json({ message: 'Project not found.' });
+    if (!project.video?.url) return res.status(400).json({ message: 'This project has no video to check.' });
+
+    const result = await checkVideoStatus(extractYouTubeId(project.video.url));
+
+    const updated = await prisma.project.update({
+      where: { id },
+      data: {
+        youtubeUploadStatus: result.uploadStatus,
+        youtubeStatusReason: result.statusReason,
+        youtubeRegionsBlocked: result.regionsBlocked,
+        youtubeStatusCheckedAt: result.checkedAt,
+      },
+      select: {
+        youtubeUploadStatus: true, youtubeStatusReason: true,
+        youtubeRegionsBlocked: true, youtubeStatusCheckedAt: true,
+      },
+    });
+
+    return res.status(200).json(updated);
+  } catch (error) {
+    logger.error(`Error checking YouTube status for project ${id}: ${(error as Error).message}`);
+    return res.status(500).json({ message: 'Could not check YouTube status. Please try again.' });
   }
 };

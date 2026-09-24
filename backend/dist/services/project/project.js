@@ -31,7 +31,13 @@ class ProjectService {
         const { title, description, startDate, endDate, materials, categoryName, thumbnailPath, videoUrl, collaborators, challengeId, 
         // AI first-pass video review result (optional — undefined when the
         // review was never run, e.g. GEMINI_API_KEY not configured).
-        aiVerdict, aiReason, aiConfidence, aiReviewedAt, desiredPrivacyStatus, } = projectData;
+        aiVerdict, aiReason, aiConfidence, aiReviewedAt, desiredPrivacyStatus, 
+        // YouTube's own reported status (Sept 2026) — a best-effort snapshot
+        // taken right after upload in createProject. See checkVideoStatus()
+        // in youtubeUploadService.js. Undefined when the check itself failed
+        // or was skipped (e.g. YouTube service unavailable) — never blocks
+        // project creation either way.
+        youtubeUploadStatus, youtubeStatusReason, youtubeRegionsBlocked, youtubeStatusCheckedAt, } = projectData;
         const category = await prismaClient_1.default.projectCategory.findUnique({
             where: { name: categoryName },
         });
@@ -56,6 +62,10 @@ class ProjectService {
                 aiConfidence: typeof aiConfidence === "number" ? aiConfidence : undefined,
                 aiReviewedAt: aiReviewedAt ?? undefined,
                 desiredPrivacyStatus: ["PUBLIC", "UNLISTED", "PRIVATE"].includes(desiredPrivacyStatus) ? desiredPrivacyStatus : "PUBLIC",
+                youtubeUploadStatus: youtubeUploadStatus ?? undefined,
+                youtubeStatusReason: youtubeStatusReason ?? undefined,
+                youtubeRegionsBlocked: typeof youtubeRegionsBlocked === "number" ? youtubeRegionsBlocked : undefined,
+                youtubeStatusCheckedAt: youtubeStatusCheckedAt ?? undefined,
             },
         });
     }
@@ -65,7 +75,14 @@ class ProjectService {
         // the controller passes ALL of these together so the reset happens
         // atomically with the new video, never as a separate follow-up call:
         status, // 'pending' on any video replacement — see controller
-        aiVerdict, aiReason, aiConfidence, aiReviewedAt, desiredPrivacyStatus, } = projectData;
+        aiVerdict, aiReason, aiConfidence, aiReviewedAt, desiredPrivacyStatus, 
+        // YouTube's own reported status (Sept 2026) — see create() above and
+        // checkVideoStatus() in youtubeUploadService.js. On a video
+        // replacement, callers pass explicit nulls here (the old video's
+        // status no longer applies to the new file) alongside a fresh
+        // post-upload snapshot, same "reset then re-fill" pattern already
+        // used for aiVerdict/aiReason/aiConfidence above.
+        youtubeUploadStatus, youtubeStatusReason, youtubeRegionsBlocked, youtubeStatusCheckedAt, } = projectData;
         let category;
         if (categoryName) {
             category = await prismaClient_1.default.projectCategory.findUnique({
@@ -114,6 +131,10 @@ class ProjectService {
                     desiredPrivacyStatus: desiredPrivacyStatus && ["PUBLIC", "UNLISTED", "PRIVATE"].includes(desiredPrivacyStatus)
                         ? desiredPrivacyStatus
                         : undefined,
+                    youtubeUploadStatus: youtubeUploadStatus !== undefined ? youtubeUploadStatus : undefined,
+                    youtubeStatusReason: youtubeStatusReason !== undefined ? youtubeStatusReason : undefined,
+                    youtubeRegionsBlocked: youtubeRegionsBlocked !== undefined ? youtubeRegionsBlocked : undefined,
+                    youtubeStatusCheckedAt: youtubeStatusCheckedAt !== undefined ? youtubeStatusCheckedAt : undefined,
                 },
             });
         }
