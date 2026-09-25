@@ -558,6 +558,9 @@ const updateProject = async (req, res) => {
             youtubeStatusReason: newYtStatus.statusReason,
             youtubeRegionsBlocked: newYtStatus.regionsBlocked,
             youtubeStatusCheckedAt: newYtStatus.checkedAt,
+            // A fresh video replacement supersedes any earlier rejection note.
+            rejectionReason: null,
+            rejectionAt: null,
         };
         // Same advisory-only notification pattern as a first-time upload —
         // never auto-publishes, just makes sure admin knows a replacement is
@@ -722,6 +725,10 @@ const adminUpdateProject = async (req, res) => {
                     youtubeStatusReason: null,
                     youtubeRegionsBlocked: null,
                     youtubeStatusCheckedAt: null,
+                    // A fresh admin-driven video replacement also supersedes any
+                    // earlier rejection note.
+                    rejectionReason: null,
+                    rejectionAt: null,
                 };
                 const enrichedDescription = await buildMaterialsEnrichedDescription(description !== undefined ? description : (project.description || ""), materials || []);
                 const result = await uploadToYouTube(tempPath, {

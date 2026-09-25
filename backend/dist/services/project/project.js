@@ -82,7 +82,11 @@ class ProjectService {
         // status no longer applies to the new file) alongside a fresh
         // post-upload snapshot, same "reset then re-fill" pattern already
         // used for aiVerdict/aiReason/aiConfidence above.
-        youtubeUploadStatus, youtubeStatusReason, youtubeRegionsBlocked, youtubeStatusCheckedAt, } = projectData;
+        youtubeUploadStatus, youtubeStatusReason, youtubeRegionsBlocked, youtubeStatusCheckedAt, 
+        // Admin's rejection note — callers pass explicit nulls here on a
+        // fresh video replacement (see projectController.ts resetFields),
+        // same "reset then re-fill if needed" pattern as the youtube fields.
+        rejectionReason, rejectionAt, } = projectData;
         let category;
         if (categoryName) {
             category = await prismaClient_1.default.projectCategory.findUnique({
@@ -135,6 +139,8 @@ class ProjectService {
                     youtubeStatusReason: youtubeStatusReason !== undefined ? youtubeStatusReason : undefined,
                     youtubeRegionsBlocked: youtubeRegionsBlocked !== undefined ? youtubeRegionsBlocked : undefined,
                     youtubeStatusCheckedAt: youtubeStatusCheckedAt !== undefined ? youtubeStatusCheckedAt : undefined,
+                    rejectionReason: rejectionReason !== undefined ? rejectionReason : undefined,
+                    rejectionAt: rejectionAt !== undefined ? rejectionAt : undefined,
                 },
             });
         }

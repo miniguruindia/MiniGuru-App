@@ -329,6 +329,15 @@ model Project {
   youtubeStatusReason    String?   // status.rejectionReason or status.failureReason, whichever is present
   youtubeRegionsBlocked  Int?      // contentDetails.regionRestriction.blocked.length, if any
   youtubeStatusCheckedAt DateTime? // when this snapshot was last fetched from YouTube
+  // ── Admin's own rejection reason (Sept 2026) ─────────────────────────
+  // The admin reject dialog has always collected a "Reason for student"
+  // — it was sent to the backend, logged, and returned in the API
+  // response, but NEVER actually persisted anywhere, so the child never
+  // saw it. This is the missing piece. Cleared back to null whenever the
+  // project is later approved or a new video is uploaded (a fresh
+  // submission shouldn't carry a stale old rejection note).
+  rejectionReason String?
+  rejectionAt     DateTime?
   // Shared/group projects — additional children working on this project
   // alongside the owner (userId above). Set only at upload time (never
   // editable afterward — collaborators can only be added while planning,

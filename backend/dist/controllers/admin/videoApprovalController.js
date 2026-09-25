@@ -233,6 +233,12 @@ async function publishAndAwardProject(id) {
             data: {
                 status: 'published',
                 challengeGoinsAwarded: challengeBonus > 0 ? challengeBonus : undefined,
+                // A project can only reach here from 'pending' or 'rejected' —
+                // if it's the latter, this approval supersedes the old rejection,
+                // so clear the stale note rather than let it linger on an
+                // otherwise-published project.
+                rejectionReason: null,
+                rejectionAt: null,
             },
         }),
         ...recipientIds.map((recipientId, idx) => {
@@ -305,7 +311,15 @@ const rejectProject = async (req, res) => {
         }
         const updated = await prismaClient_1.default.project.update({
             where: { id },
-            data: { status: 'rejected' },
+            data: {
+                status: 'rejected',
+                // Persist what the admin actually typed — previously collected
+                // by the UI and thrown away server-side, so the child never saw
+                // it despite the dialog literally being labeled "Reason for
+                // student". This is the real fix for that.
+                rejectionReason: reason || null,
+                rejectionAt: reason ? new Date() : null,
+            },
         });
         logger_1.default.info(`Project ${id} rejected. Reason: ${reason || 'none'}`);
         return res.status(200).json({ message: 'Project rejected.', project: updated, reason });

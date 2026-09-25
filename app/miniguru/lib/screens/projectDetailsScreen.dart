@@ -61,6 +61,59 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
     // an empty list instead of crashing the whole screen.
     materialList = _safeDoubleDecodeList(widget.project.materials);
     comments = _safeDoubleDecodeList(widget.project.comments);
+    _loadLiveStatus();
+  }
+
+  // ── Live status detail (Sept 2026) ────────────────────────────────
+  // The Project object passed into this screen can be a cached local
+  // (SQLite) copy that goes stale the moment an admin acts on it. This
+  // fetches the current status, admin's rejection reason (see the
+  // "Reason for student" field in the admin reject dialog — previously
+  // collected there and silently discarded server-side, never actually
+  // reaching this screen), and YouTube's own reported status, if any.
+  // Never blocks the rest of the screen and never shows an error of its
+  // own on failure — the banner just falls back to the cached status
+  // with no extra detail, exactly as it behaved before this existed.
+  Map<String, dynamic>? _liveDetail;
+
+  Future<void> _loadLiveStatus() async {
+    final detail = await _miniguruApi.getProjectStatusDetail(widget.project.id);
+    if (mounted && detail != null) setState(() => _liveDetail = detail);
+  }
+
+  static const Map<String, String> _ytReasonLabels = {
+    'claim': 'Blocked by content owner (Content ID claim)',
+    'copyright': 'Copyright infringement',
+    'trademark': 'Trademark infringement',
+    'duplicate': 'Duplicate upload on this channel',
+    'inappropriate': 'Inappropriate content',
+    'termsOfUse': 'Terms of use violation',
+    'legal': 'Unspecified legal reason',
+  };
+
+  /// Combines the admin's own typed reason with a plain-language note
+  /// about YouTube's own reported status, when that's what caused it.
+  /// Either piece may be absent — this returns null only when there's
+  /// genuinely nothing to show.
+  String? _reasonDetailText() {
+    final detail = _liveDetail;
+    if (detail == null) return null;
+
+    final parts = <String>[];
+    final adminReason = detail['rejectionReason'] as String?;
+    if (adminReason != null && adminReason.trim().isNotEmpty) {
+      parts.add(adminReason.trim());
+    }
+
+    final ytStatus = detail['youtubeUploadStatus'] as String?;
+    if (ytStatus != null && ['rejected', 'failed', 'deleted'].contains(ytStatus)) {
+      final ytReasonRaw = detail['youtubeStatusReason'] as String?;
+      final ytLabel = ytReasonRaw != null ? (_ytReasonLabels[ytReasonRaw] ?? ytReasonRaw) : null;
+      parts.add('YouTube itself flagged this video' + (ytLabel != null ? ': $ytLabel' : '.'));
+    }
+
+    if (parts.isEmpty) return null;
+    return parts.join('\n');
   }
 
   bool get _isOwner => widget.user.id == widget.project.userId;
@@ -148,7 +201,11 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
   }
 
   ({String label, Color color, IconData icon}) _statusDisplay() {
-    switch (widget.project.status) {
+    // Prefer the freshly-fetched live status over the possibly-stale
+    // cached one, so a project rejected (or published) after this
+    // screen's local copy was cached still shows correctly.
+    final status = (_liveDetail?['status'] as String?) ?? widget.project.status;
+    switch (status) {
       case 'published':
         return (label: 'Published', color: Colors.green, icon: Icons.check_circle_outline);
       case 'rejected':
@@ -543,6 +600,7 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
             if (_isOwner) ...[
               Builder(builder: (context) {
                 final status = _statusDisplay();
+                final reasonText = _reasonDetailText();
                 return Container(
                   padding: const EdgeInsets.all(12.0),
                   decoration: BoxDecoration(
@@ -550,28 +608,51 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
                     borderRadius: BorderRadius.circular(12.0),
                     border: Border.all(color: status.color.withOpacity(0.3)),
                   ),
-                  child: Row(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Icon(status.icon, color: status.color, size: 20),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(status.label,
+                      Row(
+                        children: [
+                          Icon(status.icon, color: status.color, size: 20),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(status.label,
+                                style: bodyTextStyle.copyWith(
+                                    color: status.color, fontWeight: FontWeight.w600)),
+                          ),
+                          OutlinedButton.icon(
+                            onPressed: _replacingVideo ? null : _pickAndReplaceVideo,
+                            icon: _replacingVideo
+                                ? const SizedBox(
+                                    width: 14, height: 14,
+                                    child: CircularProgressIndicator(strokeWidth: 2))
+                                : const Icon(Icons.refresh, size: 16),
+                            label: Text(_replacingVideo ? 'Uploading…' : 'Replace Video'),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: status.color,
+                              side: BorderSide(color: status.color),
+                            ),
+                          ),
+                        ],
+                      ),
+                      // Admin's typed reason + (when that's what caused
+                      // it) a plain-language note about YouTube's own
+                      // reported status. Previously collected by the
+                      // admin dialog and simply discarded — this is the
+                      // first place it's ever actually reached the child.
+                      if (reasonText != null) ...[
+                        const SizedBox(height: 8),
+                        Container(
+                          margin: const EdgeInsets.only(left: 28),
+                          child: Text(
+                            reasonText,
                             style: bodyTextStyle.copyWith(
-                                color: status.color, fontWeight: FontWeight.w600)),
-                      ),
-                      OutlinedButton.icon(
-                        onPressed: _replacingVideo ? null : _pickAndReplaceVideo,
-                        icon: _replacingVideo
-                            ? const SizedBox(
-                                width: 14, height: 14,
-                                child: CircularProgressIndicator(strokeWidth: 2))
-                            : const Icon(Icons.refresh, size: 16),
-                        label: Text(_replacingVideo ? 'Uploading…' : 'Replace Video'),
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: status.color,
-                          side: BorderSide(color: status.color),
+                              color: status.color.withOpacity(0.9),
+                              fontSize: 13,
+                            ),
+                          ),
                         ),
-                      ),
+                      ],
                     ],
                   ),
                 );

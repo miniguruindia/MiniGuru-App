@@ -123,6 +123,11 @@ class ProjectService {
       youtubeStatusReason,
       youtubeRegionsBlocked,
       youtubeStatusCheckedAt,
+      // Admin's rejection note — callers pass explicit nulls here on a
+      // fresh video replacement (see projectController.ts resetFields),
+      // same "reset then re-fill if needed" pattern as the youtube fields.
+      rejectionReason,
+      rejectionAt,
     } = projectData;
 
     let category;
@@ -179,6 +184,8 @@ class ProjectService {
           youtubeStatusReason: youtubeStatusReason !== undefined ? youtubeStatusReason : undefined,
           youtubeRegionsBlocked: youtubeRegionsBlocked !== undefined ? youtubeRegionsBlocked : undefined,
           youtubeStatusCheckedAt: youtubeStatusCheckedAt !== undefined ? youtubeStatusCheckedAt : undefined,
+          rejectionReason: rejectionReason !== undefined ? rejectionReason : undefined,
+          rejectionAt: rejectionAt !== undefined ? rejectionAt : undefined,
         },
       });
     } catch (err: any) {

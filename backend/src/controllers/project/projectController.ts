@@ -518,6 +518,7 @@ export const updateProject = async (req: Request, res: Response) => {
     status?: string; aiVerdict?: string; aiReason?: string; aiConfidence?: number; aiReviewedAt?: Date;
     youtubeUploadStatus?: string | null; youtubeStatusReason?: string | null;
     youtubeRegionsBlocked?: number | null; youtubeStatusCheckedAt?: Date | null;
+    rejectionReason?: string | null; rejectionAt?: Date | null;
   } = {};
 
   if (videoStoragePath) {
@@ -597,6 +598,9 @@ export const updateProject = async (req: Request, res: Response) => {
       youtubeStatusReason: newYtStatus.statusReason,
       youtubeRegionsBlocked: newYtStatus.regionsBlocked,
       youtubeStatusCheckedAt: newYtStatus.checkedAt,
+      // A fresh video replacement supersedes any earlier rejection note.
+      rejectionReason: null,
+      rejectionAt: null,
     };
 
     // Same advisory-only notification pattern as a first-time upload —
@@ -747,6 +751,7 @@ export const adminUpdateProject = async (req: Request, res: Response) => {
       status?: string; aiVerdict?: string; aiReason?: string; aiConfidence?: number; aiReviewedAt?: Date;
       youtubeUploadStatus?: string | null; youtubeStatusReason?: string | null;
       youtubeRegionsBlocked?: number | null; youtubeStatusCheckedAt?: Date | null;
+      rejectionReason?: string | null; rejectionAt?: Date | null;
     } = {};
 
     if (videoStoragePath && uploadToYouTube) {
@@ -775,6 +780,10 @@ export const adminUpdateProject = async (req: Request, res: Response) => {
           youtubeStatusReason: null,
           youtubeRegionsBlocked: null,
           youtubeStatusCheckedAt: null,
+          // A fresh admin-driven video replacement also supersedes any
+          // earlier rejection note.
+          rejectionReason: null,
+          rejectionAt: null,
         };
 
         const enrichedDescription = await buildMaterialsEnrichedDescription(

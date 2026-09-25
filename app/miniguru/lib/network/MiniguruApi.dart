@@ -394,6 +394,35 @@ class MiniguruApi {
     return response;
   }
 
+  // Fetches the LIVE status/reason detail for a single project — used by
+  // ProjectDetailsScreen to show up-to-date rejection reasons and
+  // YouTube's own reported video status. Deliberately a fresh network
+  // call rather than reading from the locally-cached SQLite copy: those
+  // fields change asynchronously whenever an admin acts (or YouTube
+  // itself reports something), so a cached copy would often already be
+  // stale by the time a child opens this screen. Never throws — returns
+  // null on any failure, and the caller falls back to showing just the
+  // status it already has cached, with no reason (same as before this
+  // existed).
+  Future<Map<String, dynamic>?> getProjectStatusDetail(String projectId) async {
+    try {
+      final authToken = await _getValidToken();
+      if (authToken == null) return null;
+      final response = await http
+          .get(
+            Uri.parse('$_baseUrl/project/$projectId'),
+            headers: _buildHeaders(authToken.accessToken),
+          )
+          .timeout(const Duration(seconds: 10));
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body) as Map<String, dynamic>;
+      }
+    } catch (e) {
+      print('❌ getProjectStatusDetail: $e');
+    }
+    return null;
+  }
+
   /// Asks the backend for a short-lived signed URL to upload a file
   /// DIRECTLY to Firebase Storage, bypassing Cloud Run's hard 32MB request
   /// body limit entirely (confirmed via a real 413 response — this is a
