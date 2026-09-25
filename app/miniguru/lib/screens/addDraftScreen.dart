@@ -70,6 +70,15 @@ class _AddDraftScreenState extends State<AddDraftScreen>
   bool                 _submitting          = false;
   int                  _draftId             = -1;
   DateTime?            _startDate;
+  // Persistent large-video warning (Sept 2026) — upgraded from a one-off
+  // SnackBar (which disappears in a few seconds and is easy to miss) to a
+  // banner that stays visible for as long as that video is selected,
+  // including for the whole duration of the actual upload — the moment
+  // it's most useful, since a multi-minute upload is exactly when someone
+  // might close the tab thinking nothing is happening.
+  int? _videoSizeBytes;
+  static const int _largeVideoThresholdBytes = 150 * 1024 * 1024; // 150MB
+  bool get _isLargeVideo => (_videoSizeBytes ?? 0) > _largeVideoThresholdBytes;
   DateTime?            _endDate;
   XFile?               _video;
   // Web only — a real browser File object (never its bytes) obtained via
@@ -209,25 +218,28 @@ class _AddDraftScreenState extends State<AddDraftScreen>
         // Dart/JS array, which is what was crashing on large videos.
         final pick = await pickVideoFileWeb();
         if (pick != null) {
-          if (pick.size > 150 * 1024 * 1024) {
-            _showSnack(
-                'This video is large (${(pick.size / (1024 * 1024)).round()}MB) — '
-                'keep this tab open and stay on a strong connection while it uploads.',
-                isError: false);
-          }
           setState(() {
             _webNativePick = pick;
             _video = null;
+            _videoSizeBytes = pick.size;
           });
           _showSnack('Video selected: ${pick.name}');
         }
       } else {
         await [Permission.storage].request();
         final f = await _picker.pickVideo(source: ImageSource.gallery);
-        if (f != null) setState(() {
-          _video = f;
-          _webNativePick = null;
-        });
+        if (f != null) {
+          // .length() works on both native XFile paths and in-memory
+          // picks; wrapped defensively since it's best-effort — a failed
+          // size read should never block picking the video itself.
+          int? size;
+          try { size = await f.length(); } catch (_) {}
+          setState(() {
+            _video = f;
+            _webNativePick = null;
+            _videoSizeBytes = size;
+          });
+        }
       }
     } catch (e) {
       _showSnack('Could not pick video: $e', isError: true);
@@ -859,8 +871,48 @@ class _AddDraftScreenState extends State<AddDraftScreen>
           _pickVideo,
           _purple,
         ),
+        if (_hasVideo && _isLargeVideo) _largeVideoBanner(),
         const SizedBox(height: 10),
       ]);
+
+  // Stays visible for as long as a large video remains selected — through
+  // picking AND through the actual upload — rather than a SnackBar that
+  // vanishes after a few seconds and is easy to miss on a slow connection.
+  Widget _largeVideoBanner() {
+    final mb = ((_videoSizeBytes ?? 0) / (1024 * 1024)).round();
+    final uploading = _submitting;
+    return Container(
+      margin: const EdgeInsets.only(top: 8),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: uploading ? Colors.orange.withOpacity(0.12) : const Color(0xFFFFF4E5),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: Colors.orange.withOpacity(0.4)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(uploading ? Icons.cloud_upload_rounded : Icons.info_outline_rounded,
+              color: Colors.orange[800], size: 20),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              uploading
+                  ? 'Uploading a large video ($mb MB) — please keep this tab open. '
+                    'Closing it now will cancel the upload.'
+                  : 'This video is large ($mb MB). Uploads can take several minutes — '
+                    'keep this tab open and stay on a strong connection.',
+              style: GoogleFonts.nunito(
+                color: Colors.orange[900],
+                fontSize: 12,
+                fontWeight: uploading ? FontWeight.w700 : FontWeight.normal,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
   Widget _mediaTile(IconData icon, String label, String sub, bool hasFile,
       VoidCallback onTap, Color accent) =>
