@@ -116,7 +116,26 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
     return parts.join('\n');
   }
 
-  bool get _isOwner => widget.user.id == widget.project.userId;
+  // A mentor/school viewing a child's project (reached via their own
+  // "Children's Activity" list, which is already scoped to only their own
+  // linked students — see mentorActivityTab.dart) has always been denied
+  // this whole status banner, because it only ever checked literal
+  // self-ownership. That's the real cause of a real bug reported live:
+  // a school rejected a test video as admin, then couldn't see the
+  // rejection reason anywhere on the student's project page — because
+  // they were viewing it AS the mentor, not logged in as the child, and
+  // the banner (status, reason, replace-video button — all of it) simply
+  // never rendered for them. Broadened: still true for the real owner,
+  // and now ALSO true for any mentor, since every path that reaches this
+  // screen with a mentor's own account already only lists that mentor's
+  // own students (access control already happened one screen earlier).
+  bool get _canManage => widget.user.id == widget.project.userId || widget.user.isMentor;
+  // Replace Video only actually works for the real, literal owner — a
+  // mentor viewing without an active PIN session as this specific child
+  // would tap it and just hit a backend ownership error (by design, see
+  // updateProject's ownership check), so keep the button itself narrower
+  // than the status/reason visibility above rather than offer a dead end.
+  bool get _isRealOwner => widget.user.id == widget.project.userId;
   bool _replacingVideo = false;
 
   // ── Replace Video (Sept 2026) ───────────────────────────────────────
@@ -597,7 +616,7 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
             // replace their video at any time, whatever the current
             // status; doing so always resets the project to Pending for a
             // fresh review (enforced server-side regardless of this UI).
-            if (_isOwner) ...[
+            if (_canManage) ...[
               Builder(builder: (context) {
                 final status = _statusDisplay();
                 final reasonText = _reasonDetailText();
@@ -620,19 +639,20 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
                                 style: bodyTextStyle.copyWith(
                                     color: status.color, fontWeight: FontWeight.w600)),
                           ),
-                          OutlinedButton.icon(
-                            onPressed: _replacingVideo ? null : _pickAndReplaceVideo,
-                            icon: _replacingVideo
-                                ? const SizedBox(
-                                    width: 14, height: 14,
-                                    child: CircularProgressIndicator(strokeWidth: 2))
-                                : const Icon(Icons.refresh, size: 16),
-                            label: Text(_replacingVideo ? 'Uploading…' : 'Replace Video'),
-                            style: OutlinedButton.styleFrom(
-                              foregroundColor: status.color,
-                              side: BorderSide(color: status.color),
+                          if (_isRealOwner)
+                            OutlinedButton.icon(
+                              onPressed: _replacingVideo ? null : _pickAndReplaceVideo,
+                              icon: _replacingVideo
+                                  ? const SizedBox(
+                                      width: 14, height: 14,
+                                      child: CircularProgressIndicator(strokeWidth: 2))
+                                  : const Icon(Icons.refresh, size: 16),
+                              label: Text(_replacingVideo ? 'Uploading…' : 'Replace Video'),
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: status.color,
+                                side: BorderSide(color: status.color),
+                              ),
                             ),
-                          ),
                         ],
                       ),
                       // Admin's typed reason + (when that's what caused
