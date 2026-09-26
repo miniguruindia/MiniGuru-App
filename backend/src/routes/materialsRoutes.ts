@@ -275,6 +275,22 @@ router.put('/admin/:id', authenticateToken, requireAdmin, async (req: any, res: 
     const body = req.body || {};
     console.log('[PUT /admin/:id] id:', id, 'body keys:', Object.keys(body));
 
+    // Fetch the existing image URL BEFORE overwriting it, so a genuine
+    // change can clean up the old Firebase Storage file. This route has
+    // always accepted a raw imageUrl string (it's how the "Amazon Setup"
+    // ASIN-link flow and any manual paste both save an image), but never
+    // deleted what it replaced — silently leaking storage every time an
+    // image changed through this path (the dedicated POST /admin/:id/image
+    // upload endpoint below has always done this correctly; this one
+    // didn't). deleteMaterialImage() is safe to call unconditionally: it
+    // no-ops on a URL that isn't one of ours (e.g. an Amazon image, or a
+    // manually pasted external link) and on an already-deleted file.
+    let previousImageUrl: string | null = null;
+    if ('imageUrl' in body) {
+      const existing = await prisma.material.findUnique({ where: { id }, select: { imageUrl: true } });
+      previousImageUrl = existing?.imageUrl ?? null;
+    }
+
     // Build update object — only include keys that are present in body
     const data: any = {};
     if ('name'          in body) data.name          = body.name;
@@ -306,6 +322,17 @@ router.put('/admin/:id', authenticateToken, requireAdmin, async (req: any, res: 
 
     const updated = await prisma.material.update({ where: { id }, data });
     console.log('[PUT /admin/:id] saved amazonASIN:', updated.amazonASIN);
+
+    // Clean up the OLD image only after the new value is safely saved —
+    // and only if it's actually different (an admin re-saving the same
+    // URL, or clearing it to the same null it already was, isn't a real
+    // change and shouldn't touch storage).
+    if ('imageUrl' in body && previousImageUrl && previousImageUrl !== updated.imageUrl) {
+      deleteMaterialImage(previousImageUrl).catch((err) =>
+        console.warn('[PUT /admin/:id] could not delete old image (non-fatal):', err?.message)
+      );
+    }
+
     return res.json(updated);
   } catch (err: any) {
     console.error('material update error:', err);

@@ -26,6 +26,7 @@ exports.rejectAmazonSuggestion = rejectAmazonSuggestion;
 const prismaClient_1 = __importDefault(require("../utils/prismaClient"));
 const amazonProductService_1 = require("./amazonProductService");
 const materialSearchAssistService_1 = require("./materialSearchAssistService");
+const firebaseStorageService_1 = require("./firebaseStorageService");
 const SCAN_DELAY_MS = 1100; // conservative spacing between Amazon calls
 const SCAN_TIME_BUDGET_MS = 8 * 60 * 1000; // stay well under Cloud Run's 600s timeout
 function sleep(ms) {
@@ -311,6 +312,11 @@ async function approveAmazonSuggestion(suggestionId, adminId, forceImage = false
     };
     if (suggestion.suggestedPriceRupees != null)
         data.priceEstimate = suggestion.suggestedPriceRupees;
+    // The one place forceImage is allowed to override an existing photo
+    // (see doc comment above). When it does replace one, the OLD photo —
+    // if it was ever a Firebase-hosted file rather than an external link —
+    // needs cleaning up, or it just sits in storage forever unused.
+    const previousImageUrl = material.imageUrl;
     if (suggestion.suggestedImageUrl && (!material.imageUrl || forceImage)) {
         data.imageUrl = suggestion.suggestedImageUrl;
     }
@@ -321,6 +327,9 @@ async function approveAmazonSuggestion(suggestionId, adminId, forceImage = false
             data: { status: 'APPROVED', resolvedAt: new Date(), resolvedByAdminId: adminId },
         }),
     ]);
+    if (data.imageUrl && previousImageUrl && previousImageUrl !== data.imageUrl) {
+        (0, firebaseStorageService_1.deleteMaterialImage)(previousImageUrl).catch((err) => console.warn('approveAmazonSuggestion: could not delete old image (non-fatal):', err?.message));
+    }
     return updatedMaterial;
 }
 async function rejectAmazonSuggestion(suggestionId, adminId) {
