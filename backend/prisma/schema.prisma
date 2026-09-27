@@ -576,7 +576,40 @@ model Material {
   amazonAttentionReason String?
   amazonLastCheckedAt   DateTime?
 
+  // ── Shop/catalog upgrade (Sept 2026) ──────────────────────────────
+  // Additive on purpose — every existing reader of `category`/`imageUrl`
+  // above keeps working completely unchanged. `category` and `imageUrl`
+  // stay in sync as categories[0]/images[0] whenever these arrays are
+  // written (see syncLegacyFields() in materialsRoutes.ts), so nothing
+  // downstream needs updating to avoid breaking; new code reads the
+  // arrays for the full picture. MongoDB needs no migration for this —
+  // documents written before this change simply have empty arrays here
+  // until next edited, and toFlutterShape() below falls back to the
+  // legacy single value for those.
+  categories String[] @default([]) // full category membership — an item CAN belong to more than one
+  images     String[] @default([]) // full photo list — first is the "primary" shown everywhere images[0] used to be
+  aliases    String[] @default([]) // alternate names for search ("cello tape" also findable as "sticky tape")
+
   @@map("materials")
+}
+
+// A "clubbed" umbrella grouping of specific categories, purely for search
+// and browsing (Sept 2026) — e.g. the group "Electronics & Circuits" might
+// contain the specific categories "Electronics", "Sensors",
+// "Microcontrollers" so a search/filter on the group surfaces all of them
+// at once, without forcing every material into one giant flat category.
+// Admin-manageable (UI for this is a Phase 2 follow-up); seeded with a
+// sensible starting set by seed_material_expansion.ts.
+model CategoryGroup {
+  id               String   @id @default(auto()) @map("_id") @db.ObjectId
+  name             String   @unique
+  emoji            String?  @default("🗂️")
+  memberCategories String[] @default([])
+  sortOrder        Int      @default(0)
+  isActive         Boolean  @default(true)
+  createdAt        DateTime @default(now())
+
+  @@map("category_groups")
 }
 
 // A named, curated bundle of existing materials for a specific project or

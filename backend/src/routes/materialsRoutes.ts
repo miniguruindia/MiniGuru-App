@@ -37,6 +37,8 @@ function requireAdmin(req: Request, res: Response, next: Function) {
 }
 
 function toFlutterShape(m: any) {
+  const categories: string[] = (m.categories && m.categories.length > 0) ? m.categories : [m.category];
+  const images: string[] = (m.images && m.images.length > 0) ? m.images : (m.imageUrl ? [m.imageUrl] : []);
   return {
     id: m.id,
     name: m.name,
@@ -46,6 +48,13 @@ function toFlutterShape(m: any) {
     categoryName: m.category,
     categoryId: m.category.toLowerCase().replace(/\s+/g, '_'),
     category: m.category,
+    // Full multi-category/multi-image picture, additive — old Flutter
+    // builds that only ever read `category`/`imageUrl` above keep working
+    // exactly as before; a build that knows about these gets the rest.
+    categories,
+    categoryIds: categories.map((c) => c.toLowerCase().replace(/\s+/g, '_')),
+    images,
+    aliases: m.aliases || [],
     unit: m.unit || 'piece',
     goinsPerUnit: m.goinsPrice,
     goinsPrice: m.goinsPrice,
@@ -64,18 +73,55 @@ function toFlutterShape(m: any) {
   };
 }
 
+// Keeps the legacy single-value fields (`category`, `imageUrl`) in lock
+// step with the new arrays whenever an admin write touches either array —
+// every existing reader of the singular fields (shop cards, the planning
+// picker, the video materials strip, etc.) keeps seeing a sensible value
+// with zero changes required on their end. Mutates `data` in place.
+function syncLegacyFields(data: any) {
+  if (Array.isArray(data.categories) && data.categories.length > 0) {
+    data.category = data.categories[0];
+  }
+  if (Array.isArray(data.images) && data.images.length > 0) {
+    data.imageUrl = data.images[0];
+  }
+}
+
 // ── PUBLIC ROUTES ─────────────────────────────────────────────────────────────
 
 router.get('/', async (req: Request, res: Response) => {
   try {
-    const { category, categoryId } = req.query;
+    const { category, categoryId, search } = req.query;
     const where: any = { isActive: true };
+    const clauses: any[] = [];
     if (category) {
-      where.category = String(category);
+      // Matches either the legacy primary category OR membership in the
+      // full categories[] array — so a material added to more than one
+      // category shows up under any of them, not just its first/primary.
+      clauses.push({ OR: [{ category: String(category) }, { categories: { has: String(category) } }] });
     } else if (categoryId) {
       const slug = String(categoryId).replace(/_/g, ' ');
-      where.category = { equals: slug, mode: 'insensitive' };
+      clauses.push({
+        OR: [
+          { category: { equals: slug, mode: 'insensitive' } },
+          { categories: { has: slug } },
+        ],
+      });
     }
+    if (search && String(search).trim()) {
+      // Name substring match (case-insensitive) OR an exact alternate-name
+      // hit — e.g. searching "sticky tape" finds a material actually named
+      // "Cello Tape" if "sticky tape" was saved as one of its aliases.
+      const term = String(search).trim();
+      clauses.push({
+        OR: [
+          { name: { contains: term, mode: 'insensitive' } },
+          { aliases: { has: term.toLowerCase() } },
+        ],
+      });
+    }
+    if (clauses.length > 0) where.AND = clauses;
+
     const materials = await prisma.material.findMany({
       where,
       orderBy: [{ category: 'asc' }, { name: 'asc' }],
@@ -89,21 +135,47 @@ router.get('/', async (req: Request, res: Response) => {
 
 router.get('/categories', async (_req: Request, res: Response) => {
   try {
-    const results = await prisma.material.findMany({
+    const all = await prisma.material.findMany({
       where: { isActive: true },
-      select: { category: true, icon: true },
-      distinct: ['category'],
-      orderBy: { category: 'asc' },
+      select: { category: true, categories: true, icon: true },
     });
-    const categories = results.map((r) => ({
-      id: r.category.toLowerCase().replace(/\s+/g, '_'),
-      name: r.category,
-      emoji: r.icon || '📦',
-    }));
+    // Union every category a material lists (not just its primary), so
+    // the chip row reflects true multi-category membership.
+    const seen = new Map<string, string>(); // name -> icon
+    for (const m of all) {
+      const cats = (m.categories && m.categories.length > 0) ? m.categories : [m.category];
+      for (const c of cats) if (!seen.has(c)) seen.set(c, m.icon || '📦');
+    }
+    const categories = Array.from(seen.entries())
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([name, emoji]) => ({ id: name.toLowerCase().replace(/\s+/g, '_'), name, emoji }));
     res.json(categories);
   } catch (err) {
     console.error('[materials] GET /categories error:', err);
     res.status(500).json({ message: 'Failed to fetch material categories.' });
+  }
+});
+
+// GET /category-groups — the "clubbed" umbrella groupings for search/browse
+// (Sept 2026), e.g. a single "Electronics & Circuits" group surfacing every
+// material across several more specific categories at once. Admin
+// management UI for this is a Phase 2 follow-up; for now these come from
+// seed_material_expansion.ts and are safe to leave exactly as seeded.
+router.get('/category-groups', async (_req: Request, res: Response) => {
+  try {
+    const groups = await prisma.categoryGroup.findMany({
+      where: { isActive: true },
+      orderBy: { sortOrder: 'asc' },
+    });
+    res.json(groups.map((g) => ({
+      id: g.id,
+      name: g.name,
+      emoji: g.emoji || '🗂️',
+      memberCategories: g.memberCategories,
+    })));
+  } catch (err) {
+    console.error('[materials] GET /category-groups error:', err);
+    res.status(500).json({ message: 'Failed to fetch category groups.' });
   }
 });
 
@@ -241,27 +313,31 @@ router.get('/admin/all', authenticateToken, requireAdmin, async (_req: Request, 
 router.post('/admin/create', authenticateToken, requireAdmin, async (req: Request, res: Response) => {
   try {
     const { name, description, imageUrl, icon, category, unit, goinsPrice,
-            priceEstimate, amazonASIN, showInShop, showInPlanning } = req.body;
+            priceEstimate, amazonASIN, showInShop, showInPlanning,
+            categories, images, aliases } = req.body;
     if (!name || !category || goinsPrice === undefined) {
       return res.status(400).json({ error: 'name, category, and goinsPrice are required' });
     }
     const asin = amazonASIN ? String(amazonASIN).trim() : null;
-    const material = await prisma.material.create({
-      data: {
-        name: String(name).trim(),
-        description: description ? String(description).trim() : null,
-        imageUrl: imageUrl ? String(imageUrl).trim() : null,
-        icon: icon ? String(icon).trim() : null,
-        category: String(category).trim(),
-        unit: unit ? String(unit).trim() : 'piece',
-        goinsPrice: Number(goinsPrice),
-        priceEstimate: priceEstimate ? Number(priceEstimate) : null,
-        amazonASIN: asin,
-        amazonUrl: asin ? ('https://www.amazon.in/dp/' + asin + '?tag=miniguru04-21') : null,
-        showInShop: showInShop !== undefined ? Boolean(showInShop) : true,
-        showInPlanning: showInPlanning !== undefined ? Boolean(showInPlanning) : true,
-      },
-    });
+    const data: any = {
+      name: String(name).trim(),
+      description: description ? String(description).trim() : null,
+      imageUrl: imageUrl ? String(imageUrl).trim() : null,
+      icon: icon ? String(icon).trim() : null,
+      category: String(category).trim(),
+      unit: unit ? String(unit).trim() : 'piece',
+      goinsPrice: Number(goinsPrice),
+      priceEstimate: priceEstimate ? Number(priceEstimate) : null,
+      amazonASIN: asin,
+      amazonUrl: asin ? ('https://www.amazon.in/dp/' + asin + '?tag=miniguru04-21') : null,
+      showInShop: showInShop !== undefined ? Boolean(showInShop) : true,
+      showInPlanning: showInPlanning !== undefined ? Boolean(showInPlanning) : true,
+      categories: Array.isArray(categories) ? categories.map((c: any) => String(c).trim()).filter(Boolean) : [String(category).trim()],
+      images: Array.isArray(images) ? images.map((i: any) => String(i).trim()).filter(Boolean) : (imageUrl ? [String(imageUrl).trim()] : []),
+      aliases: Array.isArray(aliases) ? aliases.map((a: any) => String(a).trim().toLowerCase()).filter(Boolean) : [],
+    };
+    syncLegacyFields(data);
+    const material = await prisma.material.create({ data });
     res.status(201).json(material);
   } catch (err) {
     console.error('[materials] POST /admin/create error:', err);
@@ -286,7 +362,7 @@ router.put('/admin/:id', authenticateToken, requireAdmin, async (req: any, res: 
     // no-ops on a URL that isn't one of ours (e.g. an Amazon image, or a
     // manually pasted external link) and on an already-deleted file.
     let previousImageUrl: string | null = null;
-    if ('imageUrl' in body) {
+    if ('imageUrl' in body || 'images' in body) {
       const existing = await prisma.material.findUnique({ where: { id }, select: { imageUrl: true } });
       previousImageUrl = existing?.imageUrl ?? null;
     }
@@ -309,6 +385,21 @@ router.put('/admin/:id', authenticateToken, requireAdmin, async (req: any, res: 
       data.amazonASIN = asin;
       data.amazonUrl  = asin ? ('https://www.amazon.in/dp/' + asin + '?tag=miniguru04-21') : null;
     }
+    // Multi-category / multi-image / aliases (Sept 2026 shop upgrade) —
+    // additive fields, only touched when the caller actually sends them.
+    if ('categories' in body) {
+      data.categories = Array.isArray(body.categories) ? body.categories.map((c: any) => String(c).trim()).filter(Boolean) : [];
+    }
+    if ('images' in body) {
+      data.images = Array.isArray(body.images) ? body.images.map((i: any) => String(i).trim()).filter(Boolean) : [];
+    }
+    if ('aliases' in body) {
+      data.aliases = Array.isArray(body.aliases) ? body.aliases.map((a: any) => String(a).trim().toLowerCase()).filter(Boolean) : [];
+    }
+    // Keep the legacy singular fields in sync with any array change made
+    // above — done AFTER the individual `if (x in body)` checks so it can
+    // see and override whatever they set, and BEFORE the save.
+    syncLegacyFields(data);
     // A manual admin save of ASIN or price is a fresh, human-confirmed
     // answer — clear any stale "needs attention" flag from a prior
     // automated refresh so the exclamation mark doesn't linger forever.
