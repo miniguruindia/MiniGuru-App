@@ -38,7 +38,13 @@ function requireAdmin(req: Request, res: Response, next: Function) {
 
 function toFlutterShape(m: any) {
   const categories: string[] = (m.categories && m.categories.length > 0) ? m.categories : [m.category];
-  const images: string[] = (m.images && m.images.length > 0) ? m.images : (m.imageUrl ? [m.imageUrl] : []);
+  // imageUrl (the legacy single field) is ALWAYS the first/primary photo
+  // and is authoritative — older write paths (the single-photo upload,
+  // Amazon approval, plain PUT with imageUrl) only ever touch that field,
+  // so putting it first here guarantees a stale images[] can never make
+  // the wrong photo show as the primary one. Any extra photos follow it.
+  const extraImages: string[] = (m.images || []).filter((i: string) => i && i !== m.imageUrl);
+  const images: string[] = m.imageUrl ? [m.imageUrl, ...extraImages] : extraImages;
   return {
     id: m.id,
     name: m.name,
@@ -82,8 +88,11 @@ function syncLegacyFields(data: any) {
   if (Array.isArray(data.categories) && data.categories.length > 0) {
     data.category = data.categories[0];
   }
-  if (Array.isArray(data.images) && data.images.length > 0) {
-    data.imageUrl = data.images[0];
+  if (Array.isArray(data.images)) {
+    // Even an emptied list counts: removing every photo must clear the
+    // primary too, otherwise the old one would keep showing (imageUrl is
+    // authoritative first in toFlutterShape above).
+    data.imageUrl = data.images.length > 0 ? data.images[0] : null;
   }
 }
 
@@ -299,6 +308,69 @@ router.delete('/admin/collections/:id', authenticateToken, requireAdmin, async (
   }
 });
 
+// ── Category groups — admin management (Sept 2026 shop renovation) ────────
+// The "clubbed" umbrella groupings used for search/browse. Public read is
+// GET /category-groups above; these are the admin write side.
+router.get('/admin/category-groups', authenticateToken, requireAdmin, async (_req: Request, res: Response) => {
+  try {
+    const groups = await prisma.categoryGroup.findMany({ orderBy: { sortOrder: 'asc' } });
+    res.json(groups);
+  } catch (err) {
+    console.error('[materials] GET /admin/category-groups error:', err);
+    res.status(500).json({ error: 'Failed to fetch category groups.' });
+  }
+});
+
+router.post('/admin/category-groups', authenticateToken, requireAdmin, async (req: Request, res: Response) => {
+  try {
+    const { name, emoji, memberCategories, sortOrder } = req.body || {};
+    if (!name || !String(name).trim()) return res.status(400).json({ error: 'name is required' });
+    const created = await prisma.categoryGroup.create({
+      data: {
+        name: String(name).trim(),
+        emoji: emoji ? String(emoji).trim() : '🗂️',
+        memberCategories: Array.isArray(memberCategories)
+          ? memberCategories.map((c: any) => String(c).trim()).filter(Boolean) : [],
+        sortOrder: Number.isFinite(Number(sortOrder)) ? Number(sortOrder) : 99,
+      },
+    });
+    res.status(201).json(created);
+  } catch (err: any) {
+    console.error('[materials] POST /admin/category-groups error:', err);
+    res.status(500).json({ error: err?.code === 'P2002' ? 'A group with that name already exists.' : 'Failed to create group.' });
+  }
+});
+
+router.put('/admin/category-groups/:id', authenticateToken, requireAdmin, async (req: Request, res: Response) => {
+  try {
+    const body = req.body || {};
+    const data: any = {};
+    if ('name' in body) data.name = String(body.name).trim();
+    if ('emoji' in body) data.emoji = body.emoji ? String(body.emoji).trim() : '🗂️';
+    if ('memberCategories' in body) {
+      data.memberCategories = Array.isArray(body.memberCategories)
+        ? body.memberCategories.map((c: any) => String(c).trim()).filter(Boolean) : [];
+    }
+    if ('sortOrder' in body && Number.isFinite(Number(body.sortOrder))) data.sortOrder = Number(body.sortOrder);
+    if ('isActive' in body) data.isActive = Boolean(body.isActive);
+    const updated = await prisma.categoryGroup.update({ where: { id: req.params.id }, data });
+    res.json(updated);
+  } catch (err: any) {
+    console.error('[materials] PUT /admin/category-groups/:id error:', err);
+    res.status(500).json({ error: err?.code === 'P2002' ? 'A group with that name already exists.' : 'Failed to update group.' });
+  }
+});
+
+router.delete('/admin/category-groups/:id', authenticateToken, requireAdmin, async (req: Request, res: Response) => {
+  try {
+    await prisma.categoryGroup.delete({ where: { id: req.params.id } });
+    res.json({ message: 'Group deleted.' });
+  } catch (err) {
+    console.error('[materials] DELETE /admin/category-groups/:id error:', err);
+    res.status(500).json({ error: 'Failed to delete group.' });
+  }
+});
+
 router.get('/admin/all', authenticateToken, requireAdmin, async (_req: Request, res: Response) => {
   try {
     const materials = await prisma.material.findMany({
@@ -362,9 +434,11 @@ router.put('/admin/:id', authenticateToken, requireAdmin, async (req: any, res: 
     // no-ops on a URL that isn't one of ours (e.g. an Amazon image, or a
     // manually pasted external link) and on an already-deleted file.
     let previousImageUrl: string | null = null;
+    let previousImages: string[] = [];
     if ('imageUrl' in body || 'images' in body) {
-      const existing = await prisma.material.findUnique({ where: { id }, select: { imageUrl: true } });
+      const existing = await prisma.material.findUnique({ where: { id }, select: { imageUrl: true, images: true } });
       previousImageUrl = existing?.imageUrl ?? null;
+      previousImages = (existing?.images || []) as string[];
     }
 
     // Build update object — only include keys that are present in body
@@ -400,6 +474,15 @@ router.put('/admin/:id', authenticateToken, requireAdmin, async (req: any, res: 
     // above — done AFTER the individual `if (x in body)` checks so it can
     // see and override whatever they set, and BEFORE the save.
     syncLegacyFields(data);
+    // A plain imageUrl change (no images[] sent — the older admin form, the
+    // Amazon "Find" flow) on a material that already has an extra-photo
+    // list: swap the old primary for the new one inside that list instead
+    // of letting the replaced photo silently turn into an "extra".
+    if ('imageUrl' in body && !('images' in body) && previousImages.length > 0) {
+      const newPrimary: string | null = data.imageUrl ? String(data.imageUrl) : null;
+      const rest = previousImages.filter((i) => i && i !== previousImageUrl && i !== newPrimary);
+      data.images = newPrimary ? [newPrimary, ...rest] : rest;
+    }
     // A manual admin save of ASIN or price is a fresh, human-confirmed
     // answer — clear any stale "needs attention" flag from a prior
     // automated refresh so the exclamation mark doesn't linger forever.
@@ -418,10 +501,24 @@ router.put('/admin/:id', authenticateToken, requireAdmin, async (req: any, res: 
     // and only if it's actually different (an admin re-saving the same
     // URL, or clearing it to the same null it already was, isn't a real
     // change and shouldn't touch storage).
-    if ('imageUrl' in body && previousImageUrl && previousImageUrl !== updated.imageUrl) {
+    if (('imageUrl' in body || 'images' in body) && previousImageUrl && previousImageUrl !== updated.imageUrl
+        && !(updated.images || []).includes(previousImageUrl)) {
       deleteMaterialImage(previousImageUrl).catch((err) =>
         console.warn('[PUT /admin/:id] could not delete old image (non-fatal):', err?.message)
       );
+    }
+    // Multi-photo: any extra photo the admin just REMOVED from the list is
+    // no longer referenced by anything, so clean it up from storage too
+    // (same safe helper — no-ops on external/non-bucket URLs).
+    if ('images' in body) {
+      const keep = new Set<string>([...(updated.images || []), updated.imageUrl || '']);
+      for (const oldUrl of previousImages) {
+        if (oldUrl && !keep.has(oldUrl) && oldUrl !== previousImageUrl) {
+          deleteMaterialImage(oldUrl).catch((err) =>
+            console.warn('[PUT /admin/:id] could not delete removed photo (non-fatal):', err?.message)
+          );
+        }
+      }
     }
 
     return res.json(updated);
@@ -462,6 +559,24 @@ router.post(
       const existing = await prisma.material.findUnique({ where: { id } });
       if (!existing) return res.status(404).json({ error: 'Material not found' });
 
+      // ?mode=append (Sept 2026, multi-photo): ADD this upload as an extra
+      // photo instead of replacing the primary one. The default (no mode)
+      // is unchanged — replaces the primary photo, exactly as before, so
+      // any older admin build calling this endpoint keeps working.
+      if (req.query.mode === 'append') {
+        const newUrl = await uploadMaterialImage(req.file.buffer, req.file.mimetype, id);
+        const current: string[] = [
+          ...(existing.imageUrl ? [existing.imageUrl] : []),
+          ...((existing.images || []) as string[]).filter((i) => i && i !== existing.imageUrl),
+        ];
+        const nextImages = [...current, newUrl];
+        const updatedAppend = await prisma.material.update({
+          where: { id },
+          data: { images: nextImages, imageUrl: nextImages[0] },
+        });
+        return res.status(200).json({ message: 'Photo added.', imageUrl: newUrl, images: nextImages, material: updatedAppend });
+      }
+
       // Replacing an existing image? Clean up the old file in Storage so we
       // don't silently accumulate orphaned images every time someone updates
       // a photo (each upload gets a fresh timestamped filename).
@@ -472,8 +587,14 @@ router.post(
       }
 
       const imageUrl = await uploadMaterialImage(req.file.buffer, req.file.mimetype, id);
-      const updated = await prisma.material.update({ where: { id }, data: { imageUrl } });
-      return res.status(200).json({ message: 'Image uploaded.', imageUrl, material: updated });
+      // Keep the extra-photo list consistent: the new primary goes first,
+      // the replaced primary is dropped, any other extras stay.
+      const extras = ((existing.images || []) as string[]).filter((i) => i && i !== existing.imageUrl && i !== imageUrl);
+      const updated = await prisma.material.update({
+        where: { id },
+        data: { imageUrl, images: [imageUrl, ...extras] },
+      });
+      return res.status(200).json({ message: 'Image uploaded.', imageUrl, images: [imageUrl, ...extras], material: updated });
     } catch (err: any) {
       console.error('[materials] image upload error:', err);
       return res.status(500).json({ error: err.message || 'Image upload failed.' });
@@ -490,11 +611,28 @@ router.delete(
       const { id } = req.params;
       const existing = await prisma.material.findUnique({ where: { id } });
       if (!existing) return res.status(404).json({ error: 'Material not found' });
-      if (!existing.imageUrl) return res.status(200).json({ message: 'No image to remove.' });
 
-      await deleteMaterialImage(existing.imageUrl);
-      const updated = await prisma.material.update({ where: { id }, data: { imageUrl: null } });
-      return res.status(200).json({ message: 'Image removed.', material: updated });
+      // All photos currently on this material, primary first.
+      const all: string[] = [
+        ...(existing.imageUrl ? [existing.imageUrl] : []),
+        ...((existing.images || []) as string[]).filter((i) => i && i !== existing.imageUrl),
+      ];
+      if (all.length === 0) return res.status(200).json({ message: 'No image to remove.' });
+
+      // ?url=<photo> (Sept 2026, multi-photo) removes just that one photo;
+      // with no url it removes the primary photo, as it always has — and
+      // the next photo (if any) is promoted to primary rather than
+      // leaving the material photoless while extras still exist.
+      const target = typeof req.query.url === 'string' && req.query.url ? String(req.query.url) : all[0];
+      if (!all.includes(target)) return res.status(404).json({ error: 'That photo is not on this material.' });
+
+      await deleteMaterialImage(target);
+      const remaining = all.filter((i) => i !== target);
+      const updated = await prisma.material.update({
+        where: { id },
+        data: { images: remaining, imageUrl: remaining.length > 0 ? remaining[0] : null },
+      });
+      return res.status(200).json({ message: 'Image removed.', images: remaining, material: updated });
     } catch (err: any) {
       console.error('[materials] image delete error:', err);
       return res.status(500).json({ error: err.message || 'Image delete failed.' });

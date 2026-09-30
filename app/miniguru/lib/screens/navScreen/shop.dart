@@ -37,7 +37,9 @@ class _ShopState extends State<Shop>
   List<Map<String, dynamic>> _all      = [];
   List<Map<String, dynamic>> _filtered = [];
   List<Map<String, dynamic>> _cats     = [];
+  List<Map<String, dynamic>> _groups   = []; // "clubbed" category groups (Sept 2026)
   List<Map<String, dynamic>> _collections = [];
+  String _selGroup = ''; // group name filter — separate from _selCat, expands to several categories
   bool   _loading = true;
   String _error   = '';
   String _selCat  = '';
@@ -50,7 +52,23 @@ class _ShopState extends State<Shop>
   @override bool get wantKeepAlive => true;
 
   @override
-  void initState() { super.initState(); _loadMaterials(); _loadCollections(); }
+  void initState() { super.initState(); _loadMaterials(); _loadCollections(); _loadGroups(); }
+
+  // "Clubbed" category groups (Sept 2026) — e.g. one "Electronics & Circuits"
+  // chip surfacing every material across several specific categories at
+  // once. Optional and additive: if this fails to load, the existing
+  // per-category chip row below still works exactly as before.
+  Future<void> _loadGroups() async {
+    try {
+      final res = await http.get(Uri.parse('$apiBaseUrl/materials/category-groups'));
+      if (res.statusCode == 200) {
+        final list = jsonDecode(res.body);
+        if (mounted) setState(() => _groups = List<Map<String, dynamic>>.from(list));
+      }
+    } catch (_) {
+      // Non-critical.
+    }
+  }
 
   @override
   void dispose() { _tabCtrl.dispose(); _searchCtrl.dispose(); super.dispose(); }
@@ -76,8 +94,13 @@ class _ShopState extends State<Shop>
         final seen = <String>{};
         final cats = <Map<String, dynamic>>[];
         for (final m in mats) {
-          final c = m['category']?.toString() ?? '';
-          if (c.isNotEmpty && seen.add(c)) cats.add({'id': c, 'name': c});
+          final rawCats = m['categories'];
+          final List<String> mCats = (rawCats is List && rawCats.isNotEmpty)
+              ? rawCats.map((e) => e.toString()).toList()
+              : [m['category']?.toString() ?? ''];
+          for (final c in mCats) {
+            if (c.isNotEmpty && seen.add(c)) cats.add({'id': c, 'name': c});
+          }
         }
         setState(() { _all = mats; _filtered = List.from(mats); _cats = cats; _loading = false; });
       } else {
@@ -165,13 +188,30 @@ class _ShopState extends State<Shop>
   }
 
 
+  List<String> _matCategories(Map<String, dynamic> m) {
+    final raw = m['categories'];
+    if (raw is List && raw.isNotEmpty) return raw.map((e) => e.toString()).toList();
+    final c = (m['category'] ?? '').toString();
+    return c.isEmpty ? [] : [c];
+  }
+
   void _filter() {
+    // A group chip expands to every category it contains; a single-category
+    // chip and the group row are mutually exclusive (picking one clears
+    // the other) so the two rows never fight over what's showing.
+    final groupCats = _selGroup.isEmpty
+        ? null
+        : (_groups.firstWhere((g) => g['name'] == _selGroup, orElse: () => {})['memberCategories'] as List?)
+              ?.map((e) => e.toString()).toSet();
     setState(() {
       _filtered = _all.where((m) {
         final name = (m['name'] ?? '').toString().toLowerCase();
-        final cat  = (m['category'] ?? '').toString();
-        return (_search.isEmpty || name.contains(_search))
-            && (_selCat.isEmpty  || cat == _selCat);
+        final aliases = ((m['aliases'] as List?) ?? []).map((e) => e.toString().toLowerCase());
+        final matchSearch = _search.isEmpty || name.contains(_search) || aliases.any((a) => a.contains(_search));
+        final mCats = _matCategories(m);
+        final matchCat = _selCat.isEmpty || mCats.contains(_selCat);
+        final matchGroup = groupCats == null || mCats.any(groupCats.contains);
+        return matchSearch && matchCat && matchGroup;
       }).toList();
     });
   }
@@ -490,10 +530,44 @@ class _ShopState extends State<Shop>
   }
 
   Widget _buildCatRow() {
-    return SizedBox(height: 48,
-      child: ListView(scrollDirection: Axis.horizontal,
+    return Column(children: [
+      if (_groups.isNotEmpty)
+        SizedBox(height: 42,
+          child: ListView(scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.fromLTRB(12, 6, 12, 0),
+            children: [
+              _groupChip('All', ''),
+              ..._groups.map((g) => _groupChip('${g['emoji'] ?? '🗂️'} ${g['name']}', g['name'] ?? '')),
+            ],
+          ),
+        ),
+      SizedBox(height: 48,
+        child: ListView(scrollDirection: Axis.horizontal,
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          children: [_chip('All', ''), ..._cats.map((c) => _chip(c['name'] ?? '', c['id'] ?? ''))],
+        ),
+      ),
+    ]);
+  }
+
+  // The "clubbed" umbrella row — a broader browse entry point sitting above
+  // the specific-category chips (e.g. tap "🔌 Electronics & Circuits" to see
+  // everything across Electronics + Sensors + Boards + Batteries at once).
+  Widget _groupChip(String label, String val) {
+    final sel = _selGroup == val;
+    return GestureDetector(
+      onTap: () { setState(() { _selGroup = val; if (val.isNotEmpty) _selCat = ''; }); _filter(); },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        margin: const EdgeInsets.only(right: 8),
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-        children: [_chip('All', ''), ..._cats.map((c) => _chip(c['name'] ?? '', c['id'] ?? ''))],
+        decoration: BoxDecoration(
+          color: sel ? _amber.withOpacity(0.15) : Colors.transparent,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: sel ? _amber : const Color(0xFFEEEEF6)),
+        ),
+        child: Text(label, style: GoogleFonts.nunito(fontSize: 12, fontWeight: FontWeight.w800,
+            color: sel ? const Color(0xFF8A6200) : _muted)),
       ),
     );
   }
@@ -501,7 +575,7 @@ class _ShopState extends State<Shop>
   Widget _chip(String label, String val) {
     final sel = _selCat == val;
     return GestureDetector(
-      onTap: () { setState(() => _selCat = val); _filter(); },
+      onTap: () { setState(() { _selCat = val; if (val.isNotEmpty) _selGroup = ''; }); _filter(); },
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 150),
         margin: const EdgeInsets.only(right: 8),

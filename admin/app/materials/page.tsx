@@ -25,6 +25,11 @@ interface Material {
   showInPlanning: boolean
   amazonNeedsAttention?: boolean
   amazonAttentionReason?: string | null
+  // Shop renovation (Sept 2026) — additive; may be missing/empty on
+  // materials that predate it, so every read below defaults to [].
+  categories?: string[]
+  images?: string[]
+  aliases?: string[]
 }
 
 async function authToken() {
@@ -37,7 +42,13 @@ const EMPTY_MAT = {
   name: '', description: '', goinsPrice: '', unit: 'piece',
   icon: '', category: '', priceEstimate: '', amazonASIN: '', imageUrl: '',
   showInShop: true, showInPlanning: true,
+  categories: [] as string[], aliases: '',
 }
+
+// Units an admin can pick. Includes the pack-style units used by the
+// bulk-added catalog (pack/set/kit/bottle/…) — previously missing, which
+// made those materials' unit look like "piece" in the dropdown.
+const UNIT_OPTIONS = ['piece','pack','set','kit','bottle','tube','can','spool','gram','ml','cm','sheet','meter','pair','roll']
 
 
 // ── "Find on Amazon" modal — search PA API (Gemini-refined), tap to link ────
@@ -1036,9 +1047,9 @@ function AiSuggestionsTab({ apiBase, onMaterialsChanged, flash, onEditMaterial }
 
 function MaterialsPageInner() {
   const searchParams = useSearchParams()
-  const initialTab = (['materials', 'ai', 'suggestions', 'images', 'collections'].includes(searchParams.get('tab') || '')
-    ? searchParams.get('tab') : 'materials') as 'materials'|'ai'|'suggestions'|'images'|'collections'
-  const [tab, setTab]             = useState<'materials'|'ai'|'suggestions'|'images'|'collections'>(initialTab)
+  const initialTab = (['materials', 'ai', 'suggestions', 'images', 'collections', 'groups'].includes(searchParams.get('tab') || '')
+    ? searchParams.get('tab') : 'materials') as 'materials'|'ai'|'suggestions'|'images'|'collections'|'groups'
+  const [tab, setTab]             = useState<'materials'|'ai'|'suggestions'|'images'|'collections'|'groups'>(initialTab)
   const [materials, setMaterials] = useState<Material[]>([])
   const [filtered, setFiltered]   = useState<Material[]>([])
   const [catFilter, setCatFilter] = useState('All')
@@ -1054,6 +1065,8 @@ function MaterialsPageInner() {
   const [form, setForm]           = useState(EMPTY_MAT)
   const [saving, setSaving]       = useState(false)
   const [uploadingImage, setUploadingImage] = useState(false)
+  const [photos, setPhotos]       = useState<string[]>([])   // all photos, primary first
+  const [catInput, setCatInput]   = useState('')
 
   // Inline ASIN editing
   const [editingAsin, setEditingAsin]   = useState<string | null>(null)
@@ -1086,13 +1099,13 @@ function MaterialsPageInner() {
   useEffect(() => {
     const q = search.toLowerCase()
     setFiltered(materials.filter(m => {
-      const matchSearch = m.name.toLowerCase().includes(q)
-      const matchCat    = catFilter === 'All' || m.category === catFilter
+      const matchSearch = m.name.toLowerCase().includes(q) || (m.aliases || []).some(a => a.includes(q))
+      const matchCat    = catFilter === 'All' || m.category === catFilter || (m.categories || []).includes(catFilter)
       return matchSearch && matchCat
     }))
   }, [search, materials, catFilter])
 
-  const allCats = ['All', ...Array.from(new Set(materials.map(m => m.category))).filter(Boolean).sort()]
+  const allCats = ['All', ...Array.from(new Set(materials.flatMap(m => [m.category, ...(m.categories || [])]))).filter(Boolean).sort()]
   const asinCount = materials.filter(m => m.amazonASIN).length
 
   // ── Save full edit ──────────────────────────────────────────────────────
@@ -1110,7 +1123,11 @@ function MaterialsPageInner() {
       imageUrl: m.imageUrl || '',
       showInShop: m.showInShop ?? true,
       showInPlanning: m.showInPlanning ?? true,
+      categories: (m.categories && m.categories.length > 0) ? m.categories : (m.category ? [m.category] : []),
+      aliases: (m.aliases || []).join(', '),
     })
+    setPhotos([...(m.imageUrl ? [m.imageUrl] : []), ...(m.images || []).filter(i => i && i !== m.imageUrl)])
+    setCatInput('')
     setShowForm(true)
   }
 
@@ -1131,12 +1148,14 @@ function MaterialsPageInner() {
   const openAdd = () => {
     setEditingMat(null)
     setForm(EMPTY_MAT)
+    setPhotos([])
+    setCatInput('')
     setShowForm(true)
   }
 
   const handleSave = async () => {
-    if (!form.name || !form.goinsPrice || !form.category) {
-      flash('Name, Goins cost, and category are required', true); return
+    if (!form.name || !form.goinsPrice || form.categories.length === 0) {
+      flash('Name, Goins cost, and at least one category are required', true); return
     }
     setSaving(true)
     try {
@@ -1148,7 +1167,9 @@ function MaterialsPageInner() {
         goinsPrice:     Number(form.goinsPrice),
         unit:           form.unit,
         icon:           form.icon || null,
-        category:       form.category.trim(),
+        category:       form.categories[0].trim(),   // primary = first
+        categories:     form.categories.map(c => c.trim()).filter(Boolean),
+        aliases:        form.aliases.split(',').map(a => a.trim().toLowerCase()).filter(Boolean),
         imageUrl:       form.imageUrl || null,
         priceEstimate:  form.priceEstimate ? Number(form.priceEstimate) : null,
         amazonASIN:     asin || null,
@@ -1193,6 +1214,7 @@ function MaterialsPageInner() {
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Upload failed')
       setForm(f => ({ ...f, imageUrl: data.imageUrl }))
+      if (Array.isArray(data.images)) setPhotos(data.images)
       flash('Image uploaded!')
       await load()
     } catch (e: any) {
@@ -1213,7 +1235,10 @@ function MaterialsPageInner() {
         headers: { Authorization: `Bearer ${token}` },
       })
       if (!res.ok) throw new Error(await res.text())
-      setForm(f => ({ ...f, imageUrl: '' }))
+      const data = await res.json().catch(() => ({}))
+      const remaining: string[] = Array.isArray(data.images) ? data.images : []
+      setPhotos(remaining)
+      setForm(f => ({ ...f, imageUrl: remaining[0] || '' }))
       flash('Image removed.')
       await load()
     } catch (e: any) {
@@ -1221,6 +1246,49 @@ function MaterialsPageInner() {
     } finally {
       setUploadingImage(false)
     }
+  }
+
+  // ── Extra photos (multi-photo, Sept 2026) ───────────────────────────────
+  const addExtraPhoto = async (file: File) => {
+    if (!editingMat) { flash('Save the material first, then reopen it to add photos.', true); return }
+    setUploadingImage(true)
+    try {
+      const token = await authToken()
+      const fd = new FormData()
+      fd.append('image', file)
+      const res = await fetch(`${API_BASE}/materials/admin/${editingMat.id}/image?mode=append`, {
+        method: 'POST', headers: { Authorization: `Bearer ${token}` }, body: fd,
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Upload failed')
+      setPhotos(data.images || [])
+      setForm(f => ({ ...f, imageUrl: (data.images && data.images[0]) || f.imageUrl }))
+      flash('Photo added!')
+      await load()
+    } catch (e: any) {
+      flash('Photo upload failed: ' + e.message, true)
+    } finally { setUploadingImage(false) }
+  }
+
+  const removePhoto = async (url: string) => {
+    if (!editingMat) return
+    if (!confirm('Remove this photo? It is deleted from storage.')) return
+    setUploadingImage(true)
+    try {
+      const token = await authToken()
+      const res = await fetch(`${API_BASE}/materials/admin/${editingMat.id}/image?url=${encodeURIComponent(url)}`, {
+        method: 'DELETE', headers: { Authorization: `Bearer ${token}` },
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Remove failed')
+      const remaining: string[] = data.images || []
+      setPhotos(remaining)
+      setForm(f => ({ ...f, imageUrl: remaining[0] || '' }))
+      flash('Photo removed.')
+      await load()
+    } catch (e: any) {
+      flash('Remove failed: ' + e.message, true)
+    } finally { setUploadingImage(false) }
   }
 
   // ── Inline ASIN save ────────────────────────────────────────────────────
@@ -1345,6 +1413,7 @@ function MaterialsPageInner() {
             { key: 'suggestions', label: '💡 Suggestions' },
             { key: 'images',   label: '🖼️ Image Issues' },
             { key: 'collections', label: '🗂️ Collections' },
+            { key: 'groups', label: '🏷️ Category Groups' },
           ].map(t => (
             <button key={t.key} onClick={() => setTab(t.key as any)}
               className={`px-5 py-2 rounded-lg text-sm font-medium transition-all ${
@@ -1404,11 +1473,19 @@ function MaterialsPageInner() {
                         <td className="px-4 py-3">
                           <p className="font-medium text-gray-900 text-sm">
                             {m.name}{m.amazonNeedsAttention && <span title={m.amazonAttentionReason || 'Needs review'} className="ml-1">⚠️</span>}
+                            {!m.imageUrl && !m.amazonASIN && (
+                              <span title="No photo and no Amazon link yet — click Find to set this up"
+                                className="ml-2 px-1.5 py-0.5 bg-emerald-50 text-emerald-700 text-[10px] rounded-full font-semibold align-middle">🆕 needs setup</span>
+                            )}
                           </p>
                           <p className="text-xs text-gray-400">{m.unit}</p>
                         </td>
                         <td className="px-4 py-3 hidden md:table-cell">
-                          <span className="px-2 py-0.5 bg-indigo-50 text-indigo-700 text-xs rounded-full">{m.category}</span>
+                          <div className="flex flex-wrap gap-1">
+                            {((m.categories && m.categories.length > 0) ? m.categories : [m.category]).map((c, i) => (
+                              <span key={c} className={`px-2 py-0.5 text-xs rounded-full ${i === 0 ? 'bg-indigo-50 text-indigo-700' : 'bg-gray-100 text-gray-600'}`}>{c}</span>
+                            ))}
+                          </div>
                         </td>
                         <td className="px-4 py-3 hidden md:table-cell">
                           {m.imageUrl
@@ -1494,6 +1571,9 @@ function MaterialsPageInner() {
 
         {/* ── COLLECTIONS TAB ── */}
         {tab === 'collections' && <CollectionsTab apiBase={API_BASE} allMaterials={materials} flash={flash} />}
+
+        {/* ── CATEGORY GROUPS TAB ── */}
+        {tab === 'groups' && <CategoryGroupsTab apiBase={API_BASE} allCategories={allCats.filter(c => c !== 'All')} flash={flash} />}
       </div>
 
       {/* ── EDIT / ADD MODAL ── */}
@@ -1513,21 +1593,70 @@ function MaterialsPageInner() {
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400" />
               </div>
 
-              {/* Category + Unit */}
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Category *</label>
-                  <input type="text" value={form.category} onChange={e => setForm(f => ({...f, category: e.target.value}))}
-                    placeholder="Electronics, Paper, etc."
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400" />
+              {/* Categories (one or more) */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Categories *
+                  <span className="ml-1 text-xs text-gray-400 font-normal">— an item can be in several; ⭐ is the main one (tap a tag to make it main)</span>
+                </label>
+                <div className="flex flex-wrap gap-1.5 mb-2">
+                  {form.categories.map((c, i) => (
+                    <span key={c} className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs bg-indigo-50 text-indigo-700">
+                      <button type="button" title="Make this the main category"
+                        onClick={() => setForm(f => ({ ...f, categories: [c, ...f.categories.filter(x => x !== c)] }))}>
+                        {i === 0 ? '⭐ ' : ''}{c}
+                      </button>
+                      <button type="button" title="Remove"
+                        onClick={() => setForm(f => ({ ...f, categories: f.categories.filter(x => x !== c) }))}
+                        className="text-indigo-400 hover:text-red-500">×</button>
+                    </span>
+                  ))}
+                  {form.categories.length === 0 && <span className="text-xs text-gray-400">No category yet</span>}
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Unit</label>
-                  <select value={form.unit} onChange={e => setForm(f => ({...f, unit: e.target.value}))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none">
-                    {['piece','gram','ml','cm','sheet','meter','pair','roll'].map(u => <option key={u}>{u}</option>)}
-                  </select>
+                <div className="flex gap-2">
+                  <input type="text" list="mat-cat-options" value={catInput}
+                    onChange={e => setCatInput(e.target.value)}
+                    onKeyDown={e => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault()
+                        const v = catInput.trim()
+                        if (v && !form.categories.includes(v)) setForm(f => ({ ...f, categories: [...f.categories, v] }))
+                        setCatInput('')
+                      }
+                    }}
+                    placeholder="Type or pick a category, press Enter"
+                    className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400" />
+                  <button type="button"
+                    onClick={() => {
+                      const v = catInput.trim()
+                      if (v && !form.categories.includes(v)) setForm(f => ({ ...f, categories: [...f.categories, v] }))
+                      setCatInput('')
+                    }}
+                    className="px-3 py-2 border border-indigo-300 text-indigo-700 rounded-lg text-xs hover:bg-indigo-50">Add</button>
                 </div>
+                <datalist id="mat-cat-options">
+                  {allCats.filter(c => c !== 'All').map(c => <option key={c} value={c} />)}
+                </datalist>
+              </div>
+
+              {/* Other names (search) */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Also known as
+                  <span className="ml-1 text-xs text-gray-400 font-normal">— other names people may search, separated by commas</span>
+                </label>
+                <input type="text" value={form.aliases} onChange={e => setForm(f => ({...f, aliases: e.target.value}))}
+                  placeholder="e.g. sticky tape, cello tape, scotch tape"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400" />
+              </div>
+
+              {/* Unit */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Unit</label>
+                <select value={form.unit} onChange={e => setForm(f => ({...f, unit: e.target.value}))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none">
+                  {(UNIT_OPTIONS.includes(form.unit) ? UNIT_OPTIONS : [form.unit, ...UNIT_OPTIONS]).map(u => <option key={u}>{u}</option>)}
+                </select>
               </div>
 
               {/* Goins + Price */}
@@ -1599,6 +1728,28 @@ function MaterialsPageInner() {
                 {!editingMat && (
                   <p className="text-xs text-gray-400 mt-1">Save this material first, then reopen it to upload a photo directly.</p>
                 )}
+
+                {/* More photos — multi-photo (first photo above stays the main one) */}
+                {editingMat && (
+                  <div className="mt-3">
+                    <p className="text-xs font-medium text-gray-600 mb-1">More photos ({Math.max(photos.length - 1, 0)})</p>
+                    <div className="flex flex-wrap gap-2 items-center">
+                      {photos.slice(1).map(u => (
+                        <div key={u} className="relative">
+                          <img src={u} alt="extra" className="h-12 w-12 object-contain rounded border bg-white" />
+                          <button type="button" disabled={uploadingImage} onClick={() => removePhoto(u)}
+                            title="Remove this photo"
+                            className="absolute -top-1.5 -right-1.5 bg-white border border-red-200 text-red-600 rounded-full w-4 h-4 text-[10px] leading-none">×</button>
+                        </div>
+                      ))}
+                      <label className="px-3 py-1.5 text-xs font-medium rounded-lg border border-indigo-300 text-indigo-700 hover:bg-indigo-50 cursor-pointer">
+                        {uploadingImage ? 'Uploading…' : '➕ Add another photo'}
+                        <input type="file" accept="image/*" className="hidden" disabled={uploadingImage}
+                          onChange={e => { const f = e.target.files?.[0]; if (f) addExtraPhoto(f); e.target.value = '' }} />
+                      </label>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Icon + Description */}
@@ -1645,6 +1796,212 @@ function MaterialsPageInner() {
         </div>
       )}
     </AdminLayout>
+  )
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// CATEGORY GROUPS — the "clubbed" umbrella groupings used for search/browse
+// (Sept 2026 shop renovation). e.g. one "Electronics & Circuits" group that
+// surfaces Electronics + Sensors + Boards + Batteries together.
+// ═══════════════════════════════════════════════════════════════════════════
+interface CategoryGroupRow {
+  id: string
+  name: string
+  emoji: string | null
+  memberCategories: string[]
+  sortOrder: number
+  isActive: boolean
+}
+
+function CategoryGroupsTab({ apiBase, allCategories, flash }: {
+  apiBase: string
+  allCategories: string[]
+  flash: (msg: string, isError?: boolean) => void
+}) {
+  const [groups, setGroups]   = useState<CategoryGroupRow[]>([])
+  const [loading, setLoading] = useState(true)
+  const [editing, setEditing] = useState<CategoryGroupRow | null>(null)
+  const [showForm, setShowForm] = useState(false)
+  const [saving, setSaving]   = useState(false)
+  const [form, setForm] = useState<{ name: string; emoji: string; sortOrder: string; memberCategories: string[] }>({
+    name: '', emoji: '🗂️', sortOrder: '99', memberCategories: [],
+  })
+
+  const load = async () => {
+    setLoading(true)
+    try {
+      const token = await authToken()
+      const res = await fetch(`${apiBase}/materials/admin/category-groups`, { headers: { Authorization: `Bearer ${token}` } })
+      const data = res.ok ? await res.json() : []
+      setGroups(Array.isArray(data) ? data : [])
+    } finally { setLoading(false) }
+  }
+  useEffect(() => { load() }, [])
+
+  const openNew = () => {
+    setEditing(null)
+    setForm({ name: '', emoji: '🗂️', sortOrder: String(groups.length + 1), memberCategories: [] })
+    setShowForm(true)
+  }
+  const openEditGroup = (g: CategoryGroupRow) => {
+    setEditing(g)
+    setForm({ name: g.name, emoji: g.emoji || '🗂️', sortOrder: String(g.sortOrder), memberCategories: g.memberCategories || [] })
+    setShowForm(true)
+  }
+
+  const save = async () => {
+    if (!form.name.trim()) { flash('Group name is required', true); return }
+    setSaving(true)
+    try {
+      const token = await authToken()
+      const res = await fetch(
+        editing ? `${apiBase}/materials/admin/category-groups/${editing.id}` : `${apiBase}/materials/admin/category-groups`,
+        {
+          method: editing ? 'PUT' : 'POST',
+          headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: form.name.trim(), emoji: form.emoji.trim() || '🗂️',
+            sortOrder: Number(form.sortOrder) || 99, memberCategories: form.memberCategories,
+          }),
+        },
+      )
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(data.error || 'Save failed')
+      flash(editing ? 'Group updated!' : 'Group added!')
+      setShowForm(false)
+      await load()
+    } catch (e: any) { flash(e.message || 'Save failed', true) }
+    finally { setSaving(false) }
+  }
+
+  const toggleActive = async (g: CategoryGroupRow) => {
+    const token = await authToken()
+    await fetch(`${apiBase}/materials/admin/category-groups/${g.id}`, {
+      method: 'PUT', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ isActive: !g.isActive }),
+    })
+    load()
+  }
+
+  const remove = async (g: CategoryGroupRow) => {
+    if (!confirm(`Delete the group "${g.name}"? (Materials and categories are not affected.)`)) return
+    const token = await authToken()
+    const res = await fetch(`${apiBase}/materials/admin/category-groups/${g.id}`, {
+      method: 'DELETE', headers: { Authorization: `Bearer ${token}` },
+    })
+    if (!res.ok) { flash('Delete failed', true); return }
+    flash('Group deleted.')
+    load()
+  }
+
+  const toggleMember = (c: string) =>
+    setForm(f => ({
+      ...f,
+      memberCategories: f.memberCategories.includes(c) ? f.memberCategories.filter(x => x !== c) : [...f.memberCategories, c],
+    }))
+
+  // Categories that exist but sit in no group — surfaced so nothing is
+  // accidentally left unsearchable-by-group.
+  const grouped = new Set(groups.filter(g => g.isActive).flatMap(g => g.memberCategories || []))
+  const ungrouped = allCategories.filter(c => !grouped.has(c))
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <p className="text-sm text-gray-500 max-w-2xl">
+          Groups bundle several specific categories under one search heading — e.g. one <strong>Electronics &amp; Circuits</strong> group
+          covering Electronics, Sensors and Batteries — so a child (or parent) can browse broadly, then narrow down.
+        </p>
+        <button onClick={openNew} className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700">
+          + New group
+        </button>
+      </div>
+
+      {ungrouped.length > 0 && (
+        <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-800">
+          Not in any group yet: {ungrouped.join(', ')}
+        </div>
+      )}
+
+      <div className="grid gap-3 md:grid-cols-2">
+        {loading ? <p className="text-sm text-gray-400">Loading…</p> : groups.map(g => (
+          <Card key={g.id} className={`p-4 border-0 shadow-sm ${g.isActive ? '' : 'opacity-50'}`}>
+            <div className="flex items-start justify-between gap-2">
+              <div>
+                <p className="font-semibold text-gray-900">{g.emoji || '🗂️'} {g.name}</p>
+                <div className="flex flex-wrap gap-1 mt-2">
+                  {(g.memberCategories || []).map(c => (
+                    <span key={c} className="px-2 py-0.5 bg-indigo-50 text-indigo-700 text-xs rounded-full">{c}</span>
+                  ))}
+                  {(g.memberCategories || []).length === 0 && <span className="text-xs text-gray-400">No categories yet</span>}
+                </div>
+              </div>
+              <div className="flex flex-col gap-1 items-end">
+                <button onClick={() => openEditGroup(g)} className="px-2 py-1 border border-gray-200 text-gray-600 rounded text-xs hover:bg-gray-50">Edit</button>
+                <button onClick={() => toggleActive(g)}
+                  className={`px-2 py-1 rounded text-xs ${g.isActive ? 'bg-green-50 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
+                  {g.isActive ? 'On' : 'Off'}
+                </button>
+                <button onClick={() => remove(g)} className="px-2 py-1 border border-red-200 text-red-600 rounded text-xs hover:bg-red-50">Delete</button>
+              </div>
+            </div>
+          </Card>
+        ))}
+      </div>
+
+      {showForm && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <Card className="w-full max-w-lg p-6 border-0 shadow-xl max-h-[92vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-5">
+              <h2 className="text-lg font-bold">{editing ? 'Edit group' : 'New group'}</h2>
+              <button onClick={() => setShowForm(false)}><X className="h-5 w-5 text-gray-400" /></button>
+            </div>
+            <div className="space-y-4">
+              <div className="grid grid-cols-4 gap-3">
+                <div className="col-span-3">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Group name *</label>
+                  <input type="text" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Emoji</label>
+                  <input type="text" value={form.emoji} onChange={e => setForm(f => ({ ...f, emoji: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none" />
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Order (smaller shows first)</label>
+                <input type="number" value={form.sortOrder} onChange={e => setForm(f => ({ ...f, sortOrder: e.target.value }))}
+                  className="w-32 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Categories in this group</label>
+                <div className="flex flex-wrap gap-2">
+                  {allCategories.map(c => (
+                    <button key={c} type="button" onClick={() => toggleMember(c)}
+                      className={`px-3 py-1 rounded-full text-xs border ${
+                        form.memberCategories.includes(c)
+                          ? 'bg-indigo-600 text-white border-indigo-600'
+                          : 'bg-white text-gray-600 border-gray-300 hover:border-indigo-300'
+                      }`}>
+                      {c}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+            <div className="flex gap-3 mt-6">
+              <button onClick={save} disabled={saving}
+                className="flex-1 py-2.5 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 disabled:opacity-50">
+                {saving ? 'Saving…' : (editing ? 'Save changes' : 'Add group')}
+              </button>
+              <button onClick={() => setShowForm(false)}
+                className="px-5 py-2.5 border border-gray-200 rounded-lg text-sm text-gray-600 hover:bg-gray-50">Cancel</button>
+            </div>
+          </Card>
+        </div>
+      )}
+    </div>
   )
 }
 
