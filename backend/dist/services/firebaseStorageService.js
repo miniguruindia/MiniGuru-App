@@ -62,6 +62,7 @@ exports.generateUploadUrl = generateUploadUrl;
 exports.downloadToTempFile = downloadToTempFile;
 exports.deleteFromStorage = deleteFromStorage;
 exports.getBucketTotalSizeBytes = getBucketTotalSizeBytes;
+exports.uploadConsultancyImage = uploadConsultancyImage;
 const app_1 = require("firebase-admin/app");
 const storage_1 = require("firebase-admin/storage");
 const path = __importStar(require("path"));
@@ -216,4 +217,23 @@ async function getBucketTotalSizeBytes() {
             total += parseInt(String(size), 10);
     }
     return total;
+}
+/**
+ * Uploads an image for the Consultancy pages (layout drawings, furniture
+ * photos, etc.) under consultancy/ and returns its public URL. Kept in its own
+ * folder so it never mixes with materials/ (the catalog seed script and
+ * material tooling read that folder).
+ */
+async function uploadConsultancyImage(buffer, mimeType) {
+    const firebaseApp = ensureInitialized();
+    const ext = extensionFromMime(mimeType);
+    const storagePath = `consultancy/${Date.now()}-${(0, crypto_1.randomUUID)().slice(0, 8)}.${ext}`;
+    const bucket = (0, storage_1.getStorage)(firebaseApp).bucket();
+    const file = bucket.file(storagePath);
+    await file.save(buffer, {
+        metadata: { contentType: mimeType, cacheControl: 'public, max-age=31536000' },
+        public: true,
+        validation: false,
+    });
+    return publicUrlFor(storagePath);
 }

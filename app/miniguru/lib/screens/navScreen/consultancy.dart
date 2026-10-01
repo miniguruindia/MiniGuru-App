@@ -26,6 +26,10 @@ class _ConsultancyPageState extends State<ConsultancyPage> {
   // "Home Corner Material" kit links. Empty/failed = links simply don't show.
   List<Map<String, dynamic>> _kitCollections = [];
 
+  // Admin-uploaded layout/furniture photos + notes per tab
+  // ("tlab" / "workshop" / "corner"), from the consultancy CMS key.
+  Map<String, dynamic> _pageExtras = {};
+
   // ── CONTACT DETAILS (CMS-editable, hardcoded fallbacks) ────────────────
   String _phone    = '+919399756846';
   String _whatsapp = '919399756846';
@@ -96,6 +100,141 @@ class _ConsultancyPageState extends State<ConsultancyPage> {
     _selectedService = widget.initialService;
     _loadCms();
     _loadKitCollections();
+  }
+
+  void _openImageViewer(String url, String caption) {
+    showDialog(
+      context: context,
+      builder: (ctx) => Dialog(
+        backgroundColor: Colors.black,
+        insetPadding: const EdgeInsets.all(12),
+        child: Stack(children: [
+          Column(mainAxisSize: MainAxisSize.min, children: [
+            Flexible(
+              child: InteractiveViewer(
+                maxScale: 5,
+                child: Image.network(url, fit: BoxFit.contain,
+                    errorBuilder: (_, __, ___) => const Padding(
+                          padding: EdgeInsets.all(40),
+                          child: Icon(Icons.broken_image_outlined, color: Colors.white54, size: 48),
+                        )),
+              ),
+            ),
+            if (caption.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.all(12),
+                child: Text(caption,
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.poppins(color: Colors.white, fontSize: 13)),
+              ),
+          ]),
+          Positioned(
+            top: 4,
+            right: 4,
+            child: IconButton(
+              icon: const Icon(Icons.close, color: Colors.white),
+              onPressed: () => Navigator.pop(ctx),
+            ),
+          ),
+        ]),
+      ),
+    );
+  }
+
+  // "Layout, Furniture & Notes" block for one tab. Renders nothing when the
+  // admin hasn't added any photos/notes for it, so empty tabs look unchanged.
+  Widget _buildPageExtras(String pageKey) {
+    final raw = _pageExtras[pageKey];
+    if (raw is! Map) return const SizedBox.shrink();
+    final images = (raw['images'] is List ? raw['images'] as List : <dynamic>[])
+        .whereType<Map>()
+        .where((m) => (m['url'] ?? '').toString().trim().isNotEmpty)
+        .toList();
+    final notes = (raw['notes'] is List ? raw['notes'] as List : <dynamic>[])
+        .whereType<Map>()
+        .where((m) =>
+            (m['heading'] ?? '').toString().trim().isNotEmpty ||
+            (m['body'] ?? '').toString().trim().isNotEmpty)
+        .toList();
+    if (images.isEmpty && notes.isEmpty) return const SizedBox.shrink();
+
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      _sectionTitle('Layout, Furniture & Notes', Icons.dashboard_customize_outlined),
+      if (images.isNotEmpty)
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: LayoutBuilder(builder: (context, constraints) {
+            const gap = 12.0;
+            final w = constraints.maxWidth;
+            final cols = w >= 700 ? 3 : (w >= 440 ? 2 : 1);
+            final itemW = (w - gap * (cols - 1)) / cols;
+            return Wrap(
+              spacing: gap,
+              runSpacing: gap,
+              children: [
+                for (final m in images)
+                  GestureDetector(
+                    onTap: () => _openImageViewer(
+                        m['url'].toString(), (m['caption'] ?? '').toString()),
+                    child: SizedBox(
+                      width: itemW,
+                      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                        Container(
+                          height: itemW * 0.72,
+                          width: itemW,
+                          clipBehavior: Clip.antiAlias,
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF3F4F6),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: const Color(0xFFE5E7EB)),
+                          ),
+                          child: Image.network(
+                            m['url'].toString(),
+                            fit: BoxFit.contain,
+                            errorBuilder: (_, __, ___) => const Center(
+                              child: Icon(Icons.broken_image_outlined, color: Color(0xFF1B5E20)),
+                            ),
+                          ),
+                        ),
+                        if ((m['caption'] ?? '').toString().trim().isNotEmpty)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 6),
+                            child: Text(m['caption'].toString(),
+                                style: GoogleFonts.poppins(
+                                    fontSize: 12, color: Colors.black54, height: 1.4)),
+                          ),
+                      ]),
+                    ),
+                  ),
+              ],
+            );
+          }),
+        ),
+      for (final n in notes)
+        Container(
+          width: double.infinity,
+          margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: const Color(0xFFE5E7EB)),
+          ),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            if ((n['heading'] ?? '').toString().trim().isNotEmpty)
+              Text(n['heading'].toString(),
+                  style: GoogleFonts.poppins(
+                      fontSize: 14, fontWeight: FontWeight.bold, color: Colors.black87)),
+            if ((n['heading'] ?? '').toString().trim().isNotEmpty &&
+                (n['body'] ?? '').toString().trim().isNotEmpty)
+              const SizedBox(height: 4),
+            if ((n['body'] ?? '').toString().trim().isNotEmpty)
+              Text(n['body'].toString(),
+                  style: GoogleFonts.poppins(
+                      fontSize: 13, color: Colors.black54, height: 1.5)),
+          ]),
+        ),
+    ]);
   }
 
   Future<void> _loadKitCollections() async {
@@ -199,6 +338,10 @@ class _ConsultancyPageState extends State<ConsultancyPage> {
           _wsBannerParticipants = wsStats['participants']?.toString() ?? _wsBannerParticipants;
           _wsBannerProjects     = wsStats['projects']?.toString()     ?? _wsBannerProjects;
         }
+        final extrasRaw = data['pageExtras'];
+        if (extrasRaw is Map) {
+          _pageExtras = Map<String, dynamic>.from(extrasRaw);
+        }
         final images = data['tlabImages'] as List<dynamic>?;
         if (images != null) {
           _tlabImages = images
@@ -253,9 +396,12 @@ class _ConsultancyPageState extends State<ConsultancyPage> {
               child: Column(
                 children: [
                   if (_selectedService == 0) _buildKitLinkCard('new-lab'),
+                  if (_selectedService == 0) _buildPageExtras('tlab'),
+                  if (_selectedService == 1) _buildPageExtras('workshop'),
                   if (_selectedService == 0) _buildSchoolTLab(),
                   if (_selectedService == 1) _buildWorkshops(),
                   if (_selectedService == 2) _buildKitLinkCard('home-corner'),
+                  if (_selectedService == 2) _buildPageExtras('corner'),
                   if (_selectedService == 2) _buildHomeTinkering(),
                   _buildContactSection(),
                   _buildLoginCTA(),

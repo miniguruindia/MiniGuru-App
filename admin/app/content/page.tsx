@@ -184,7 +184,7 @@ function ConsultancyEditor({ data, onChange }: { data: any; onChange: (d: any) =
         <button onClick={() => onChange({ ...data, faqs: [...(data.faqs || []), { question: '', answer: '' }] })}
           className="flex items-center gap-2 text-sm text-blue-600 font-medium"><Plus className="h-4 w-4" /> Add FAQ</button>
       </SectionCard>
-      <SectionCard title="🖼️ T-LAB Room Photos">
+      <SectionCard title="🖼️ T-LAB Room Photos (older — the new gallery above lets you upload instead)">
         <p className="text-xs text-gray-500 mb-2">Paste image URLs (e.g. Firebase Storage links). Shown as a photo strip on the School T-LAB tab.</p>
         {(data.tlabImages || []).map((url: string, i: number) => (
           <div key={i} className="flex items-center gap-2 mb-2">
@@ -199,6 +199,9 @@ function ConsultancyEditor({ data, onChange }: { data: any; onChange: (d: any) =
         <button onClick={() => onChange({ ...data, tlabImages: [...(data.tlabImages || []), ''] })}
           className="flex items-center gap-2 text-sm text-blue-600 font-medium"><Plus className="h-4 w-4" /> Add Photo URL</button>
       </SectionCard>
+      <PageExtrasCard title="🏫 School T-LAB tab — Layout, Furniture Photos & Notes" pageKey="tlab" data={data} onChange={onChange} />
+      <PageExtrasCard title="🔬 Workshops tab — Photos & Notes" pageKey="workshop" data={data} onChange={onChange} />
+      <PageExtrasCard title="🏠 Home Corner tab — Layout, Furniture Photos & Notes" pageKey="corner" data={data} onChange={onChange} />
       <SectionCard title="📦 Materials & Corner Profiles">
         <Field label="Materials & Tools description" hint="Overrides the 'Materials & Tools' card on the School T-LAB tab">
           <textarea className={ta} rows={3} value={data.materialsBody || ''} onChange={e => set('materialsBody', e.target.value)} />
@@ -579,5 +582,105 @@ export default function ContentPage() {
         </div>
       </div>
     </AdminLayout>
+  )
+}
+
+
+// ── Consultancy: gallery + notes for one tab, with direct image upload ───────
+function PageExtrasCard({ title, pageKey, data, onChange }: {
+  title: string
+  pageKey: 'tlab' | 'workshop' | 'corner'
+  data: any
+  onChange: (d: any) => void
+}) {
+  const extras = (data.pageExtras && data.pageExtras[pageKey]) || {}
+  const images: { url: string; caption: string }[] = extras.images || []
+  const notes: { heading: string; body: string }[] = extras.notes || []
+  const [uploading, setUploading] = useState(false)
+  const [err, setErr] = useState('')
+
+  const setExtras = (next: any) =>
+    onChange({ ...data, pageExtras: { ...(data.pageExtras || {}), [pageKey]: { ...extras, ...next } } })
+
+  const upload = async (files: FileList | null) => {
+    if (!files || files.length === 0) return
+    setUploading(true)
+    setErr('')
+    const added: { url: string; caption: string }[] = []
+    try {
+      const token = (() => { const v = `; ${document.cookie}`; const p = v.split('; auth_token='); return p.length === 2 ? p.pop()!.split(';').shift()! : '' })()
+      for (let i = 0; i < files.length; i++) {
+        const fd = new FormData()
+        fd.append('image', files[i])
+        const res = await fetch(`${API_BASE}/admin/cms/consultancy-image`, {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${token}` },
+          body: fd,
+        })
+        const body = await res.json().catch(() => ({}))
+        if (!res.ok) throw new Error(body.message || `Upload failed (${res.status})`)
+        added.push({ url: body.url, caption: '' })
+      }
+    } catch (e: any) {
+      setErr(e.message || 'Upload failed')
+    }
+    if (added.length > 0) setExtras({ images: [...images, ...added] })
+    setUploading(false)
+  }
+
+  const moveImage = (i: number, dir: -1 | 1) => {
+    const j = i + dir
+    if (j < 0 || j >= images.length) return
+    const next = [...images]
+    const t = next[i]; next[i] = next[j]; next[j] = t
+    setExtras({ images: next })
+  }
+
+  return (
+    <SectionCard title={title}>
+      <p className="text-xs text-gray-500">
+        Upload layout drawings or furniture photos (each up to 8 MB). Add a short caption to each. They appear at the top of this tab in the app; tapping an image opens it full size.
+      </p>
+      <div className="grid grid-cols-2 gap-3">
+        {images.map((img, i) => (
+          <div key={img.url + i} className="border border-gray-100 rounded-lg p-2 bg-gray-50 space-y-2">
+            <img src={img.url} alt="" className="w-full h-32 object-contain bg-white rounded" />
+            <input className={inp} placeholder="Caption (optional)" value={img.caption || ''}
+              onChange={e => { const next = [...images]; next[i] = { ...img, caption: e.target.value }; setExtras({ images: next }) }} />
+            <div className="flex gap-2">
+              <button onClick={() => moveImage(i, -1)} disabled={i === 0} className="px-2 py-1 text-xs border rounded disabled:opacity-30">↑</button>
+              <button onClick={() => moveImage(i, 1)} disabled={i === images.length - 1} className="px-2 py-1 text-xs border rounded disabled:opacity-30">↓</button>
+              <button onClick={() => setExtras({ images: images.filter((_, j) => j !== i) })}
+                className="ml-auto text-red-400 hover:text-red-600"><Trash2 className="h-4 w-4" /></button>
+            </div>
+          </div>
+        ))}
+      </div>
+      <label className="inline-flex items-center gap-2 text-sm text-blue-600 font-medium cursor-pointer">
+        <Plus className="h-4 w-4" /> {uploading ? 'Uploading…' : 'Upload images'}
+        <input type="file" accept="image/*" multiple className="hidden" disabled={uploading}
+          onChange={e => { upload(e.target.files); e.target.value = '' }} />
+      </label>
+      {err && <p className="text-xs text-red-600">{err}</p>}
+
+      <div className="pt-3 border-t border-gray-100 space-y-3">
+        <p className="text-xs font-semibold text-gray-500">Notes</p>
+        {notes.map((n, i) => (
+          <div key={i} className="border border-gray-100 rounded-lg p-3 bg-gray-50 space-y-2">
+            <div className="flex justify-between">
+              <span className="text-xs font-semibold text-gray-500">Note {i + 1}</span>
+              <button onClick={() => setExtras({ notes: notes.filter((_, j) => j !== i) })}
+                className="text-red-400 hover:text-red-600"><Trash2 className="h-4 w-4" /></button>
+            </div>
+            <input className={inp} placeholder="Heading" value={n.heading || ''}
+              onChange={e => { const next = [...notes]; next[i] = { ...n, heading: e.target.value }; setExtras({ notes: next }) }} />
+            <textarea className={ta} rows={3} placeholder="Note text" value={n.body || ''}
+              onChange={e => { const next = [...notes]; next[i] = { ...n, body: e.target.value }; setExtras({ notes: next }) }} />
+          </div>
+        ))}
+        <button onClick={() => setExtras({ notes: [...notes, { heading: '', body: '' }] })}
+          className="flex items-center gap-2 text-sm text-blue-600 font-medium"><Plus className="h-4 w-4" /> Add note</button>
+      </div>
+    </SectionCard>
   )
 }

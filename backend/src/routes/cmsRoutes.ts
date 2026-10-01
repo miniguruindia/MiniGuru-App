@@ -5,6 +5,8 @@ import express from 'express';
 import prisma from '../utils/prismaClient';
 import logger from '../logger';
 import { authenticateToken, authorizeAdmin } from '../middleware/authMiddleware';
+import multer from 'multer';
+import { uploadConsultancyImage } from '../services/firebaseStorageService';
 
 const router = express.Router();
 
@@ -176,6 +178,44 @@ export const DEFAULTS: Record<string, any> = {
     ],
   },
 };
+
+// Admin image upload for the Consultancy pages. Memory storage -> straight to
+// Firebase Storage (never touches Cloud Run's local disk). 8MB cap — big enough
+// for a layout drawing, far under Cloud Run's 32MB request limit.
+const consultancyUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 8 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    if (!file.mimetype.startsWith('image/')) return cb(new Error('Only image files are allowed.'));
+    cb(null, true);
+  },
+});
+
+// POST /admin/cms/consultancy-image  (multipart, field name: image) -> { url }
+router.post(
+  '/consultancy-image',
+  authenticateToken,
+  authorizeAdmin,
+  (req: any, res: any, next: any) => {
+    consultancyUpload.single('image')(req, res, (err: any) => {
+      if (err) {
+        const tooBig = err && err.code === 'LIMIT_FILE_SIZE';
+        return res.status(400).json({ message: tooBig ? 'Image is larger than 8 MB — please shrink it and try again.' : (err.message || 'Upload failed.') });
+      }
+      next();
+    });
+  },
+  async (req: any, res: any) => {
+    try {
+      if (!req.file) return res.status(400).json({ message: 'No image file provided (field name: image).' });
+      const url = await uploadConsultancyImage(req.file.buffer, req.file.mimetype);
+      return res.json({ url });
+    } catch (error) {
+      logger.error(`POST /cms/consultancy-image: ${(error as Error).message}`);
+      return res.status(500).json({ message: 'Failed to upload image.' });
+    }
+  }
+);
 
 // Public GET
 router.get('/:key', async (req, res) => {

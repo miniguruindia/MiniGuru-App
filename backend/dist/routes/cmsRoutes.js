@@ -10,6 +10,8 @@ const express_1 = __importDefault(require("express"));
 const prismaClient_1 = __importDefault(require("../utils/prismaClient"));
 const logger_1 = __importDefault(require("../logger"));
 const authMiddleware_1 = require("../middleware/authMiddleware");
+const multer_1 = __importDefault(require("multer"));
+const firebaseStorageService_1 = require("../services/firebaseStorageService");
 const router = express_1.default.Router();
 // Exported so the one-off migration script (seed_about_consultancy_legal_v2.ts)
 // can push this exact same content into MongoDB, guaranteeing the DB record
@@ -178,6 +180,39 @@ exports.DEFAULTS = {
         ],
     },
 };
+// Admin image upload for the Consultancy pages. Memory storage -> straight to
+// Firebase Storage (never touches Cloud Run's local disk). 8MB cap — big enough
+// for a layout drawing, far under Cloud Run's 32MB request limit.
+const consultancyUpload = (0, multer_1.default)({
+    storage: multer_1.default.memoryStorage(),
+    limits: { fileSize: 8 * 1024 * 1024 },
+    fileFilter: (_req, file, cb) => {
+        if (!file.mimetype.startsWith('image/'))
+            return cb(new Error('Only image files are allowed.'));
+        cb(null, true);
+    },
+});
+// POST /admin/cms/consultancy-image  (multipart, field name: image) -> { url }
+router.post('/consultancy-image', authMiddleware_1.authenticateToken, authMiddleware_1.authorizeAdmin, (req, res, next) => {
+    consultancyUpload.single('image')(req, res, (err) => {
+        if (err) {
+            const tooBig = err && err.code === 'LIMIT_FILE_SIZE';
+            return res.status(400).json({ message: tooBig ? 'Image is larger than 8 MB — please shrink it and try again.' : (err.message || 'Upload failed.') });
+        }
+        next();
+    });
+}, async (req, res) => {
+    try {
+        if (!req.file)
+            return res.status(400).json({ message: 'No image file provided (field name: image).' });
+        const url = await (0, firebaseStorageService_1.uploadConsultancyImage)(req.file.buffer, req.file.mimetype);
+        return res.json({ url });
+    }
+    catch (error) {
+        logger_1.default.error(`POST /cms/consultancy-image: ${error.message}`);
+        return res.status(500).json({ message: 'Failed to upload image.' });
+    }
+});
 // Public GET
 router.get('/:key', async (req, res) => {
     try {

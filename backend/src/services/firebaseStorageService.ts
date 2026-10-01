@@ -189,3 +189,24 @@ export async function getBucketTotalSizeBytes(): Promise<number> {
   }
   return total;
 }
+
+
+/**
+ * Uploads an image for the Consultancy pages (layout drawings, furniture
+ * photos, etc.) under consultancy/ and returns its public URL. Kept in its own
+ * folder so it never mixes with materials/ (the catalog seed script and
+ * material tooling read that folder).
+ */
+export async function uploadConsultancyImage(buffer: Buffer, mimeType: string): Promise<string> {
+  const firebaseApp = ensureInitialized();
+  const ext = extensionFromMime(mimeType);
+  const storagePath = `consultancy/${Date.now()}-${randomUUID().slice(0, 8)}.${ext}`;
+  const bucket = getStorage(firebaseApp).bucket();
+  const file = bucket.file(storagePath);
+  await file.save(buffer, {
+    metadata: { contentType: mimeType, cacheControl: 'public, max-age=31536000' },
+    public: true,
+    validation: false,
+  });
+  return publicUrlFor(storagePath);
+}
