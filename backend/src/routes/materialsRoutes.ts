@@ -193,19 +193,38 @@ router.get('/category-groups', async (_req: Request, res: Response) => {
 // flow. Public, read-only here — admin management is further down.
 
 // GET /collections — light list for the Shop's chip row (name/icon/count).
+// Collections are ordered by sortOrder (lower first); any without one go
+// after, alphabetically. Sorted in JS so older records with no sortOrder
+// field can never break the query.
+function sortCollections<T>(list: T[]): T[] {
+  return [...list].sort((a: any, b: any) => {
+    const ao = typeof a.sortOrder === 'number' ? a.sortOrder : 999999;
+    const bo = typeof b.sortOrder === 'number' ? b.sortOrder : 999999;
+    if (ao !== bo) return ao - bo;
+    return String(a.name).localeCompare(String(b.name));
+  });
+}
+
+// "new-lab" / "home-corner" style page keys. Empty or invalid -> null.
+function normalizeLinkKey(v: any): string | null {
+  if (typeof v !== 'string') return null;
+  const k = v.trim().toLowerCase();
+  return /^[a-z0-9-]{1,40}$/.test(k) ? k : null;
+}
+
 router.get('/collections', async (_req: Request, res: Response) => {
   try {
     const collections = await prisma.materialCollection.findMany({
       where: { isActive: true },
-      orderBy: { name: 'asc' },
     });
     res.json(
-      collections.map((c) => ({
+      sortCollections(collections as any[]).map((c: any) => ({
         id: c.id,
         name: c.name,
         description: c.description,
         icon: c.icon || '🧰',
         itemCount: c.materialIds.length,
+        linkKey: (c as any).linkKey || null,
       }))
     );
   } catch (err) {
@@ -250,8 +269,8 @@ router.get('/collections/:id', async (req: Request, res: Response) => {
 // GET /admin/collections — full list (including inactive) for the admin tab.
 router.get('/admin/collections', authenticateToken, requireAdmin, async (_req: Request, res: Response) => {
   try {
-    const collections = await prisma.materialCollection.findMany({ orderBy: { name: 'asc' } });
-    res.json(collections);
+    const collections = await prisma.materialCollection.findMany();
+    res.json(sortCollections(collections as any[]));
   } catch (err) {
     res.status(500).json({ message: 'Failed to fetch collections.' });
   }
@@ -263,8 +282,15 @@ router.post('/admin/collections', authenticateToken, requireAdmin, async (req: R
     if (!name || typeof name !== 'string') {
       return res.status(400).json({ message: 'name is required.' });
     }
+    const newKey = normalizeLinkKey((req.body || {}).linkKey);
+    if (newKey) {
+      // Only one collection can own a page link at a time.
+      await prisma.materialCollection.updateMany({ where: { linkKey: newKey } as any, data: { linkKey: null } as any });
+    }
     const collection = await prisma.materialCollection.create({
       data: {
+        ...((newKey ? { linkKey: newKey } : {}) as any),
+        ...((typeof (req.body || {}).sortOrder === 'number' ? { sortOrder: (req.body || {}).sortOrder } : {}) as any),
         name: name.trim(),
         description: description || undefined,
         icon: icon || '🧰',
@@ -278,6 +304,25 @@ router.post('/admin/collections', authenticateToken, requireAdmin, async (req: R
   }
 });
 
+// PUT /admin/collections-order  { ids: [...] } — saves the display order.
+router.put('/admin/collections-order', authenticateToken, requireAdmin, async (req: Request, res: Response) => {
+  try {
+    const ids: string[] = req.body && Array.isArray(req.body.ids)
+      ? req.body.ids.filter((x: any) => typeof x === 'string')
+      : [];
+    if (ids.length === 0) {
+      return res.status(400).json({ message: 'ids is required.' });
+    }
+    for (let i = 0; i < ids.length; i++) {
+      await prisma.materialCollection.update({ where: { id: ids[i] }, data: { sortOrder: i * 10 } as any });
+    }
+    res.json({ message: 'Order saved.' });
+  } catch (err) {
+    console.error('[materials] PUT /admin/collections-order error:', err);
+    res.status(500).json({ message: 'Failed to save order.' });
+  }
+});
+
 router.put('/admin/collections/:id', authenticateToken, requireAdmin, async (req: Request, res: Response) => {
   try {
     const { name, description, icon, materialIds, isActive } = req.body || {};
@@ -287,6 +332,15 @@ router.put('/admin/collections/:id', authenticateToken, requireAdmin, async (req
     if ('icon' in req.body) data.icon = icon;
     if ('materialIds' in req.body) data.materialIds = Array.isArray(materialIds) ? materialIds : [];
     if ('isActive' in req.body) data.isActive = Boolean(isActive);
+    if ('sortOrder' in req.body) data.sortOrder = typeof req.body.sortOrder === 'number' ? req.body.sortOrder : null;
+    if ('linkKey' in req.body) {
+      const k = normalizeLinkKey(req.body.linkKey);
+      data.linkKey = k;
+      if (k) {
+        // Only one collection can own a page link at a time.
+        await prisma.materialCollection.updateMany({ where: { linkKey: k, id: { not: req.params.id } } as any, data: { linkKey: null } as any });
+      }
+    }
     const collection = await prisma.materialCollection.update({
       where: { id: req.params.id },
       data,

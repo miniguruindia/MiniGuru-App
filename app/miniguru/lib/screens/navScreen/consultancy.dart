@@ -6,6 +6,10 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:miniguru/network/MiniguruApi.dart';
 import 'package:miniguru/screens/loginScreen.dart';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+import 'package:miniguru/secrets.dart';
+import 'package:miniguru/screens/navScreen/shop.dart';
 
 class ConsultancyPage extends StatefulWidget {
   final int initialService;
@@ -17,6 +21,10 @@ class ConsultancyPage extends StatefulWidget {
 
 class _ConsultancyPageState extends State<ConsultancyPage> {
   int _selectedService = 0; // 0=T-LAB, 1=Workshops, 2=Home Corner
+
+  // Live collections (public list) — used to show the "New Lab Material" /
+  // "Home Corner Material" kit links. Empty/failed = links simply don't show.
+  List<Map<String, dynamic>> _kitCollections = [];
 
   // ── CONTACT DETAILS (CMS-editable, hardcoded fallbacks) ────────────────
   String _phone    = '+919399756846';
@@ -87,6 +95,79 @@ class _ConsultancyPageState extends State<ConsultancyPage> {
     super.initState();
     _selectedService = widget.initialService;
     _loadCms();
+    _loadKitCollections();
+  }
+
+  Future<void> _loadKitCollections() async {
+    try {
+      final res = await http.get(Uri.parse('$apiBaseUrl/materials/collections'));
+      if (res.statusCode == 200) {
+        final list = jsonDecode(res.body);
+        if (mounted && list is List) {
+          setState(() => _kitCollections = List<Map<String, dynamic>>.from(list));
+        }
+      }
+    } catch (_) {
+      // Non-critical — the page works fine without the kit link.
+    }
+  }
+
+  // A tappable card that opens the live collection (by its link key) in the
+  // Shop. Shows nothing if no active collection is linked to this key.
+  Widget _buildKitLinkCard(String key) {
+    final match = _kitCollections
+        .where((c) => (c['linkKey'] ?? '').toString() == key)
+        .toList();
+    if (match.isEmpty) return const SizedBox.shrink();
+    final c = match.first;
+    final name = (c['name'] ?? '').toString();
+    final icon = (c['icon'] ?? '').toString();
+    final count = (c['itemCount'] ?? 0).toString();
+    final isHome = key == 'home-corner';
+    final color = isHome ? const Color(0xFF4C1D95) : const Color(0xFF1B5E20);
+    final tint = isHome ? const Color(0xFFF5F3FF) : const Color(0xFFF1F8F1);
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: tint,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: color.withOpacity(0.35)),
+      ),
+      child: Row(children: [
+        Text(icon.isEmpty ? '🧰' : icon, style: const TextStyle(fontSize: 30)),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(name,
+                  style: GoogleFonts.poppins(
+                      fontSize: 15, fontWeight: FontWeight.bold, color: color)),
+              const SizedBox(height: 2),
+              Text('$count items — see the full list and order it in one tap',
+                  style: GoogleFonts.poppins(
+                      fontSize: 12, color: Colors.black54, height: 1.4)),
+            ],
+          ),
+        ),
+        const SizedBox(width: 8),
+        ElevatedButton(
+          onPressed: () => Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => Shop(openCollectionKey: key)),
+          ),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: color,
+            foregroundColor: Colors.white,
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          ),
+          child: Text('View list',
+              style: GoogleFonts.poppins(fontSize: 12, fontWeight: FontWeight.bold)),
+        ),
+      ]),
+    );
   }
 
   Future<void> _loadCms() async {
@@ -171,8 +252,10 @@ class _ConsultancyPageState extends State<ConsultancyPage> {
             SliverToBoxAdapter(
               child: Column(
                 children: [
+                  if (_selectedService == 0) _buildKitLinkCard('new-lab'),
                   if (_selectedService == 0) _buildSchoolTLab(),
                   if (_selectedService == 1) _buildWorkshops(),
+                  if (_selectedService == 2) _buildKitLinkCard('home-corner'),
                   if (_selectedService == 2) _buildHomeTinkering(),
                   _buildContactSection(),
                   _buildLoginCTA(),

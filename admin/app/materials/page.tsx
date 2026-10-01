@@ -303,6 +303,8 @@ interface CollectionSummary {
   icon: string | null
   materialIds: string[]
   isActive: boolean
+  sortOrder?: number | null
+  linkKey?: string | null
 }
 
 function CollectionsTab({ apiBase, allMaterials, flash }: {
@@ -314,7 +316,7 @@ function CollectionsTab({ apiBase, allMaterials, flash }: {
   const [loading, setLoading] = useState(true)
   const [editing, setEditing] = useState<CollectionSummary | null>(null) // null id = new
   const [showForm, setShowForm] = useState(false)
-  const [form, setForm] = useState<{ name: string; description: string; icon: string; materialIds: string[] }>({
+  const [form, setForm] = useState<{ name: string; description: string; icon: string; materialIds: string[]; linkKey?: string }>({
     name: '', description: '', icon: '🧰', materialIds: [],
   })
   const [materialSearch, setMaterialSearch] = useState('')
@@ -343,7 +345,7 @@ function CollectionsTab({ apiBase, allMaterials, flash }: {
 
   const openEdit = (c: CollectionSummary) => {
     setEditing(c)
-    setForm({ name: c.name, description: c.description || '', icon: c.icon || '🧰', materialIds: [...c.materialIds] })
+    setForm({ name: c.name, description: c.description || '', icon: c.icon || '🧰', materialIds: [...c.materialIds], linkKey: c.linkKey || '' })
     setMaterialSearch('')
     setShowForm(true)
   }
@@ -382,6 +384,26 @@ function CollectionsTab({ apiBase, allMaterials, flash }: {
       await load()
     } catch (e: any) {
       flash('Could not delete: ' + e.message, true)
+    }
+  }
+
+  const moveCollection = async (idx: number, dir: -1 | 1) => {
+    const j = idx + dir
+    if (j < 0 || j >= collections.length) return
+    const next = [...collections]
+    const tmp = next[idx]; next[idx] = next[j]; next[j] = tmp
+    setCollections(next)
+    try {
+      const token = await authToken()
+      const res = await fetch(`${apiBase}/materials/admin/collections-order`, {
+        method: 'PUT',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: next.map((x) => x.id) }),
+      })
+      if (!res.ok) throw new Error('Could not save the order')
+    } catch (e: any) {
+      flash(e.message, true)
+      await load()
     }
   }
 
@@ -433,19 +455,27 @@ function CollectionsTab({ apiBase, allMaterials, flash }: {
         </Card>
       ) : (
         <div className="grid gap-3 sm:grid-cols-2">
-          {collections.map((c) => (
+          {collections.map((c, idx) => (
             <Card key={c.id} className={`p-4 border-0 shadow-sm ${!c.isActive ? 'opacity-50' : ''}`}>
               <div className="flex items-start justify-between gap-2">
                 <div className="flex items-center gap-2 min-w-0">
                   <span className="text-2xl">{c.icon || '🧰'}</span>
                   <div className="min-w-0">
                     <p className="font-semibold text-gray-900 truncate">{c.name}</p>
-                    <p className="text-xs text-gray-400">{c.materialIds.length} items{!c.isActive ? ' · hidden from Shop' : ''}</p>
+                    <p className="text-xs text-gray-400">{c.materialIds.length} items{!c.isActive ? ' · hidden from Shop' : ''}{c.linkKey === 'new-lab' ? ' · linked: School T-LAB page' : c.linkKey === 'home-corner' ? ' · linked: Home Corner page' : ''}</p>
                   </div>
                 </div>
               </div>
               {c.description && <p className="text-xs text-gray-500 mt-2">{c.description}</p>}
               <div className="flex gap-2 mt-3">
+                <button onClick={() => moveCollection(idx, -1)} disabled={idx === 0} title="Show earlier in the app"
+                  className="px-2 py-1.5 bg-white border border-gray-300 text-gray-700 rounded text-xs hover:bg-gray-50 disabled:opacity-30">
+                  ↑
+                </button>
+                <button onClick={() => moveCollection(idx, 1)} disabled={idx === collections.length - 1} title="Show later in the app"
+                  className="px-2 py-1.5 bg-white border border-gray-300 text-gray-700 rounded text-xs hover:bg-gray-50 disabled:opacity-30">
+                  ↓
+                </button>
                 <button onClick={() => openEdit(c)}
                   className="flex-1 px-3 py-1.5 bg-white border border-gray-300 text-gray-700 rounded text-xs hover:bg-gray-50">
                   Edit
@@ -479,6 +509,17 @@ function CollectionsTab({ apiBase, allMaterials, flash }: {
             <textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })}
               placeholder="Optional short description shown to the child" rows={2}
               className="w-full border rounded-lg px-3 py-2 text-sm" />
+
+            <div>
+              <p className="text-sm font-medium text-gray-700 mb-1">Show a link to this collection on a Consultancy page</p>
+              <select value={form.linkKey || ''} onChange={(e) => setForm({ ...form, linkKey: e.target.value })}
+                className="w-full border rounded-lg px-3 py-2 text-sm">
+                <option value="">No link (Shop only)</option>
+                <option value="new-lab">School T-LAB page (New Lab Material)</option>
+                <option value="home-corner">Home Corner page (Home Corner Material)</option>
+              </select>
+              <p className="text-xs text-gray-400 mt-1">Only one collection can use each page link. Edits you make to this collection show up there automatically.</p>
+            </div>
 
             <div>
               <p className="text-sm font-medium text-gray-700 mb-2">

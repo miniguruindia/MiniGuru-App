@@ -24,7 +24,11 @@ const Color _orange = Color(0xFFFF9900);
 const double _cardH = 210.0;
 
 class Shop extends StatefulWidget {
-  const Shop({super.key});
+  /// Optional: when set (e.g. "new-lab" / "home-corner"), the Shop opens the
+  /// collection with that link key as soon as collections have loaded. Used by
+  /// the Consultancy pages. Null = normal Shop, nothing changes.
+  final String? openCollectionKey;
+  const Shop({super.key, this.openCollectionKey});
   @override
   State<Shop> createState() => _ShopState();
 }
@@ -47,6 +51,7 @@ class _ShopState extends State<Shop>
 
   final Map<String, Map<String, dynamic>> _kit = {};
   bool _isSending = false; // prevents double-send on parent email
+  bool _autoOpened = false; // opens the linked collection only once
   final TextEditingController _searchCtrl = TextEditingController();
 
   @override bool get wantKeepAlive => true;
@@ -121,9 +126,26 @@ class _ShopState extends State<Shop>
       if (res.statusCode == 200) {
         final list = jsonDecode(res.body);
         if (mounted) setState(() => _collections = List<Map<String, dynamic>>.from(list));
+        _maybeAutoOpenCollection();
       }
     } catch (_) {
       // Non-critical — Shop works fine without the collections row if this fails.
+    }
+  }
+
+  void _maybeAutoOpenCollection() {
+    final key = widget.openCollectionKey;
+    if (key == null || key.isEmpty || _autoOpened || !mounted) return;
+    for (final c in _collections) {
+      if ((c['linkKey'] ?? '').toString() == key) {
+        _autoOpened = true;
+        final id = c['id'].toString();
+        final name = (c['name'] ?? '').toString();
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) _openCollection(id, name);
+        });
+        return;
+      }
     }
   }
 

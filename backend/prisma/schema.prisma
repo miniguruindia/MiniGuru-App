@@ -626,6 +626,13 @@ model MaterialCollection {
   icon        String?  @default("🧰")
   materialIds String[] @db.ObjectId
   isActive    Boolean  @default(true)
+  // Display order in the app (lower = first). Optional on purpose: older
+  // collections have no value and simply sort after any ordered ones.
+  sortOrder   Int?
+  // Optional page link: "new-lab" (Consultancy > School T-LAB) or
+  // "home-corner" (Consultancy > Home Corner). Lets those pages open this
+  // live collection, so editing the collection updates the page too.
+  linkKey     String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
