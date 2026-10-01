@@ -7,6 +7,7 @@ const express_1 = require("express");
 const prismaClient_1 = __importDefault(require("../utils/prismaClient"));
 const authMiddleware_1 = require("../middleware/authMiddleware");
 const resolveSubject_1 = require("../middleware/resolveSubject");
+const goinsLedger_1 = require("../utils/goinsLedger");
 const router = (0, express_1.Router)();
 // ─── Criteria list — matches Flutter UI and Prisma booleans exactly ──────────
 const CRITERIA = ['sturdy', 'creative', 'functional', 'resourceful', 'documented'];
@@ -60,7 +61,7 @@ router.post('/:id/rate', authMiddleware_1.authenticateToken, resolveSubject_1.re
         // upload pipeline never writes to — every real video 404'd here.
         const project = await prismaClient_1.default.project.findUnique({
             where: { id: videoId },
-            select: { userId: true, collaborators: true },
+            select: { userId: true, collaborators: true, categoryId: true },
         });
         if (!project) {
             return res.status(404).json({ error: 'Video not found.' });
@@ -104,6 +105,16 @@ router.post('/:id/rate', authMiddleware_1.authenticateToken, resolveSubject_1.re
                     data: { score: { increment: newShares[idx] - oldShares[idx] } },
                 })),
             ]);
+            // Ladder ledger: only what changed for each recipient (can be negative
+            // if a rating was lowered). Best-effort, never throws.
+            await (0, goinsLedger_1.recordGoinsEvents)(recipientIds.map((recipientId, idx) => ({
+                userId: recipientId,
+                amount: newShares[idx] - oldShares[idx],
+                source: 'PEER_RATING',
+                projectId: videoId,
+                categoryId: project.categoryId,
+                reason: 'Peer rating updated',
+            })));
             return res.json({
                 success: true,
                 action: 'updated',
@@ -137,6 +148,16 @@ router.post('/:id/rate', authMiddleware_1.authenticateToken, resolveSubject_1.re
                 data: { score: { increment: 1 } },
             }),
         ]);
+        // Ladder ledger: what each recipient earned from this rating (the rater's
+        // own +1 is not recorded — only ratings RECEIVED count). Best-effort.
+        await (0, goinsLedger_1.recordGoinsEvents)(recipientIds.map((recipientId, idx) => ({
+            userId: recipientId,
+            amount: shares[idx],
+            source: 'PEER_RATING',
+            projectId: videoId,
+            categoryId: project.categoryId,
+            reason: 'Peer rating received',
+        })));
         res.status(201).json({
             success: true,
             action: 'created',

@@ -835,3 +835,32 @@ model GoinTopUpRequest {
   @@index([status])
   @@map("goin_topup_requests")
 }
+
+
+// Goins earnings ledger (Oct 2026). One row per project-based Goins award —
+// powers the weekly / monthly / yearly Ladder boards. Deliberately has NO
+// relations so a ledger problem can never affect users/projects. Only
+// "earned for building" events are recorded (project approvals incl. the
+// challenge bonus, and peer ratings received) — never views, comments, the
+// daily quest, material costs, admin adjustments or top-ups.
+model GoinsEvent {
+  id         String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId     String   @db.ObjectId
+  // The school/parent account the child belonged to when this was earned
+  // (ChildProfile.guardianId). Null for independently-registered children.
+  guardianId String?  @db.ObjectId
+  amount     Int
+  source     String   // "PROJECT_APPROVAL" | "PEER_RATING"
+  projectId  String?  @db.ObjectId
+  categoryId String?  @db.ObjectId
+  reason     String?
+  breakdown  Json?
+  isBackfill Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([userId, createdAt])
+  @@index([guardianId, createdAt])
+  @@index([categoryId, createdAt])
+  @@map("goins_events")
+}

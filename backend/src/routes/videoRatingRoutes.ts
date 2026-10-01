@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import prisma from '../utils/prismaClient';
 import { authenticateToken } from '../middleware/authMiddleware';
 import { resolveSubject, resolveOwnerUserId } from '../middleware/resolveSubject';
+import { recordGoinsEvents } from '../utils/goinsLedger';
 
 const router = Router();
 
@@ -63,7 +64,7 @@ router.post('/:id/rate', authenticateToken, resolveSubject, async (req: Request,
     // upload pipeline never writes to — every real video 404'd here.
     const project = await prisma.project.findUnique({
       where: { id: videoId },
-      select: { userId: true, collaborators: true },
+      select: { userId: true, collaborators: true, categoryId: true },
     });
 
     if (!project) {
@@ -120,6 +121,19 @@ router.post('/:id/rate', authenticateToken, resolveSubject, async (req: Request,
         ),
       ]);
 
+      // Ladder ledger: only what changed for each recipient (can be negative
+      // if a rating was lowered). Best-effort, never throws.
+      await recordGoinsEvents(
+        recipientIds.map((recipientId, idx) => ({
+          userId: recipientId,
+          amount: newShares[idx] - oldShares[idx],
+          source: 'PEER_RATING' as const,
+          projectId: videoId,
+          categoryId: project.categoryId,
+          reason: 'Peer rating updated',
+        }))
+      );
+
       return res.json({
         success: true,
         action: 'updated',
@@ -157,6 +171,19 @@ router.post('/:id/rate', authenticateToken, resolveSubject, async (req: Request,
         data: { score: { increment: 1 } },
       }),
     ]);
+
+    // Ladder ledger: what each recipient earned from this rating (the rater's
+    // own +1 is not recorded — only ratings RECEIVED count). Best-effort.
+    await recordGoinsEvents(
+      recipientIds.map((recipientId, idx) => ({
+        userId: recipientId,
+        amount: shares[idx],
+        source: 'PEER_RATING' as const,
+        projectId: videoId,
+        categoryId: project.categoryId,
+        reason: 'Peer rating received',
+      }))
+    );
 
     res.status(201).json({
       success: true,

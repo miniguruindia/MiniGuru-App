@@ -8,6 +8,7 @@ exports.extractYouTubeId = extractYouTubeId;
 exports.publishAndAwardProject = publishAndAwardProject;
 const prismaClient_1 = __importDefault(require("../../utils/prismaClient"));
 const logger_1 = __importDefault(require("../../logger"));
+const goinsLedger_1 = require("../../utils/goinsLedger");
 const { setVideoPublic, setVideoPrivate, deleteVideo, checkVideoStatus } = require('../../services/youtubeUploadService');
 function extractYouTubeId(videoUrl) {
     const match = videoUrl.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/shorts\/)([a-zA-Z0-9_-]{11})/);
@@ -261,6 +262,17 @@ async function publishAndAwardProject(id) {
         `recipient(s) (${shareEach} each${remainder > 0 ? `, +${remainder} rounding to owner` : ''}) ` +
         `(base: ${BASE_REWARD}, material refund 2x${Math.round(materialGoins)}: ${materialRefund}` +
         `${challengeBonus > 0 ? `, challenge bonus: ${challengeBonus}` : ''})`);
+    // Ladder ledger (best-effort, never throws — an approval must never fail
+    // because of bookkeeping). One row per recipient, same amounts as above.
+    await (0, goinsLedger_1.recordGoinsEvents)(recipientIds.map((recipientId, idx) => ({
+        userId: recipientId,
+        amount: idx === 0 ? shareEach + remainder : shareEach,
+        source: 'PROJECT_APPROVAL',
+        projectId: id,
+        categoryId: project.categoryId,
+        reason: `"${project.title}" approved (${reasonParts.join(', ')}${isTeam ? `, split ${recipientIds.length} ways` : ''})`,
+        breakdown: { base: BASE_REWARD, materialRefund, challengeBonus, totalBeforeSplit: totalGoins, recipients: recipientIds.length },
+    })));
     return {
         project: updated,
         goinsAwarded: totalGoins,

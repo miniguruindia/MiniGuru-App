@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import prisma from '../../utils/prismaClient';
 import logger from '../../logger';
+import { recordGoinsEvents } from '../../utils/goinsLedger';
 
 const { setVideoPublic, setVideoPrivate, deleteVideo, checkVideoStatus } = require('../../services/youtubeUploadService');
 
@@ -263,6 +264,20 @@ export async function publishAndAwardProject(id: string) {
     `recipient(s) (${shareEach} each${remainder > 0 ? `, +${remainder} rounding to owner` : ''}) ` +
     `(base: ${BASE_REWARD}, material refund 2x${Math.round(materialGoins)}: ${materialRefund}` +
     `${challengeBonus > 0 ? `, challenge bonus: ${challengeBonus}` : ''})`
+  );
+
+  // Ladder ledger (best-effort, never throws — an approval must never fail
+  // because of bookkeeping). One row per recipient, same amounts as above.
+  await recordGoinsEvents(
+    recipientIds.map((recipientId, idx) => ({
+      userId: recipientId,
+      amount: idx === 0 ? shareEach + remainder : shareEach,
+      source: 'PROJECT_APPROVAL' as const,
+      projectId: id,
+      categoryId: project.categoryId,
+      reason: `"${project.title}" approved (${reasonParts.join(', ')}${isTeam ? `, split ${recipientIds.length} ways` : ''})`,
+      breakdown: { base: BASE_REWARD, materialRefund, challengeBonus, totalBeforeSplit: totalGoins, recipients: recipientIds.length },
+    }))
   );
 
   return {
