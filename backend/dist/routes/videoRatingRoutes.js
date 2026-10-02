@@ -33,6 +33,21 @@ function splitEqually(total, recipientIds) {
     const remainder = total - shareEach * recipientIds.length;
     return recipientIds.map((_, idx) => (idx === 0 ? shareEach + remainder : shareEach));
 }
+// The school/parent account a user belongs to: a child's guardian (through
+// the linked ChildProfile), or — for a school's own login — itself. Null for
+// independently-registered children. (Replaces a lookup of
+// guardianInfo.guardianId, a field that has never existed, which made every
+// rating count as cross-school.)
+async function schoolKeyFor(userId) {
+    const u = await prismaClient_1.default.user.findUnique({ where: { id: userId }, select: { isMentor: true } });
+    if (u?.isMentor)
+        return userId;
+    const cp = await prismaClient_1.default.childProfile.findFirst({
+        where: { linkedUserId: userId, isActive: true },
+        select: { guardianId: true },
+    });
+    return cp?.guardianId || null;
+}
 router.post('/:id/rate', authMiddleware_1.authenticateToken, resolveSubject_1.resolveSubject, async (req, res) => {
     try {
         // BUGFIX: was (req as any).user?.userId directly — a child rating a
@@ -75,14 +90,10 @@ router.post('/:id/rate', authMiddleware_1.authenticateToken, resolveSubject_1.re
         }
         // ── Determine cross-school (based on the project owner's school) ────────
         // Compare mentorId (school affiliation) of rater vs owner
-        const [rater, creator] = await Promise.all([
-            prismaClient_1.default.user.findUnique({ where: { id: raterId }, select: { guardianInfo: true, mentorType: true } }),
-            prismaClient_1.default.user.findUnique({ where: { id: creatorId }, select: { guardianInfo: true, mentorType: true } }),
-        ]);
         // isCrossSchool = true if rater and creator have different guardian/school
         // For individual users (no guardian), always cross-school = true
-        const raterGuardian = rater?.guardianInfo?.guardianId || null;
-        const creatorGuardian = creator?.guardianInfo?.guardianId || null;
+        const raterGuardian = await schoolKeyFor(raterId);
+        const creatorGuardian = await schoolKeyFor(creatorId);
         const isCrossSchool = !raterGuardian || !creatorGuardian || raterGuardian !== creatorGuardian;
         const multiplier = isCrossSchool ? 2 : 1;
         const goinsAwarded = selectedCount * GOINS_PER_CRITERION * multiplier;

@@ -34,6 +34,21 @@ function splitEqually(total: number, recipientIds: string[]): number[] {
   return recipientIds.map((_, idx) => (idx === 0 ? shareEach + remainder : shareEach));
 }
 
+// The school/parent account a user belongs to: a child's guardian (through
+// the linked ChildProfile), or — for a school's own login — itself. Null for
+// independently-registered children. (Replaces a lookup of
+// guardianInfo.guardianId, a field that has never existed, which made every
+// rating count as cross-school.)
+async function schoolKeyFor(userId: string): Promise<string | null> {
+  const u = await prisma.user.findUnique({ where: { id: userId }, select: { isMentor: true } });
+  if (u?.isMentor) return userId;
+  const cp = await prisma.childProfile.findFirst({
+    where: { linkedUserId: userId, isActive: true },
+    select: { guardianId: true },
+  });
+  return cp?.guardianId || null;
+}
+
 router.post('/:id/rate', authenticateToken, resolveSubject, async (req: Request, res: Response) => {
   try {
     // BUGFIX: was (req as any).user?.userId directly — a child rating a
@@ -83,15 +98,10 @@ router.post('/:id/rate', authenticateToken, resolveSubject, async (req: Request,
 
     // ── Determine cross-school (based on the project owner's school) ────────
     // Compare mentorId (school affiliation) of rater vs owner
-    const [rater, creator] = await Promise.all([
-      prisma.user.findUnique({ where: { id: raterId }, select: { guardianInfo: true, mentorType: true } }),
-      prisma.user.findUnique({ where: { id: creatorId }, select: { guardianInfo: true, mentorType: true } }),
-    ]);
-
     // isCrossSchool = true if rater and creator have different guardian/school
     // For individual users (no guardian), always cross-school = true
-    const raterGuardian = (rater?.guardianInfo as any)?.guardianId || null;
-    const creatorGuardian = (creator?.guardianInfo as any)?.guardianId || null;
+    const raterGuardian = await schoolKeyFor(raterId);
+    const creatorGuardian = await schoolKeyFor(creatorId);
     const isCrossSchool = !raterGuardian || !creatorGuardian || raterGuardian !== creatorGuardian;
 
     const multiplier = isCrossSchool ? 2 : 1;

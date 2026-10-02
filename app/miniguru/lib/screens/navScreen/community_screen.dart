@@ -858,6 +858,21 @@ class _LadderTabState extends State<_LadderTab> {
     _Badge('🌏', 'Global',     'Project viewed in 5 countries',  Color(0xFF10B981)),
   ];
 
+  // ── Period boards (Oct 2026) ───────────────────────────────────────────
+  // Goins EARNED for building (project approvals + peer ratings received)
+  // in a window, so the board resets each week/month/year instead of the
+  // all-time total where whoever got ahead stays ahead.
+  String _period = 'year'; // week | month | year | alltime
+  int _offset = 0; // 0 = current period, -1 = previous, ...
+  String _scope = 'app'; // app | school
+  String? _categoryId;
+  List<Map<String, dynamic>> _boardCategories = [];
+  Map<String, dynamic>? _board;
+  bool _boardLoading = true;
+  bool _boardError = false;
+  List<dynamic> _winners = [];
+  bool _allTimeLoaded = false;
+
   // Fallback data shown before API loads or on error
   List<_Leader> _leaderboard = const [
     _Leader(rank: 1, name: 'Aarav M.',  city: '', score: 1240, badge: '🚀'),
@@ -887,6 +902,341 @@ class _LadderTabState extends State<_LadderTab> {
   void initState() {
     super.initState();
     _fetchLeaderboard();
+    _loadBoardCategories();
+    _loadPeriodBoard();
+  }
+
+  Future<void> _loadBoardCategories() async {
+    try {
+      final cats = await MiniguruApi().getPublicCategories();
+      if (mounted) setState(() => _boardCategories = cats);
+    } catch (_) {
+      // Non-critical — the category filter just doesn't show.
+    }
+  }
+
+  Future<void> _loadPeriodBoard() async {
+    if (_period == 'alltime') return;
+    setState(() {
+      _boardLoading = true;
+      _boardError = false;
+    });
+    final api = MiniguruApi();
+    final wantPeriod = _period;
+    final wantOffset = _offset;
+    final wantScope = _scope;
+    final wantCat = _categoryId;
+    final data = await api.getPeriodLeaderboard(
+        period: wantPeriod, offset: wantOffset, scope: wantScope, categoryId: wantCat);
+    final win = await api.getPastWinners(
+        period: wantPeriod, scope: wantScope, categoryId: wantCat);
+    if (!mounted) return;
+    // Ignore a stale answer if the child already tapped something else.
+    if (wantPeriod != _period || wantOffset != _offset || wantScope != _scope || wantCat != _categoryId) {
+      return;
+    }
+    setState(() {
+      _board = data;
+      _boardError = data == null;
+      _winners = (win != null && win['winners'] is List) ? List<dynamic>.from(win['winners'] as List) : [];
+      _boardLoading = false;
+    });
+  }
+
+  String _medal(int rank) => rank <= 1 ? '🥇' : (rank == 2 ? '🥈' : '🥉');
+
+  Widget _boardChip(String label, bool selected, VoidCallback onTap) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+        decoration: BoxDecoration(
+          color: selected ? const Color(0xFF5B6EF5) : Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+              color: selected ? const Color(0xFF5B6EF5) : const Color(0xFFE8EAFF)),
+        ),
+        child: Text(label,
+            style: GoogleFonts.nunito(
+                fontSize: 12,
+                fontWeight: FontWeight.w800,
+                color: selected ? Colors.white : const Color(0xFF3F51B5))),
+      ),
+    );
+  }
+
+  Widget _boardRow(Map<String, dynamic> e) {
+    final isMe = e['isMe'] == true;
+    final rank = (e['rank'] as num?)?.toInt() ?? 0;
+    final amount = (e['amount'] as num?)?.toInt() ?? 0;
+    return Container(
+      margin: const EdgeInsets.only(bottom: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: isMe ? const Color(0xFFEEF0FF) : Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+            color: isMe ? const Color(0xFF5B6EF5) : const Color(0xFFE8EAFF)),
+      ),
+      child: Row(children: [
+        SizedBox(
+          width: 28,
+          child: Text('$rank',
+              style: GoogleFonts.nunito(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w800,
+                  color: const Color(0xFF6B6B8A))),
+        ),
+        Text((e['badge'] ?? '🌱').toString(), style: const TextStyle(fontSize: 16)),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Text(
+            (e['name'] ?? 'Maker').toString() + (isMe ? '  (you)' : ''),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: GoogleFonts.nunito(
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                color: const Color(0xFF1A1A2E)),
+          ),
+        ),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+          decoration: BoxDecoration(
+            color: const Color(0xFFFFF3CC),
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Text('🪙 ${amount}G',
+              style: GoogleFonts.nunito(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w800,
+                  color: const Color(0xFF8B6800))),
+        ),
+      ]),
+    );
+  }
+
+  Widget _buildPeriodBoard() {
+    const periods = [
+      ['week', 'This Week'],
+      ['month', 'This Month'],
+      ['year', 'This Year'],
+      ['alltime', 'All-Time'],
+    ];
+    final isAllTime = _period == 'alltime';
+    final board = _board;
+    final entries = (board != null && board['entries'] is List)
+        ? List<Map<String, dynamic>>.from(
+            (board['entries'] as List).map((x) => Map<String, dynamic>.from(x as Map)))
+        : <Map<String, dynamic>>[];
+    final label = (board?['label'] ?? '').toString();
+    final needsSchool = board?['needsSchool'] == true;
+    final myRank = (board?['myRank'] as num?)?.toInt();
+    final myAmount = (board?['myAmount'] as num?)?.toInt();
+
+    final leaders = entries
+        .map((e) => _Leader(
+              rank: (e['rank'] as num?)?.toInt() ?? 0,
+              name: (e['name'] ?? 'Maker').toString(),
+              city: '',
+              score: (e['amount'] as num?)?.toInt() ?? 0,
+              badge: (e['badge'] ?? '🌱').toString(),
+            ))
+        .toList();
+    final usePodium = leaders.length >= 3;
+
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Wrap(spacing: 8, runSpacing: 8, children: [
+        for (final p in periods)
+          _boardChip(p[1], _period == p[0], () {
+            setState(() {
+              _period = p[0];
+              _offset = 0;
+            });
+            _loadPeriodBoard();
+          }),
+      ]),
+      const SizedBox(height: 10),
+      if (!isAllTime) ...[
+        Wrap(spacing: 8, runSpacing: 8, children: [
+          _boardChip('🌍 Everyone', _scope == 'app', () {
+            setState(() {
+              _scope = 'app';
+              _offset = 0;
+            });
+            _loadPeriodBoard();
+          }),
+          _boardChip('🏫 My School', _scope == 'school', () {
+            setState(() {
+              _scope = 'school';
+              _offset = 0;
+            });
+            _loadPeriodBoard();
+          }),
+        ]),
+        if (_boardCategories.isNotEmpty) ...[
+          const SizedBox(height: 8),
+          Wrap(spacing: 8, runSpacing: 8, children: [
+            _boardChip('All Projects', _categoryId == null, () {
+              setState(() {
+                _categoryId = null;
+                _offset = 0;
+              });
+              _loadPeriodBoard();
+            }),
+            for (final c in _boardCategories)
+              _boardChip(
+                  '${(c['icon'] ?? '').toString().trim()} ${(c['name'] ?? '').toString()}'.trim(),
+                  _categoryId == c['id']?.toString(), () {
+                setState(() {
+                  _categoryId = c['id']?.toString();
+                  _offset = 0;
+                });
+                _loadPeriodBoard();
+              }),
+          ]),
+        ],
+        const SizedBox(height: 6),
+        Row(children: [
+          IconButton(
+            icon: const Icon(Icons.chevron_left),
+            tooltip: 'Earlier',
+            onPressed: () {
+              setState(() => _offset -= 1);
+              _loadPeriodBoard();
+            },
+          ),
+          Expanded(
+            child: Text(label.isEmpty ? ' ' : label,
+                textAlign: TextAlign.center,
+                style: GoogleFonts.nunito(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w800,
+                    color: const Color(0xFF1A1A2E))),
+          ),
+          IconButton(
+            icon: const Icon(Icons.chevron_right),
+            tooltip: 'Later',
+            onPressed: _offset >= 0
+                ? null
+                : () {
+                    setState(() => _offset += 1);
+                    _loadPeriodBoard();
+                  },
+          ),
+        ]),
+        Text(
+            'Goins earned by building — approved projects and peer ratings. '
+            'Each period starts fresh, so everyone gets a new chance to top it!',
+            style: GoogleFonts.nunito(fontSize: 11, color: const Color(0xFF8888AA))),
+        const SizedBox(height: 12),
+        if (_boardLoading)
+          const Center(
+            child: Padding(
+              padding: EdgeInsets.symmetric(vertical: 28),
+              child: CircularProgressIndicator(color: Color(0xFF5B6EF5), strokeWidth: 2),
+            ),
+          )
+        else if (_boardError)
+          Center(
+            child: Column(children: [
+              Text("Couldn't load the board right now.",
+                  style: GoogleFonts.nunito(fontSize: 12, color: const Color(0xFF8888AA))),
+              TextButton(onPressed: _loadPeriodBoard, child: const Text('Try again')),
+            ]),
+          )
+        else if (needsSchool)
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF5F7FF),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Text(
+                'Your school board appears once you are logged in with an account '
+                'linked to a school or T-LAB.',
+                style: GoogleFonts.nunito(fontSize: 12, color: const Color(0xFF6B6B8A))),
+          )
+        else if (entries.isEmpty)
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF5F7FF),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Text(
+                _offset == 0
+                    ? 'No Goins earned here yet — finish a project and be the first on the board! 🚀'
+                    : 'No Goins were earned in this period.',
+                style: GoogleFonts.nunito(fontSize: 12, color: const Color(0xFF6B6B8A))),
+          )
+        else ...[
+          if (myRank != null && myAmount != null)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: Text('Your rank: #$myRank · ${myAmount}G',
+                  style: GoogleFonts.nunito(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w800,
+                      color: const Color(0xFF3F51B5))),
+            ),
+          if (usePodium)
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Expanded(child: _PodiumCard(leader: leaders[1], podiumHeight: 80)),
+                const SizedBox(width: 8),
+                Expanded(child: _PodiumCard(leader: leaders[0], podiumHeight: 110)),
+                const SizedBox(width: 8),
+                Expanded(child: _PodiumCard(leader: leaders[2], podiumHeight: 60)),
+              ],
+            ),
+          if (usePodium) const SizedBox(height: 12),
+          for (final e in (usePodium ? entries.skip(3) : entries)) _boardRow(e),
+        ],
+        if (!_boardLoading && _winners.isNotEmpty) ...[
+          const SizedBox(height: 18),
+          Text('🏅 Past winners',
+              style: GoogleFonts.nunito(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w800,
+                  color: const Color(0xFF1A1A2E))),
+          const SizedBox(height: 8),
+          for (final w in _winners)
+            if (w is Map)
+              Container(
+                width: double.infinity,
+                margin: const EdgeInsets.only(bottom: 8),
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: const Color(0xFFE8EAFF)),
+                ),
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text((w['label'] ?? '').toString(),
+                      style: GoogleFonts.nunito(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w800,
+                          color: const Color(0xFF6B6B8A))),
+                  const SizedBox(height: 4),
+                  Wrap(spacing: 14, runSpacing: 2, children: [
+                    for (final t in (w['top'] is List ? w['top'] as List : const []))
+                      if (t is Map)
+                        Text(
+                            '${_medal((t['rank'] as num?)?.toInt() ?? 1)} '
+                            '${(t['name'] ?? '').toString().split(' ').first} · ${(t['amount'] ?? 0)}G',
+                            style: GoogleFonts.nunito(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                                color: const Color(0xFF1A1A2E))),
+                  ]),
+                ]),
+              ),
+        ],
+      ],
+      if (!isAllTime) const SizedBox(height: 24),
+    ]);
   }
 
   Future<void> _fetchLeaderboard() async {
@@ -913,6 +1263,7 @@ class _LadderTabState extends State<_LadderTab> {
               );
             }).toList();
             _loading = false;
+            _allTimeLoaded = true;
           });
           return;
         }
@@ -923,8 +1274,11 @@ class _LadderTabState extends State<_LadderTab> {
 
   @override
   Widget build(BuildContext context) {
-    final top3    = _leaderboard.take(3).toList();
-    final rest    = _leaderboard.skip(3).toList();
+    // All-Time tab only ever shows real data (the old placeholder names
+    // were visible whenever the request failed).
+    final shown   = _allTimeLoaded ? _leaderboard : const <_Leader>[];
+    final top3    = shown.take(3).toList();
+    final rest    = shown.skip(3).toList();
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
@@ -937,7 +1291,10 @@ class _LadderTabState extends State<_LadderTab> {
         const SizedBox(height: 20),
 
         // ── Top 3 Podium ──────────────────────────────────────────────────
-        if (_loading)
+        _buildPeriodBoard(),
+        if (_period != 'alltime')
+          const SizedBox.shrink()
+        else if (_loading)
           const Center(
             child: Padding(
               padding: EdgeInsets.symmetric(vertical: 32),
@@ -968,7 +1325,7 @@ class _LadderTabState extends State<_LadderTab> {
               ],
             )
           else
-            ..._leaderboard.take(3).map((l) => Padding(
+            ...shown.take(3).map((l) => Padding(
               padding: const EdgeInsets.only(bottom: 8),
               child: _LeaderRow(leader: l, isLast: false),
             )),

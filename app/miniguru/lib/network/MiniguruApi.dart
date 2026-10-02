@@ -1549,6 +1549,64 @@ class MiniguruApi {
     return null;
   }
   // ── GET /users/leaderboard ── top 10 makers + caller rank ───────────────
+  // ── Period leaderboards (Oct 2026) ─────────────────────────────────────────
+  // Public endpoints. The token (when there is one) only lets the backend work
+  // out "my school" and flag the caller's own row.
+  Future<Map<String, dynamic>?> getPeriodLeaderboard({
+    required String period,
+    int offset = 0,
+    String scope = 'app',
+    String? categoryId,
+  }) async {
+    try {
+      final qs = <String, String>{
+        'period': period,
+        'offset': '$offset',
+        'scope': scope,
+      };
+      if (categoryId != null && categoryId.isNotEmpty) qs['categoryId'] = categoryId;
+      final authToken = await _db?.getAuthToken();
+      final response = await http
+          .get(
+            Uri.parse('$apiBaseUrl/leaderboard/period').replace(queryParameters: qs),
+            headers: _buildHeaders(authToken?.accessToken),
+          )
+          .timeout(const Duration(seconds: 10));
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body) as Map<String, dynamic>;
+      }
+      return null;
+    } catch (e) {
+      print('getPeriodLeaderboard error: $e');
+      return null;
+    }
+  }
+
+  Future<Map<String, dynamic>?> getPastWinners({
+    required String period,
+    String scope = 'app',
+    String? categoryId,
+  }) async {
+    try {
+      final qs = <String, String>{'period': period, 'scope': scope, 'count': '6'};
+      if (categoryId != null && categoryId.isNotEmpty) qs['categoryId'] = categoryId;
+      final authToken = await _db?.getAuthToken();
+      final response = await http
+          .get(
+            Uri.parse('$apiBaseUrl/leaderboard/winners').replace(queryParameters: qs),
+            headers: _buildHeaders(authToken?.accessToken),
+          )
+          .timeout(const Duration(seconds: 12));
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body) as Map<String, dynamic>;
+      }
+      return null;
+    } catch (e) {
+      print('getPastWinners error: $e');
+      return null;
+    }
+  }
+
   Future<Map<String, dynamic>?> getLeaderboard() async {
     try {
       final url = Uri.parse('$apiBaseUrl/users/leaderboard');
