@@ -19,6 +19,7 @@ const videoApprovalController_1 = require("../controllers/admin/videoApprovalCon
 const contactVerificationController_1 = require("../controllers/auth/contactVerificationController");
 const productSuggestionController_1 = require("../controllers/admin/productSuggestionController");
 const prismaClient_1 = __importDefault(require("../utils/prismaClient"));
+const goinsLedger_1 = require("../utils/goinsLedger");
 const adminRouter = express_1.default.Router();
 // ==================== PRODUCTS ====================
 adminRouter.post('/product', authMiddleware_1.authenticateToken, authMiddleware_1.authorizeAdmin, (0, validationMiddleware_1.productValidationRules)(), upload_1.uploadImagesMiddleware, productController_1.createProduct);
@@ -164,6 +165,11 @@ adminRouter.post('/goins/adjust', authMiddleware_1.authenticateToken, authMiddle
                 }
             }
         });
+        if (typeof amount === 'number' && amount > 0) {
+            await (0, goinsLedger_1.recordGoinsEvents)([
+                { userId, amount, source: 'ADMIN_ADJUST', reason: reason || 'Manual admin adjustment' },
+            ]);
+        }
         res.json({ success: true, newBalance: updated.score });
     }
     catch (e) {

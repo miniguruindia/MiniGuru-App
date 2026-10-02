@@ -396,12 +396,9 @@ class _ConsultancyPageState extends State<ConsultancyPage> {
               child: Column(
                 children: [
                   if (_selectedService == 0) _buildKitLinkCard('new-lab'),
-                  if (_selectedService == 0) _buildPageExtras('tlab'),
-                  if (_selectedService == 1) _buildPageExtras('workshop'),
                   if (_selectedService == 0) _buildSchoolTLab(),
                   if (_selectedService == 1) _buildWorkshops(),
                   if (_selectedService == 2) _buildKitLinkCard('home-corner'),
-                  if (_selectedService == 2) _buildPageExtras('corner'),
                   if (_selectedService == 2) _buildHomeTinkering(),
                   _buildContactSection(),
                   _buildLoginCTA(),
@@ -710,6 +707,7 @@ class _ConsultancyPageState extends State<ConsultancyPage> {
             'The goal: a lab that runs itself.'),
 
         // ── INVESTMENT ───────────────────────────────────────────────────
+        _buildPageExtras('tlab'),
         _sectionTitle('Investment', Icons.account_balance_wallet_outlined),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -972,6 +970,7 @@ class _ConsultancyPageState extends State<ConsultancyPage> {
           ),
         ),
 
+        _buildPageExtras('workshop'),
         _sectionTitle('Workshop Formats', Icons.event_available_outlined),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -1186,6 +1185,7 @@ class _ConsultancyPageState extends State<ConsultancyPage> {
             'community of young makers. We stay involved for as long as it is useful.'),
 
         // ── PLANS ────────────────────────────────────────────────────────
+        _buildPageExtras('corner'),
         _sectionTitle('Plans', Icons.inventory_2_outlined),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16),

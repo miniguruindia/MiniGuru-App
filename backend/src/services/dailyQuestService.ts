@@ -14,6 +14,7 @@
 
 import prisma from "../utils/prismaClient";
 import logger from "../logger";
+import { recordGoinsEvents } from "../utils/goinsLedger";
 
 export const DAILY_QUEST_TARGET = 3; // videos watched to completion
 export const DAILY_QUEST_REWARD = 10; // flat Goins on completion
@@ -88,6 +89,15 @@ export async function recordQuestVideoWatched(userId: string) {
           },
         },
       }),
+    ]);
+    // Ladder ledger (best-effort, never throws)
+    await recordGoinsEvents([
+      {
+        userId,
+        amount: DAILY_QUEST_REWARD,
+        source: 'DAILY_QUEST',
+        reason: `Daily Quest complete (day ${newStreak} streak)`,
+      },
     ]);
 
     logger.info(`🎯 Daily Quest completed by ${userId} — streak now ${newStreak}`);

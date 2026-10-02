@@ -18,6 +18,7 @@ import {
 } from '../controllers/auth/contactVerificationController';
 import { listProductSuggestions, updateProductSuggestion, approveProductSuggestion } from '../controllers/admin/productSuggestionController';
 import prisma from '../utils/prismaClient';
+import { recordGoinsEvents } from '../utils/goinsLedger';
 
 const adminRouter = express.Router();
 
@@ -165,6 +166,11 @@ adminRouter.post('/goins/adjust', authenticateToken, authorizeAdmin, async (req:
         }
       }
     });
+    if (typeof amount === 'number' && amount > 0) {
+      await recordGoinsEvents([
+        { userId, amount, source: 'ADMIN_ADJUST', reason: reason || 'Manual admin adjustment' },
+      ]);
+    }
     res.json({ success: true, newBalance: updated.score });
   } catch (e) { res.status(500).json({ message: 'Failed to adjust goins' }); }
 });

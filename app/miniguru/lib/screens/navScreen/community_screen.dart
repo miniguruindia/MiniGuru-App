@@ -1126,7 +1126,8 @@ class _LadderTabState extends State<_LadderTab> {
           ),
         ]),
         Text(
-            'Goins earned by building — approved projects and peer ratings. '
+            'All the Goins earned in this period — projects, ratings, watching, '
+            'comments and daily quests. Project categories count project Goins only. '
             'Each period starts fresh, so everyone gets a new chance to top it!',
             style: GoogleFonts.nunito(fontSize: 11, color: const Color(0xFF8888AA))),
         const SizedBox(height: 12),

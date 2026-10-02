@@ -4,6 +4,7 @@
 import { Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
 import logger from '../../logger';
+import { recordGoinsEvents } from '../../utils/goinsLedger';
 import { google } from 'googleapis';
 import { resolveOwnerUserId } from '../../middleware/resolveSubject';
 import { recordQuestVideoWatched } from '../../services/dailyQuestService';
@@ -103,6 +104,8 @@ export const trackVideoView = async (req: Request, res: Response) => {
       where: { id: userId },
       data: { score: { increment: 1 } },
     }).catch(() => {});
+    // Ladder ledger (best-effort, never throws)
+    recordGoinsEvents([{ userId, amount: 1, source: 'VIEW', reason: 'Watched a video' }]).catch(() => {});
 
     // Daily Quest — same real, 75%-watched event drives quest progress too,
     // not a separate counting system. Fire-and-forget: never blocks or
@@ -428,6 +431,15 @@ async function awardCommentGoinsToMaker(videoId: string, commenterId: string) {
       })
     )
   );
+  await recordGoinsEvents(
+    recipientIds.map((rid, idx) => ({
+      userId: rid,
+      amount: idx === 0 ? shareEach + remainder : shareEach,
+      source: 'COMMENT_RECEIVED' as const,
+      projectId: (project as any).id,
+      reason: 'Comment on your project',
+    }))
+  );
 }
 
 export const postVideoComment = async (req: Request, res: Response) => {
@@ -490,6 +502,7 @@ export const postVideoComment = async (req: Request, res: Response) => {
       where: { id: userId },
       data: { score: { increment: 1 } },
     }).catch(() => {}); // non-blocking — don't fail comment if Goins fail
+    recordGoinsEvents([{ userId, amount: 1, source: 'COMMENT_GIVEN', reason: 'Commented on a video' }]).catch(() => {});
 
     // The video's maker(s) earn Goins too now — previously only the
     // commenter did, the maker got nothing from being commented on.

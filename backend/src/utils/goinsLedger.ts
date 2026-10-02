@@ -8,7 +8,16 @@ import prisma from './prismaClient';
 // before `prisma generate` has been re-run on a machine.
 const db: any = prisma;
 
-export type LedgerSource = 'PROJECT_APPROVAL' | 'PEER_RATING';
+export type LedgerSource =
+  | 'PROJECT_APPROVAL'
+  | 'PEER_RATING'
+  | 'VIEW'
+  | 'COMMENT_GIVEN'
+  | 'COMMENT_RECEIVED'
+  | 'RATING_GIVEN'
+  | 'DAILY_QUEST'
+  | 'TOPUP'
+  | 'ADMIN_ADJUST';
 
 export interface LedgerInput {
   userId: string;

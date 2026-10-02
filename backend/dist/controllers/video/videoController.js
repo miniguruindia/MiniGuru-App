@@ -8,6 +8,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.postCommentToYouTube = exports.listCommentsForModeration = exports.deleteVideoComment = exports.updateVideoComment = exports.postVideoComment = exports.getVideoComments = exports.getVideoLikesStats = exports.getUserVideoLikes = exports.likeVideo = exports.getVideoViews = exports.trackVideoView = void 0;
 const client_1 = require("@prisma/client");
 const logger_1 = __importDefault(require("../../logger"));
+const goinsLedger_1 = require("../../utils/goinsLedger");
 const googleapis_1 = require("googleapis");
 const resolveSubject_1 = require("../../middleware/resolveSubject");
 const dailyQuestService_1 = require("../../services/dailyQuestService");
@@ -94,6 +95,8 @@ const trackVideoView = async (req, res) => {
             where: { id: userId },
             data: { score: { increment: 1 } },
         }).catch(() => { });
+        // Ladder ledger (best-effort, never throws)
+        (0, goinsLedger_1.recordGoinsEvents)([{ userId, amount: 1, source: 'VIEW', reason: 'Watched a video' }]).catch(() => { });
         // Daily Quest — same real, 75%-watched event drives quest progress too,
         // not a separate counting system. Fire-and-forget: never blocks or
         // fails the view response itself.
@@ -391,6 +394,13 @@ async function awardCommentGoinsToMaker(videoId, commenterId) {
         where: { id },
         data: { score: { increment: idx === 0 ? shareEach + remainder : shareEach } },
     })));
+    await (0, goinsLedger_1.recordGoinsEvents)(recipientIds.map((rid, idx) => ({
+        userId: rid,
+        amount: idx === 0 ? shareEach + remainder : shareEach,
+        source: 'COMMENT_RECEIVED',
+        projectId: project.id,
+        reason: 'Comment on your project',
+    })));
 }
 const postVideoComment = async (req, res) => {
     try {
@@ -446,6 +456,7 @@ const postVideoComment = async (req, res) => {
             where: { id: userId },
             data: { score: { increment: 1 } },
         }).catch(() => { }); // non-blocking — don't fail comment if Goins fail
+        (0, goinsLedger_1.recordGoinsEvents)([{ userId, amount: 1, source: 'COMMENT_GIVEN', reason: 'Commented on a video' }]).catch(() => { });
         // The video's maker(s) earn Goins too now — previously only the
         // commenter did, the maker got nothing from being commented on.
         await awardCommentGoinsToMaker(videoId, userId).catch((e) => logger_1.default.warn({ e }, '⚠️ Could not award comment Goins to video maker'));

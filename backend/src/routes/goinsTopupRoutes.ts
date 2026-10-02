@@ -1,6 +1,7 @@
 // backend/src/routes/goinsTopupRoutes.ts
 import { Router, Request, Response } from 'express';
 import prisma from '../utils/prismaClient';
+import { recordGoinsEvents } from '../utils/goinsLedger';
 import { authenticateToken } from '../middleware/authMiddleware';
 
 const router = Router();
@@ -179,6 +180,12 @@ router.post('/admin/topup/:id/approve', authenticateToken, requireAdminOrGuardia
     }
 
     await prisma.$transaction(dbOps);
+
+    if (request.requestType === 'DIRECT_TOPUP') {
+      await recordGoinsEvents([
+        { userId: request.requesterId, amount: request.amount, source: 'TOPUP', reason: 'Goins top-up approved' },
+      ]);
+    }
 
     return res.json({ success: true });
   } catch (err) {

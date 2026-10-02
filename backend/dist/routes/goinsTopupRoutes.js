@@ -6,6 +6,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 // backend/src/routes/goinsTopupRoutes.ts
 const express_1 = require("express");
 const prismaClient_1 = __importDefault(require("../utils/prismaClient"));
+const goinsLedger_1 = require("../utils/goinsLedger");
 const authMiddleware_1 = require("../middleware/authMiddleware");
 const router = (0, express_1.Router)();
 // Only admins may use these — checks role fresh from DB, same pattern as materialsRoutes.ts
@@ -167,6 +168,11 @@ router.post('/admin/topup/:id/approve', authMiddleware_1.authenticateToken, requ
             }));
         }
         await prismaClient_1.default.$transaction(dbOps);
+        if (request.requestType === 'DIRECT_TOPUP') {
+            await (0, goinsLedger_1.recordGoinsEvents)([
+                { userId: request.requesterId, amount: request.amount, source: 'TOPUP', reason: 'Goins top-up approved' },
+            ]);
+        }
         return res.json({ success: true });
     }
     catch (err) {

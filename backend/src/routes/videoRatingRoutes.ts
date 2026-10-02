@@ -194,6 +194,10 @@ router.post('/:id/rate', authenticateToken, resolveSubject, async (req: Request,
         reason: 'Peer rating received',
       }))
     );
+    // The rater's own +1 for assessing a peer's video (best-effort).
+    await recordGoinsEvents([
+      { userId: raterId, amount: 1, source: 'RATING_GIVEN', projectId: videoId, reason: 'Rated a video' },
+    ]);
 
     res.status(201).json({
       success: true,

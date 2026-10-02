@@ -45,8 +45,20 @@ async function main() {
   // 1. approvals from scoreHistory
   const users = await prisma.user.findMany({ select: { id: true, scoreHistory: true } });
   const re = /^"(.*)" approved: \+(\d+) Goins/;
+  const reQuest = /^Daily Quest complete .*: \+(\d+) Goins/;
   for (const u of users) {
     for (const h of (u.scoreHistory as any[]) || []) {
+      const q = reQuest.exec(h.reason || '');
+      if (q) {
+        const qa = parseInt(q[1], 10);
+        if (qa > 0) {
+          events.push({
+            userId: u.id, amount: qa, source: 'DAILY_QUEST', projectId: null, categoryId: null,
+            reason: h.reason, createdAt: new Date(h.time), isBackfill: true,
+          });
+        }
+        continue;
+      }
       const m = re.exec(h.reason || '');
       if (!m) continue;
       const amount = parseInt(m[2], 10);
@@ -96,7 +108,7 @@ async function main() {
   for (let i = 0; i < events.length; i += 500) {
     await db.goinsEvent.createMany({ data: events.slice(i, i + 500) });
   }
-  console.log(`Done. Backfilled ${events.length} ledger rows (${approvalCount} project approvals, ${ratingCount} peer ratings).`);
+  console.log(`Done. Backfilled ${events.length} ledger rows (${approvalCount} project approvals + daily quests, ${ratingCount} peer ratings).`);
 }
 
 main()
