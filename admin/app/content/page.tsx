@@ -202,6 +202,9 @@ function ConsultancyEditor({ data, onChange }: { data: any; onChange: (d: any) =
       <PageExtrasCard title="🏫 School T-LAB tab — Layout, Furniture Photos & Notes" pageKey="tlab" data={data} onChange={onChange} />
       <PageExtrasCard title="🔬 Workshops tab — Photos & Notes" pageKey="workshop" data={data} onChange={onChange} />
       <PageExtrasCard title="🏠 Home Corner tab — Layout, Furniture Photos & Notes" pageKey="corner" data={data} onChange={onChange} />
+      <PlansEditorCard title="💰 School T-LAB tab — Plans, Offers & Downloads" pageKey="tlab" data={data} onChange={onChange} />
+      <PlansEditorCard title="💰 Workshops tab — Plans, Offers & Downloads" pageKey="workshop" data={data} onChange={onChange} />
+      <PlansEditorCard title="💰 Home Corner tab — Plans, Offers & Downloads" pageKey="corner" data={data} onChange={onChange} />
       <SectionCard title="📦 Materials & Corner Profiles">
         <Field label="Materials & Tools description" hint="Overrides the 'Materials & Tools' card on the School T-LAB tab">
           <textarea className={ta} rows={3} value={data.materialsBody || ''} onChange={e => set('materialsBody', e.target.value)} />
@@ -680,6 +683,199 @@ function PageExtrasCard({ title, pageKey, data, onChange }: {
         ))}
         <button onClick={() => setExtras({ notes: [...notes, { heading: '', body: '' }] })}
           className="flex items-center gap-2 text-sm text-blue-600 font-medium"><Plus className="h-4 w-4" /> Add note</button>
+      </div>
+    </SectionCard>
+  )
+}
+
+
+// ── Consultancy: editable plans / offers / perks / downloads for one tab ─────
+type PlanItem = {
+  emoji: string; name: string; tag: string; price: string; oldPrice: string; discountLabel: string
+  bestFor: string; duration: string; description: string; note: string
+  features: string[]; perks: string[]; ctaLabel: string; ctaMessage: string
+}
+
+const BLANK_PLAN: PlanItem = {
+  emoji: '✨', name: '', tag: '', price: '', oldPrice: '', discountLabel: '', bestFor: '', duration: '',
+  description: '', note: '', features: [], perks: [], ctaLabel: 'Enquire on WhatsApp', ctaMessage: '',
+}
+
+// Today's built-in plans, so "Start from today's plans" copies them for editing.
+const CURRENT_PLANS: Record<string, { intro: string; plans: PlanItem[] }> = {
+  tlab: {
+    intro: 'T-LAB setup costs vary by school size, space, and material context. The figures below are a guide for 2025–26. We have worked with government schools, NGOs, and private schools — the model adapts to budget and context.',
+    plans: [
+      { ...BLANK_PLAN, emoji: '🛠️', name: 'One-Time Setup', price: '₹80,000 – ₹1,50,000',
+        description: 'Room preparation, furniture, tools, and initial material kit (school-managed procurement under our guidance)',
+        note: 'Varies by room size and existing resources. Excludes room renovation and decoration.', ctaMessage: 'Hello MiniGuru! I would like to know more about the T-LAB One-Time Setup.' },
+      { ...BLANK_PLAN, emoji: '🤝', name: 'Year-Long Partnership', price: 'On enquiry',
+        description: 'Consultancy fee covering all visits, facilitator orientation, remote support, handbook, and MiniGuru school access',
+        note: 'Travel, food, and accommodation for onsite visits arranged by school.', ctaMessage: 'Hello MiniGuru! I would like to know more about the Year-Long T-LAB Partnership.' },
+      { ...BLANK_PLAN, emoji: '🔁', name: 'Monthly Running', price: '₹5,000 – ₹10,000 / month',
+        description: 'Consumable materials replenishment, managed by the school',
+        note: 'Facilitator is appointed by and on the payroll of the school.', ctaMessage: 'Hello MiniGuru! I would like to know more about T-LAB Monthly Running.' },
+    ],
+  },
+  workshop: {
+    intro: '',
+    plans: [
+      { ...BLANK_PLAN, emoji: '⚡', name: 'Short Workshops', duration: '1–3 Days',
+        features: ['Introductory open-ended STEAM sessions', 'Every participant completes and shares a project', 'Ideal for school events, fests, and orientation days', 'Available for students and teachers'],
+        ctaMessage: 'Hello MiniGuru! I would like to know more about Short Workshops.' },
+      { ...BLANK_PLAN, emoji: '🔥', name: 'Intensive Workshops', duration: '5–15 Days',
+        features: ['Deep-dive making experience across multiple sessions', 'Multiple projects built, iterated, and shared', 'Design thinking and hands-on prototyping', 'Ideal for summer and winter camps', 'Teacher orientation and facilitator enrichment programmes'],
+        ctaMessage: 'Hello MiniGuru! I would like to know more about Intensive Workshops.' },
+    ],
+  },
+  corner: {
+    intro: '',
+    plans: [
+      { ...BLANK_PLAN, emoji: '💻', name: 'Full Virtual Support', tag: 'Most Popular', price: '₹3,999', bestFor: 'Families who want ongoing guidance',
+        features: ['45-minute video discovery call (parent + child)', 'Custom space design sketch', 'Curated materials list with sourcing guide', 'Monthly 30-min video calls for 6 months', 'WhatsApp support as questions arise', 'MiniGuru community access — 6 months', 'Project review and suggestions after each sharing'],
+        ctaLabel: 'Book Full Support', ctaMessage: 'Hello MiniGuru! I want to book the Full Virtual Support plan.' },
+      { ...BLANK_PLAN, emoji: '📱', name: 'Virtual Setup', tag: 'Starter', price: '₹1,499', bestFor: 'Families anywhere in India',
+        features: ['45-minute video discovery call (parent + child)', 'Custom space design sketch', 'Curated materials list with sourcing guide', 'One follow-up call after setup (30 min)', 'MiniGuru community access — 3 months'],
+        ctaLabel: 'Book Virtual Setup', ctaMessage: 'Hello MiniGuru! I want to book the Virtual Setup plan.' },
+      { ...BLANK_PLAN, emoji: '🤝', name: 'In-Person Setup', tag: 'Select Cities', price: '₹6,999 + travel', bestFor: 'Families in Bhopal, Ujjain, Pune and nearby areas',
+        features: ['Everything in Full Virtual Support', '2-hour in-person setup session at your home', 'First making session with your child on the day', '3 in-person follow-up visits (monthly)'],
+        ctaLabel: 'Enquire for In-Person', ctaMessage: 'Hello MiniGuru! I am interested in the In-Person Setup. Please let me know if it is available in my city.' },
+    ],
+  },
+}
+
+function PlansEditorCard({ title, pageKey, data, onChange }: {
+  title: string
+  pageKey: 'tlab' | 'workshop' | 'corner'
+  data: any
+  onChange: (d: any) => void
+}) {
+  const block = (data.pagePlans && data.pagePlans[pageKey]) || {}
+  const plans: PlanItem[] = block.plans || []
+  const downloads: { title: string; url: string }[] = block.downloads || []
+  const [uploading, setUploading] = useState(false)
+  const [err, setErr] = useState('')
+
+  const setBlock = (next: any) =>
+    onChange({ ...data, pagePlans: { ...(data.pagePlans || {}), [pageKey]: { ...block, ...next } } })
+
+  const updatePlan = (i: number, next: Partial<PlanItem>) => {
+    const list = [...plans]
+    list[i] = { ...list[i], ...next }
+    setBlock({ plans: list })
+  }
+  const movePlan = (i: number, dir: -1 | 1) => {
+    const j = i + dir
+    if (j < 0 || j >= plans.length) return
+    const list = [...plans]
+    const t = list[i]; list[i] = list[j]; list[j] = t
+    setBlock({ plans: list })
+  }
+
+  const uploadFiles = async (files: FileList | null) => {
+    if (!files || files.length === 0) return
+    setUploading(true)
+    setErr('')
+    const added: { title: string; url: string }[] = []
+    try {
+      const token = (() => { const v = `; ${document.cookie}`; const p = v.split('; auth_token='); return p.length === 2 ? p.pop()!.split(';').shift()! : '' })()
+      for (let i = 0; i < files.length; i++) {
+        const fd = new FormData()
+        fd.append('file', files[i])
+        const res = await fetch(`${API_BASE}/admin/cms/consultancy-file`, {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${token}` },
+          body: fd,
+        })
+        const body = await res.json().catch(() => ({}))
+        if (!res.ok) throw new Error(body.message || `Upload failed (${res.status})`)
+        added.push({ title: (body.name || files[i].name || 'Download').replace(/\.[^.]+$/, ''), url: body.url })
+      }
+    } catch (e: any) {
+      setErr(e.message || 'Upload failed')
+    }
+    if (added.length > 0) setBlock({ downloads: [...downloads, ...added] })
+    setUploading(false)
+  }
+
+  const f = (label: string, node: any) => (
+    <label className="block"><span className="text-xs text-gray-500">{label}</span>{node}</label>
+  )
+
+  return (
+    <SectionCard title={title}>
+      <p className="text-xs text-gray-500">
+        Add plans here and they replace this tab's built-in plan cards. Leave the list empty to keep the built-in plans. The offer banner and downloads show either way.
+      </p>
+
+      <div className="grid grid-cols-2 gap-3">
+        {f('Offer badge (e.g. 20% OFF)', <input className={inp} value={block.offerLabel || ''} onChange={e => setBlock({ offerLabel: e.target.value })} />)}
+        {f('Offer text (e.g. Launch offer — valid till 31 Oct)', <input className={inp} value={block.offerText || ''} onChange={e => setBlock({ offerText: e.target.value })} />)}
+      </div>
+      {f('Intro text above the plans (optional)', <textarea className={ta} rows={2} value={block.intro || ''} onChange={e => setBlock({ intro: e.target.value })} />)}
+
+      {plans.length === 0 && (
+        <button onClick={() => setBlock({ intro: block.intro || CURRENT_PLANS[pageKey].intro, plans: CURRENT_PLANS[pageKey].plans })}
+          className="text-sm text-blue-600 font-medium border border-blue-200 rounded-lg px-3 py-2 bg-blue-50">
+          Start from today's plans (copies them here so you can edit)
+        </button>
+      )}
+
+      {plans.map((p, i) => (
+        <div key={i} className="border border-gray-200 rounded-lg p-3 bg-gray-50 space-y-3">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold text-gray-500">Plan {i + 1}</span>
+            <div className="flex gap-2">
+              <button onClick={() => movePlan(i, -1)} disabled={i === 0} className="px-2 py-1 text-xs border rounded disabled:opacity-30">↑</button>
+              <button onClick={() => movePlan(i, 1)} disabled={i === plans.length - 1} className="px-2 py-1 text-xs border rounded disabled:opacity-30">↓</button>
+              <button onClick={() => setBlock({ plans: plans.filter((_, j) => j !== i) })} className="text-red-400 hover:text-red-600"><Trash2 className="h-4 w-4" /></button>
+            </div>
+          </div>
+          <div className="grid grid-cols-3 gap-3">
+            {f('Emoji', <input className={inp} value={p.emoji} onChange={e => updatePlan(i, { emoji: e.target.value })} />)}
+            {f('Plan name', <input className={inp} value={p.name} onChange={e => updatePlan(i, { name: e.target.value })} />)}
+            {f('Tag (e.g. Most Popular)', <input className={inp} value={p.tag} onChange={e => updatePlan(i, { tag: e.target.value })} />)}
+          </div>
+          <div className="grid grid-cols-3 gap-3">
+            {f('Price (what you charge)', <input className={inp} value={p.price} onChange={e => updatePlan(i, { price: e.target.value })} />)}
+            {f('Old price (shown struck through)', <input className={inp} value={p.oldPrice} onChange={e => updatePlan(i, { oldPrice: e.target.value })} />)}
+            {f('Discount label (e.g. 20% OFF)', <input className={inp} value={p.discountLabel} onChange={e => updatePlan(i, { discountLabel: e.target.value })} />)}
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            {f('Best for', <input className={inp} value={p.bestFor} onChange={e => updatePlan(i, { bestFor: e.target.value })} />)}
+            {f('Duration (workshops)', <input className={inp} value={p.duration} onChange={e => updatePlan(i, { duration: e.target.value })} />)}
+          </div>
+          {f('Description', <textarea className={ta} rows={2} value={p.description} onChange={e => updatePlan(i, { description: e.target.value })} />)}
+          <div className="grid grid-cols-2 gap-3">
+            {f('What is included (one per line)', <textarea className={ta} rows={5} value={(p.features || []).join('\n')} onChange={e => updatePlan(i, { features: e.target.value.split('\n') })} />)}
+            {f('Perks you offer (one per line)', <textarea className={ta} rows={5} value={(p.perks || []).join('\n')} onChange={e => updatePlan(i, { perks: e.target.value.split('\n') })} />)}
+          </div>
+          {f('Small note under the plan', <input className={inp} value={p.note} onChange={e => updatePlan(i, { note: e.target.value })} />)}
+          <div className="grid grid-cols-2 gap-3">
+            {f('Button text (blank = no button)', <input className={inp} value={p.ctaLabel} onChange={e => updatePlan(i, { ctaLabel: e.target.value })} />)}
+            {f('WhatsApp message when tapped', <input className={inp} value={p.ctaMessage} onChange={e => updatePlan(i, { ctaMessage: e.target.value })} />)}
+          </div>
+        </div>
+      ))}
+      <button onClick={() => setBlock({ plans: [...plans, { ...BLANK_PLAN }] })}
+        className="flex items-center gap-2 text-sm text-blue-600 font-medium"><Plus className="h-4 w-4" /> Add plan</button>
+
+      <div className="pt-3 border-t border-gray-100 space-y-3">
+        <p className="text-xs font-semibold text-gray-500">Downloads (brochure, price sheet, layout PDF…) — up to 15 MB each</p>
+        {downloads.map((d, i) => (
+          <div key={d.url + i} className="flex items-center gap-2">
+            <input className={inp} placeholder="Title shown to visitors" value={d.title}
+              onChange={e => { const list = [...downloads]; list[i] = { ...d, title: e.target.value }; setBlock({ downloads: list }) }} />
+            <a href={d.url} target="_blank" rel="noreferrer" className="text-xs text-blue-600 whitespace-nowrap">Check file</a>
+            <button onClick={() => setBlock({ downloads: downloads.filter((_, j) => j !== i) })} className="text-red-400 hover:text-red-600"><Trash2 className="h-4 w-4" /></button>
+          </div>
+        ))}
+        <label className="inline-flex items-center gap-2 text-sm text-blue-600 font-medium cursor-pointer">
+          <Plus className="h-4 w-4" /> {uploading ? 'Uploading…' : 'Upload a file'}
+          <input type="file" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,image/*" multiple className="hidden" disabled={uploading}
+            onChange={e => { uploadFiles(e.target.files); e.target.value = '' }} />
+        </label>
+        {err && <p className="text-xs text-red-600">{err}</p>}
       </div>
     </SectionCard>
   )

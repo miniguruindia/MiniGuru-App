@@ -210,3 +210,28 @@ export async function uploadConsultancyImage(buffer: Buffer, mimeType: string): 
   });
   return publicUrlFor(storagePath);
 }
+
+
+/**
+ * Uploads a downloadable file for the Consultancy pages (brochure PDF, price
+ * sheet, ...) under consultancy/files/ and returns its public URL. Non-image
+ * files are served with a download disposition so a tap saves the file.
+ */
+export async function uploadConsultancyFile(buffer: Buffer, mimeType: string, originalName: string): Promise<string> {
+  const firebaseApp = ensureInitialized();
+  const safe = (originalName || 'file').replace(/[^A-Za-z0-9._-]+/g, '_').slice(-80) || 'file';
+  const storagePath = `consultancy/files/${Date.now()}-${randomUUID().slice(0, 8)}-${safe}`;
+  const bucket = getStorage(firebaseApp).bucket();
+  const file = bucket.file(storagePath);
+  const isImage = mimeType.startsWith('image/');
+  await file.save(buffer, {
+    metadata: {
+      contentType: mimeType,
+      cacheControl: 'public, max-age=3600',
+      ...(isImage ? {} : { contentDisposition: `attachment; filename="${safe}"` }),
+    },
+    public: true,
+    validation: false,
+  });
+  return publicUrlFor(storagePath);
+}

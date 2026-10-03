@@ -6,7 +6,7 @@ import prisma from '../utils/prismaClient';
 import logger from '../logger';
 import { authenticateToken, authorizeAdmin } from '../middleware/authMiddleware';
 import multer from 'multer';
-import { uploadConsultancyImage } from '../services/firebaseStorageService';
+import { uploadConsultancyImage, uploadConsultancyFile } from '../services/firebaseStorageService';
 
 const router = express.Router();
 
@@ -190,6 +190,51 @@ const consultancyUpload = multer({
     cb(null, true);
   },
 });
+
+// Downloadable files (PDF / Office / images) for the Consultancy pages. 15MB cap.
+const ALLOWED_FILE_TYPES = [
+  'application/pdf',
+  'application/msword',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'application/vnd.ms-excel',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  'application/vnd.ms-powerpoint',
+  'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+];
+const consultancyFileUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 15 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    if (file.mimetype.startsWith('image/') || ALLOWED_FILE_TYPES.includes(file.mimetype)) return cb(null, true);
+    cb(new Error('Please upload a PDF, Word, Excel, PowerPoint or image file.'));
+  },
+});
+
+// POST /admin/cms/consultancy-file  (multipart, field name: file) -> { url, name }
+router.post(
+  '/consultancy-file',
+  authenticateToken,
+  authorizeAdmin,
+  (req: any, res: any, next: any) => {
+    consultancyFileUpload.single('file')(req, res, (err: any) => {
+      if (err) {
+        const tooBig = err && err.code === 'LIMIT_FILE_SIZE';
+        return res.status(400).json({ message: tooBig ? 'File is larger than 15 MB — please shrink it and try again.' : (err.message || 'Upload failed.') });
+      }
+      next();
+    });
+  },
+  async (req: any, res: any) => {
+    try {
+      if (!req.file) return res.status(400).json({ message: 'No file provided (field name: file).' });
+      const url = await uploadConsultancyFile(req.file.buffer, req.file.mimetype, req.file.originalname);
+      return res.json({ url, name: req.file.originalname });
+    } catch (error) {
+      logger.error(`POST /cms/consultancy-file: ${(error as Error).message}`);
+      return res.status(500).json({ message: 'Failed to upload file.' });
+    }
+  }
+);
 
 // POST /admin/cms/consultancy-image  (multipart, field name: image) -> { url }
 router.post(

@@ -30,6 +30,9 @@ class _ConsultancyPageState extends State<ConsultancyPage> {
   // ("tlab" / "workshop" / "corner"), from the consultancy CMS key.
   Map<String, dynamic> _pageExtras = {};
 
+  // Admin-edited plans / offer / downloads per tab (consultancy CMS "pagePlans").
+  Map<String, dynamic> _pagePlans = {};
+
   // ── CONTACT DETAILS (CMS-editable, hardcoded fallbacks) ────────────────
   String _phone    = '+919399756846';
   String _whatsapp = '919399756846';
@@ -102,6 +105,283 @@ class _ConsultancyPageState extends State<ConsultancyPage> {
     _loadKitCollections();
   }
 
+  // ── Admin-editable plans / offer / downloads ──────────────────────────────
+  Map<String, dynamic> _planBlock(String key) {
+    final raw = _pagePlans[key];
+    return raw is Map ? Map<String, dynamic>.from(raw) : <String, dynamic>{};
+  }
+
+  List<Map<String, dynamic>> _cmsPlans(String key) {
+    final raw = _planBlock(key)['plans'];
+    if (raw is! List) return [];
+    return raw
+        .whereType<Map>()
+        .map((m) => Map<String, dynamic>.from(m))
+        .where((m) => (m['name'] ?? '').toString().trim().isNotEmpty)
+        .toList();
+  }
+
+  List<String> _cmsLines(dynamic v) => v is List
+      ? v.map((x) => x.toString().trim()).where((s) => s.isNotEmpty).toList()
+      : <String>[];
+
+  String _cmsText(Map m, String k) => (m[k] ?? '').toString().trim();
+
+  Widget _cmsOffer(String key) {
+    final b = _planBlock(key);
+    final label = _cmsText(b, 'offerLabel');
+    final text = _cmsText(b, 'offerText');
+    if (label.isEmpty && text.isEmpty) return const SizedBox.shrink();
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.fromLTRB(16, 0, 16, 14),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(colors: [Color(0xFFFFF3CD), Color(0xFFFFE08A)]),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFF59E0B)),
+      ),
+      child: Row(children: [
+        if (label.isNotEmpty)
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+            decoration: BoxDecoration(
+              color: const Color(0xFFDC2626),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Text(label,
+                style: GoogleFonts.poppins(
+                    fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white)),
+          ),
+        if (label.isNotEmpty && text.isNotEmpty) const SizedBox(width: 10),
+        if (text.isNotEmpty)
+          Expanded(
+            child: Text(text,
+                style: GoogleFonts.poppins(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: const Color(0xFF92400E),
+                    height: 1.4)),
+          ),
+      ]),
+    );
+  }
+
+  Widget _cmsPlansBlock(String key, Color accent) {
+    final intro = _cmsText(_planBlock(key), 'intro');
+    final plans = _cmsPlans(key);
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        if (intro.isNotEmpty) ...[
+          Text(intro,
+              style: GoogleFonts.poppins(fontSize: 13, color: Colors.black54, height: 1.6)),
+          const SizedBox(height: 14),
+        ],
+        for (final p in plans) ...[
+          _cmsPlanCard(p, accent),
+          const SizedBox(height: 12),
+        ],
+      ]),
+    );
+  }
+
+  Widget _cmsPlanCard(Map<String, dynamic> p, Color accent) {
+    final name = _cmsText(p, 'name');
+    final emoji = _cmsText(p, 'emoji');
+    final tag = _cmsText(p, 'tag');
+    final price = _cmsText(p, 'price');
+    final oldPrice = _cmsText(p, 'oldPrice');
+    final discount = _cmsText(p, 'discountLabel');
+    final bestFor = _cmsText(p, 'bestFor');
+    final duration = _cmsText(p, 'duration');
+    final description = _cmsText(p, 'description');
+    final note = _cmsText(p, 'note');
+    final features = _cmsLines(p['features']);
+    final perks = _cmsLines(p['perks']);
+    final ctaLabel = _cmsText(p, 'ctaLabel');
+    final ctaMessage = _cmsText(p, 'ctaMessage').isNotEmpty
+        ? _cmsText(p, 'ctaMessage')
+        : 'Hello MiniGuru! I am interested in: $name.';
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: accent.withOpacity(0.35)),
+      ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          if (emoji.isNotEmpty) Text(emoji, style: const TextStyle(fontSize: 26)),
+          if (emoji.isNotEmpty) const SizedBox(width: 10),
+          Expanded(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(name,
+                  style: GoogleFonts.poppins(
+                      fontSize: 15, fontWeight: FontWeight.bold, color: Colors.black87)),
+              if (duration.isNotEmpty)
+                Text(duration,
+                    style: GoogleFonts.poppins(fontSize: 11, color: Colors.black45)),
+            ]),
+          ),
+          if (tag.isNotEmpty)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              decoration: BoxDecoration(
+                color: accent.withOpacity(0.12),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Text(tag,
+                  style: GoogleFonts.poppins(
+                      fontSize: 10, fontWeight: FontWeight.bold, color: accent)),
+            ),
+        ]),
+        if (price.isNotEmpty) ...[
+          const SizedBox(height: 10),
+          Wrap(crossAxisAlignment: WrapCrossAlignment.center, spacing: 10, runSpacing: 4, children: [
+            Text(price,
+                style: GoogleFonts.poppins(
+                    fontSize: 18, fontWeight: FontWeight.bold, color: accent)),
+            if (oldPrice.isNotEmpty)
+              Text(oldPrice,
+                  style: GoogleFonts.poppins(
+                      fontSize: 13,
+                      color: Colors.black38,
+                      decoration: TextDecoration.lineThrough)),
+            if (discount.isNotEmpty)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFDC2626),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(discount,
+                    style: GoogleFonts.poppins(
+                        fontSize: 10, fontWeight: FontWeight.bold, color: Colors.white)),
+              ),
+          ]),
+        ],
+        if (bestFor.isNotEmpty) ...[
+          const SizedBox(height: 6),
+          Text('Best for: $bestFor',
+              style: GoogleFonts.poppins(
+                  fontSize: 11, color: Colors.black54, fontStyle: FontStyle.italic)),
+        ],
+        if (description.isNotEmpty) ...[
+          const SizedBox(height: 8),
+          Text(description,
+              style: GoogleFonts.poppins(fontSize: 12, color: Colors.black54, height: 1.5)),
+        ],
+        if (features.isNotEmpty) ...[
+          const SizedBox(height: 10),
+          for (final f in features)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 5),
+              child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Icon(Icons.check_circle_rounded, size: 14, color: accent),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(f,
+                      style: GoogleFonts.poppins(
+                          fontSize: 12, color: Colors.black54, height: 1.4)),
+                ),
+              ]),
+            ),
+        ],
+        if (perks.isNotEmpty) ...[
+          const SizedBox(height: 8),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: const Color(0xFFFFF8E1),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text('🎁 Perks',
+                  style: GoogleFonts.poppins(
+                      fontSize: 11, fontWeight: FontWeight.bold, color: const Color(0xFF92400E))),
+              const SizedBox(height: 4),
+              for (final perk in perks)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 3),
+                  child: Text('• $perk',
+                      style: GoogleFonts.poppins(
+                          fontSize: 12, color: const Color(0xFF92400E), height: 1.4)),
+                ),
+            ]),
+          ),
+        ],
+        if (note.isNotEmpty) ...[
+          const SizedBox(height: 8),
+          Text(note,
+              style: GoogleFonts.poppins(fontSize: 11, color: Colors.black45, height: 1.4)),
+        ],
+        if (ctaLabel.isNotEmpty) ...[
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: () => _launchWhatsApp(ctaMessage),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: accent,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 11),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                elevation: 0,
+              ),
+              child: Text(ctaLabel,
+                  style: GoogleFonts.poppins(fontSize: 12, fontWeight: FontWeight.bold)),
+            ),
+          ),
+        ],
+      ]),
+    );
+  }
+
+  Widget _cmsDownloads(String key) {
+    final raw = _planBlock(key)['downloads'];
+    if (raw is! List) return const SizedBox.shrink();
+    final items = raw
+        .whereType<Map>()
+        .where((m) => (m['url'] ?? '').toString().trim().isNotEmpty)
+        .toList();
+    if (items.isEmpty) return const SizedBox.shrink();
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      _sectionTitle('Downloads', Icons.download_outlined),
+      for (final d in items)
+        GestureDetector(
+          onTap: () => launchUrl(Uri.parse(d['url'].toString()),
+              mode: LaunchMode.externalApplication),
+          child: Container(
+            width: double.infinity,
+            margin: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: const Color(0xFFE5E7EB)),
+            ),
+            child: Row(children: [
+              const Icon(Icons.description_outlined, color: Color(0xFF1B5E20)),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                    (d['title'] ?? '').toString().trim().isEmpty
+                        ? 'Download'
+                        : d['title'].toString(),
+                    style: GoogleFonts.poppins(
+                        fontSize: 13, fontWeight: FontWeight.w600, color: Colors.black87)),
+              ),
+              const Icon(Icons.file_download_outlined, color: Color(0xFF1B5E20)),
+            ]),
+          ),
+        ),
+    ]);
+  }
+
   void _openImageViewer(String url, String caption) {
     showDialog(
       context: context,
@@ -131,10 +411,17 @@ class _ConsultancyPageState extends State<ConsultancyPage> {
           Positioned(
             top: 4,
             right: 4,
-            child: IconButton(
-              icon: const Icon(Icons.close, color: Colors.white),
-              onPressed: () => Navigator.pop(ctx),
-            ),
+            child: Row(children: [
+              IconButton(
+                tooltip: 'Download',
+                icon: const Icon(Icons.file_download_outlined, color: Colors.white),
+                onPressed: () => launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication),
+              ),
+              IconButton(
+                icon: const Icon(Icons.close, color: Colors.white),
+                onPressed: () => Navigator.pop(ctx),
+              ),
+            ]),
           ),
         ]),
       ),
@@ -337,6 +624,10 @@ class _ConsultancyPageState extends State<ConsultancyPage> {
           _wsBannerDone         = wsStats['done']?.toString()         ?? _wsBannerDone;
           _wsBannerParticipants = wsStats['participants']?.toString() ?? _wsBannerParticipants;
           _wsBannerProjects     = wsStats['projects']?.toString()     ?? _wsBannerProjects;
+        }
+        final plansRaw = data['pagePlans'];
+        if (plansRaw is Map) {
+          _pagePlans = Map<String, dynamic>.from(plansRaw);
         }
         final extrasRaw = data['pageExtras'];
         if (extrasRaw is Map) {
@@ -709,7 +1000,11 @@ class _ConsultancyPageState extends State<ConsultancyPage> {
         // ── INVESTMENT ───────────────────────────────────────────────────
         _buildPageExtras('tlab'),
         _sectionTitle('Investment', Icons.account_balance_wallet_outlined),
-        Padding(
+        _cmsOffer('tlab'),
+        if (_cmsPlans('tlab').isNotEmpty)
+          _cmsPlansBlock('tlab', const Color(0xFF1B5E20))
+        else
+          Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -778,6 +1073,7 @@ class _ConsultancyPageState extends State<ConsultancyPage> {
         ),
 
         // ── EVIDENCE ─────────────────────────────────────────────────────
+        _cmsDownloads('tlab'),
         _sectionTitle('T-LAB Across India', Icons.place_outlined),
         SizedBox(
           height: 150,
@@ -972,7 +1268,11 @@ class _ConsultancyPageState extends State<ConsultancyPage> {
 
         _buildPageExtras('workshop'),
         _sectionTitle('Workshop Formats', Icons.event_available_outlined),
-        Padding(
+        _cmsOffer('workshop'),
+        if (_cmsPlans('workshop').isNotEmpty)
+          _cmsPlansBlock('workshop', const Color(0xFFD97706))
+        else
+          Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
           child: Column(children: [
             _workshopFormatCard(
@@ -1006,6 +1306,7 @@ class _ConsultancyPageState extends State<ConsultancyPage> {
 
         
 
+        _cmsDownloads('workshop'),
         _sectionTitle('Who Is It For?', Icons.people_outline),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -1187,7 +1488,11 @@ class _ConsultancyPageState extends State<ConsultancyPage> {
         // ── PLANS ────────────────────────────────────────────────────────
         _buildPageExtras('corner'),
         _sectionTitle('Plans', Icons.inventory_2_outlined),
-        Padding(
+        _cmsOffer('corner'),
+        if (_cmsPlans('corner').isNotEmpty)
+          _cmsPlansBlock('corner', const Color(0xFF4C1D95))
+        else
+          Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
           child: Column(children: [
             // Plan 2 first (most popular)
@@ -1253,6 +1558,7 @@ class _ConsultancyPageState extends State<ConsultancyPage> {
         ),
 
         // ── WHAT GOES IN THE CORNER ──────────────────────────────────────
+        _cmsDownloads('corner'),
         _sectionTitle('What a Tinkering Corner Typically Contains',
             Icons.category_outlined),
         Padding(
