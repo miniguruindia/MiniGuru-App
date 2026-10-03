@@ -305,6 +305,7 @@ interface CollectionSummary {
   isActive: boolean
   sortOrder?: number | null
   linkKey?: string | null
+  quantities?: Record<string, number> | null
 }
 
 function CollectionsTab({ apiBase, allMaterials, flash }: {
@@ -316,7 +317,7 @@ function CollectionsTab({ apiBase, allMaterials, flash }: {
   const [loading, setLoading] = useState(true)
   const [editing, setEditing] = useState<CollectionSummary | null>(null) // null id = new
   const [showForm, setShowForm] = useState(false)
-  const [form, setForm] = useState<{ name: string; description: string; icon: string; materialIds: string[]; linkKey?: string }>({
+  const [form, setForm] = useState<{ name: string; description: string; icon: string; materialIds: string[]; linkKey?: string; quantities?: Record<string, number> }>({
     name: '', description: '', icon: '🧰', materialIds: [],
   })
   const [materialSearch, setMaterialSearch] = useState('')
@@ -345,7 +346,7 @@ function CollectionsTab({ apiBase, allMaterials, flash }: {
 
   const openEdit = (c: CollectionSummary) => {
     setEditing(c)
-    setForm({ name: c.name, description: c.description || '', icon: c.icon || '🧰', materialIds: [...c.materialIds], linkKey: c.linkKey || '' })
+    setForm({ name: c.name, description: c.description || '', icon: c.icon || '🧰', materialIds: [...c.materialIds], linkKey: c.linkKey || '', quantities: { ...(c.quantities || {}) } })
     setMaterialSearch('')
     setShowForm(true)
   }
@@ -523,7 +524,7 @@ function CollectionsTab({ apiBase, allMaterials, flash }: {
 
             <div>
               <p className="text-sm font-medium text-gray-700 mb-2">
-                Materials in this collection ({form.materialIds.length} selected)
+                Materials in this collection ({form.materialIds.length} selected) — type a default quantity beside each ticked item
               </p>
               <input value={materialSearch} onChange={(e) => setMaterialSearch(e.target.value)}
                 placeholder="Search materials to add…"
@@ -536,6 +537,16 @@ function CollectionsTab({ apiBase, allMaterials, flash }: {
                     <span>{m.icon || '📦'}</span>
                     <span className="flex-1">{m.name}</span>
                     <span className="text-xs text-gray-400">{m.category}</span>
+                    {form.materialIds.includes(m.id) && (
+                      <input type="number" min={1} max={999} title="Default quantity"
+                        value={(form.quantities && form.quantities[m.id]) || 1}
+                        onClick={(e) => e.stopPropagation()}
+                        onChange={(e) => {
+                          const n = Math.max(1, Math.min(999, Math.floor(Number(e.target.value)) || 1))
+                          setForm((f) => ({ ...f, quantities: { ...(f.quantities || {}), [m.id]: n } }))
+                        }}
+                        className="w-16 border rounded px-2 py-1 text-xs text-right" />
+                    )}
                   </label>
                 ))}
                 {filteredMaterials.length === 0 && (

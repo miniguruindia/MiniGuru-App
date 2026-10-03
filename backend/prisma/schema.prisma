@@ -633,6 +633,8 @@ model MaterialCollection {
   // "home-corner" (Consultancy > Home Corner). Lets those pages open this
   // live collection, so editing the collection updates the page too.
   linkKey     String?
+  // Default quantity per item, as { "<materialId>": 30, ... }. Optional.
+  quantities  Json?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 

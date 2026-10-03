@@ -538,65 +538,26 @@ class _ConsultancyPageState extends State<ConsultancyPage> {
     }
   }
 
-  // A tappable card that opens the live collection (by its link key) in the
-  // Shop. Shows nothing if no active collection is linked to this key.
+  // The kit checklist for the collection linked to this tab (by link key).
+  // Shows nothing if no active collection is linked, so unlinked tabs look
+  // exactly as before.
   Widget _buildKitLinkCard(String key) {
     final match = _kitCollections
         .where((c) => (c['linkKey'] ?? '').toString() == key)
         .toList();
     if (match.isEmpty) return const SizedBox.shrink();
     final c = match.first;
-    final name = (c['name'] ?? '').toString();
-    final icon = (c['icon'] ?? '').toString();
-    final count = (c['itemCount'] ?? 0).toString();
     final isHome = key == 'home-corner';
-    final color = isHome ? const Color(0xFF4C1D95) : const Color(0xFF1B5E20);
-    final tint = isHome ? const Color(0xFFF5F3FF) : const Color(0xFFF1F8F1);
-    return Container(
-      margin: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: tint,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: color.withOpacity(0.35)),
-      ),
-      child: Row(children: [
-        Text(icon.isEmpty ? '🧰' : icon, style: const TextStyle(fontSize: 30)),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(name,
-                  style: GoogleFonts.poppins(
-                      fontSize: 15, fontWeight: FontWeight.bold, color: color)),
-              const SizedBox(height: 2),
-              Text('$count items — see the full list and order it in one tap',
-                  style: GoogleFonts.poppins(
-                      fontSize: 12, color: Colors.black54, height: 1.4)),
-            ],
-          ),
-        ),
-        const SizedBox(width: 8),
-        ElevatedButton(
-          onPressed: () => Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => Shop(openCollectionKey: key)),
-          ),
-          style: ElevatedButton.styleFrom(
-            backgroundColor: color,
-            foregroundColor: Colors.white,
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-          ),
-          child: Text('View list',
-              style: GoogleFonts.poppins(fontSize: 12, fontWeight: FontWeight.bold)),
-        ),
-      ]),
+    return _KitChecklistCard(
+      key: ValueKey('kit-${c['id']}'),
+      collectionId: c['id'].toString(),
+      name: (c['name'] ?? '').toString(),
+      icon: (c['icon'] ?? '').toString(),
+      accent: isHome ? const Color(0xFF4C1D95) : const Color(0xFF1B5E20),
     );
   }
 
-  Future<void> _loadCms() async {
+    Future<void> _loadCms() async {
     try {
       final data = await _api.getCmsContent('consultancy');
       if (data == null || !mounted) return;
@@ -2426,5 +2387,371 @@ class _ConsultancyPageState extends State<ConsultancyPage> {
   Future<void> _launchWhatsApp(String message) async {
     final url = 'https://wa.me/$_whatsapp?text=${Uri.encodeComponent(message)}';
     await _launchUrl(url);
+  }
+}
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Kit checklist for a linked collection (T-LAB / Home Corner tabs):
+// tick items, change quantities, see an estimated total, then buy on Amazon
+// (affiliate cart links, 10 items per link) or email the list to a parent /
+// purchase department.
+// ═══════════════════════════════════════════════════════════════════════════
+class _KitChecklistCard extends StatefulWidget {
+  final String collectionId;
+  final String name;
+  final String icon;
+  final Color accent;
+  const _KitChecklistCard({
+    super.key,
+    required this.collectionId,
+    required this.name,
+    required this.icon,
+    required this.accent,
+  });
+
+  @override
+  State<_KitChecklistCard> createState() => _KitChecklistCardState();
+}
+
+class _KitChecklistCardState extends State<_KitChecklistCard> {
+  static const String _amazonTag = 'miniguru04-21';
+  bool _loading = true;
+  bool _failed = false;
+  bool _showAll = false;
+  bool _sending = false; // class-level on purpose: dialogs rebuild
+  List<Map<String, dynamic>> _items = [];
+  final Map<String, bool> _picked = {};
+  final Map<String, int> _qty = {};
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    try {
+      final res = await http
+          .get(Uri.parse('$apiBaseUrl/materials/collections/${widget.collectionId}'))
+          .timeout(const Duration(seconds: 12));
+      if (res.statusCode != 200) throw Exception('status ${res.statusCode}');
+      final data = jsonDecode(res.body);
+      final list = (data is Map && data['materials'] is List)
+          ? List<Map<String, dynamic>>.from(
+              (data['materials'] as List).map((x) => Map<String, dynamic>.from(x as Map)))
+          : <Map<String, dynamic>>[];
+      if (!mounted) return;
+      setState(() {
+        _items = list;
+        for (final m in list) {
+          final id = m['id'].toString();
+          _picked[id] = true;
+          final d = (m['defaultQty'] as num?)?.toInt() ?? 1;
+          _qty[id] = d < 1 ? 1 : d;
+        }
+        _loading = false;
+      });
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _loading = false;
+          _failed = true;
+        });
+      }
+    }
+  }
+
+  List<Map<String, dynamic>> _selected() =>
+      _items.where((m) => _picked[m['id'].toString()] ?? false).toList();
+
+  int _qtyOf(Map<String, dynamic> m) => _qty[m['id'].toString()] ?? 1;
+
+  int _total() {
+    int t = 0;
+    for (final m in _selected()) {
+      final p = (m['priceEstimate'] as num?)?.toInt() ?? 0;
+      t += p * _qtyOf(m);
+    }
+    return t;
+  }
+
+  List<String> _cartUrls() {
+    final merged = <String, int>{};
+    for (final m in _selected()) {
+      final asin = (m['amazonASIN'] ?? '').toString().trim();
+      if (asin.isEmpty) continue;
+      merged[asin] = (merged[asin] ?? 0) + _qtyOf(m);
+    }
+    final entries = merged.entries.toList();
+    final urls = <String>[];
+    for (int i = 0; i < entries.length; i += 10) {
+      final chunk = entries.skip(i).take(10).toList();
+      final params = <String>[];
+      for (int j = 0; j < chunk.length; j++) {
+        final q = chunk[j].value > 999 ? 999 : chunk[j].value;
+        params.add('ASIN.${j + 1}=${chunk[j].key}&Quantity.${j + 1}=$q');
+      }
+      urls.add('https://www.amazon.in/gp/aws/cart/add.html?${params.join('&')}&AssociateTag=$_amazonTag');
+    }
+    return urls;
+  }
+
+  void _snack(String msg) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+  }
+
+  Future<void> _sendByEmail() async {
+    final selected = _selected();
+    if (selected.isEmpty) {
+      _snack('Tick at least one item first.');
+      return;
+    }
+    if (_sending) return;
+    final emailCtrl = TextEditingController();
+    final nameCtrl = TextEditingController();
+    final go = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('Send this list by email',
+            style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.bold)),
+        content: Column(mainAxisSize: MainAxisSize.min, children: [
+          TextField(
+            controller: emailCtrl,
+            keyboardType: TextInputType.emailAddress,
+            decoration: const InputDecoration(
+                labelText: 'Send to (parent / purchase department email)'),
+          ),
+          const SizedBox(height: 8),
+          TextField(
+            controller: nameCtrl,
+            decoration: const InputDecoration(labelText: 'Your name (optional)'),
+          ),
+        ]),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          ElevatedButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Send')),
+        ],
+      ),
+    );
+    if (go != true) return;
+    final email = emailCtrl.text.trim();
+    if (!email.contains('@') || !email.contains('.')) {
+      _snack('Please enter a valid email address.');
+      return;
+    }
+    setState(() => _sending = true);
+    try {
+      final res = await http
+          .post(
+            Uri.parse('$apiBaseUrl/shop/send-list'),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({
+              'recipientEmail': email,
+              'senderName': nameCtrl.text.trim(),
+              'listTitle': widget.name,
+              'items': selected
+                  .map((m) => {
+                        'name': m['name'] ?? '',
+                        'qty': _qtyOf(m),
+                        'unit': m['unit'] ?? 'piece',
+                        'amazonASIN': m['amazonASIN'] ?? '',
+                        'priceEstimate': m['priceEstimate'],
+                      })
+                  .toList(),
+            }),
+          )
+          .timeout(const Duration(seconds: 25));
+      if (res.statusCode == 200) {
+        _snack('List sent to $email ✅');
+      } else {
+        String msg = 'Could not send the email right now.';
+        try {
+          final b = jsonDecode(res.body);
+          if (b is Map && b['error'] != null) msg = b['error'].toString();
+        } catch (_) {}
+        _snack(msg);
+      }
+    } catch (_) {
+      _snack('Could not send the email — please check your connection and try again.');
+    } finally {
+      if (mounted) setState(() => _sending = false);
+    }
+  }
+
+  Widget _row(Map<String, dynamic> m) {
+    final id = m['id'].toString();
+    final on = _picked[id] ?? true;
+    final q = _qty[id] ?? 1;
+    final price = (m['priceEstimate'] as num?)?.toInt();
+    final hasAsin = (m['amazonASIN'] ?? '').toString().trim().isNotEmpty;
+    final img = (m['imageUrl'] ?? '').toString();
+    final icon = (m['icon'] ?? '📦').toString();
+    final unit = (m['unit'] ?? 'piece').toString();
+    final sub = price != null && price > 0
+        ? '₹$price per $unit'
+        : (hasAsin ? 'Check price on Amazon' : 'Buy locally');
+    return Opacity(
+      opacity: on ? 1 : 0.45,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 3),
+        child: Row(children: [
+          SizedBox(
+            width: 32,
+            child: Checkbox(
+              value: on,
+              activeColor: widget.accent,
+              visualDensity: VisualDensity.compact,
+              onChanged: (v) => setState(() => _picked[id] = v ?? false),
+            ),
+          ),
+          Container(
+            width: 44,
+            height: 44,
+            clipBehavior: Clip.antiAlias,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: const Color(0xFFE5E7EB)),
+            ),
+            child: img.isNotEmpty
+                ? Image.network(img,
+                    fit: BoxFit.contain,
+                    errorBuilder: (_, __, ___) =>
+                        Center(child: Text(icon, style: const TextStyle(fontSize: 20))))
+                : Center(child: Text(icon, style: const TextStyle(fontSize: 20))),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text((m['name'] ?? '').toString(),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.poppins(
+                      fontSize: 12, fontWeight: FontWeight.w600, color: Colors.black87)),
+              Text(sub, style: GoogleFonts.poppins(fontSize: 10, color: Colors.black45)),
+            ]),
+          ),
+          IconButton(
+            visualDensity: VisualDensity.compact,
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+            icon: const Icon(Icons.remove_circle_outline, size: 20),
+            onPressed: q > 1 ? () => setState(() => _qty[id] = q - 1) : null,
+          ),
+          SizedBox(
+            width: 28,
+            child: Text('$q',
+                textAlign: TextAlign.center,
+                style: GoogleFonts.poppins(fontSize: 12, fontWeight: FontWeight.bold)),
+          ),
+          IconButton(
+            visualDensity: VisualDensity.compact,
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+            icon: const Icon(Icons.add_circle_outline, size: 20),
+            onPressed: q < 999 ? () => setState(() => _qty[id] = q + 1) : null,
+          ),
+        ]),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final accent = widget.accent;
+    if (_failed || (!_loading && _items.isEmpty)) return const SizedBox.shrink();
+
+    final visible = _showAll ? _items : _items.take(6).toList();
+    final selectedCount = _selected().length;
+    final total = _total();
+    final urls = _loading ? <String>[] : _cartUrls();
+
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: accent.withOpacity(0.05),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: accent.withOpacity(0.35)),
+      ),
+      child: _loading
+          ? const Padding(
+              padding: EdgeInsets.symmetric(vertical: 20),
+              child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+            )
+          : Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Row(children: [
+                Text(widget.icon.isEmpty ? '🧰' : widget.icon,
+                    style: const TextStyle(fontSize: 28)),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Text(widget.name,
+                        style: GoogleFonts.poppins(
+                            fontSize: 15, fontWeight: FontWeight.bold, color: accent)),
+                    Text('${_items.length} items — tick what you need, change quantities',
+                        style: GoogleFonts.poppins(
+                            fontSize: 11, color: Colors.black54, height: 1.4)),
+                  ]),
+                ),
+              ]),
+              const SizedBox(height: 10),
+              for (final m in visible) _row(m),
+              if (_items.length > 6)
+                TextButton(
+                  onPressed: () => setState(() => _showAll = !_showAll),
+                  child: Text(_showAll ? 'Show fewer' : 'Show all ${_items.length} items'),
+                ),
+              const Divider(height: 20),
+              Text(
+                  total > 0
+                      ? '$selectedCount items selected · Estimated total ₹$total'
+                      : '$selectedCount items selected',
+                  style: GoogleFonts.poppins(
+                      fontSize: 13, fontWeight: FontWeight.bold, color: Colors.black87)),
+              const SizedBox(height: 10),
+              if (urls.isEmpty)
+                Text('None of the ticked items have an Amazon link yet — they are best bought locally.',
+                    style: GoogleFonts.poppins(fontSize: 11, color: Colors.black45))
+              else
+                Wrap(spacing: 8, runSpacing: 8, children: [
+                  for (int i = 0; i < urls.length; i++)
+                    ElevatedButton.icon(
+                      onPressed: () => launchUrl(Uri.parse(urls[i]),
+                          mode: LaunchMode.externalApplication),
+                      icon: const Icon(Icons.shopping_cart_outlined, size: 16),
+                      label: Text(
+                          urls.length > 1
+                              ? 'Buy on Amazon — part ${i + 1} of ${urls.length}'
+                              : 'Buy on Amazon',
+                          style: GoogleFonts.poppins(fontSize: 12, fontWeight: FontWeight.bold)),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFFFF9900),
+                        foregroundColor: Colors.white,
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      ),
+                    ),
+                ]),
+              const SizedBox(height: 8),
+              OutlinedButton.icon(
+                onPressed: _sending ? null : _sendByEmail,
+                icon: const Icon(Icons.email_outlined, size: 16),
+                label: Text(_sending ? 'Sending…' : 'Send list by email (parent / purchase dept.)',
+                    style: GoogleFonts.poppins(fontSize: 12, fontWeight: FontWeight.bold)),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: accent,
+                  side: BorderSide(color: accent),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text('Prices are estimates — please check the current price on Amazon.',
+                  style: GoogleFonts.poppins(fontSize: 10, color: Colors.black38)),
+            ]),
+    );
   }
 }

@@ -199,6 +199,19 @@ function sortCollections(list) {
         return String(a.name).localeCompare(String(b.name));
     });
 }
+// { "<materialId>": qty } with whole numbers 1..999 only; anything else is
+// dropped. Returns null when nothing valid is left.
+function normalizeQuantities(v) {
+    if (!v || typeof v !== 'object' || Array.isArray(v))
+        return null;
+    const out = {};
+    for (const k of Object.keys(v)) {
+        const n = Math.floor(Number(v[k]));
+        if (/^[a-f0-9]{24}$/i.test(k) && Number.isFinite(n) && n >= 1 && n <= 999)
+            out[k] = n;
+    }
+    return Object.keys(out).length > 0 ? out : null;
+}
 // "new-lab" / "home-corner" style page keys. Empty or invalid -> null.
 function normalizeLinkKey(v) {
     if (typeof v !== 'string')
@@ -248,7 +261,10 @@ router.get('/collections/:id', async (req, res) => {
             name: collection.name,
             description: collection.description,
             icon: collection.icon || '🧰',
-            materials: ordered.map(toFlutterShape),
+            materials: ordered.map((m) => ({
+                ...toFlutterShape(m),
+                defaultQty: (collection.quantities && collection.quantities[m.id]) || 1,
+            })),
         });
     }
     catch (err) {
@@ -286,6 +302,7 @@ router.post('/admin/collections', authMiddleware_1.authenticateToken, requireAdm
                 description: description || undefined,
                 icon: icon || '🧰',
                 materialIds: Array.isArray(materialIds) ? materialIds : [],
+                ...(normalizeQuantities((req.body || {}).quantities) ? { quantities: normalizeQuantities((req.body || {}).quantities) } : {}),
             },
         });
         res.status(201).json(collection);
@@ -326,6 +343,8 @@ router.put('/admin/collections/:id', authMiddleware_1.authenticateToken, require
             data.icon = icon;
         if ('materialIds' in req.body)
             data.materialIds = Array.isArray(materialIds) ? materialIds : [];
+        if ('quantities' in req.body)
+            data.quantities = normalizeQuantities(req.body.quantities) || {};
         if ('isActive' in req.body)
             data.isActive = Boolean(isActive);
         if ('sortOrder' in req.body)

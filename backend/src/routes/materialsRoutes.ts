@@ -205,6 +205,18 @@ function sortCollections<T>(list: T[]): T[] {
   });
 }
 
+// { "<materialId>": qty } with whole numbers 1..999 only; anything else is
+// dropped. Returns null when nothing valid is left.
+function normalizeQuantities(v: any): Record<string, number> | null {
+  if (!v || typeof v !== 'object' || Array.isArray(v)) return null;
+  const out: Record<string, number> = {};
+  for (const k of Object.keys(v)) {
+    const n = Math.floor(Number(v[k]));
+    if (/^[a-f0-9]{24}$/i.test(k) && Number.isFinite(n) && n >= 1 && n <= 999) out[k] = n;
+  }
+  return Object.keys(out).length > 0 ? out : null;
+}
+
 // "new-lab" / "home-corner" style page keys. Empty or invalid -> null.
 function normalizeLinkKey(v: any): string | null {
   if (typeof v !== 'string') return null;
@@ -256,7 +268,10 @@ router.get('/collections/:id', async (req: Request, res: Response) => {
       name: collection.name,
       description: collection.description,
       icon: collection.icon || '🧰',
-      materials: ordered.map(toFlutterShape),
+      materials: ordered.map((m) => ({
+        ...toFlutterShape(m),
+        defaultQty: ((collection as any).quantities && (collection as any).quantities[m.id]) || 1,
+      })),
     });
   } catch (err) {
     console.error('[materials] GET /collections/:id error:', err);
@@ -295,6 +310,7 @@ router.post('/admin/collections', authenticateToken, requireAdmin, async (req: R
         description: description || undefined,
         icon: icon || '🧰',
         materialIds: Array.isArray(materialIds) ? materialIds : [],
+        ...((normalizeQuantities((req.body || {}).quantities) ? { quantities: normalizeQuantities((req.body || {}).quantities) } : {}) as any),
       },
     });
     res.status(201).json(collection);
@@ -331,6 +347,7 @@ router.put('/admin/collections/:id', authenticateToken, requireAdmin, async (req
     if ('description' in req.body) data.description = description;
     if ('icon' in req.body) data.icon = icon;
     if ('materialIds' in req.body) data.materialIds = Array.isArray(materialIds) ? materialIds : [];
+    if ('quantities' in req.body) data.quantities = normalizeQuantities(req.body.quantities) || {};
     if ('isActive' in req.body) data.isActive = Boolean(isActive);
     if ('sortOrder' in req.body) data.sortOrder = typeof req.body.sortOrder === 'number' ? req.body.sortOrder : null;
     if ('linkKey' in req.body) {
