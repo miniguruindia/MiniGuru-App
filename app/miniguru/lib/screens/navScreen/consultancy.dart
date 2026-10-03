@@ -647,10 +647,8 @@ class _ConsultancyPageState extends State<ConsultancyPage> {
             SliverToBoxAdapter(
               child: Column(
                 children: [
-                  if (_selectedService == 0) _buildKitLinkCard('new-lab'),
                   if (_selectedService == 0) _buildSchoolTLab(),
                   if (_selectedService == 1) _buildWorkshops(),
-                  if (_selectedService == 2) _buildKitLinkCard('home-corner'),
                   if (_selectedService == 2) _buildHomeTinkering(),
                   _buildContactSection(),
                   _buildLoginCTA(),
@@ -960,6 +958,7 @@ class _ConsultancyPageState extends State<ConsultancyPage> {
 
         // ── INVESTMENT ───────────────────────────────────────────────────
         _buildPageExtras('tlab'),
+        _buildKitLinkCard('new-lab'),
         _sectionTitle('Investment', Icons.account_balance_wallet_outlined),
         _cmsOffer('tlab'),
         if (_cmsPlans('tlab').isNotEmpty)
@@ -1448,6 +1447,7 @@ class _ConsultancyPageState extends State<ConsultancyPage> {
 
         // ── PLANS ────────────────────────────────────────────────────────
         _buildPageExtras('corner'),
+        _buildKitLinkCard('home-corner'),
         _sectionTitle('Plans', Icons.inventory_2_outlined),
         _cmsOffer('corner'),
         if (_cmsPlans('corner').isNotEmpty)
@@ -2419,6 +2419,7 @@ class _KitChecklistCardState extends State<_KitChecklistCard> {
   bool _loading = true;
   bool _failed = false;
   bool _showAll = false;
+  bool _open = false; // collapsed by default — tap the header to open
   bool _sending = false; // class-level on purpose: dialogs rebuild
   List<Map<String, dynamic>> _items = [];
   final Map<String, bool> _picked = {};
@@ -2666,7 +2667,7 @@ class _KitChecklistCardState extends State<_KitChecklistCard> {
     final visible = _showAll ? _items : _items.take(6).toList();
     final selectedCount = _selected().length;
     final total = _total();
-    final urls = _loading ? <String>[] : _cartUrls();
+    final urls = (_loading || !_open) ? <String>[] : _cartUrls();
 
     return Container(
       width: double.infinity,
@@ -2683,74 +2684,83 @@ class _KitChecklistCardState extends State<_KitChecklistCard> {
               child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
             )
           : Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Row(children: [
-                Text(widget.icon.isEmpty ? '🧰' : widget.icon,
-                    style: const TextStyle(fontSize: 28)),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Text(widget.name,
-                        style: GoogleFonts.poppins(
-                            fontSize: 15, fontWeight: FontWeight.bold, color: accent)),
-                    Text('${_items.length} items — tick what you need, change quantities',
-                        style: GoogleFonts.poppins(
-                            fontSize: 11, color: Colors.black54, height: 1.4)),
-                  ]),
-                ),
-              ]),
-              const SizedBox(height: 10),
-              for (final m in visible) _row(m),
-              if (_items.length > 6)
-                TextButton(
-                  onPressed: () => setState(() => _showAll = !_showAll),
-                  child: Text(_showAll ? 'Show fewer' : 'Show all ${_items.length} items'),
-                ),
-              const Divider(height: 20),
-              Text(
-                  total > 0
-                      ? '$selectedCount items selected · Estimated total ₹$total'
-                      : '$selectedCount items selected',
-                  style: GoogleFonts.poppins(
-                      fontSize: 13, fontWeight: FontWeight.bold, color: Colors.black87)),
-              const SizedBox(height: 10),
-              if (urls.isEmpty)
-                Text('None of the ticked items have an Amazon link yet — they are best bought locally.',
-                    style: GoogleFonts.poppins(fontSize: 11, color: Colors.black45))
-              else
-                Wrap(spacing: 8, runSpacing: 8, children: [
-                  for (int i = 0; i < urls.length; i++)
-                    ElevatedButton.icon(
-                      onPressed: () => launchUrl(Uri.parse(urls[i]),
-                          mode: LaunchMode.externalApplication),
-                      icon: const Icon(Icons.shopping_cart_outlined, size: 16),
-                      label: Text(
-                          urls.length > 1
-                              ? 'Buy on Amazon — part ${i + 1} of ${urls.length}'
-                              : 'Buy on Amazon',
-                          style: GoogleFonts.poppins(fontSize: 12, fontWeight: FontWeight.bold)),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFFFF9900),
-                        foregroundColor: Colors.white,
-                        elevation: 0,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                      ),
-                    ),
+              InkWell(
+                onTap: () => setState(() => _open = !_open),
+                child: Row(children: [
+                  Text(widget.icon.isEmpty ? '🧰' : widget.icon,
+                      style: const TextStyle(fontSize: 28)),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      Text(widget.name,
+                          style: GoogleFonts.poppins(
+                              fontSize: 15, fontWeight: FontWeight.bold, color: accent)),
+                      Text(
+                          _open
+                              ? '${_items.length} items — tick what you need, change quantities'
+                              : '${_items.length} items — tap to open the list and order',
+                          style: GoogleFonts.poppins(
+                              fontSize: 11, color: Colors.black54, height: 1.4)),
+                    ]),
+                  ),
+                  Icon(_open ? Icons.expand_less : Icons.expand_more, color: accent),
                 ]),
-              const SizedBox(height: 8),
-              OutlinedButton.icon(
-                onPressed: _sending ? null : _sendByEmail,
-                icon: const Icon(Icons.email_outlined, size: 16),
-                label: Text(_sending ? 'Sending…' : 'Send list by email (parent / purchase dept.)',
-                    style: GoogleFonts.poppins(fontSize: 12, fontWeight: FontWeight.bold)),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: accent,
-                  side: BorderSide(color: accent),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                ),
               ),
-              const SizedBox(height: 6),
-              Text('Prices are estimates — please check the current price on Amazon.',
-                  style: GoogleFonts.poppins(fontSize: 10, color: Colors.black38)),
+              if (_open) ...[
+                const SizedBox(height: 10),
+                for (final m in visible) _row(m),
+                if (_items.length > 6)
+                  TextButton(
+                    onPressed: () => setState(() => _showAll = !_showAll),
+                    child: Text(_showAll ? 'Show fewer' : 'Show all ${_items.length} items'),
+                  ),
+                const Divider(height: 20),
+                Text(
+                    total > 0
+                        ? '$selectedCount items selected · Estimated total ₹$total'
+                        : '$selectedCount items selected',
+                    style: GoogleFonts.poppins(
+                        fontSize: 13, fontWeight: FontWeight.bold, color: Colors.black87)),
+                const SizedBox(height: 10),
+                if (urls.isEmpty)
+                  Text('None of the ticked items have an Amazon link yet — they are best bought locally.',
+                      style: GoogleFonts.poppins(fontSize: 11, color: Colors.black45))
+                else
+                  Wrap(spacing: 8, runSpacing: 8, children: [
+                    for (int i = 0; i < urls.length; i++)
+                      ElevatedButton.icon(
+                        onPressed: () => launchUrl(Uri.parse(urls[i]),
+                            mode: LaunchMode.externalApplication),
+                        icon: const Icon(Icons.shopping_cart_outlined, size: 16),
+                        label: Text(
+                            urls.length > 1
+                                ? 'Buy on Amazon — part ${i + 1} of ${urls.length}'
+                                : 'Buy on Amazon',
+                            style: GoogleFonts.poppins(fontSize: 12, fontWeight: FontWeight.bold)),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFFFF9900),
+                          foregroundColor: Colors.white,
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        ),
+                      ),
+                  ]),
+                const SizedBox(height: 8),
+                OutlinedButton.icon(
+                  onPressed: _sending ? null : _sendByEmail,
+                  icon: const Icon(Icons.email_outlined, size: 16),
+                  label: Text(_sending ? 'Sending…' : 'Send list by email (parent / purchase dept.)',
+                      style: GoogleFonts.poppins(fontSize: 12, fontWeight: FontWeight.bold)),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: accent,
+                    side: BorderSide(color: accent),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text('Prices are estimates — please check the current price on Amazon.',
+                    style: GoogleFonts.poppins(fontSize: 10, color: Colors.black38)),
+              ],
             ]),
     );
   }

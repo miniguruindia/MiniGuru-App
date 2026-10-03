@@ -259,9 +259,9 @@ class _CommunityScreenState extends State<CommunityScreen>
   }
 
   static const _tabs = [
-    _Tab('🧪', 'T-LAB'),
-    _Tab('🎯', 'Challenges'),
     _Tab('🏆', 'Ladder'),
+    _Tab('🎯', 'Challenges'),
+    _Tab('🧪', 'T-LAB'),
     _Tab('📦', 'Resources'),
   ];
 
@@ -274,9 +274,9 @@ class _CommunityScreenState extends State<CommunityScreen>
         body: TabBarView(
           controller: _tabController,
           children: [
-            _TLabTab(happenings: _happenings),
-            _ChallengesTab(challenges: _challenges),
             const _LadderTab(),
+            _ChallengesTab(challenges: _challenges),
+            _TLabTab(happenings: _happenings),
             _ResourcesTab(resources: _resources),
           ],
         ),

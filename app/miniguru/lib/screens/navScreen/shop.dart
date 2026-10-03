@@ -36,7 +36,7 @@ class Shop extends StatefulWidget {
 class _ShopState extends State<Shop>
     with AutomaticKeepAliveClientMixin, SingleTickerProviderStateMixin {
 
-  late final TabController _tabCtrl = TabController(length: 2, vsync: this);
+  late final TabController _tabCtrl = TabController(length: 3, vsync: this);
 
   List<Map<String, dynamic>> _all      = [];
   List<Map<String, dynamic>> _filtered = [];
@@ -477,7 +477,8 @@ class _ShopState extends State<Shop>
               indicatorColor: _accent,
               indicatorWeight: 3,
               tabs: [
-                const Tab(text: '🛍️  Browse'),
+                const Tab(text: '🛍️  Shop'),
+                const Tab(text: '🎁  Preset Kits'),
                 Tab(child: Row(mainAxisSize: MainAxisSize.min, children: [
                   const Text('🛒  My Kit'),
                   if (kitCount > 0) ...[
@@ -492,7 +493,7 @@ class _ShopState extends State<Shop>
               ],
             ),
           ),
-          Expanded(child: TabBarView(controller: _tabCtrl, children: [_buildBrowseTab(), _buildKitTab()])),
+          Expanded(child: TabBarView(controller: _tabCtrl, children: [_buildBrowseTab(), _buildPresetKitsTab(), _buildKitTab()])),
         ]),
       ),
     );
@@ -514,6 +515,76 @@ class _ShopState extends State<Shop>
     );
   }
 
+  // Preset kits = the admin-made Collections. A collection that is linked to
+  // the T-LAB / Home Corner Consultancy page also shows here (and vice versa).
+  Widget _buildPresetKitsTab() {
+    if (_loading) return const Center(child: CircularProgressIndicator(color: _accent));
+    if (_collections.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            const Text('🎁', style: TextStyle(fontSize: 56)),
+            const SizedBox(height: 10),
+            Text('No preset kits yet',
+                style: GoogleFonts.nunito(fontSize: 16, fontWeight: FontWeight.w900, color: _ink)),
+            const SizedBox(height: 4),
+            Text('Ready-made kits will appear here.',
+                textAlign: TextAlign.center,
+                style: GoogleFonts.nunito(fontSize: 13, color: _muted)),
+          ]),
+        ),
+      );
+    }
+    return RefreshIndicator(
+      onRefresh: _loadMaterials,
+      color: _accent,
+      child: ListView(
+        padding: const EdgeInsets.fromLTRB(14, 12, 14, 24),
+        children: [
+          Text('Pick a ready-made kit, remove anything you already have, then add it to My Kit.',
+              style: GoogleFonts.nunito(fontSize: 12, color: _muted, height: 1.4)),
+          const SizedBox(height: 10),
+          for (final c in _collections)
+            GestureDetector(
+              onTap: () => _openCollection(c['id'].toString(), (c['name'] ?? '').toString()),
+              child: Container(
+                margin: const EdgeInsets.only(bottom: 10),
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: _orange.withOpacity(0.35)),
+                ),
+                child: Row(children: [
+                  Text((c['icon'] ?? '🧰').toString(), style: const TextStyle(fontSize: 30)),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      Text((c['name'] ?? '').toString(),
+                          style: GoogleFonts.nunito(
+                              fontSize: 14, fontWeight: FontWeight.w900, color: _ink)),
+                      if ((c['description'] ?? '').toString().trim().isNotEmpty)
+                        Text((c['description']).toString(),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: GoogleFonts.nunito(fontSize: 12, color: _muted, height: 1.3)),
+                      const SizedBox(height: 2),
+                      Text(
+                          '${c['itemCount'] ?? 0} items'
+                          '${(c['linkKey'] ?? '').toString() == 'new-lab' ? '  ·  🏫 also on the T-LAB page' : ((c['linkKey'] ?? '').toString() == 'home-corner' ? '  ·  🏠 also on the Home Corner page' : '')}',
+                          style: GoogleFonts.nunito(fontSize: 11, color: _muted)),
+                    ]),
+                  ),
+                  const Icon(Icons.chevron_right_rounded, color: _muted),
+                ]),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildBrowseTab() {
     if (_loading) return const Center(child: CircularProgressIndicator(color: _accent));
     if (_error.isNotEmpty) return Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
@@ -530,7 +601,6 @@ class _ShopState extends State<Shop>
     return RefreshIndicator(
       onRefresh: _loadMaterials, color: _accent,
       child: CustomScrollView(slivers: [
-        if (_collections.isNotEmpty) SliverToBoxAdapter(child: _buildCollectionsRow()),
         if (_cats.isNotEmpty) SliverToBoxAdapter(child: _buildCatRow()),
         SliverToBoxAdapter(child: _buildSearchBar()),
         SliverToBoxAdapter(child: Padding(
