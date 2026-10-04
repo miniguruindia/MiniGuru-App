@@ -37,6 +37,12 @@ function numArg(name: string, def: number): number {
 }
 const SCALE = numArg('--scale', 0.1);
 const MIN = Math.floor(numArg('--min', 5));
+const maxIdx = args.indexOf('--max');
+const MAX = maxIdx >= 0 ? Math.floor(parseFloat(args[maxIdx + 1])) : Number.MAX_SAFE_INTEGER;
+if (!(MAX >= MIN)) {
+  console.error('--max must be a whole number, at least the minimum');
+  process.exit(1);
+}
 if (!(SCALE > 0) || !(MIN >= 1)) {
   console.error('--scale and --min must be numbers above 0 (min at least 1)');
   process.exit(1);
@@ -109,7 +115,7 @@ async function main() {
       if (q === null) {
         status = 'needs review (unit not a clear piece count)';
       } else {
-        proposed = Math.max(MIN, Math.round((m.priceEstimate / q) * SCALE));
+        proposed = Math.min(MAX, Math.max(MIN, Math.round((m.priceEstimate / q) * SCALE)));
         if (current === 10 || ALL) {
           final = proposed;
           status = proposed === current ? 'already right' : 'repriced';

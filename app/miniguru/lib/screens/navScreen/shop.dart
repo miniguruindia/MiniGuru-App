@@ -217,6 +217,21 @@ class _ShopState extends State<Shop>
     return c.isEmpty ? [] : [c];
   }
 
+  // Search text and item names are cleaned the same way (lower-case, brackets /
+  // commas / odd or double spaces turned into single spaces) so a pasted full
+  // name still finds its item instead of showing nothing.
+  String _normSearch(String s) =>
+      s.toLowerCase().replaceAll(RegExp(r'[^\p{L}\p{N}]+', unicode: true), ' ').trim();
+
+  bool _matchesSearch(Map<String, dynamic> m, String q) {
+    if (q.isEmpty) return true;
+    final aliases = ((m['aliases'] as List?) ?? []).map((e) => e.toString()).join(' ');
+    final cats = _matCategories(m).join(' ');
+    final hay = _normSearch('${m['name'] ?? ''} $aliases $cats ${m['amazonASIN'] ?? ''}');
+    if (hay.contains(q)) return true;
+    return q.split(' ').every((t) => t.isEmpty || hay.contains(t));
+  }
+
   void _filter() {
     // A group chip expands to every category it contains; a single-category
     // chip and the group row are mutually exclusive (picking one clears
@@ -229,7 +244,7 @@ class _ShopState extends State<Shop>
       _filtered = _all.where((m) {
         final name = (m['name'] ?? '').toString().toLowerCase();
         final aliases = ((m['aliases'] as List?) ?? []).map((e) => e.toString().toLowerCase());
-        final matchSearch = _search.isEmpty || name.contains(_search) || aliases.any((a) => a.contains(_search));
+        final matchSearch = _search.isEmpty || _matchesSearch(m, _search);
         final mCats = _matCategories(m);
         final matchCat = _selCat.isEmpty || mCats.contains(_selCat);
         final matchGroup = groupCats == null || mCats.any(groupCats.contains);
@@ -703,7 +718,7 @@ class _ShopState extends State<Shop>
             border: InputBorder.none,
             contentPadding: const EdgeInsets.symmetric(vertical: 14),
           ),
-          onChanged: (v) { setState(() => _search = v.toLowerCase()); _filter(); },
+          onChanged: (v) { setState(() => _search = _normSearch(v)); _filter(); },
         ),
       ),
     );

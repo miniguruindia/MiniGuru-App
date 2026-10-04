@@ -109,12 +109,20 @@ class _MaterialPickerSheetState extends State<MaterialPickerSheet> {
   }
 
   // ─── Filter ───────────────────────────────────────────────
+  // Same clean-up as the Shop search: pasted names with extra spaces or
+  // brackets still match.
+  String _normQ(String s) =>
+      s.toLowerCase().replaceAll(RegExp(r'[^\p{L}\p{N}]+', unicode: true), ' ').trim();
+
   void _applyFilter() {
     setState(() {
       _filtered = _allMaterials.where((m) {
         final matchCat    = _activeCategoryId == 'all' || m.categoryId == _activeCategoryId;
-        final matchSearch = _searchQuery.isEmpty ||
-            m.name.toLowerCase().contains(_searchQuery.toLowerCase());
+        final nq = _normQ(_searchQuery);
+        final hay = _normQ('${m.name} ${m.categoryName}');
+        final matchSearch = nq.isEmpty ||
+            hay.contains(nq) ||
+            nq.split(' ').every((t) => t.isEmpty || hay.contains(t));
         return matchCat && matchSearch;
       }).toList();
     });
