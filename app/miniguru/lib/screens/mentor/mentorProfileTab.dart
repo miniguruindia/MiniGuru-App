@@ -14,6 +14,7 @@ import 'package:miniguru/widgets/contactVerificationCard.dart';
 import 'package:miniguru/screens/mentor/submitHappeningScreen.dart';
 import 'package:miniguru/screens/mentor/submitChallengeScreen.dart';
 import 'package:miniguru/screens/about.dart';
+import 'package:miniguru/screens/navScreen/community_screen.dart';
 
 class MentorProfileTab extends StatefulWidget {
   const MentorProfileTab({super.key});
@@ -397,6 +398,24 @@ class _MentorProfileTabState extends State<MentorProfileTab> {
             color: const Color(0xFF60A5FA),
             onTap: () => Navigator.push(context,
                 MaterialPageRoute(builder: (_) => const LegalScreen(initialTab: 1))),
+          ),
+          const SizedBox(height: 10),
+          _actionTile(
+            icon: Icons.groups_outlined,
+            label: 'Community',
+            subtitle: 'Ladder, challenges, T-LAB happenings and resources for children',
+            color: const Color(0xFF8B5CF6),
+            onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                    builder: (_) => Scaffold(
+                          appBar: AppBar(
+                            title: const Text('Community'),
+                            backgroundColor: const Color(0xFF5B6EF5),
+                            foregroundColor: Colors.white,
+                          ),
+                          body: const CommunityScreen(),
+                        ))),
           ),
           const SizedBox(height: 10),
           _actionTile(

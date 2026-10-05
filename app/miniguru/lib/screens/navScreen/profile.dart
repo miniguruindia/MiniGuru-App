@@ -17,6 +17,7 @@ import 'package:miniguru/screens/walletPage.dart';
 import 'package:miniguru/screens/editProfileScreen.dart';
 import 'package:miniguru/widgets/contactVerificationCard.dart';
 import 'package:miniguru/screens/about.dart';
+import 'package:miniguru/screens/navScreen/consultancy.dart';
 
 class Profile extends StatefulWidget {
   const Profile({super.key});
@@ -551,6 +552,20 @@ class _ProfileState extends State<Profile>
                         _tile(Icons.description_outlined, 'Terms & Conditions',
                             const Color(0xFF60A5FA),
                             () => Navigator.push(context, MaterialPageRoute(builder: (_) => const LegalScreen(initialTab: 1)))),
+                        const SizedBox(height: 8),
+                        _tile(Icons.home_work_outlined, 'Set up a Tinkering Corner / T-LAB',
+                            const Color(0xFF34D399),
+                            () => Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                    builder: (_) => Scaffold(
+                                          appBar: AppBar(
+                                            title: const Text('Tinkering Corner & T-LAB'),
+                                            backgroundColor: const Color(0xFF1B5E20),
+                                            foregroundColor: Colors.white,
+                                          ),
+                                          body: const ConsultancyPage(initialService: 2),
+                                        )))),
                         const SizedBox(height: 8),
                         _tile(Icons.info_outline, 'About MiniGuru',
                             const Color(0xFF60A5FA),

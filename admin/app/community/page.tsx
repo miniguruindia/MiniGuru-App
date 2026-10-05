@@ -517,6 +517,8 @@ function StatsResourcesTab() {
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState('')
 
+  const [uploadingIdx, setUploadingIdx] = useState<number | null>(null)
+
   const load = async () => {
     setLoading(true)
     try { setData((await fetchContent('community')) || {}) }
@@ -545,6 +547,30 @@ function StatsResourcesTab() {
     setData({ ...data, resources: next })
   }
   const removeResource = (i: number) => setData({ ...data, resources: resources.filter((_: any, idx: number) => idx !== i) })
+  const uploadResourceFile = async (i: number, files: FileList | null) => {
+    if (!files || files.length === 0) return
+    setUploadingIdx(i)
+    try {
+      const token = await authToken()
+      const fd = new FormData()
+      fd.append('file', files[0])
+      const res = await fetch(`${API_BASE}/admin/cms/consultancy-file`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+        body: fd,
+      })
+      const body = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(body.message || `Upload failed (${res.status})`)
+      const next = [...resources]
+      next[i] = { ...next[i], url: body.url, type: next[i].type || 'PDF' }
+      setData({ ...data, resources: next })
+      setMessage('File uploaded — remember to press Save')
+    } catch (e: any) {
+      setMessage(e.message || 'Upload failed')
+    } finally {
+      setUploadingIdx(null)
+    }
+  }
   const addResource = () => setData({ ...data, resources: [...resources, { id: Date.now().toString(), title: '', type: 'PDF', tag: '', url: '', description: '' }] })
 
   if (loading) {
@@ -606,8 +632,13 @@ function StatsResourcesTab() {
               </div>
             </div>
             <div>
-              <label className="text-xs font-medium text-gray-500">Download URL</label>
+              <label className="text-xs font-medium text-gray-500">Download URL (paste a link, or upload a file below)</label>
               <input className="mt-1 w-full px-3 py-2 border border-gray-200 rounded-lg text-sm" value={r.url || ''} onChange={e => updateResource(i, 'url', e.target.value)} />
+              <label className="inline-flex items-center gap-2 mt-2 text-xs text-blue-600 font-medium cursor-pointer">
+                <Plus className="h-3 w-3" /> {uploadingIdx === i ? 'Uploading…' : 'Upload a PDF / file (up to 15 MB)'}
+                <input type="file" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,image/*" className="hidden" disabled={uploadingIdx !== null}
+                  onChange={e => { uploadResourceFile(i, e.target.files); e.target.value = '' }} />
+              </label>
             </div>
             <div>
               <label className="text-xs font-medium text-gray-500">Description</label>

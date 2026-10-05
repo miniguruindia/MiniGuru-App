@@ -14,6 +14,7 @@ import 'package:miniguru/secrets.dart';
 import 'package:miniguru/screens/loginScreen.dart';
 import 'package:miniguru/screens/registerScreen.dart';
 import 'package:miniguru/screens/addDraftScreen.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class CommunityScreen extends StatefulWidget {
   const CommunityScreen({super.key});
@@ -44,7 +45,7 @@ class _CommunityScreenState extends State<CommunityScreen>
   List<_Challenge> _challenges = _defaultChallenges;
 
   // Resources list — CMS-driven (falls back to hardcoded if CMS empty)
-  List<_Resource> _resources = _defaultResources;
+  List<_Resource> _resources = const <_Resource>[];
 
   @override
   void initState() {
@@ -1613,6 +1614,21 @@ class _ResourcesTab extends StatelessWidget {
           emoji: '📦',
         ),
         const SizedBox(height: 16),
+        if (resources.isEmpty)
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(18),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: const Color(0xFFE8EAFF)),
+            ),
+            child: Text(
+                'New guides and handbooks are on the way — patent how-tos, '
+                'competition dates and more. Check back soon! 📚',
+                style: GoogleFonts.nunito(
+                    fontSize: 13, color: const Color(0xFF6B6B8A), height: 1.5)),
+          ),
         ...resources.map((r) => Padding(
               padding: const EdgeInsets.only(bottom: 10),
               child: _ResourceCard(r: r),
@@ -1700,7 +1716,15 @@ class _ResourceCard extends StatelessWidget {
         ),
         const SizedBox(width: 8),
         GestureDetector(
-          onTap: () => Navigator.pushNamed(context, LoginScreen.id),
+          onTap: () {
+            final u = r.url.trim();
+            if (u.isEmpty) {
+              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                  content: Text('This file is coming soon — check back later!')));
+              return;
+            }
+            launchUrl(Uri.parse(u), mode: LaunchMode.externalApplication);
+          },
           child: Container(
             width: 36, height: 36,
             decoration: BoxDecoration(

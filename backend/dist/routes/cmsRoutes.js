@@ -26,11 +26,7 @@ exports.DEFAULTS = {
             { id: '1', title: 'Solar Car Challenge', category: 'Engineering', difficulty: 'Medium', goinsReward: 200, endDate: '2025-04-30', status: 'ongoing', description: 'Build a solar-powered vehicle using the kit provided.' },
             { id: '2', title: 'Robotics Blitz', category: 'Robotics', difficulty: 'Hard', goinsReward: 350, endDate: '2025-05-15', status: 'upcoming', description: 'Program a robot to navigate an obstacle course.' },
         ],
-        resources: [
-            { id: '1', title: 'Getting Started with Electronics', type: 'PDF', tag: 'Beginner', url: '', description: 'A friendly intro to circuits, components and safety.' },
-            { id: '2', title: 'Project Planning Template', type: 'DOC', tag: 'Tool', url: '', description: 'Plan your next project step by step.' },
-            { id: '3', title: 'MiniGuru Mentor Handbook', type: 'PDF', tag: 'Mentor', url: '', description: 'For teachers and parents guiding young makers.' },
-        ],
+        resources: [],
         ladder: {
             // Mirrors backend/src/utils/levelSystem.ts LEVELS — see that file for
             // the single source of truth. Kept here too since this key is still
