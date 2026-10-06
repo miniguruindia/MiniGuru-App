@@ -18,6 +18,7 @@ import prisma from '../utils/prismaClient';
 import { searchAmazonProducts, getAmazonItems, buildAffiliateUrl } from './amazonProductService';
 import { refineSearchQuery, verifyImageMatch } from './materialSearchAssistService';
 import { deleteMaterialImage } from './firebaseStorageService';
+import { autoGoinsFor } from '../utils/goinsPricing';
 
 const SCAN_DELAY_MS = 1100; // conservative spacing between Amazon calls
 const SCAN_TIME_BUDGET_MS = 8 * 60 * 1000; // stay well under Cloud Run's 600s timeout
@@ -221,7 +222,10 @@ export async function runPhotoAudit(limit: number = 100): Promise<{ checked: num
   const materials = await prisma.material.findMany({
     where: { amazonASIN: { not: null }, isActive: true },
     take: limit,
-    orderBy: { amazonLastCheckedAt: 'asc' },
+    // Rotation: least recently PHOTO-checked first (never-checked first), and
+    // every item looked at is stamped below, so the next run moves on to the
+    // next lot instead of re-checking the same ones.
+    orderBy: { photoCheckedAt: 'asc' } as any,
   });
 
   for (let i = 0; i < materials.length; i += 10) {
@@ -237,6 +241,11 @@ export async function runPhotoAudit(limit: number = 100): Promise<{ checked: num
       break;
     }
     const byAsin = new Map(result.results.map((r) => [r.asin, r]));
+
+    await prisma.material.updateMany({
+      where: { id: { in: batch.map((m) => m.id) } },
+      data: { photoCheckedAt: new Date() } as any,
+    });
 
     for (const material of batch) {
       checked += 1;
@@ -310,6 +319,28 @@ export async function runAmazonRefreshCheck(limit: number = 50): Promise<Refresh
         reason = `Price auto-updated from ₹${oldPrice} to ₹${live.priceRupees} by the daily Amazon refresh on ${new Date().toLocaleDateString()}.`;
       }
 
+      // Oct 2026: also fill the pack size from the Amazon title (only while
+      // the unit is still the default "piece"), refresh an empty or
+      // automatically-filled description, and keep the Goins value in line
+      // with the Amazon price unless an admin has locked it.
+      const extra: any = {};
+      const m: any = material;
+      if (live) {
+        if (live.extractedUnit && (!m.unit || m.unit === 'piece')) extra.unit = live.extractedUnit;
+        const nextDesc = (live.title || '').trim().slice(0, 200);
+        if (nextDesc && (!m.description || m.descriptionAuto === true) && nextDesc !== m.description) {
+          extra.description = nextDesc;
+          extra.descriptionAuto = true;
+        }
+      }
+      if (m.goinsLocked !== true && (priceUpdate !== undefined || extra.unit !== undefined)) {
+        const auto = autoGoinsFor(
+          priceUpdate !== undefined ? priceUpdate : m.priceEstimate,
+          extra.unit !== undefined ? extra.unit : m.unit
+        );
+        if (auto !== null && auto !== m.goinsPrice) extra.goinsPrice = auto;
+      }
+
       await prisma.material.update({
         where: { id: material.id },
         data: {
@@ -317,6 +348,7 @@ export async function runAmazonRefreshCheck(limit: number = 50): Promise<Refresh
           amazonAttentionReason: reason,
           amazonLastCheckedAt: new Date(),
           ...(priceUpdate !== undefined ? { priceEstimate: priceUpdate } : {}),
+          ...extra,
         },
       });
 
@@ -357,6 +389,13 @@ export async function approveAmazonSuggestion(
     amazonLastCheckedAt: new Date(),
   };
   if (suggestion.suggestedPriceRupees != null) data.priceEstimate = suggestion.suggestedPriceRupees;
+  if ((material as any).goinsLocked !== true) {
+    const auto = autoGoinsFor(
+      suggestion.suggestedPriceRupees != null ? suggestion.suggestedPriceRupees : material.priceEstimate,
+      material.unit
+    );
+    if (auto !== null) data.goinsPrice = auto;
+  }
   // The one place forceImage is allowed to override an existing photo
   // (see doc comment above). When it does replace one, the OLD photo —
   // if it was ever a Firebase-hosted file rather than an external link —

@@ -10,6 +10,7 @@ const authMiddleware_1 = require("../middleware/authMiddleware");
 const firebaseStorageService_1 = require("../services/firebaseStorageService");
 const amazonProductService_1 = require("../services/amazonProductService");
 const materialSearchAssistService_1 = require("../services/materialSearchAssistService");
+const goinsPricing_1 = require("../utils/goinsPricing");
 const amazonSuggestionService_1 = require("../services/amazonSuggestionService");
 const router = (0, express_1.Router)();
 // Memory storage (not disk) — we hand the buffer straight to Firebase
@@ -68,6 +69,7 @@ function toFlutterShape(m) {
         showInShop: m.showInShop,
         showInPlanning: m.showInPlanning,
         amazonNeedsAttention: m.amazonNeedsAttention || false,
+        goinsLocked: m.goinsLocked === true,
         amazonAttentionReason: m.amazonAttentionReason || null,
         amazonLastCheckedAt: m.amazonLastCheckedAt,
         createdAt: m.createdAt,
@@ -573,6 +575,35 @@ router.put('/admin/:id', authMiddleware_1.authenticateToken, requireAdmin, async
             data.amazonAttentionReason = null;
             data.amazonLastCheckedAt = new Date();
         }
+        // ── Automatic Goins (Oct 2026) ──────────────────────────────────────────
+        // A Goins value an admin types always wins and locks the item. If the
+        // admin leaves Goins alone while changing the price / unit / ASIN and the
+        // item is not locked, the agreed formula recalculates it.
+        if ('goinsPrice' in body || 'goinsLocked' in body || 'priceEstimate' in body || 'unit' in body || 'amazonASIN' in body || 'description' in body) {
+            const prev = await prismaClient_1.default.material.findUnique({
+                where: { id },
+                select: { goinsPrice: true, priceEstimate: true, unit: true, description: true, goinsLocked: true },
+            });
+            if (prev) {
+                const changedByAdmin = 'goinsPrice' in body && Number(body.goinsPrice) !== prev.goinsPrice;
+                let locked = prev.goinsLocked === true;
+                if ('goinsLocked' in body)
+                    locked = body.goinsLocked === true;
+                else if (changedByAdmin)
+                    locked = true;
+                data.goinsLocked = locked;
+                if (!locked) {
+                    const nextPrice = 'priceEstimate' in body ? data.priceEstimate : prev.priceEstimate;
+                    const nextUnit = 'unit' in body ? data.unit : prev.unit;
+                    const auto = (0, goinsPricing_1.autoGoinsFor)(nextPrice, nextUnit);
+                    if (auto !== null)
+                        data.goinsPrice = auto;
+                }
+                if ('description' in body && (body.description || null) !== (prev.description || null)) {
+                    data.descriptionAuto = false; // a person wrote it — never auto-overwrite
+                }
+            }
+        }
         console.log('[PUT /admin/:id] data to save:', data);
         const updated = await prismaClient_1.default.material.update({ where: { id }, data });
         console.log('[PUT /admin/:id] saved amazonASIN:', updated.amazonASIN);
@@ -818,6 +849,14 @@ router.post('/admin/:id/link-amazon', authMiddleware_1.authenticateToken, requir
         if (description && String(description).trim()) {
             data.description = String(description).trim();
         }
+        if (data.description)
+            data.descriptionAuto = true; // filled from the Amazon title
+        // Automatic Goins from the (new) price and pack size, unless locked.
+        if (existing.goinsLocked !== true) {
+            const auto = (0, goinsPricing_1.autoGoinsFor)(data.priceEstimate !== undefined ? data.priceEstimate : existing.priceEstimate, data.unit !== undefined ? data.unit : existing.unit);
+            if (auto !== null)
+                data.goinsPrice = auto;
+        }
         // Same as the manual PUT path — a fresh link clears any stale flag.
         data.amazonNeedsAttention = false;
         data.amazonAttentionReason = null;
@@ -916,7 +955,7 @@ router.post('/admin/amazon-refresh/run', async (req, res) => {
         // Not the scheduler — fall back to requiring a real admin login.
         return (0, authMiddleware_1.authenticateToken)(req, res, () => requireAdmin(req, res, async () => {
             try {
-                const summary = await (0, amazonSuggestionService_1.runAmazonRefreshCheck)(Math.min(Math.max(parseInt(req.body?.limit, 10) || 50, 1), 200));
+                const summary = await (0, amazonSuggestionService_1.runAmazonRefreshCheck)(Math.min(Math.max(parseInt(req.body?.limit, 10) || 100, 1), 500));
                 res.json(summary);
             }
             catch (err) {
@@ -926,7 +965,7 @@ router.post('/admin/amazon-refresh/run', async (req, res) => {
         }));
     }
     try {
-        const summary = await (0, amazonSuggestionService_1.runAmazonRefreshCheck)(100);
+        const summary = await (0, amazonSuggestionService_1.runAmazonRefreshCheck)(300);
         res.json(summary);
     }
     catch (err) {
@@ -953,7 +992,7 @@ router.get('/admin/amazon-needs-attention', authMiddleware_1.authenticateToken, 
 // decide whether to download and replace.
 router.post('/admin/amazon-photo-audit', authMiddleware_1.authenticateToken, requireAdmin, async (req, res) => {
     try {
-        const limit = Math.min(Math.max(parseInt(req.body?.limit, 10) || 100, 1), 300);
+        const limit = Math.min(Math.max(parseInt(req.body?.limit, 10) || 200, 1), 500);
         const result = await (0, amazonSuggestionService_1.runPhotoAudit)(limit);
         res.json(result);
     }

@@ -39,7 +39,7 @@ async function authToken() {
 }
 
 const EMPTY_MAT = {
-  name: '', description: '', goinsPrice: '', unit: 'piece',
+  name: '', description: '', goinsPrice: '', goinsAuto: true, unit: 'piece',
   icon: '', category: '', priceEstimate: '', amazonASIN: '', imageUrl: '',
   showInShop: true, showInPlanning: true,
   categories: [] as string[], aliases: '',
@@ -1167,6 +1167,7 @@ function MaterialsPageInner() {
       name: m.name,
       description: m.description || '',
       goinsPrice: String(m.goinsPrice),
+      goinsAuto: !((m as any).goinsLocked === true),
       unit: m.unit || 'piece',
       icon: m.icon || '',
       category: m.category || '',
@@ -1217,6 +1218,7 @@ function MaterialsPageInner() {
         name:           form.name.trim(),
         description:    form.description || null,
         goinsPrice:     Number(form.goinsPrice),
+        goinsLocked:    !form.goinsAuto,
         unit:           form.unit,
         icon:           form.icon || null,
         category:       form.categories[0].trim(),   // primary = first
@@ -1715,8 +1717,12 @@ function MaterialsPageInner() {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Goins cost *</label>
-                  <input type="number" min={1} value={form.goinsPrice} onChange={e => setForm(f => ({...f, goinsPrice: e.target.value}))}
+                  <input type="number" min={1} value={form.goinsPrice} onChange={e => setForm(f => ({...f, goinsPrice: e.target.value, goinsAuto: false}))}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400" />
+                  <label className="flex items-start gap-2 mt-1 text-xs text-gray-500 cursor-pointer">
+                    <input type="checkbox" checked={form.goinsAuto} onChange={e => setForm(f => ({...f, goinsAuto: e.target.checked}))} className="mt-0.5" />
+                    <span>Set Goins automatically from the Amazon price (Rs 10 = 1 Goin, min 5). Typing a value yourself turns this off and locks your number.</span>
+                  </label>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">₹ Price estimate</label>

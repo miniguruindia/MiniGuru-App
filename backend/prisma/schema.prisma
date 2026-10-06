@@ -575,6 +575,14 @@ model Material {
   amazonNeedsAttention Boolean   @default(false)
   amazonAttentionReason String?
   amazonLastCheckedAt   DateTime?
+  // Oct 2026: true = an admin typed the Goins value by hand, so the automatic
+  // Amazon-price formula must never change it.
+  goinsLocked           Boolean   @default(false)
+  // true = description was filled from the Amazon title (safe to refresh);
+  // false = typed by a person (never overwritten).
+  descriptionAuto       Boolean   @default(false)
+  // Last time the photo check looked at this item (rotation).
+  photoCheckedAt        DateTime?
 
   // ── Shop/catalog upgrade (Sept 2026) ──────────────────────────────
   // Additive on purpose — every existing reader of `category`/`imageUrl`

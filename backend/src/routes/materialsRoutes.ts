@@ -5,6 +5,7 @@ import { authenticateToken } from '../middleware/authMiddleware';
 import { uploadMaterialImage, deleteMaterialImage } from '../services/firebaseStorageService';
 import { searchAmazonProducts, buildAffiliateUrl } from '../services/amazonProductService';
 import { refineSearchQuery } from '../services/materialSearchAssistService';
+import { autoGoinsFor } from '../utils/goinsPricing';
 import {
   runAmazonSuggestionScan,
   runAmazonRefreshCheck,
@@ -73,6 +74,7 @@ function toFlutterShape(m: any) {
     showInShop: m.showInShop,
     showInPlanning: m.showInPlanning,
     amazonNeedsAttention: m.amazonNeedsAttention || false,
+    goinsLocked: m.goinsLocked === true,
     amazonAttentionReason: m.amazonAttentionReason || null,
     amazonLastCheckedAt: m.amazonLastCheckedAt,
     createdAt: m.createdAt,
@@ -563,6 +565,33 @@ router.put('/admin/:id', authenticateToken, requireAdmin, async (req: any, res: 
       data.amazonLastCheckedAt = new Date();
     }
 
+    // ── Automatic Goins (Oct 2026) ──────────────────────────────────────────
+    // A Goins value an admin types always wins and locks the item. If the
+    // admin leaves Goins alone while changing the price / unit / ASIN and the
+    // item is not locked, the agreed formula recalculates it.
+    if ('goinsPrice' in body || 'goinsLocked' in body || 'priceEstimate' in body || 'unit' in body || 'amazonASIN' in body || 'description' in body) {
+      const prev: any = await prisma.material.findUnique({
+        where: { id },
+        select: { goinsPrice: true, priceEstimate: true, unit: true, description: true, goinsLocked: true } as any,
+      });
+      if (prev) {
+        const changedByAdmin = 'goinsPrice' in body && Number(body.goinsPrice) !== prev.goinsPrice;
+        let locked = prev.goinsLocked === true;
+        if ('goinsLocked' in body) locked = body.goinsLocked === true;
+        else if (changedByAdmin) locked = true;
+        data.goinsLocked = locked;
+        if (!locked) {
+          const nextPrice = 'priceEstimate' in body ? data.priceEstimate : prev.priceEstimate;
+          const nextUnit = 'unit' in body ? data.unit : prev.unit;
+          const auto = autoGoinsFor(nextPrice, nextUnit);
+          if (auto !== null) data.goinsPrice = auto;
+        }
+        if ('description' in body && (body.description || null) !== (prev.description || null)) {
+          data.descriptionAuto = false; // a person wrote it — never auto-overwrite
+        }
+      }
+    }
+
     console.log('[PUT /admin/:id] data to save:', data);
 
     const updated = await prisma.material.update({ where: { id }, data });
@@ -827,6 +856,15 @@ router.post('/admin/:id/link-amazon', authenticateToken, requireAdmin, async (re
     if (description && String(description).trim()) {
       data.description = String(description).trim();
     }
+    if (data.description) data.descriptionAuto = true; // filled from the Amazon title
+    // Automatic Goins from the (new) price and pack size, unless locked.
+    if ((existing as any).goinsLocked !== true) {
+      const auto = autoGoinsFor(
+        data.priceEstimate !== undefined ? data.priceEstimate : existing.priceEstimate,
+        data.unit !== undefined ? data.unit : existing.unit
+      );
+      if (auto !== null) data.goinsPrice = auto;
+    }
     // Same as the manual PUT path — a fresh link clears any stale flag.
     data.amazonNeedsAttention = false;
     data.amazonAttentionReason = null;
@@ -928,7 +966,7 @@ router.post('/admin/amazon-refresh/run', async (req: any, res: any) => {
     return authenticateToken(req, res, () =>
       requireAdmin(req, res, async () => {
         try {
-          const summary = await runAmazonRefreshCheck(Math.min(Math.max(parseInt(req.body?.limit, 10) || 50, 1), 200));
+          const summary = await runAmazonRefreshCheck(Math.min(Math.max(parseInt(req.body?.limit, 10) || 100, 1), 500));
           res.json(summary);
         } catch (err) {
           console.error('[materials] POST /admin/amazon-refresh/run error:', err);
@@ -938,7 +976,7 @@ router.post('/admin/amazon-refresh/run', async (req: any, res: any) => {
     );
   }
   try {
-    const summary = await runAmazonRefreshCheck(100);
+    const summary = await runAmazonRefreshCheck(300);
     res.json(summary);
   } catch (err) {
     console.error('[materials] POST /admin/amazon-refresh/run (scheduler) error:', err);
@@ -965,7 +1003,7 @@ router.get('/admin/amazon-needs-attention', authenticateToken, requireAdmin, asy
 // decide whether to download and replace.
 router.post('/admin/amazon-photo-audit', authenticateToken, requireAdmin, async (req: any, res: any) => {
   try {
-    const limit = Math.min(Math.max(parseInt(req.body?.limit, 10) || 100, 1), 300);
+    const limit = Math.min(Math.max(parseInt(req.body?.limit, 10) || 200, 1), 500);
     const result = await runPhotoAudit(limit);
     res.json(result);
   } catch (err) {
