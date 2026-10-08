@@ -351,6 +351,7 @@ model Project {
   // across owner + collaborators) — see publishAndAwardProject().
   challengeId            String?   @db.ObjectId
   challengeGoinsAwarded   Int?      // audit trail — set once, at approval
+  goinsSpent              Int?      // total Goins charged for materials at upload (Oct 2026)
   createdAt   DateTime          @default(now())
   updatedAt   DateTime          @updatedAt
 

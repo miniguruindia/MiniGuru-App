@@ -736,6 +736,37 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
             ),
             const SizedBox(height: 24.0),
 
+            // Goins spent / earned (from the server; hidden until it loads)
+            if (_liveDetail != null) ...[
+              SizedBox(
+                width: double.infinity,
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: _buildInfoCard(
+                        icon: Icons.remove_circle_outline,
+                        label: "Goins spent on materials",
+                        value: "${(_liveDetail?['goinsSpent'] as num?)?.toInt() ?? 0} Goins",
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: _buildInfoCard(
+                        icon: Icons.emoji_events_outlined,
+                        label: "Goins earned",
+                        value: (((_liveDetail?['goinsEarned'] as num?)?.toInt() ?? 0) +
+                                    ((_liveDetail?['goinsFromRatings'] as num?)?.toInt() ?? 0)) >
+                                0
+                            ? "${((_liveDetail?['goinsEarned'] as num?)?.toInt() ?? 0) + ((_liveDetail?['goinsFromRatings'] as num?)?.toInt() ?? 0)} Goins"
+                            : "After approval",
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 24.0),
+            ],
+
             // Materials Used Section
             Text(
               "Materials Used",

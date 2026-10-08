@@ -1355,13 +1355,13 @@ class _AddDraftScreenState extends State<AddDraftScreen>
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisSize:       MainAxisSize.min,
                   children: [
-                    Text('Materials selected',
+                    Text('Materials selected · Goins cost',
                         style: GoogleFonts.nunito(
                             color: _muted, fontSize: 11)),
                     Text(
                       _pickedMaterials.isEmpty
                           ? 'None yet'
-                          : '${_pickedMaterials.length} item${_pickedMaterials.length > 1 ? 's' : ''}',
+                          : '${_pickedMaterials.length} item${_pickedMaterials.length > 1 ? 's' : ''} · ${_pickedMaterials.fold<int>(0, (s, m) => s + m.totalGoins)} Goins',
                       style: GoogleFonts.nunito(
                           color:      _blue,
                           fontSize:   13,

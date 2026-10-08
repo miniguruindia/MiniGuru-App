@@ -328,6 +328,10 @@ export const createProject = async (req: Request, res: Response) => {
         );
 
         if (totalCost > 0) {
+          // Remember what was spent so the project page can show it (Oct 2026).
+          await prisma.project
+            .update({ where: { id: project.id }, data: { goinsSpent: totalCost } as any })
+            .catch(() => {});
           // BUGFIX (Aug 2026): this used to charge the FULL material cost
           // to the owner alone, even when the project had real collaborators
           // — inconsistent with publishAndAwardProject's approval-time award,
@@ -855,8 +859,49 @@ export const getProjectById = async (req: Request, res: Response) => {
   const { id } = req.params;
 
   try {
-    const project = await projectService.getById(userId, id);
-    res.json(project);
+    const project: any = await projectService.getById(userId, id);
+
+    // Goins summary for the project page (best-effort: if anything here fails
+    // the project is still returned exactly as before).
+    let goinsSpent: number | null = null;
+    let goinsEarned = 0;
+    let goinsFromRatings = 0;
+    try {
+      if (typeof project.goinsSpent === 'number') {
+        goinsSpent = project.goinsSpent;
+      } else {
+        const mats: any[] = Array.isArray(project.materials) ? project.materials : [];
+        const ids = mats.map((m) => m.productId).filter(Boolean);
+        if (ids.length > 0) {
+          const recs = await prisma.material.findMany({
+            where: { id: { in: ids } },
+            select: { id: true, goinsPrice: true },
+          });
+          const price = new Map<string, number>(
+            recs.map((r: any) => [String(r.id), Number(r.goinsPrice) || 0] as [string, number])
+          );
+          goinsSpent = mats.reduce(
+            (s: number, m: any) => s + (price.get(String(m.productId)) || 0) * (Number(m.quantity) || 0),
+            0
+          );
+        } else {
+          goinsSpent = 0;
+        }
+      }
+      const groups: any[] = await (prisma as any).goinsEvent.groupBy({
+        by: ['source'],
+        where: { projectId: id },
+        _sum: { amount: true },
+      });
+      for (const g of groups) {
+        if (g.source === 'PROJECT_APPROVAL') goinsEarned += g._sum?.amount || 0;
+        if (g.source === 'PEER_RATING') goinsFromRatings += g._sum?.amount || 0;
+      }
+    } catch (e) {
+      console.warn('[getProjectById] goins summary skipped:', (e as Error).message);
+    }
+
+    res.json({ ...project, goinsSpent, goinsEarned, goinsFromRatings });
   } catch (error) {
     if (error instanceof NotFoundError) {
       return res.status(404).json({ error: error.message });

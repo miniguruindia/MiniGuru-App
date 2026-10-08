@@ -312,6 +312,10 @@ const createProject = async (req, res) => {
                 const priceMap = new Map(materialRecords.map((m) => [m.id, m.goinsPrice]));
                 const totalCost = parsedMaterials.reduce((sum, m) => sum + (priceMap.get(m.id) ?? 0) * m.quantity, 0);
                 if (totalCost > 0) {
+                    // Remember what was spent so the project page can show it (Oct 2026).
+                    await prismaClient_1.default.project
+                        .update({ where: { id: project.id }, data: { goinsSpent: totalCost } })
+                        .catch(() => { });
                     // BUGFIX (Aug 2026): this used to charge the FULL material cost
                     // to the owner alone, even when the project had real collaborators
                     // — inconsistent with publishAndAwardProject's approval-time award,
@@ -794,7 +798,46 @@ const getProjectById = async (req, res) => {
     const { id } = req.params;
     try {
         const project = await projectService.getById(userId, id);
-        res.json(project);
+        // Goins summary for the project page (best-effort: if anything here fails
+        // the project is still returned exactly as before).
+        let goinsSpent = null;
+        let goinsEarned = 0;
+        let goinsFromRatings = 0;
+        try {
+            if (typeof project.goinsSpent === 'number') {
+                goinsSpent = project.goinsSpent;
+            }
+            else {
+                const mats = Array.isArray(project.materials) ? project.materials : [];
+                const ids = mats.map((m) => m.productId).filter(Boolean);
+                if (ids.length > 0) {
+                    const recs = await prismaClient_1.default.material.findMany({
+                        where: { id: { in: ids } },
+                        select: { id: true, goinsPrice: true },
+                    });
+                    const price = new Map(recs.map((r) => [String(r.id), Number(r.goinsPrice) || 0]));
+                    goinsSpent = mats.reduce((s, m) => s + (price.get(String(m.productId)) || 0) * (Number(m.quantity) || 0), 0);
+                }
+                else {
+                    goinsSpent = 0;
+                }
+            }
+            const groups = await prismaClient_1.default.goinsEvent.groupBy({
+                by: ['source'],
+                where: { projectId: id },
+                _sum: { amount: true },
+            });
+            for (const g of groups) {
+                if (g.source === 'PROJECT_APPROVAL')
+                    goinsEarned += g._sum?.amount || 0;
+                if (g.source === 'PEER_RATING')
+                    goinsFromRatings += g._sum?.amount || 0;
+            }
+        }
+        catch (e) {
+            console.warn('[getProjectById] goins summary skipped:', e.message);
+        }
+        res.json({ ...project, goinsSpent, goinsEarned, goinsFromRatings });
     }
     catch (error) {
         if (error instanceof error_1.NotFoundError) {
