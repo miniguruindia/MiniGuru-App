@@ -82,7 +82,7 @@ class _MaterialPickerSheetState extends State<MaterialPickerSheet> {
     setState(() {
       _categories   = cats;
       _allMaterials = mats;
-      _filtered     = mats;
+      _filtered     = _collapseVariants(mats);
       _loading      = false;
     });
   }
@@ -116,7 +116,7 @@ class _MaterialPickerSheetState extends State<MaterialPickerSheet> {
 
   void _applyFilter() {
     setState(() {
-      _filtered = _allMaterials.where((m) {
+      _filtered = _collapseVariants(_allMaterials.where((m) {
         final matchCat    = _activeCategoryId == 'all' || m.categoryId == _activeCategoryId;
         final nq = _normQ(_searchQuery);
         final hay = _normQ('${m.name} ${m.categoryName}');
@@ -124,8 +124,118 @@ class _MaterialPickerSheetState extends State<MaterialPickerSheet> {
             hay.contains(nq) ||
             nq.split(' ').every((t) => t.isEmpty || hay.contains(t));
         return matchCat && matchSearch;
-      }).toList();
+      }).toList());
     });
+  }
+
+  // ── Variants (Oct 2026) ───────────────────────────────────────────────
+  // Items with `variantOf` set are options under a main item: one card per
+  // group, a search hit on any option shows its main item.
+  List<MaterialItem> _collapseVariants(List<MaterialItem> hits) {
+    final byId = {for (final m in _allMaterials) m.id: m};
+    final out = <MaterialItem>[];
+    final seen = <String>{};
+    for (final m in hits) {
+      final parent = m.variantOf ?? '';
+      final shown = (parent.isNotEmpty && byId.containsKey(parent)) ? byId[parent]! : m;
+      if (seen.add(shown.id)) out.add(shown);
+    }
+    return out;
+  }
+
+  List<MaterialItem> _optionsFor(MaterialItem head) =>
+      [head, ..._allMaterials.where((m) => m.variantOf == head.id)];
+
+  void _openVariantSheet(MaterialItem head) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (ctx) => StatefulBuilder(builder: (ctx, setSheet) {
+        final options = _optionsFor(head);
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+              Container(width: 40, height: 4,
+                  decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2))),
+              const SizedBox(height: 12),
+              Align(alignment: Alignment.centerLeft,
+                child: Text(head.name,
+                    style: GoogleFonts.nunito(fontSize: 17, fontWeight: FontWeight.w900, color: _ink))),
+              const SizedBox(height: 2),
+              Align(alignment: Alignment.centerLeft,
+                child: Text('Tick the option you want — they all cost the same.',
+                    style: GoogleFonts.nunito(fontSize: 12, color: _muted))),
+              const SizedBox(height: 8),
+              Flexible(
+                child: ListView(shrinkWrap: true, children: [
+                  for (final o in options) _variantRow(o, setSheet),
+                ]),
+              ),
+              const SizedBox(height: 8),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: _blue, foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  child: Text('Done', style: GoogleFonts.nunito(fontWeight: FontWeight.w800)),
+                ),
+              ),
+            ]),
+          ),
+        );
+      }),
+    );
+  }
+
+  Widget _variantRow(MaterialItem o, StateSetter setSheet) {
+    final qty = _quantities[o.id] ?? 0;
+    final ticked = qty > 0;
+    final hasImage = o.imageUrl != null && o.imageUrl!.isNotEmpty;
+    void toggle(bool on) => setSheet(() {
+          if (on) { _setQty(o.id, 1); } else { _setQty(o.id, -qty); }
+        });
+    return InkWell(
+      onTap: () => toggle(!ticked),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 6),
+        child: Row(children: [
+          Checkbox(value: ticked, activeColor: _blue, onChanged: (v) => toggle(v == true)),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: Container(width: 44, height: 44, color: const Color(0xFFF8F9FF),
+              child: hasImage
+                  ? Image.network(o.imageUrl!, fit: BoxFit.contain,
+                      errorBuilder: (_, __, ___) => const Center(child: Text('📦', style: TextStyle(fontSize: 22))))
+                  : const Center(child: Text('📦', style: TextStyle(fontSize: 22)))),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(o.name, maxLines: 2, overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.nunito(fontSize: 13, fontWeight: FontWeight.w800, color: _ink)),
+              Text('🪙 ${o.goinsPerUnit} Goins /${o.unit}',
+                  style: GoogleFonts.nunito(fontSize: 11, fontWeight: FontWeight.w700, color: const Color(0xFFB45309))),
+            ]),
+          ),
+          if (ticked)
+            Row(mainAxisSize: MainAxisSize.min, children: [
+              _qtyButton(Icons.remove, () => setSheet(() => _setQty(o.id, -1)), enabled: true),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                child: Text('$qty', style: GoogleFonts.nunito(color: _ink, fontSize: 14, fontWeight: FontWeight.bold)),
+              ),
+              _qtyButton(Icons.add, () => setSheet(() => _setQty(o.id, 1)), enabled: true),
+            ]),
+        ]),
+      ),
+    );
   }
 
   void _setCategory(String id) {
@@ -490,7 +600,11 @@ class _MaterialPickerSheetState extends State<MaterialPickerSheet> {
   }
 
   Widget _buildMaterialCard(MaterialItem mat) {
-    final qty      = _quantities[mat.id] ?? 0;
+    final options  = _optionsFor(mat);
+    final isGroup  = options.length > 1;
+    final qty      = isGroup
+        ? options.fold<int>(0, (s, o) => s + (_quantities[o.id] ?? 0))
+        : (_quantities[mat.id] ?? 0);
     final selected = qty > 0;
     final hasImage = mat.imageUrl != null && mat.imageUrl!.isNotEmpty;
 
@@ -560,9 +674,10 @@ class _MaterialPickerSheetState extends State<MaterialPickerSheet> {
                 ]),
 
                 // Unit
-                Text('/${mat.unit}',
+                Text('🪙 ${mat.goinsPerUnit} Goins /${mat.unit}',
                     style: GoogleFonts.nunito(
-                        color: _muted, fontSize: 9)),
+                        color: const Color(0xFFB45309), fontSize: 10, fontWeight: FontWeight.w700),
+                    maxLines: 1, overflow: TextOverflow.ellipsis),
 
                 const SizedBox(height: 6),
 
@@ -571,7 +686,24 @@ class _MaterialPickerSheetState extends State<MaterialPickerSheet> {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     const SizedBox(width: 0),
-                    Row(children: [
+                    isGroup
+                        ? GestureDetector(
+                            onTap: () => _openVariantSheet(mat),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                              decoration: BoxDecoration(
+                                  color: _blue, borderRadius: BorderRadius.circular(8)),
+                              child: Text(
+                                  qty > 0
+                                      ? 'Chosen: $qty · ${options.length} options'
+                                      : 'Choose · ${options.length} options',
+                                  style: GoogleFonts.nunito(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w800,
+                                      color: Colors.white)),
+                            ),
+                          )
+                        : Row(children: [
                       _qtyButton(Icons.remove,
                           () => _setQty(mat.id, -1),
                           enabled: qty > 0),

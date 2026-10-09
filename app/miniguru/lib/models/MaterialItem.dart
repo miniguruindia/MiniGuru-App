@@ -16,6 +16,7 @@ class MaterialItem {
   final String? amazonUrl;
   final String? icon;
   final bool isAvailable;
+  final String? variantOf;   // id of the main item when this is a variant
 
   const MaterialItem({
     required this.id,
@@ -28,6 +29,7 @@ class MaterialItem {
     this.amazonUrl,
     this.icon,
     this.isAvailable = true,
+    this.variantOf,
   });
 
   factory MaterialItem.fromJson(Map<String, dynamic> json) {
@@ -44,6 +46,7 @@ class MaterialItem {
       amazonUrl: json['amazonUrl'],
       icon: json['icon'],
       isAvailable: json['isAvailable'] ?? json['isActive'] ?? true,
+      variantOf: (json['variantOf'] ?? '').toString().isEmpty ? null : json['variantOf'].toString(),
     );
   }
 
