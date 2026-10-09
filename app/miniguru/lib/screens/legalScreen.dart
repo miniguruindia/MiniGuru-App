@@ -53,6 +53,7 @@ MiniGuru is built for children. Protecting their privacy is our highest responsi
 - **Project content** — photos and videos uploaded by the child
 - **Usage data** — screens visited, features used (for personalisation)
 - **Profile photo** — optional, stored securely
+- **Photo search (optional)** — if a child uses "Search with a photo" in the Shop, that photo is sent to Google's Gemini AI to find matching materials. MiniGuru does not save it
 
 We do **NOT** collect Aadhar numbers, precise GPS location, biometric data, or payment card details.
 

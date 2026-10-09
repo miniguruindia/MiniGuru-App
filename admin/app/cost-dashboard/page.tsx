@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { AdminLayout } from '@/components/AdminLayout'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { RefreshCw, Mail, Sparkles, Youtube, Database, HardDrive, ExternalLink, AlertTriangle, ShoppingCart, Phone } from 'lucide-react'
+import { RefreshCw, Mail, Sparkles, Youtube, Database, HardDrive, ExternalLink, AlertTriangle, ShoppingCart, Phone, Search } from 'lucide-react'
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || ''
 
@@ -44,6 +44,7 @@ interface Snapshot {
     estCostThisMonthInr: number | null
     note: string
   }
+  shopAi?: { callsToday: number; dailyCap: number; note: string }
   gcpConsoleOnly: { note: string }
 }
 
@@ -185,6 +186,17 @@ export default function CostDashboardPage() {
                 unit="GB"
                 subtitle={data.firebaseStorage.error || (data.firebaseStorage.cached ? 'Cached (refreshed every 15 min).' : 'Checked live.')}
               />
+              {data.shopAi && (
+                <QuotaCard
+                  icon={Search}
+                  title="Shop AI search (Gemini)"
+                  used={data.shopAi.callsToday}
+                  limit={data.shopAi.dailyCap}
+                  unit="searches today"
+                  blocked={data.shopAi.callsToday >= data.shopAi.dailyCap}
+                  note={data.shopAi.note}
+                />
+              )}
               {data.phoneAuth && (
                 <QuotaCard
                   icon={Phone}

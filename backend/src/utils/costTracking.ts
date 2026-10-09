@@ -287,10 +287,45 @@ async function getPhoneAuthStatus() {
   };
 }
 
+// ── Shop AI search (Gemini, free no-billing project) ─────────────────────
+// Own daily caps so it can never eat the video-review allowance: one for the
+// whole site and a small one per account.
+const SHOP_AI_KEY = 'shop_ai_search_quota';
+export const SHOP_AI_DAILY_CAP = Math.max(1, parseInt(process.env.SHOP_AI_SEARCH_DAILY_CAP || '150', 10) || 150);
+export const SHOP_AI_PER_USER_DAILY = 10;
+
+export async function checkShopAiQuota(
+  userId: string
+): Promise<{ allowed: boolean; reason?: 'site' | 'user' }> {
+  const site = await readDailyCounter(SHOP_AI_KEY);
+  if (site.count >= SHOP_AI_DAILY_CAP) return { allowed: false, reason: 'site' };
+  const user = await readDailyCounter(`shop_ai_user_${userId}`);
+  if (user.count >= SHOP_AI_PER_USER_DAILY) return { allowed: false, reason: 'user' };
+  return { allowed: true };
+}
+
+export async function recordShopAiSearch(userId: string): Promise<void> {
+  const site = await readDailyCounter(SHOP_AI_KEY);
+  site.count += 1;
+  await writeDailyCounter(SHOP_AI_KEY, site);
+  const user = await readDailyCounter(`shop_ai_user_${userId}`);
+  user.count += 1;
+  await writeDailyCounter(`shop_ai_user_${userId}`, user);
+}
+
+async function getShopAiStatus() {
+  const site = await readDailyCounter(SHOP_AI_KEY);
+  return {
+    callsToday: site.count,
+    dailyCap: SHOP_AI_DAILY_CAP,
+    note: 'Name and photo search in the Shop. Own cap, so it never uses the video-review allowance. Photos are never stored.',
+  };
+}
+
 // ── Full dashboard snapshot ──────────────────────────────────────────────
 
 export async function getCostDashboardSnapshot() {
-  const [email, gemini, youtube, youtubeUploads, mongo, firebase, amazon, phoneAuth] = await Promise.all([
+  const [email, gemini, youtube, youtubeUploads, mongo, firebase, amazon, phoneAuth, shopAi] = await Promise.all([
     checkEmailQuota(),
     getGeminiQuotaStatus(),
     getYoutubeQuotaStatus(),
@@ -299,6 +334,7 @@ export async function getCostDashboardSnapshot() {
     getFirebaseStorageStatus(),
     getAmazonQuotaStatus(),
     getPhoneAuthStatus(),
+    getShopAiStatus(),
   ]);
 
   return {
@@ -338,6 +374,7 @@ export async function getCostDashboardSnapshot() {
       note: 'Best-effort call count from our own tracker — Amazon does not expose a live quota-remaining figure. Rate limit scales automatically with trailing-30-day affiliate revenue.',
     },
     phoneAuth,
+    shopAi,
     gcpConsoleOnly: {
       note: 'Cloud Run request volume and Artifact Registry storage cost are only visible via the GCP Billing console — not trackable from application code. Check Cloud Console → Billing → Reports periodically.',
     },

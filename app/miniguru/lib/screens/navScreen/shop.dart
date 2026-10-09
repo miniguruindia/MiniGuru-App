@@ -10,6 +10,8 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:http/http.dart' as http;
 import 'package:miniguru/secrets.dart';
 import 'package:miniguru/database/database_helper.dart';
+import 'package:miniguru/network/MiniguruApi.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 const Color _bg     = Color(0xFFF5F7FF);
@@ -251,6 +253,168 @@ class _ShopState extends State<Shop>
         return matchSearch && matchCat && matchGroup;
       }).toList());
     });
+  }
+
+  // ── Ask MiniGuru AI (Oct 2026) ────────────────────────────────────────
+  // Name or photo search through Gemini. The photo is shrunk by the picker
+  // (max 800 px) before it leaves the phone; the server never stores it.
+  bool _aiBusy = false;
+
+  Future<void> _aiSearchByText() async {
+    final text = _searchCtrl.text.trim();
+    if (text.isEmpty) return;
+    await _runAiSearch(query: text);
+  }
+
+  Future<void> _aiSearchByPhoto() async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('📷 Search with a photo', style: GoogleFonts.nunito(fontWeight: FontWeight.w900)),
+        content: Text(
+            'Your photo is sent to Google\'s Gemini AI to find matching items. '
+            'MiniGuru does not save it. Only use photos of objects — no people.',
+            style: GoogleFonts.nunito(fontSize: 13, height: 1.4)),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          ElevatedButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Choose photo')),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    try {
+      final picked = await ImagePicker().pickImage(
+          source: ImageSource.gallery, maxWidth: 800, maxHeight: 800, imageQuality: 70);
+      if (picked == null) return;
+      final bytes = await picked.readAsBytes();
+      if (bytes.length > 1100000) {
+        _aiSnack('That photo is too big. Please try a smaller one.');
+        return;
+      }
+      final mime = (picked.mimeType != null && ['image/jpeg', 'image/png', 'image/webp'].contains(picked.mimeType))
+          ? picked.mimeType!
+          : 'image/jpeg';
+      await _runAiSearch(query: _searchCtrl.text.trim(), imageBase64: base64Encode(bytes), mimeType: mime);
+    } catch (e) {
+      _aiSnack('Could not use that photo. Please try again.');
+    }
+  }
+
+  void _aiSnack(String msg) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+  }
+
+  Future<void> _runAiSearch({String? query, String? imageBase64, String? mimeType}) async {
+    if (_aiBusy) return;
+    setState(() => _aiBusy = true);
+    try {
+      final res = await MiniguruApi().aiSearchMaterials(query: query, imageBase64: imageBase64, mimeType: mimeType);
+      final body = jsonDecode(res.body);
+      if (res.statusCode != 200) {
+        _aiSnack((body['error'] ?? 'AI search is not available right now.').toString());
+        return;
+      }
+      // Use OUR copies of the items (same objects the grid uses), and show the
+      // main item when the AI points at a variant.
+      final byId = <String, Map<String, dynamic>>{for (final m in _all) _matId(m): m};
+      final reasons = <String, String>{};
+      final found = <Map<String, dynamic>>[];
+      for (final raw in (body['materials'] as List? ?? [])) {
+        final id = (raw['id'] ?? '').toString();
+        final own = byId[id];
+        if (own == null) continue;
+        found.add(own);
+        reasons[id] = (raw['aiReason'] ?? '').toString();
+      }
+      final heads = _collapseVariants(found);
+      if (!mounted) return;
+      if (heads.isEmpty) {
+        _aiSnack((body['message'] ?? 'No close match found. Try other words, or a clearer photo.').toString());
+        return;
+      }
+      _showAiResults(heads, reasons);
+    } catch (e) {
+      _aiSnack('AI search is not available right now.');
+    } finally {
+      if (mounted) setState(() => _aiBusy = false);
+    }
+  }
+
+  void _showAiResults(List<Map<String, dynamic>> heads, Map<String, String> reasons) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            Container(width: 40, height: 4,
+                decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2))),
+            const SizedBox(height: 12),
+            Align(alignment: Alignment.centerLeft,
+              child: Text('✨ MiniGuru AI found these', style: GoogleFonts.nunito(fontSize: 17, fontWeight: FontWeight.w900, color: _ink))),
+            const SizedBox(height: 2),
+            Align(alignment: Alignment.centerLeft,
+              child: Text('AI can be wrong — check the picture and name.', style: GoogleFonts.nunito(fontSize: 12, color: _muted))),
+            const SizedBox(height: 8),
+            Flexible(
+              child: ListView(shrinkWrap: true, children: [
+                for (final m in heads) _aiResultRow(ctx, m, reasons),
+              ]),
+            ),
+          ]),
+        ),
+      ),
+    );
+  }
+
+  Widget _aiResultRow(BuildContext sheetCtx, Map<String, dynamic> m, Map<String, String> reasons) {
+    final id = _matId(m);
+    final imageUrl = m['imageUrl']?.toString() ?? '';
+    final unit = m['unit']?.toString() ?? 'piece';
+    final isGroup = _optionsFor(m).length > 1;
+    final reason = reasons[id] ?? '';
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(children: [
+        ClipRRect(
+          borderRadius: BorderRadius.circular(8),
+          child: Container(width: 52, height: 52, color: const Color(0xFFF0F2FF),
+            child: imageUrl.isNotEmpty
+                ? Image.network(imageUrl, fit: BoxFit.contain,
+                    errorBuilder: (_, __, ___) => const Icon(Icons.inventory_2_outlined))
+                : const Icon(Icons.inventory_2_outlined)),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(m['name']?.toString() ?? '', maxLines: 2, overflow: TextOverflow.ellipsis,
+                style: GoogleFonts.nunito(fontSize: 13, fontWeight: FontWeight.w800, color: _ink)),
+            Text('🪙 ${_goinsOf(m)} Goins per $unit',
+                style: GoogleFonts.nunito(fontSize: 11, fontWeight: FontWeight.w700, color: const Color(0xFFB45309))),
+            if (reason.isNotEmpty)
+              Text(reason, maxLines: 2, overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.nunito(fontSize: 11, color: _muted)),
+          ]),
+        ),
+        const SizedBox(width: 8),
+        GestureDetector(
+          onTap: () {
+            Navigator.pop(sheetCtx);
+            if (isGroup) { _openVariantSheet(m); } else { _addToKit(m); }
+          },
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+            decoration: BoxDecoration(color: _accent, borderRadius: BorderRadius.circular(8)),
+            child: Text(isGroup ? 'Choose' : '+ Kit',
+                style: GoogleFonts.nunito(fontSize: 12, fontWeight: FontWeight.w800, color: Colors.white)),
+          ),
+        ),
+      ]),
+    );
   }
 
   // ── Variants (Oct 2026) ───────────────────────────────────────────────
@@ -748,6 +912,17 @@ class _ShopState extends State<Shop>
             const Text('🔍', style: TextStyle(fontSize: 48)),
             const SizedBox(height: 12),
             Text('No materials found', style: GoogleFonts.nunito(fontSize: 16, fontWeight: FontWeight.w800, color: _ink)),
+            if (_search.isNotEmpty) ...[
+              const SizedBox(height: 14),
+              ElevatedButton.icon(
+                onPressed: _aiBusy ? null : _aiSearchByText,
+                icon: const Icon(Icons.auto_awesome_rounded, size: 18),
+                label: Text('Ask MiniGuru AI', style: GoogleFonts.nunito(fontWeight: FontWeight.w800)),
+                style: ElevatedButton.styleFrom(
+                    backgroundColor: _accent, foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+              ),
+            ],
           ])))
         else
           _buildGrid(),
@@ -831,10 +1006,24 @@ class _ShopState extends State<Shop>
             hintText: 'Search materials...',
             hintStyle: GoogleFonts.nunito(color: Colors.grey[400], fontSize: 14),
             prefixIcon: const Icon(Icons.search_rounded, color: _muted, size: 20),
-            suffixIcon: _search.isNotEmpty
-                ? IconButton(icon: const Icon(Icons.close_rounded, size: 18, color: _muted),
-                    onPressed: () { _searchCtrl.clear(); setState(() => _search = ''); _filter(); })
-                : null,
+            suffixIcon: _aiBusy
+                ? const Padding(
+                    padding: EdgeInsets.all(14),
+                    child: SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: _accent)))
+                : Row(mainAxisSize: MainAxisSize.min, children: [
+                    if (_search.isNotEmpty)
+                      IconButton(
+                          tooltip: 'Ask MiniGuru AI',
+                          icon: const Icon(Icons.auto_awesome_rounded, size: 20, color: _accent),
+                          onPressed: _aiSearchByText),
+                    IconButton(
+                        tooltip: 'Search with a photo',
+                        icon: const Icon(Icons.photo_camera_outlined, size: 20, color: _accent),
+                        onPressed: _aiSearchByPhoto),
+                    if (_search.isNotEmpty)
+                      IconButton(icon: const Icon(Icons.close_rounded, size: 18, color: _muted),
+                          onPressed: () { _searchCtrl.clear(); setState(() => _search = ''); _filter(); }),
+                  ]),
             border: InputBorder.none,
             contentPadding: const EdgeInsets.symmetric(vertical: 14),
           ),

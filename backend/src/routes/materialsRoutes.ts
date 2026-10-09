@@ -5,6 +5,8 @@ import { authenticateToken } from '../middleware/authMiddleware';
 import { uploadMaterialImage, deleteMaterialImage } from '../services/firebaseStorageService';
 import { searchAmazonProducts, buildAffiliateUrl } from '../services/amazonProductService';
 import { refineSearchQuery } from '../services/materialSearchAssistService';
+import { aiFindMaterials, isAllowedImageMime } from '../services/shopAiSearchService';
+import { checkShopAiQuota, recordShopAiSearch } from '../utils/costTracking';
 import { autoGoinsFor } from '../utils/goinsPricing';
 import {
   runAmazonSuggestionScan,
@@ -142,6 +144,57 @@ router.get('/', async (req: Request, res: Response) => {
   } catch (err) {
     console.error('[materials] GET / error:', err);
     res.status(500).json({ message: 'Failed to fetch materials.' });
+  }
+});
+
+// POST /materials/ai-search  body: { query?: string, imageBase64?: string, mimeType?: string }
+// Logged-in users only. Returns up to 3 catalog items Gemini thinks match.
+// The photo is processed in memory for this one request and never stored.
+router.post('/ai-search', authenticateToken, async (req: any, res: Response) => {
+  try {
+    const userId = req.user?.userId;
+    if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+    const query = typeof req.body?.query === 'string' ? req.body.query.trim().slice(0, 200) : '';
+    const imageBase64 = typeof req.body?.imageBase64 === 'string' ? req.body.imageBase64 : '';
+    const mimeType = typeof req.body?.mimeType === 'string' ? req.body.mimeType : 'image/jpeg';
+    if (!query && !imageBase64) return res.status(400).json({ error: 'Type a name or send a photo.' });
+    if (imageBase64 && imageBase64.length > 1_500_000) {
+      return res.status(413).json({ error: 'That photo is too big. Please try a smaller one.' });
+    }
+    if (imageBase64 && !isAllowedImageMime(mimeType)) {
+      return res.status(400).json({ error: 'Please use a JPEG, PNG or WebP photo.' });
+    }
+
+    const quota = await checkShopAiQuota(userId);
+    if (!quota.allowed) {
+      return res.status(429).json({
+        error: quota.reason === 'user'
+          ? 'You have used all your AI searches for today. Try again tomorrow, or use the normal search.'
+          : 'AI search is very busy today. Please try again tomorrow, or use the normal search.',
+      });
+    }
+    await recordShopAiSearch(userId);
+
+    const result = await aiFindMaterials({ query, imageBase64: imageBase64 || undefined, mimeType });
+    if (result.matches.length === 0) {
+      return res.json({
+        materials: [],
+        message: result.failed
+          ? 'AI search is resting right now. Please try the normal search.'
+          : 'No close match found. Try other words, or a clearer photo.',
+      });
+    }
+    const rows = await prisma.material.findMany({
+      where: { id: { in: result.matches.map((m) => m.id) }, isActive: true },
+    });
+    const byId = new Map(rows.map((r: any) => [r.id, r]));
+    const materials = result.matches
+      .filter((m) => byId.has(m.id))
+      .map((m) => ({ ...toFlutterShape(byId.get(m.id)), aiReason: m.reason }));
+    res.json({ materials });
+  } catch (err) {
+    console.error('[materials] POST /ai-search error:', err);
+    res.status(500).json({ error: 'AI search is not available right now.' });
   }
 });
 

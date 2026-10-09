@@ -20,7 +20,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.PHONE_SMS_PER_USER_DAILY = exports.PHONE_SMS_DAILY_CAP = exports.FIREBASE_STORAGE_LIMIT_GB = exports.YOUTUBE_UPLOAD_DAILY_LIMIT = exports.YOUTUBE_UNIT_COSTS = exports.YOUTUBE_DAILY_LIMIT = exports.EMAIL_MONTHLY_LIMIT = exports.EMAIL_DAILY_CUTOFF = exports.EMAIL_DAILY_LIMIT = void 0;
+exports.SHOP_AI_PER_USER_DAILY = exports.SHOP_AI_DAILY_CAP = exports.PHONE_SMS_PER_USER_DAILY = exports.PHONE_SMS_DAILY_CAP = exports.FIREBASE_STORAGE_LIMIT_GB = exports.YOUTUBE_UPLOAD_DAILY_LIMIT = exports.YOUTUBE_UNIT_COSTS = exports.YOUTUBE_DAILY_LIMIT = exports.EMAIL_MONTHLY_LIMIT = exports.EMAIL_DAILY_CUTOFF = exports.EMAIL_DAILY_LIMIT = void 0;
 exports.checkEmailQuota = checkEmailQuota;
 exports.recordEmailSent = recordEmailSent;
 exports.recordYoutubeUnits = recordYoutubeUnits;
@@ -29,6 +29,8 @@ exports.recordAmazonApiCall = recordAmazonApiCall;
 exports.checkPhoneSmsQuota = checkPhoneSmsQuota;
 exports.recordPhoneSmsStarted = recordPhoneSmsStarted;
 exports.recordPhoneVerified = recordPhoneVerified;
+exports.checkShopAiQuota = checkShopAiQuota;
+exports.recordShopAiSearch = recordShopAiSearch;
 exports.getCostDashboardSnapshot = getCostDashboardSnapshot;
 const prismaClient_1 = __importDefault(require("./prismaClient"));
 const firebaseStorageService_1 = require("../services/firebaseStorageService");
@@ -270,9 +272,40 @@ async function getPhoneAuthStatus() {
             'the real charge is on the Google Cloud / Firebase bill, which is the source of truth.',
     };
 }
+// ── Shop AI search (Gemini, free no-billing project) ─────────────────────
+// Own daily caps so it can never eat the video-review allowance: one for the
+// whole site and a small one per account.
+const SHOP_AI_KEY = 'shop_ai_search_quota';
+exports.SHOP_AI_DAILY_CAP = Math.max(1, parseInt(process.env.SHOP_AI_SEARCH_DAILY_CAP || '150', 10) || 150);
+exports.SHOP_AI_PER_USER_DAILY = 10;
+async function checkShopAiQuota(userId) {
+    const site = await readDailyCounter(SHOP_AI_KEY);
+    if (site.count >= exports.SHOP_AI_DAILY_CAP)
+        return { allowed: false, reason: 'site' };
+    const user = await readDailyCounter(`shop_ai_user_${userId}`);
+    if (user.count >= exports.SHOP_AI_PER_USER_DAILY)
+        return { allowed: false, reason: 'user' };
+    return { allowed: true };
+}
+async function recordShopAiSearch(userId) {
+    const site = await readDailyCounter(SHOP_AI_KEY);
+    site.count += 1;
+    await writeDailyCounter(SHOP_AI_KEY, site);
+    const user = await readDailyCounter(`shop_ai_user_${userId}`);
+    user.count += 1;
+    await writeDailyCounter(`shop_ai_user_${userId}`, user);
+}
+async function getShopAiStatus() {
+    const site = await readDailyCounter(SHOP_AI_KEY);
+    return {
+        callsToday: site.count,
+        dailyCap: exports.SHOP_AI_DAILY_CAP,
+        note: 'Name and photo search in the Shop. Own cap, so it never uses the video-review allowance. Photos are never stored.',
+    };
+}
 // ── Full dashboard snapshot ──────────────────────────────────────────────
 async function getCostDashboardSnapshot() {
-    const [email, gemini, youtube, youtubeUploads, mongo, firebase, amazon, phoneAuth] = await Promise.all([
+    const [email, gemini, youtube, youtubeUploads, mongo, firebase, amazon, phoneAuth, shopAi] = await Promise.all([
         checkEmailQuota(),
         getGeminiQuotaStatus(),
         getYoutubeQuotaStatus(),
@@ -281,6 +314,7 @@ async function getCostDashboardSnapshot() {
         getFirebaseStorageStatus(),
         getAmazonQuotaStatus(),
         getPhoneAuthStatus(),
+        getShopAiStatus(),
     ]);
     return {
         email: {
@@ -319,6 +353,7 @@ async function getCostDashboardSnapshot() {
             note: 'Best-effort call count from our own tracker — Amazon does not expose a live quota-remaining figure. Rate limit scales automatically with trailing-30-day affiliate revenue.',
         },
         phoneAuth,
+        shopAi,
         gcpConsoleOnly: {
             note: 'Cloud Run request volume and Artifact Registry storage cost are only visible via the GCP Billing console — not trackable from application code. Check Cloud Console → Billing → Reports periodically.',
         },

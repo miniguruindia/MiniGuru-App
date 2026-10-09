@@ -84,6 +84,22 @@ class MiniguruApi {
     return response;
   }
 
+  /// Shop "Ask MiniGuru AI": typed name and/or a small photo (base64). Never stored by the server.
+  Future<http.Response> aiSearchMaterials({String? query, String? imageBase64, String? mimeType}) async {
+    final authToken = await _getValidToken();
+    if (authToken == null) throw Exception('User not logged in');
+    final url = Uri.parse('$_baseUrl/materials/ai-search');
+    return await http.post(
+      url,
+      headers: _buildHeaders(authToken.accessToken),
+      body: jsonEncode({
+        if (query != null && query.isNotEmpty) 'query': query,
+        if (imageBase64 != null) 'imageBase64': imageBase64,
+        if (mimeType != null) 'mimeType': mimeType,
+      }),
+    );
+  }
+
   Future<http.Response> changePassword(String currentPassword, String newPassword) async {
     final authToken = await _getValidToken();
     if (authToken == null) throw Exception('User not logged in');
