@@ -584,6 +584,10 @@ model Material {
   descriptionAuto       Boolean   @default(false)
   // Last time the photo check looked at this item (rotation).
   photoCheckedAt        DateTime?
+  // Oct 2026: set on a VARIANT to the id of its main item. The main item has
+  // this empty. Variants are ordinary materials (own name, photo, link) that
+  // the Shop groups under the main item; all options of a group share a rate.
+  variantOf             String?
 
   // ── Shop/catalog upgrade (Sept 2026) ──────────────────────────────
   // Additive on purpose — every existing reader of `category`/`imageUrl`

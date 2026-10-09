@@ -21,7 +21,7 @@ const Color _muted  = Color(0xFF8888AA);
 const Color _green  = Color(0xFF2E7D32);
 const Color _orange = Color(0xFFFF9900);
 
-const double _cardH = 210.0;
+const double _cardH = 232.0; // room for the Goins line
 
 class Shop extends StatefulWidget {
   /// Optional: when set (e.g. "new-lab" / "home-corner"), the Shop opens the
@@ -107,7 +107,7 @@ class _ShopState extends State<Shop>
             if (c.isNotEmpty && seen.add(c)) cats.add({'id': c, 'name': c});
           }
         }
-        setState(() { _all = mats; _filtered = List.from(mats); _cats = cats; _loading = false; });
+        setState(() { _all = mats; _filtered = _collapseVariants(mats); _cats = cats; _loading = false; });
       } else {
         setState(() { _error = 'Could not load materials (${res.statusCode})'; _loading = false; });
       }
@@ -241,7 +241,7 @@ class _ShopState extends State<Shop>
         : (_groups.firstWhere((g) => g['name'] == _selGroup, orElse: () => {})['memberCategories'] as List?)
               ?.map((e) => e.toString()).toSet();
     setState(() {
-      _filtered = _all.where((m) {
+      _filtered = _collapseVariants(_all.where((m) {
         final name = (m['name'] ?? '').toString().toLowerCase();
         final aliases = ((m['aliases'] as List?) ?? []).map((e) => e.toString().toLowerCase());
         final matchSearch = _search.isEmpty || _matchesSearch(m, _search);
@@ -249,8 +249,128 @@ class _ShopState extends State<Shop>
         final matchCat = _selCat.isEmpty || mCats.contains(_selCat);
         final matchGroup = groupCats == null || mCats.any(groupCats.contains);
         return matchSearch && matchCat && matchGroup;
-      }).toList();
+      }).toList());
     });
+  }
+
+  // ── Variants (Oct 2026) ───────────────────────────────────────────────
+  // An item with `variantOf` set is an option under a main item. The grid
+  // shows ONE tile per group (the main item); a search hit on any option
+  // shows its main item. If the main item is missing for any reason, the
+  // variant simply shows as a normal item.
+  List<Map<String, dynamic>> _collapseVariants(List<Map<String, dynamic>> hits) {
+    final byId = <String, Map<String, dynamic>>{
+      for (final m in _all) _matId(m): m,
+    };
+    final out = <Map<String, dynamic>>[];
+    final seen = <String>{};
+    for (final m in hits) {
+      final parent = (m['variantOf'] ?? '').toString();
+      final shown = (parent.isNotEmpty && byId.containsKey(parent)) ? byId[parent]! : m;
+      if (seen.add(_matId(shown))) out.add(shown);
+    }
+    return out;
+  }
+
+  /// The main item followed by all of its variants.
+  List<Map<String, dynamic>> _optionsFor(Map<String, dynamic> head) {
+    final id = _matId(head);
+    return [head, ..._all.where((m) => (m['variantOf'] ?? '').toString() == id)];
+  }
+
+  int _goinsOf(Map<String, dynamic> m) =>
+      ((m['goinsPrice'] ?? m['goinsPerUnit'] ?? 0) as num).toInt();
+
+  void _openVariantSheet(Map<String, dynamic> head) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (ctx) => StatefulBuilder(builder: (ctx, setSheet) {
+        final options = _optionsFor(head);
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+              Container(width: 40, height: 4,
+                  decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2))),
+              const SizedBox(height: 12),
+              Align(alignment: Alignment.centerLeft,
+                child: Text(head['name']?.toString() ?? '',
+                    style: GoogleFonts.nunito(fontSize: 17, fontWeight: FontWeight.w900, color: _ink))),
+              const SizedBox(height: 2),
+              Align(alignment: Alignment.centerLeft,
+                child: Text('Tick the option you want — they all cost the same.',
+                    style: GoogleFonts.nunito(fontSize: 12, color: _muted))),
+              const SizedBox(height: 8),
+              Flexible(
+                child: ListView(shrinkWrap: true, children: [
+                  for (final o in options) _variantRow(o, setSheet),
+                ]),
+              ),
+              const SizedBox(height: 8),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: _accent, foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  child: Text('Done', style: GoogleFonts.nunito(fontWeight: FontWeight.w800)),
+                ),
+              ),
+            ]),
+          ),
+        );
+      }),
+    );
+  }
+
+  Widget _variantRow(Map<String, dynamic> o, StateSetter setSheet) {
+    final id = _matId(o);
+    final qty = (_kit[id]?['qty'] as int?) ?? 0;
+    final ticked = qty > 0;
+    final imageUrl = o['imageUrl']?.toString() ?? '';
+    final unit = o['unit']?.toString() ?? 'piece';
+    void toggle(bool on) => setSheet(() {
+          if (on) { _addToKit(o, silent: true); } else { _changeQty(id, -qty); }
+        });
+    return InkWell(
+      onTap: () => toggle(!ticked),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 6),
+        child: Row(children: [
+          Checkbox(value: ticked, activeColor: _accent, onChanged: (v) => toggle(v == true)),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: Container(width: 44, height: 44, color: const Color(0xFFF0F2FF),
+              child: imageUrl.isNotEmpty
+                  ? Image.network(imageUrl, fit: BoxFit.contain,
+                      errorBuilder: (_, __, ___) => const Icon(Icons.inventory_2_outlined))
+                  : const Icon(Icons.inventory_2_outlined)),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(o['name']?.toString() ?? '', maxLines: 2, overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.nunito(fontSize: 13, fontWeight: FontWeight.w800, color: _ink)),
+              Text('🪙 ${_goinsOf(o)} Goins per $unit',
+                  style: GoogleFonts.nunito(fontSize: 11, fontWeight: FontWeight.w700, color: const Color(0xFFB45309))),
+            ]),
+          ),
+          if (ticked)
+            Row(mainAxisSize: MainAxisSize.min, children: [
+              _stepBtn(Icons.remove_rounded, () => setSheet(() => _changeQty(id, -1))),
+              Padding(padding: const EdgeInsets.symmetric(horizontal: 8),
+                child: Text('$qty', style: GoogleFonts.nunito(fontSize: 14, fontWeight: FontWeight.w800, color: _ink))),
+              _stepBtn(Icons.add_rounded, () => setSheet(() => _changeQty(id, 1))),
+            ]),
+        ]),
+      ),
+    );
   }
 
   String _matId(Map<String, dynamic> m) =>
@@ -735,6 +855,16 @@ class _ShopState extends State<Shop>
         delegate: SliverChildBuilderDelegate((context, i) {
           final m  = _filtered[i];
           final id = _matId(m);
+          final options = _optionsFor(m);
+          if (options.length > 1) {
+            // A group: the tile shows the total in the kit across all options
+            // and opens the tick list instead of adding directly.
+            final groupQty = options.fold<int>(0, (s, o) => s + ((_kit[_matId(o)]?['qty'] as int?) ?? 0));
+            return _MaterialTile(material: m, kitQty: groupQty, variantCount: options.length,
+                onAdd: () => _openVariantSheet(m),
+                onInc: () => _openVariantSheet(m),
+                onDec: () => _openVariantSheet(m));
+          }
           final qty = (_kit[id]?['qty'] as int?) ?? 0;
           return _MaterialTile(material: m, kitQty: qty,
               onAdd: () => _addToKit(m),
@@ -878,6 +1008,8 @@ class _ShopState extends State<Shop>
               maxLines: 1, overflow: TextOverflow.ellipsis),
           Text(price > 0 ? '₹${price.toStringAsFixed(0)} / $unit' : (hasAmazon ? 'Check on Amazon' : 'Collect locally'),
               style: GoogleFonts.nunito(fontSize: 11, color: _muted)),
+          Text('🪙 ${((mat['goinsPrice'] ?? mat['goinsPerUnit'] ?? 0) as num).toInt()} Goins / $unit',
+              style: GoogleFonts.nunito(fontSize: 11, fontWeight: FontWeight.w700, color: const Color(0xFFB45309))),
         ])),
         Row(children: [
           _stepBtn(Icons.remove_rounded, () => _changeQty(id, -1)),
@@ -907,9 +1039,11 @@ class _MaterialTile extends StatelessWidget {
   final VoidCallback onAdd;
   final VoidCallback onInc;
   final VoidCallback onDec;
+  final int          variantCount; // >1 = a group of options, chosen by tick
 
   const _MaterialTile({required this.material, required this.kitQty,
-      required this.onAdd, required this.onInc, required this.onDec});
+      required this.onAdd, required this.onInc, required this.onDec,
+      this.variantCount = 1});
 
   static const _accent = Color(0xFF5B6EF5);
   static const _ink    = Color(0xFF1A1A2E);
@@ -927,6 +1061,8 @@ class _MaterialTile extends StatelessWidget {
     final amazonUrl  = material['amazonUrl']?.toString() ?? '';
     final hasAmazon  = amazonUrl.isNotEmpty;
     final inKit      = kitQty > 0;
+    final goins      = ((material['goinsPrice'] ?? material['goinsPerUnit'] ?? 0) as num).toInt();
+    final isGroup    = variantCount > 1;
 
     return GestureDetector(
       // Tapping the card (outside the + Kit / stepper buttons, which
@@ -982,6 +1118,9 @@ class _MaterialTile extends StatelessWidget {
                     color: price > 0 ? _green : _muted),
                 overflow: TextOverflow.ellipsis,
               ),
+              Text('🪙 $goins Goins per $unit',
+                  style: GoogleFonts.nunito(fontSize: 11, fontWeight: FontWeight.w800, color: const Color(0xFFB45309)),
+                  maxLines: 1, overflow: TextOverflow.ellipsis),
               if (price > 0)
                 Text('Est. price — see Amazon for current rate',
                     style: GoogleFonts.nunito(fontSize: 8, fontWeight: FontWeight.w600, color: _muted),
@@ -989,12 +1128,13 @@ class _MaterialTile extends StatelessWidget {
               const SizedBox(height: 2),
               Align(
                 alignment: Alignment.centerRight,
-                child: !inKit
+                child: (isGroup || !inKit)
                   ? GestureDetector(onTap: onAdd,
                       child: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
                         decoration: BoxDecoration(color: _accent, borderRadius: BorderRadius.circular(8)),
-                        child: Text('+ Kit', style: GoogleFonts.nunito(fontSize: 11, fontWeight: FontWeight.w800, color: Colors.white))))
+                        child: Text(isGroup ? 'Choose · $variantCount options' : '+ Kit',
+                            style: GoogleFonts.nunito(fontSize: 11, fontWeight: FontWeight.w800, color: Colors.white))))
                   : Row(mainAxisSize: MainAxisSize.min, children: [
                       _stepBtn(Icons.remove_rounded, onDec),
                       Padding(padding: const EdgeInsets.symmetric(horizontal: 5),
@@ -1124,9 +1264,10 @@ class _CollectionSheetState extends State<_CollectionSheet> {
                                   : const SizedBox(width: 40, height: 40, child: Icon(Icons.inventory_2_outlined)),
                             ),
                             title: Text(m['name']?.toString() ?? '', style: GoogleFonts.nunito(fontWeight: FontWeight.w700, fontSize: 13)),
-                            subtitle: (m['priceEstimate'] != null)
-                                ? Text('₹${m['priceEstimate']} / ${m['unit'] ?? 'piece'}', style: GoogleFonts.nunito(fontSize: 11, color: _muted))
-                                : null,
+                            subtitle: Text(
+                                (m['priceEstimate'] != null ? '₹${m['priceEstimate']} / ${m['unit'] ?? 'piece'}  ·  ' : '') +
+                                    '🪙 ${((m['goinsPrice'] ?? m['goinsPerUnit'] ?? 0) as num).toInt()} Goins',
+                                style: GoogleFonts.nunito(fontSize: 11, color: _muted)),
                           );
                         },
                       ),

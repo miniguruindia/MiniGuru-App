@@ -75,6 +75,7 @@ function toFlutterShape(m: any) {
     showInPlanning: m.showInPlanning,
     amazonNeedsAttention: m.amazonNeedsAttention || false,
     goinsLocked: m.goinsLocked === true,
+    variantOf: m.variantOf || null,
     amazonAttentionReason: m.amazonAttentionReason || null,
     amazonLastCheckedAt: m.amazonLastCheckedAt,
     createdAt: m.createdAt,
@@ -459,7 +460,7 @@ router.post('/admin/create', authenticateToken, requireAdmin, async (req: Reques
   try {
     const { name, description, imageUrl, icon, category, unit, goinsPrice,
             priceEstimate, amazonASIN, showInShop, showInPlanning,
-            categories, images, aliases } = req.body;
+            categories, images, aliases, variantOf } = req.body;
     if (!name || !category || goinsPrice === undefined) {
       return res.status(400).json({ error: 'name, category, and goinsPrice are required' });
     }
@@ -480,6 +481,7 @@ router.post('/admin/create', authenticateToken, requireAdmin, async (req: Reques
       categories: Array.isArray(categories) ? categories.map((c: any) => String(c).trim()).filter(Boolean) : [String(category).trim()],
       images: Array.isArray(images) ? images.map((i: any) => String(i).trim()).filter(Boolean) : (imageUrl ? [String(imageUrl).trim()] : []),
       aliases: Array.isArray(aliases) ? aliases.map((a: any) => String(a).trim().toLowerCase()).filter(Boolean) : [],
+      variantOf: variantOf ? String(variantOf).trim() : null,
     };
     syncLegacyFields(data);
     const material = await prisma.material.create({ data });
@@ -542,6 +544,23 @@ router.put('/admin/:id', authenticateToken, requireAdmin, async (req: any, res: 
     }
     if ('aliases' in body) {
       data.aliases = Array.isArray(body.aliases) ? body.aliases.map((a: any) => String(a).trim().toLowerCase()).filter(Boolean) : [];
+    }
+    // Variants: link this item under a main item (or clear the link). A variant
+    // must point at a MAIN item (one that is not itself a variant), and an item
+    // that already has variants cannot become a variant.
+    if ('variantOf' in body) {
+      const target = body.variantOf ? String(body.variantOf).trim() : '';
+      if (!target) {
+        data.variantOf = null;
+      } else {
+        if (target === id) return res.status(400).json({ error: 'An item cannot be a variant of itself.' });
+        const head = await prisma.material.findUnique({ where: { id: target }, select: { id: true, variantOf: true } });
+        if (!head) return res.status(400).json({ error: 'That main item was not found.' });
+        if (head.variantOf) return res.status(400).json({ error: 'Pick the main item, not another variant.' });
+        const kids = await prisma.material.count({ where: { variantOf: id } });
+        if (kids > 0) return res.status(400).json({ error: 'This item already has variants, so it cannot be a variant itself.' });
+        data.variantOf = target;
+      }
     }
     // Keep the legacy singular fields in sync with any array change made
     // above — done AFTER the individual `if (x in body)` checks so it can

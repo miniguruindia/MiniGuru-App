@@ -30,6 +30,7 @@ interface Material {
   categories?: string[]
   images?: string[]
   aliases?: string[]
+  variantOf?: string | null
 }
 
 async function authToken() {
@@ -42,7 +43,7 @@ const EMPTY_MAT = {
   name: '', description: '', goinsPrice: '', goinsAuto: true, unit: 'piece',
   icon: '', category: '', priceEstimate: '', amazonASIN: '', imageUrl: '',
   showInShop: true, showInPlanning: true,
-  categories: [] as string[], aliases: '',
+  categories: [] as string[], aliases: '', variantOf: '',
 }
 
 // Units an admin can pick. Includes the pack-style units used by the
@@ -1178,6 +1179,7 @@ function MaterialsPageInner() {
       showInPlanning: m.showInPlanning ?? true,
       categories: (m.categories && m.categories.length > 0) ? m.categories : (m.category ? [m.category] : []),
       aliases: (m.aliases || []).join(', '),
+      variantOf: m.variantOf || '',
     })
     setPhotos([...(m.imageUrl ? [m.imageUrl] : []), ...(m.images || []).filter(i => i && i !== m.imageUrl)])
     setCatInput('')
@@ -1224,6 +1226,7 @@ function MaterialsPageInner() {
         category:       form.categories[0].trim(),   // primary = first
         categories:     form.categories.map(c => c.trim()).filter(Boolean),
         aliases:        form.aliases.split(',').map(a => a.trim().toLowerCase()).filter(Boolean),
+        variantOf:      form.variantOf || null,
         imageUrl:       form.imageUrl || null,
         priceEstimate:  form.priceEstimate ? Number(form.priceEstimate) : null,
         amazonASIN:     asin || null,
@@ -1691,6 +1694,22 @@ function MaterialsPageInner() {
                 <datalist id="mat-cat-options">
                   {allCats.filter(c => c !== 'All').map(c => <option key={c} value={c} />)}
                 </datalist>
+              </div>
+
+              {/* Variant of — groups look-alike items (colour, size, brand) under one main item */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Variant of
+                  <span className="ml-1 text-xs text-gray-400 font-normal">— leave empty for a normal item. Pick the MAIN item to make this one an option under it (same rate; children choose with a tick).</span>
+                </label>
+                <select value={form.variantOf} onChange={e => setForm(f => ({...f, variantOf: e.target.value}))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400">
+                  <option value="">— Not a variant —</option>
+                  {materials
+                    .filter(x => !x.variantOf && x.id !== editingMat?.id)
+                    .sort((a, b) => a.name.localeCompare(b.name))
+                    .map(x => <option key={x.id} value={x.id}>{x.name}</option>)}
+                </select>
               </div>
 
               {/* Other names (search) */}
