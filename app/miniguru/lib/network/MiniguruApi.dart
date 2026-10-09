@@ -203,6 +203,19 @@ class MiniguruApi {
     );
   }
 
+  /// Phone verification, client-provider flow (Firebase): hand the backend the
+  /// signed proof the browser got after the person typed the SMS code.
+  Future<http.Response> confirmPhoneProof(String idToken) async {
+    final authToken = await _getValidToken();
+    if (authToken == null) throw Exception('User not logged in');
+    final url = Uri.parse('$_baseUrl/auth/verification/confirm-phone');
+    return await http.post(
+      url,
+      headers: _buildHeaders(authToken.accessToken),
+      body: jsonEncode({'idToken': idToken}),
+    );
+  }
+
   Future<http.Response> requestContactChange(String target, String newValue) async {
     final authToken = await _getValidToken();
     if (authToken == null) throw Exception('User not logged in');

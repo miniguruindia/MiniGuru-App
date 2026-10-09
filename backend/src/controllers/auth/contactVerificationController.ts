@@ -13,19 +13,20 @@
 //     as "pending admin approval" — an admin can manually approve it from
 //     the admin panel, or the person can contact MiniGuru support directly.
 //
-// NOTE ON PHONE: there is no SMS provider wired into MiniGuru yet (no
-// Twilio/etc — email uses the existing free-tier SendGrid setup). Phone
-// verification and phone-change-via-OTP are therefore not yet actually
-// deliverable — the endpoints below handle phone requests by routing
-// straight to "pending admin approval" until an SMS provider is added.
-// This is flagged clearly in every phone-related response so nothing here
-// silently pretends to text an OTP that was never sent.
+// NOTE ON PHONE (Oct 2026): verifying the CURRENT phone number now works
+// through a swappable provider (services/phoneVerification) — Firebase Phone
+// Auth today, MSG91 pluggable later. Until the provider is configured the
+// endpoint answers a clear 501 and nothing pretends to text a code.
+// Changing an already-VERIFIED phone number still goes through "pending
+// admin approval" (there is no old-phone OTP step) — unchanged.
 
 import { Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
 import prisma from '../../utils/prismaClient';
 import { sendEmail } from '../../services/emailService';
 import logger from '../../logger';
+import { getPhoneProvider, normalizePhone, maskPhone } from '../../services/phoneVerification';
+import { checkPhoneSmsQuota, recordPhoneSmsStarted, recordPhoneVerified } from '../../utils/costTracking';
 
 const OTP_EXPIRY_MINUTES = 15;
 
@@ -136,11 +137,110 @@ export const sendVerificationOtp = async (req: Request, res: Response) => {
   }
 
   // target === 'phone'
-  return res.status(501).json({
-    error:
-      'Phone verification is not available yet — MiniGuru does not currently send SMS. ' +
-      'Please verify your email instead, or contact connect@miniguru.in.',
+  if (user.phoneVerified) {
+    return res.status(400).json({ error: 'Phone number is already verified.' });
+  }
+  if (!user.phoneNumber) {
+    return res.status(400).json({ error: 'No phone number on file. Tap "Change" to add one first.' });
+  }
+  const phone = normalizePhone(user.phoneNumber);
+  if (!phone) {
+    return res.status(400).json({
+      error: 'That phone number does not look right. Tap "Change" and enter it like +91XXXXXXXXXX.',
+    });
+  }
+
+  const provider = getPhoneProvider();
+  if (!provider.isConfigured()) {
+    return res.status(501).json({
+      error:
+        'Phone verification is being set up and is not switched on yet. ' +
+        'Please verify your email for now, or contact connect@miniguru.in.',
+    });
+  }
+
+  const quota = await checkPhoneSmsQuota(userId);
+  if (!quota.allowed) {
+    return res.status(429).json({
+      error:
+        quota.reason === 'user'
+          ? 'You have asked for too many codes today. Please try again tomorrow.'
+          : 'Phone verification is very busy today. Please try again tomorrow, or verify your email instead.',
+    });
+  }
+
+  if (provider.mode === 'client') {
+    // The browser sends the SMS itself through the provider's SDK; we only
+    // hand it the public settings and the number, then check the proof later
+    // (POST /auth/verification/confirm-phone).
+    await recordPhoneSmsStarted(userId);
+    return res.status(200).json({
+      clientFlow: true,
+      provider: provider.name,
+      phone,
+      maskedTarget: maskPhone(phone),
+      firebaseConfig: provider.clientConfig(),
+    });
+  }
+
+  // Server-mode provider (MSG91, later): we send, then confirm-otp checks.
+  try {
+    await recordPhoneSmsStarted(userId);
+    await provider.sendOtp(phone);
+  } catch (smsError: any) {
+    logger.error({ smsError: smsError?.message || smsError }, '⚠️ phone provider sendOtp failed');
+    return res.status(502).json({
+      error: 'Could not send the text message right now. Please try again in a moment, or contact connect@miniguru.in.',
+    });
+  }
+  await prisma.user.update({
+    where: { id: userId },
+    data: { verificationOtpHash: null, verificationOtpExpiry: otpExpiry(), verificationOtpTarget: 'phone' },
   });
+  return res.status(200).json({ clientFlow: false, provider: provider.name, maskedTarget: maskPhone(phone) });
+};
+
+// POST /auth/verification/confirm-phone   body: { idToken }
+// Client-mode providers (Firebase): the browser already checked the SMS code
+// and holds a signed proof. We verify the proof server-side and require the
+// number inside it to be exactly the number on this account.
+export const confirmPhoneProof = async (req: Request, res: Response) => {
+  const userId = req.user?.userId;
+  if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+
+  const { idToken } = req.body as { idToken?: string };
+  if (!idToken || typeof idToken !== 'string') return res.status(400).json({ error: 'idToken is required' });
+
+  const user = await prisma.user.findUnique({ where: { id: userId } });
+  if (!user) return res.status(404).json({ error: 'User not found' });
+  if (user.phoneVerified) return res.status(400).json({ error: 'Phone number is already verified.' });
+
+  const phone = normalizePhone(user.phoneNumber);
+  if (!phone) return res.status(400).json({ error: 'No valid phone number on file to verify.' });
+
+  const provider = getPhoneProvider();
+  if (provider.mode !== 'client' || !provider.isConfigured()) {
+    return res.status(501).json({ error: 'Phone verification is not switched on yet.' });
+  }
+
+  let ok = false;
+  try {
+    ok = await provider.verifyClientProof(phone, idToken);
+  } catch (proofError: any) {
+    logger.warn({ proofError: proofError?.message || proofError }, 'phone proof rejected');
+  }
+  if (!ok) {
+    return res.status(400).json({
+      error: 'We could not confirm that phone check. Make sure the number on your account is the one that got the code, then try again.',
+    });
+  }
+
+  await prisma.user.update({
+    where: { id: userId },
+    data: { phoneVerified: true, verificationOtpHash: null, verificationOtpExpiry: null, verificationOtpTarget: null },
+  });
+  await recordPhoneVerified();
+  return res.status(200).json({ message: 'Phone number verified.', target: 'phone' });
 };
 
 // POST /auth/verification/confirm-otp   body: { otp }
@@ -155,6 +255,29 @@ export const confirmVerificationOtp = async (req: Request, res: Response) => {
 
   const user = await prisma.user.findUnique({ where: { id: userId } });
   if (!user) return res.status(404).json({ error: 'User not found' });
+
+  // Server-mode phone provider (MSG91, later): the provider holds the code,
+  // so there is no local hash to compare — ask the provider instead.
+  if (user.verificationOtpTarget === 'phone' && getPhoneProvider().mode === 'server') {
+    if (!user.verificationOtpExpiry || user.verificationOtpExpiry < new Date()) {
+      return res.status(400).json({ error: 'That code has expired. Request a new one.' });
+    }
+    const phone = normalizePhone(user.phoneNumber);
+    let good = false;
+    try {
+      good = !!phone && (await getPhoneProvider().verifyOtp(phone, otp.toString().trim()));
+    } catch (verifyError: any) {
+      logger.error({ verifyError: verifyError?.message || verifyError }, '⚠️ phone provider verifyOtp failed');
+      return res.status(502).json({ error: 'Could not check the code right now. Please try again.' });
+    }
+    if (!good) return res.status(400).json({ error: 'Incorrect code.' });
+    await prisma.user.update({
+      where: { id: userId },
+      data: { phoneVerified: true, verificationOtpHash: null, verificationOtpExpiry: null, verificationOtpTarget: null },
+    });
+    await recordPhoneVerified();
+    return res.status(200).json({ message: 'Verified successfully.', target: 'phone' });
+  }
 
   if (!user.verificationOtpHash || !user.verificationOtpExpiry || !user.verificationOtpTarget) {
     return res.status(400).json({ error: 'No verification code was requested, or it already expired. Request a new one.' });

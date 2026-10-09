@@ -41,12 +41,12 @@
   <!-- CSP — firebasestorage added to connect-src for material images -->
   <meta http-equiv="Content-Security-Policy" 
         content="default-src 'self' https://www.gstatic.com https://fonts.gstatic.com https://ssl.gstatic.com https://github.dev; 
-                 script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.youtube.com https://www.gstatic.com https://checkout.razorpay.com https://api.razorpay.com https://cdn.razorpay.com https://www.googletagmanager.com; 
-                 script-src-elem 'self' 'unsafe-inline' https://www.youtube.com https://www.gstatic.com https://checkout.razorpay.com https://api.razorpay.com https://cdn.razorpay.com https://www.googletagmanager.com;
+                 script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.youtube.com https://www.gstatic.com https://www.google.com https://www.recaptcha.net https://checkout.razorpay.com https://api.razorpay.com https://cdn.razorpay.com https://www.googletagmanager.com; 
+                 script-src-elem 'self' 'unsafe-inline' https://www.youtube.com https://www.gstatic.com https://www.google.com https://www.recaptcha.net https://checkout.razorpay.com https://api.razorpay.com https://cdn.razorpay.com https://www.googletagmanager.com;
                  style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; 
                  font-src 'self' https://fonts.gstatic.com data:;
-                 connect-src 'self' blob: https://api.razorpay.com https://checkout.razorpay.com https://lumberjack.razorpay.com https://www.gstatic.com https://fonts.gstatic.com https://www.youtube.com https://www.googleapis.com https://i.ytimg.com https://i3.ytimg.com https://img.youtube.com http://localhost:5001 https://*.app.github.dev wss://*.app.github.dev https://github.dev https://miniguru-backend-130420985234.asia-south1.run.app https://firebasestorage.googleapis.com https://storage.googleapis.com https://m.media-amazon.com https://*.media-amazon.com https://www.googletagmanager.com https://www.google-analytics.com https://*.google-analytics.com https://*.analytics.google.com;
-                 frame-src https://www.youtube.com https://api.razorpay.com https://checkout.razorpay.com https://youtube.com https://github.dev; 
+                 connect-src 'self' blob: https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://firebaseinstallations.googleapis.com https://www.google.com https://www.recaptcha.net https://*.firebaseapp.com https://api.razorpay.com https://checkout.razorpay.com https://lumberjack.razorpay.com https://www.gstatic.com https://fonts.gstatic.com https://www.youtube.com https://www.googleapis.com https://i.ytimg.com https://i3.ytimg.com https://img.youtube.com http://localhost:5001 https://*.app.github.dev wss://*.app.github.dev https://github.dev https://miniguru-backend-130420985234.asia-south1.run.app https://firebasestorage.googleapis.com https://storage.googleapis.com https://m.media-amazon.com https://*.media-amazon.com https://www.googletagmanager.com https://www.google-analytics.com https://*.google-analytics.com https://*.analytics.google.com;
+                 frame-src https://www.google.com https://www.recaptcha.net https://*.firebaseapp.com https://www.youtube.com https://api.razorpay.com https://checkout.razorpay.com https://youtube.com https://github.dev; 
                  media-src * blob: data:; 
                  img-src * data: blob: https:;
                  manifest-src 'self' https://github.dev;">
@@ -58,6 +58,84 @@
       var rzp = new Razorpay(options);
       rzp.open();
     }
+  </script>
+  <!-- Phone verification (Firebase Phone Auth). The Firebase SDK is only
+       downloaded the first time someone taps "Verify" on their phone number.
+       Dart calls window.mgPhoneAuth.start / .confirm (see lib/network/phoneAuth*.dart);
+       both ALWAYS resolve to a JSON string, never reject. -->
+  <script>
+    (function () {
+      var SDK = 'https://www.gstatic.com/firebasejs/10.12.2/';
+      var st = { confirmation: null, verifier: null, loading: null };
+
+      function loadScript(src) {
+        return new Promise(function (resolve, reject) {
+          var s = document.createElement('script');
+          s.src = src;
+          s.onload = resolve;
+          s.onerror = function () { reject(new Error('load-failed')); };
+          document.head.appendChild(s);
+        });
+      }
+      function ensureSdk() {
+        if (window.firebase && window.firebase.auth) return Promise.resolve();
+        if (!st.loading) {
+          st.loading = loadScript(SDK + 'firebase-app-compat.js')
+            .then(function () { return loadScript(SDK + 'firebase-auth-compat.js'); })
+            .catch(function (e) { st.loading = null; throw e; });
+        }
+        return st.loading;
+      }
+      function friendly(e) {
+        var c = (e && e.code) || (e && e.message) || '';
+        if (c === 'load-failed') return 'Could not load the phone check. Check your internet and try again.';
+        if (c.indexOf('invalid-phone-number') >= 0) return 'That phone number does not look right. Use Change and enter it like +91XXXXXXXXXX.';
+        if (c.indexOf('too-many-requests') >= 0 || c.indexOf('quota-exceeded') >= 0) return 'Too many tries. Please wait a while and try again.';
+        if (c.indexOf('invalid-verification-code') >= 0) return 'Incorrect code.';
+        if (c.indexOf('code-expired') >= 0 || c.indexOf('session-expired') >= 0) return 'That code has expired. Request a new one.';
+        if (c.indexOf('captcha') >= 0) return 'The safety check did not complete. Please try again.';
+        if (c.indexOf('operation-not-allowed') >= 0 || c.indexOf('billing') >= 0) return 'Phone verification is not switched on yet. Please try again later.';
+        if (c.indexOf('unauthorized-domain') >= 0) return 'Phone verification is not allowed on this web address yet.';
+        return 'Could not verify the phone right now. Please try again.';
+      }
+      function done(obj) { return JSON.stringify(obj); }
+
+      window.mgPhoneAuth = {
+        start: function (configJson, phone) {
+          return ensureSdk().then(function () {
+            var cfg = JSON.parse(configJson);
+            if (!window.firebase.apps.length) window.firebase.initializeApp(cfg);
+            var auth = window.firebase.auth();
+            auth.languageCode = 'en';
+            if (st.verifier) { try { st.verifier.clear(); } catch (_) {} }
+            var old = document.getElementById('mg-recaptcha');
+            if (old) old.remove();
+            var holder = document.createElement('div');
+            holder.id = 'mg-recaptcha';
+            document.body.appendChild(holder);
+            st.verifier = new window.firebase.auth.RecaptchaVerifier(holder, { size: 'invisible' });
+            return auth.signInWithPhoneNumber(phone, st.verifier);
+          }).then(function (confirmation) {
+            st.confirmation = confirmation;
+            return done({ ok: true });
+          }).catch(function (e) {
+            return done({ ok: false, error: friendly(e) });
+          });
+        },
+        confirm: function (code) {
+          if (!st.confirmation) return Promise.resolve(done({ ok: false, error: 'Please request a new code.' }));
+          return st.confirmation.confirm(String(code).trim()).then(function (cred) {
+            return cred.user.getIdToken();
+          }).then(function (token) {
+            try { window.firebase.auth().signOut(); } catch (_) {}
+            st.confirmation = null;
+            return done({ ok: true, idToken: token });
+          }).catch(function (e) {
+            return done({ ok: false, error: friendly(e) });
+          });
+        }
+      };
+    })();
   </script>
 </head>
 <body>

@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { AdminLayout } from '@/components/AdminLayout'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { RefreshCw, Mail, Sparkles, Youtube, Database, HardDrive, ExternalLink, AlertTriangle, ShoppingCart } from 'lucide-react'
+import { RefreshCw, Mail, Sparkles, Youtube, Database, HardDrive, ExternalLink, AlertTriangle, ShoppingCart, Phone } from 'lucide-react'
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || ''
 
@@ -32,6 +32,18 @@ interface Snapshot {
   mongodb: { usedMB: number | null; limitMB: number; checkedLive: boolean }
   firebaseStorage: { usedGB: number | null; limitGB: number; cached: boolean; error?: string }
   amazon: { callsToday: number; note: string }
+  // Optional so this page still loads if the admin site deploys before the backend does.
+  phoneAuth?: {
+    provider: string
+    configured: boolean
+    startedToday: number
+    verifiedToday: number
+    dailyCap: number
+    startedThisMonth: number
+    estRatePerSmsInr: number | null
+    estCostThisMonthInr: number | null
+    note: string
+  }
   gcpConsoleOnly: { note: string }
 }
 
@@ -173,6 +185,25 @@ export default function CostDashboardPage() {
                 unit="GB"
                 subtitle={data.firebaseStorage.error || (data.firebaseStorage.cached ? 'Cached (refreshed every 15 min).' : 'Checked live.')}
               />
+              {data.phoneAuth && (
+                <QuotaCard
+                  icon={Phone}
+                  title={`Phone verification (${data.phoneAuth.provider === 'firebase' ? 'Firebase Phone Auth' : data.phoneAuth.provider})`}
+                  used={data.phoneAuth.startedToday}
+                  limit={data.phoneAuth.dailyCap}
+                  unit="SMS started today"
+                  blocked={data.phoneAuth.startedToday >= data.phoneAuth.dailyCap}
+                  subtitle={
+                    !data.phoneAuth.configured
+                      ? 'Not switched on yet — the app shows "being set up" until the Firebase web settings are added on Cloud Run.'
+                      : `${data.phoneAuth.verifiedToday} verified today · ${data.phoneAuth.startedThisMonth} SMS this month · ` +
+                        (data.phoneAuth.estCostThisMonthInr != null
+                          ? `estimated ₹${data.phoneAuth.estCostThisMonthInr} this month (at ₹${data.phoneAuth.estRatePerSmsInr}/SMS)`
+                          : 'cost estimate off — set PHONE_SMS_EST_RATE_INR on Cloud Run to see rupees')
+                  }
+                  note={data.phoneAuth.note}
+                />
+              )}
               <QuotaCard
                 icon={ShoppingCart}
                 title="Amazon Creators API"

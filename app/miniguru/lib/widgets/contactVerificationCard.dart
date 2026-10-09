@@ -9,13 +9,15 @@
 // Backend contract (contactVerificationController.ts):
 //   - Unverified contact → change applies immediately, still unverified.
 //   - Verified contact → change needs approval: OTP to the OLD contact
-//     (email only — no SMS provider exists for phone yet), or it falls
-//     back to "pending admin approval" if the old contact is unreachable.
+//     (email only), or it falls back to "pending admin approval" if the old
+//     contact is unreachable. Verifying the CURRENT phone number works through
+//     the backend's phone provider (Firebase Phone Auth today).
 
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'dart:convert';
 import '../network/MiniguruApi.dart';
+import '../network/phoneAuth.dart';
 
 class ContactVerificationCard extends StatefulWidget {
   final String? email;
@@ -77,6 +79,63 @@ class _ContactVerificationCardState extends State<ContactVerificationCard> {
         widget.onChanged();
       } else {
         _snack(confirmBody['error'] ?? 'Incorrect code.', isError: true);
+      }
+    } catch (e) {
+      _snack('Something went wrong: $e', isError: true);
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _verifyPhone() async {
+    setState(() => _busy = true);
+    try {
+      final res = await _api.sendVerificationOtp('phone');
+      final body = jsonDecode(res.body);
+      if (res.statusCode != 200) {
+        _snack(body['error'] ?? 'Could not start phone verification.', isError: true);
+        return;
+      }
+      final masked = body['maskedTarget'] ?? 'your phone';
+
+      if (body['clientFlow'] == true) {
+        // Firebase: the browser sends the SMS and checks the code, then hands
+        // us a signed proof for the backend to verify.
+        final started = await phoneAuthStart(jsonEncode(body['firebaseConfig']), body['phone'].toString());
+        if (started['ok'] != true) {
+          _snack((started['error'] ?? 'Could not send the code.').toString(), isError: true);
+          return;
+        }
+        _snack('Code sent by SMS to $masked.');
+        final otp = await _askOtp('Enter the code we texted to $masked');
+        if (otp == null || otp.isEmpty) return;
+        final checked = await phoneAuthConfirm(otp);
+        if (checked['ok'] != true) {
+          _snack((checked['error'] ?? 'Incorrect code.').toString(), isError: true);
+          return;
+        }
+        final confirmRes = await _api.confirmPhoneProof(checked['idToken'].toString());
+        final confirmBody = jsonDecode(confirmRes.body);
+        if (confirmRes.statusCode == 200) {
+          _snack('Phone number verified! 🎉');
+          widget.onChanged();
+        } else {
+          _snack(confirmBody['error'] ?? 'Could not confirm the phone number.', isError: true);
+        }
+      } else {
+        // Server-side provider (e.g. MSG91 later): backend sent the SMS and
+        // checks the code through the same confirm-otp call email uses.
+        _snack('Code sent by SMS to $masked.');
+        final otp = await _askOtp('Enter the code we texted to $masked');
+        if (otp == null || otp.isEmpty) return;
+        final confirmRes = await _api.confirmVerificationOtp(otp);
+        final confirmBody = jsonDecode(confirmRes.body);
+        if (confirmRes.statusCode == 200) {
+          _snack('Phone number verified! 🎉');
+          widget.onChanged();
+        } else {
+          _snack(confirmBody['error'] ?? 'Incorrect code.', isError: true);
+        }
       }
     } catch (e) {
       _snack('Something went wrong: $e', isError: true);
@@ -261,9 +320,8 @@ class _ContactVerificationCardState extends State<ContactVerificationCard> {
             value: _displayPhone,
             verified: widget.phoneVerified,
             onChange: () => _changeContact('phone'),
-            // No onVerify for phone yet — no SMS provider wired in. Tapping
-            // "Change" still works; the backend routes phone verification
-            // itself to a clear 501 explaining this if ever attempted.
+            // Nothing to text if no number is saved — nudge toward "Change".
+            onVerify: (widget.phoneNumber?.isNotEmpty ?? false) ? _verifyPhone : null,
           ),
           const SizedBox(height: 6),
         ],

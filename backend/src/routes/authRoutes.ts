@@ -12,6 +12,7 @@ import {
   confirmVerificationOtp,
   requestContactChange,
   confirmContactChangeOtp,
+  confirmPhoneProof,
 } from '../controllers/auth/contactVerificationController';
 
 const authRouter = express.Router();
@@ -95,6 +96,7 @@ authRouter.post('/register-child', registerChild);
 
 authRouter.post('/verification/send-otp', authenticateToken, sendVerificationOtp);
 authRouter.post('/verification/confirm-otp', authenticateToken, confirmVerificationOtp);
+authRouter.post('/verification/confirm-phone', authenticateToken, confirmPhoneProof);
 authRouter.post('/verification/request-change', authenticateToken, requestContactChange);
 authRouter.post('/verification/confirm-change-otp', authenticateToken, confirmContactChangeOtp);
 

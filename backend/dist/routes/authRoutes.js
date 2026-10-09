@@ -80,6 +80,7 @@ authRouter.post('/register-child', registrationController_1.registerChild);
 // changes immediately. See contactVerificationController.ts for the design.
 authRouter.post('/verification/send-otp', authMiddleware_1.authenticateToken, contactVerificationController_1.sendVerificationOtp);
 authRouter.post('/verification/confirm-otp', authMiddleware_1.authenticateToken, contactVerificationController_1.confirmVerificationOtp);
+authRouter.post('/verification/confirm-phone', authMiddleware_1.authenticateToken, contactVerificationController_1.confirmPhoneProof);
 authRouter.post('/verification/request-change', authMiddleware_1.authenticateToken, contactVerificationController_1.requestContactChange);
 authRouter.post('/verification/confirm-change-otp', authMiddleware_1.authenticateToken, contactVerificationController_1.confirmContactChangeOtp);
 exports.default = authRouter;

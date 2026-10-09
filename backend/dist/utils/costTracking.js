@@ -20,15 +20,19 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.FIREBASE_STORAGE_LIMIT_GB = exports.YOUTUBE_UPLOAD_DAILY_LIMIT = exports.YOUTUBE_UNIT_COSTS = exports.YOUTUBE_DAILY_LIMIT = exports.EMAIL_MONTHLY_LIMIT = exports.EMAIL_DAILY_CUTOFF = exports.EMAIL_DAILY_LIMIT = void 0;
+exports.PHONE_SMS_PER_USER_DAILY = exports.PHONE_SMS_DAILY_CAP = exports.FIREBASE_STORAGE_LIMIT_GB = exports.YOUTUBE_UPLOAD_DAILY_LIMIT = exports.YOUTUBE_UNIT_COSTS = exports.YOUTUBE_DAILY_LIMIT = exports.EMAIL_MONTHLY_LIMIT = exports.EMAIL_DAILY_CUTOFF = exports.EMAIL_DAILY_LIMIT = void 0;
 exports.checkEmailQuota = checkEmailQuota;
 exports.recordEmailSent = recordEmailSent;
 exports.recordYoutubeUnits = recordYoutubeUnits;
 exports.recordYoutubeUpload = recordYoutubeUpload;
 exports.recordAmazonApiCall = recordAmazonApiCall;
+exports.checkPhoneSmsQuota = checkPhoneSmsQuota;
+exports.recordPhoneSmsStarted = recordPhoneSmsStarted;
+exports.recordPhoneVerified = recordPhoneVerified;
 exports.getCostDashboardSnapshot = getCostDashboardSnapshot;
 const prismaClient_1 = __importDefault(require("./prismaClient"));
 const firebaseStorageService_1 = require("../services/firebaseStorageService");
+const phoneVerification_1 = require("../services/phoneVerification");
 // ── Email (Resend, currently active) ───────────────────────────────────────
 // Resend's real free-tier cap is 100/day, 3,000/month. We stop 5 short of
 // that (95) so there's always a safety margin — a burst of a few emails
@@ -193,9 +197,82 @@ async function getFirebaseStorageStatus() {
         return { usedGB: null, limitGB: exports.FIREBASE_STORAGE_LIMIT_GB, cached: false, error: 'Could not reach Firebase Storage' };
     }
 }
+// ── Phone verification (Firebase Phone Auth SMS, MSG91 later) ────────────
+// Each "start" is one SMS the provider will send — the thing that can cost
+// money. We count starts (not just successes) because a failed attempt still
+// sends the text. Hard caps protect the bill: a daily cap for the whole site
+// and a small daily cap per account, so one person can't burn everyone's
+// allowance. The estimated rupee cost uses PHONE_SMS_EST_RATE_INR, which is
+// deliberately NOT guessed here — set it from the Firebase/Google price list.
+const PHONE_STARTED_KEY = 'phone_sms_started_quota';
+const PHONE_VERIFIED_KEY = 'phone_verified_quota';
+exports.PHONE_SMS_DAILY_CAP = Math.max(1, parseInt(process.env.PHONE_SMS_DAILY_CAP || '50', 10) || 50);
+exports.PHONE_SMS_PER_USER_DAILY = 5;
+function monthId() {
+    return new Date().toISOString().slice(0, 7); // YYYY-MM
+}
+async function readPeriodCounter(key, period) {
+    try {
+        const existing = await prismaClient_1.default.siteContent.findUnique({ where: { key } });
+        const data = existing?.value ?? { date: period, count: 0 };
+        return data.date === period ? data : { date: period, count: 0 };
+    }
+    catch {
+        return { date: period, count: 0 };
+    }
+}
+/** Call BEFORE starting a phone verification. Fails open if the tracker itself errors. */
+async function checkPhoneSmsQuota(userId) {
+    const site = await readDailyCounter(PHONE_STARTED_KEY);
+    if (site.count >= exports.PHONE_SMS_DAILY_CAP)
+        return { allowed: false, reason: 'site', startedToday: site.count };
+    const user = await readDailyCounter(`phone_sms_user_${userId}`);
+    if (user.count >= exports.PHONE_SMS_PER_USER_DAILY)
+        return { allowed: false, reason: 'user', startedToday: site.count };
+    return { allowed: true, startedToday: site.count };
+}
+/** Call when an SMS is about to be sent (one call = one SMS). */
+async function recordPhoneSmsStarted(userId) {
+    const day = await readDailyCounter(PHONE_STARTED_KEY);
+    day.count += 1;
+    await writeDailyCounter(PHONE_STARTED_KEY, day);
+    const user = await readDailyCounter(`phone_sms_user_${userId}`);
+    user.count += 1;
+    await writeDailyCounter(`phone_sms_user_${userId}`, user);
+    const month = await readPeriodCounter(`phone_sms_month_${monthId()}`, monthId());
+    month.count += 1;
+    await writeDailyCounter(`phone_sms_month_${monthId()}`, month);
+}
+async function recordPhoneVerified() {
+    const data = await readDailyCounter(PHONE_VERIFIED_KEY);
+    data.count += 1;
+    await writeDailyCounter(PHONE_VERIFIED_KEY, data);
+}
+async function getPhoneAuthStatus() {
+    const provider = (0, phoneVerification_1.getPhoneProvider)();
+    const [started, verified, month] = await Promise.all([
+        readDailyCounter(PHONE_STARTED_KEY),
+        readDailyCounter(PHONE_VERIFIED_KEY),
+        readPeriodCounter(`phone_sms_month_${monthId()}`, monthId()),
+    ]);
+    const rateRaw = parseFloat(process.env.PHONE_SMS_EST_RATE_INR || '');
+    const rate = Number.isFinite(rateRaw) && rateRaw >= 0 ? rateRaw : null;
+    return {
+        provider: provider.name,
+        configured: provider.isConfigured(),
+        startedToday: started.count,
+        verifiedToday: verified.count,
+        dailyCap: exports.PHONE_SMS_DAILY_CAP,
+        startedThisMonth: month.count,
+        estRatePerSmsInr: rate,
+        estCostThisMonthInr: rate == null ? null : Math.round(month.count * rate * 100) / 100,
+        note: 'Counts every SMS we allow to start (failed attempts still send a text). Rupee estimate = SMS count x PHONE_SMS_EST_RATE_INR; ' +
+            'the real charge is on the Google Cloud / Firebase bill, which is the source of truth.',
+    };
+}
 // ── Full dashboard snapshot ──────────────────────────────────────────────
 async function getCostDashboardSnapshot() {
-    const [email, gemini, youtube, youtubeUploads, mongo, firebase, amazon] = await Promise.all([
+    const [email, gemini, youtube, youtubeUploads, mongo, firebase, amazon, phoneAuth] = await Promise.all([
         checkEmailQuota(),
         getGeminiQuotaStatus(),
         getYoutubeQuotaStatus(),
@@ -203,6 +280,7 @@ async function getCostDashboardSnapshot() {
         getMongoStorageStatus(),
         getFirebaseStorageStatus(),
         getAmazonQuotaStatus(),
+        getPhoneAuthStatus(),
     ]);
     return {
         email: {
@@ -240,6 +318,7 @@ async function getCostDashboardSnapshot() {
             callsToday: amazon.callsToday,
             note: 'Best-effort call count from our own tracker — Amazon does not expose a live quota-remaining figure. Rate limit scales automatically with trailing-30-day affiliate revenue.',
         },
+        phoneAuth,
         gcpConsoleOnly: {
             note: 'Cloud Run request volume and Artifact Registry storage cost are only visible via the GCP Billing console — not trackable from application code. Check Cloud Console → Billing → Reports periodically.',
         },
