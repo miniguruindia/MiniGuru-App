@@ -1633,12 +1633,91 @@ class _ResourcesTab extends StatelessWidget {
               padding: const EdgeInsets.only(bottom: 10),
               child: _ResourceCard(r: r),
             )),
+        const SizedBox(height: 4),
+        const _PatentInfoCard(),
         const SizedBox(height: 8),
         const _JoinCTA(
           title: 'Want exclusive resources?',
           subtitle: 'Join free to unlock member-only toolkits and guides.',
         ),
       ],
+    );
+  }
+}
+
+/// "Patents for young inventors" — plain-language points plus links to the
+/// official sources. Information only (not legal advice); nothing is collected.
+class _PatentInfoCard extends StatelessWidget {
+  const _PatentInfoCard();
+
+  static const _links = <List<String>>[
+    ['Basics of Patents (IP India)', 'https://ipindia.gov.in/basics-of-patents'],
+    ['Patent questions and answers (IP India)', 'https://ipindia.gov.in/patents-e-citizen-faqs'],
+    ['Search patents that already exist (IP India)', 'https://ipindia.gov.in/patents-before-you-apply-public-search'],
+    ['What is a patent? (WIPO)', 'https://www.wipo.int/en/web/patents/'],
+    ['Creativity and IP for young people (WIPO)', 'https://welc.wipo.int/ipedu/home'],
+    ['Young inventors hub (WIPO)', 'https://www.wipo.int/en/web/youth-engagement'],
+  ];
+
+  Widget _point(String text) => Padding(
+        padding: const EdgeInsets.only(bottom: 6),
+        child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          const Text('•  ', style: TextStyle(fontSize: 12)),
+          Expanded(
+            child: Text(text,
+                style: GoogleFonts.nunito(
+                    fontSize: 12, height: 1.45, color: const Color(0xFF4B4B6B))),
+          ),
+        ]),
+      );
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(top: 6),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFFBEB),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFFDE68A)),
+      ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text('💡 Patents for young inventors',
+            style: GoogleFonts.nunito(
+                fontSize: 15, fontWeight: FontWeight.w900, color: const Color(0xFF1A1A2E))),
+        const SizedBox(height: 8),
+        _point('A patent is a legal right for an invention. It protects the inventor, '
+            'and in return the idea is shared openly so others can learn from it.'),
+        _point('An invention is a brand-new idea that does something useful. '
+            'Before you spend time on a patent, search to see whether the idea already exists.'),
+        _point('You do not need a patent to share your project on MiniGuru. '
+            'If you think your idea is a real invention, talk to a parent or teacher first.'),
+        _point('Patents are decided by the official patent office, not by MiniGuru. '
+            'This is general information, not legal advice.'),
+        const SizedBox(height: 4),
+        Text('Learn more from the official sources',
+            style: GoogleFonts.nunito(
+                fontSize: 12, fontWeight: FontWeight.w800, color: const Color(0xFF92400E))),
+        const SizedBox(height: 4),
+        ..._links.map((l) => InkWell(
+              onTap: () => launchUrl(Uri.parse(l[1]), mode: LaunchMode.externalApplication),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 4),
+                child: Row(children: [
+                  const Icon(Icons.open_in_new_rounded, size: 14, color: Color(0xFF3B82F6)),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(l[0],
+                        style: GoogleFonts.nunito(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            color: const Color(0xFF3B82F6),
+                            decoration: TextDecoration.underline)),
+                  ),
+                ]),
+              ),
+            )),
+      ]),
     );
   }
 }

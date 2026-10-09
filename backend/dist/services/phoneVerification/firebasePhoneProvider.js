@@ -59,14 +59,22 @@ exports.firebasePhoneProvider = {
         throw new Error('Firebase checks the code in the browser — use verifyClientProof.');
     },
     async verifyClientProof(phoneE164, proof) {
-        const decoded = await (0, auth_1.getAuth)(ensureApp()).verifyIdToken(proof);
+        const auth = (0, auth_1.getAuth)(ensureApp());
+        const decoded = await auth.verifyIdToken(proof);
         if (decoded.firebase?.sign_in_provider !== 'phone')
             return false;
-        if (decoded.phone_number !== phoneE164)
-            return false;
+        const numberMatches = decoded.phone_number === phoneE164;
         // A proof must be fresh — stops an old token being replayed later.
-        if (Date.now() / 1000 - Number(decoded.auth_time || 0) > MAX_PROOF_AGE_SECONDS)
-            return false;
-        return true;
+        const isFresh = Date.now() / 1000 - Number(decoded.auth_time || 0) <= MAX_PROOF_AGE_SECONDS;
+        // Privacy: Firebase creates a user record (holding the phone number) when a
+        // code is confirmed. We only need the yes/no answer, so remove that record now.
+        // Best-effort — if this ever fails, verification itself must still work.
+        try {
+            await auth.deleteUser(decoded.uid);
+        }
+        catch (_) {
+            /* leave it; can be cleared by hand in Firebase Console → Authentication → Users */
+        }
+        return numberMatches && isFresh;
     },
 };
