@@ -382,7 +382,7 @@ class _ShopState extends State<Shop>
       child: Row(children: [
         ClipRRect(
           borderRadius: BorderRadius.circular(8),
-          child: Container(width: 52, height: 52, color: const Color(0xFFF0F2FF),
+          child: Container(width: 52, height: 52, color: Colors.white,
             child: imageUrl.isNotEmpty
                 ? Image.network(imageUrl, fit: BoxFit.contain,
                     errorBuilder: (_, __, ___) => const Icon(Icons.inventory_2_outlined))
@@ -510,7 +510,7 @@ class _ShopState extends State<Shop>
           Checkbox(value: ticked, activeColor: _accent, onChanged: (v) => toggle(v == true)),
           ClipRRect(
             borderRadius: BorderRadius.circular(8),
-            child: Container(width: 44, height: 44, color: const Color(0xFFF0F2FF),
+            child: Container(width: 44, height: 44, color: Colors.white,
               child: imageUrl.isNotEmpty
                   ? Image.network(imageUrl, fit: BoxFit.contain,
                       errorBuilder: (_, __, ___) => const Icon(Icons.inventory_2_outlined))

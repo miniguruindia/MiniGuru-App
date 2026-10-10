@@ -8,6 +8,7 @@ import 'package:miniguru/screens/splashScreen.dart';
 import 'package:miniguru/screens/getStartedScreen.dart';
 import 'package:miniguru/screens/resetPasswordScreen.dart';
 import 'package:miniguru/screens/legalScreen.dart';
+import 'package:miniguru/widgets/navShell.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -27,6 +28,9 @@ class MyApp extends StatelessWidget {
       // ── NEW: full design system theme ──────────────────────────────────
       theme: AppTheme.build(),
       // ───────────────────────────────────────────────────────────────────
+
+      navigatorKey: NavShell.navigatorKey,
+      builder: (context, child) => NavShellFrame(child: child ?? const SizedBox.shrink()),
 
       initialRoute: SplashScreen.id,
 

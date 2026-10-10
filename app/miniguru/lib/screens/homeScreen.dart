@@ -15,6 +15,7 @@ import 'package:miniguru/screens/mentor/mentorProfileTab.dart';
 import 'package:miniguru/screens/mentor/mentorActivityTab.dart';
 import 'package:miniguru/models/User.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:miniguru/widgets/navShell.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -36,7 +37,21 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
+    NavShell.index.addListener(_onShellIndex);
+    WidgetsBinding.instance.addPostFrameCallback((_) => NavShell.visible.value = true);
     _checkAuth();
+  }
+
+  void _onShellIndex() {
+    final i = NavShell.index.value;
+    if (mounted && i != _currentIndex) setState(() => _currentIndex = i);
+  }
+
+  @override
+  void dispose() {
+    NavShell.index.removeListener(_onShellIndex);
+    WidgetsBinding.instance.addPostFrameCallback((_) => NavShell.visible.value = false);
+    super.dispose();
   }
 
   Future<void> _checkAuth() async {
@@ -137,6 +152,7 @@ class _HomeScreenState extends State<HomeScreen> {
     if (_currentIndex != index) {
       setState(() => _currentIndex = index);
     }
+    NavShell.index.value = index;
   }
 
   PreferredSizeWidget? _buildTopBar() {
@@ -259,9 +275,15 @@ class _HomeScreenState extends State<HomeScreen> {
     }
 
     final width = MediaQuery.of(context).size.width;
-    final wide = width >= 1000;      // laptop: left rail
-    final medium = width >= 600;     // tablet and up: centred column
+    final wide = width >= 1000;      // laptop: the left bar + centred strip come from NavShellFrame (main.dart)
+    final medium = width >= 600;     // tablet: centred column here, bottom bar stays
     final items = _navItems();
+
+    // Tell the shared left bar what the tabs are and which one is open.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      NavShell.items.value = items;
+      if (NavShell.index.value != _currentIndex) NavShell.index.value = _currentIndex;
+    });
 
     Widget body = IndexedStack(
       index: _currentIndex,
@@ -275,8 +297,8 @@ class _HomeScreenState extends State<HomeScreen> {
     );
 
     // Phones (under 600 px) are left exactly as they were.
-    if (medium) {
-      final maxW = wide ? 1400.0 : 720.0;
+    if (medium && !wide) {
+      const maxW = 720.0;
       final inner = body;
       body = LayoutBuilder(builder: (context, c) {
         final w = c.maxWidth < maxW ? c.maxWidth : maxW;
@@ -296,36 +318,8 @@ class _HomeScreenState extends State<HomeScreen> {
       });
     }
 
-    if (wide) {
-      body = Row(children: [
-        NavigationRail(
-          selectedIndex: _currentIndex,
-          onDestinationSelected: _onNavBarTap,
-          labelType: NavigationRailLabelType.all,
-          backgroundColor: Colors.white,
-          minWidth: 92,
-          selectedIconTheme: const IconThemeData(color: Color(0xFF3B82F6)),
-          unselectedIconTheme: IconThemeData(color: Colors.grey.shade500),
-          selectedLabelTextStyle: GoogleFonts.nunito(
-              fontSize: 11, fontWeight: FontWeight.w700, color: const Color(0xFF3B82F6)),
-          unselectedLabelTextStyle: GoogleFonts.nunito(
-              fontSize: 10, fontWeight: FontWeight.w500, color: Colors.grey.shade600),
-          destinations: [
-            for (final it in items)
-              NavigationRailDestination(
-                icon: it.icon,
-                selectedIcon: it.activeIcon,
-                label: Text(it.label ?? '', textAlign: TextAlign.center),
-              ),
-          ],
-        ),
-        const VerticalDivider(width: 1, thickness: 1, color: Color(0xFFE8EAF6)),
-        Expanded(child: body),
-      ]);
-    }
-
     return Scaffold(
-      backgroundColor: medium ? const Color(0xFFEEF0FA) : null,
+      backgroundColor: medium && !wide ? const Color(0xFFEEF0FA) : null,
       appBar: _buildTopBar(),
       body: body,
       bottomNavigationBar: wide

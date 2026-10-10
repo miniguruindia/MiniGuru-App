@@ -1,5 +1,7 @@
 // lib/screens/navScreen/home.dart
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:miniguru/widgets/navShell.dart';
 import 'package:flutter/gestures.dart';
 import 'package:miniguru/models/User.dart';
 import 'package:miniguru/network/MiniguruApi.dart';
@@ -510,6 +512,8 @@ class _HomeState extends State<Home> {
     return SliverList(
       delegate: SliverChildListDelegate([
         _buildStatsCards(),
+        const SizedBox(height: 12),
+        const _NoticeStrip(),
         const SizedBox(height: 24),
         _buildSearchBar(),
         const SizedBox(height: 16),
@@ -582,30 +586,83 @@ class _HomeState extends State<Home> {
 
   Widget _buildStatCard(String label, String value, String subtitle,
       IconData icon, Color bgColor, Color iconColor) {
+    double? progress;
+    if (label == 'Daily Quest') {
+      final w = (_dailyQuest?['videosWatched'] as num?)?.toDouble() ?? 0;
+      final tgt = (_dailyQuest?['target'] as num?)?.toDouble() ?? 3;
+      progress = _dailyQuest?['completed'] == true
+          ? 1.0
+          : (tgt > 0 ? (w / tgt).clamp(0.0, 1.0) : 0.0);
+    }
+    final big = label == 'Score' || label == 'Your';
+    final title = label == 'Score'
+        ? 'MY GOINS'
+        : label == 'Your'
+            ? 'MY PROJECTS'
+            : label.toUpperCase();
+    final sub = label == 'Your' ? 'uploaded so far' : subtitle;
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-          color: bgColor, borderRadius: BorderRadius.circular(16)),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Row(children: [
-          Icon(icon, color: iconColor, size: 18),
-          const SizedBox(width: 4),
-          Flexible(
-            child: Text(label,
-                style: GoogleFonts.nunito(
-                    fontSize: 11, color: iconColor, fontWeight: FontWeight.w600),
-                overflow: TextOverflow.ellipsis),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color.alphaBlend(iconColor.withOpacity(0.20), Colors.white), Colors.white],
+        ),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: iconColor.withOpacity(0.28)),
+        boxShadow: [
+          BoxShadow(color: iconColor.withOpacity(0.10), blurRadius: 10, offset: const Offset(0, 3)),
+        ],
+      ),
+      child: Row(children: [
+        Container(
+          width: 44, height: 44,
+          decoration: BoxDecoration(
+            color: iconColor.withOpacity(0.15),
+            shape: BoxShape.circle,
           ),
-        ]),
-        const SizedBox(height: 8),
-        Text(value,
-            style: GoogleFonts.nunito(fontWeight: FontWeight.w900,
-              fontSize: label == 'Score' || label == 'Your' ? 24 : 14,
-              color: Colors.black87,
-            )),
-        const SizedBox(height: 4),
-        Text(subtitle,
-            style: GoogleFonts.nunito(fontSize: 11, color: Colors.black54)),
+          child: Icon(icon, color: iconColor, size: 24),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(title,
+                style: GoogleFonts.nunito(
+                    fontSize: 10,
+                    letterSpacing: 0.8,
+                    color: iconColor,
+                    fontWeight: FontWeight.w900),
+                overflow: TextOverflow.ellipsis),
+            const SizedBox(height: 2),
+            Text(value,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: GoogleFonts.nunito(
+                  fontWeight: FontWeight.w900,
+                  fontSize: big ? 26 : 15,
+                  color: const Color(0xFF1A1A2E),
+                )),
+            if (progress != null) ...[
+              const SizedBox(height: 6),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(6),
+                child: LinearProgressIndicator(
+                  value: progress,
+                  minHeight: 6,
+                  backgroundColor: iconColor.withOpacity(0.15),
+                  valueColor: AlwaysStoppedAnimation<Color>(iconColor),
+                ),
+              ),
+            ],
+            const SizedBox(height: 4),
+            Text(sub,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: GoogleFonts.nunito(
+                    fontSize: 11, fontWeight: FontWeight.w700, color: Colors.black54)),
+          ]),
+        ),
       ]),
     );
   }
@@ -1043,12 +1100,17 @@ class _HomeState extends State<Home> {
       LayoutBuilder(builder: (context, c) {
         final avail = c.maxWidth - 32;
         final others = _filteredVideos.skip(1).take(2).toList();
-        // Phones (and anything narrow): the single wide card, exactly as before.
+        // Phones (and anything narrow): the single wide card, exactly as before,
+        // with its materials list underneath.
         if (avail < 560 || others.length < 2) {
-          return Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: _featuredTile(featured, height: 200),
-          );
+          return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: _featuredTile(featured, height: 200),
+            ),
+            if (featuredMaterials.isNotEmpty)
+              _buildMaterialsStrip(featuredMaterials, videoId: featuredId),
+          ]);
         }
         // Wider screens: one big 16:9 video on the left and the two newest
         // other videos stacked on the right, also 16:9. The sums are chosen so
@@ -1058,29 +1120,47 @@ class _HomeState extends State<Home> {
         final leftW = rightW * 2 + gap * 16 / 9;
         final rightH = rightW * 9 / 16;
         final leftH = leftW * 9 / 16;
-        return Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              SizedBox(width: leftW, child: _featuredTile(featured, height: leftH)),
-              const SizedBox(width: gap),
-              SizedBox(
-                width: rightW,
-                child: Column(children: [
-                  _featuredTile(others[0], height: rightH, big: false),
-                  const SizedBox(height: gap),
-                  _featuredTile(others[1], height: rightH, big: false),
-                ]),
-              ),
-            ],
+        for (final v in others) {
+          final id = v['videoId']?.toString() ?? '';
+          if (id.isNotEmpty && !_fetchedMaterials.contains(id)) _fetchVideoMaterials(id);
+        }
+        return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                SizedBox(width: leftW, child: _featuredTile(featured, height: leftH)),
+                const SizedBox(width: gap),
+                SizedBox(
+                  width: rightW,
+                  child: Column(children: [
+                    _featuredTile(others[0], height: rightH, big: false),
+                    const SizedBox(height: gap),
+                    _featuredTile(others[1], height: rightH, big: false),
+                  ]),
+                ),
+              ],
+            ),
           ),
-        );
+          // Materials lists (Amazon links) for each of the three videos.
+          for (final v in [featured, ...others])
+            if ((_materialCache[v['videoId']?.toString() ?? ''] ?? []).isNotEmpty) ...[
+              const SizedBox(height: 10),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Text('Materials for "${v['title'] ?? ''}"',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.nunito(
+                        fontSize: 12, fontWeight: FontWeight.w800, color: Colors.black87)),
+              ),
+              const SizedBox(height: 4),
+              _buildMaterialsStrip(_materialCache[v['videoId']?.toString() ?? '']!,
+                  videoId: v['videoId']?.toString() ?? ''),
+            ],
+        ]);
       }),
-
-      // Materials strip below featured card (if any materials found)
-      if (featuredMaterials.isNotEmpty)
-        _buildMaterialsStrip(featuredMaterials, videoId: featuredId),
     ]);
   }
 
@@ -1724,6 +1804,144 @@ class _HomeState extends State<Home> {
               : video['viewCount'] as int?,
         ),
       ),
+    );
+  }
+}
+
+
+// ── Notice strip (logged-in Home) ─────────────────────────────────────────
+// Shows what the child would want to know right now: new comments and likes
+// on their projects, and projects that are uploaded and still awaiting review.
+// Tap a box to jump to Profile (notifications) or Projects.
+class _NoticeStrip extends StatefulWidget {
+  const _NoticeStrip();
+  @override
+  State<_NoticeStrip> createState() => _NoticeStripState();
+}
+
+class _NoticeStripState extends State<_NoticeStrip> {
+  bool _loaded = false;
+  int _comments = 0;
+  int _likes = 0;
+  int _pending = 0;
+  String _latestComment = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    final api = MiniguruApi();
+    int comments = 0, likes = 0, pending = 0;
+    String latest = '';
+    try {
+      final n = await api.getNotifications();
+      if (n != null) {
+        for (final x in n) {
+          if (x is Map) {
+            final type = x['type']?.toString();
+            if (type == 'comment') {
+              comments++;
+              if (latest.isEmpty) latest = x['message']?.toString() ?? '';
+            } else if (type == 'like') {
+              likes++;
+            }
+          }
+        }
+      }
+    } catch (_) {}
+    try {
+      final res = await api.getAllProjectsForUser();
+      if (res != null && res.statusCode == 200) {
+        final list = jsonDecode(res.body);
+        if (list is List) {
+          for (final pr in list) {
+            if (pr is Map && (pr['status']?.toString().toLowerCase() ?? '') == 'pending') pending++;
+          }
+        }
+      }
+    } catch (_) {}
+    if (!mounted) return;
+    setState(() {
+      _comments = comments;
+      _likes = likes;
+      _pending = pending;
+      _latestComment = latest;
+      _loaded = true;
+    });
+  }
+
+  Widget _box(String emoji, String title, String sub, Color color, VoidCallback onTap) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(14),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.10),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: color.withOpacity(0.30)),
+        ),
+        child: Row(children: [
+          Text(emoji, style: const TextStyle(fontSize: 22)),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(title,
+                  style: GoogleFonts.nunito(
+                      fontSize: 13, fontWeight: FontWeight.w900, color: const Color(0xFF1A1A2E))),
+              if (sub.isNotEmpty)
+                Text(sub,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.nunito(
+                        fontSize: 11, fontWeight: FontWeight.w600, color: Colors.black54)),
+            ]),
+          ),
+          Icon(Icons.chevron_right, size: 18, color: color),
+        ]),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!_loaded) return const SizedBox.shrink();
+    final boxes = <Widget>[
+      if (_comments > 0)
+        _box('💬', _comments == 1 ? '1 recent comment' : '$_comments recent comments',
+            _latestComment, const Color(0xFF3B82F6), () => NavShell.go(4)),
+      if (_likes > 0)
+        _box('❤️', _likes == 1 ? '1 recent like' : '$_likes recent likes',
+            'on your projects', const Color(0xFFEC4899), () => NavShell.go(4)),
+      if (_pending > 0)
+        _box('⏳', _pending == 1 ? '1 project awaiting review' : '$_pending projects awaiting review',
+            'We will tell you as soon as it is checked', const Color(0xFFD97706), () => NavShell.go(3)),
+    ];
+    if (boxes.isEmpty) {
+      boxes.add(_box('✨', 'All caught up',
+          'Upload a project to earn Goins', const Color(0xFF10B981), () => NavShell.go(3)));
+    }
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: LayoutBuilder(builder: (context, c) {
+        if (c.maxWidth < 600 || boxes.length == 1) {
+          return Column(children: [
+            for (var i = 0; i < boxes.length; i++) ...[
+              if (i > 0) const SizedBox(height: 8),
+              SizedBox(width: double.infinity, child: boxes[i]),
+            ],
+          ]);
+        }
+        return Row(children: [
+          for (var i = 0; i < boxes.length; i++) ...[
+            if (i > 0) const SizedBox(width: 10),
+            Expanded(child: boxes[i]),
+          ],
+        ]);
+      }),
     );
   }
 }
