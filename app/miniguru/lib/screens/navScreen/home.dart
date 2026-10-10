@@ -909,6 +909,104 @@ class _HomeState extends State<Home> {
     ]);
   }
 
+  // One featured tile. `big` = the large hero; otherwise a smaller side tile.
+  Widget _featuredTile(Map<String, dynamic> v,
+      {required double height, bool big = true}) {
+    final thumb = v['thumbnail'];
+    return GestureDetector(
+      onTap: () => _openVideo(v),
+      child: SizedBox(
+        height: height,
+        width: double.infinity,
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(16),
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              thumb != null
+                  ? Image.network(
+                      thumb,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => Container(
+                        color: const Color(0xFFDEEEFF),
+                        child: const Center(
+                          child: Icon(Icons.video_library, size: 60, color: Colors.grey),
+                        ),
+                      ),
+                    )
+                  : Container(
+                      color: const Color(0xFFDEEEFF),
+                      child: const Center(
+                        child: Icon(Icons.video_library, size: 60, color: Colors.grey),
+                      ),
+                    ),
+              Positioned.fill(
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [Colors.transparent, Colors.black.withOpacity(0.65)],
+                      stops: const [0.45, 1.0],
+                    ),
+                  ),
+                ),
+              ),
+              if (big)
+                Positioned(
+                  top: 12, left: 12,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFEF4444),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Text('Featured',
+                        style: GoogleFonts.nunito(
+                            fontSize: 10, fontWeight: FontWeight.w700, color: Colors.white)),
+                  ),
+                ),
+              Center(
+                child: Container(
+                  width: big ? 56 : 40, height: big ? 56 : 40,
+                  decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
+                  child: Icon(Icons.play_arrow,
+                      size: big ? 34 : 26, color: const Color(0xFF3B82F6)),
+                ),
+              ),
+              Positioned(
+                bottom: big ? 14 : 10, left: big ? 14 : 10, right: big ? 14 : 10,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      v['title'] ?? '',
+                      style: GoogleFonts.nunito(
+                        fontSize: big ? 14 : 12,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.white,
+                      ),
+                      maxLines: big ? 2 : 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    if (big) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        'by ${v['channelTitle'] ?? 'MiniGuru'}',
+                        style: GoogleFonts.nunito(fontSize: 11, color: Colors.white70),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildFeatured() {
     if (_filteredVideos.isEmpty) return const SizedBox.shrink();
     final featured = _filteredVideos.first;
@@ -942,104 +1040,43 @@ class _HomeState extends State<Home> {
       ),
       const SizedBox(height: 8),
 
-      GestureDetector(
-        onTap: () => _openVideo(featured),
-        child: Container(
-          margin: const EdgeInsets.symmetric(horizontal: 16),
-          height: 200,
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(16),
-            child: Stack(
-              fit: StackFit.expand,
-              children: [
-                featured['thumbnail'] != null
-                    ? Image.network(
-                        featured['thumbnail'],
-                        fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) => Container(
-                          color: const Color(0xFFDEEEFF),
-                          child: const Center(
-                            child: Icon(Icons.video_library,
-                                size: 60, color: Colors.grey),
-                          ),
-                        ),
-                      )
-                    : Container(
-                        color: const Color(0xFFDEEEFF),
-                        child: const Center(
-                          child: Icon(Icons.video_library,
-                              size: 60, color: Colors.grey),
-                        ),
-                      ),
-                Positioned.fill(
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [
-                          Colors.transparent,
-                          Colors.black.withOpacity(0.65),
-                        ],
-                        stops: const [0.45, 1.0],
-                      ),
-                    ),
-                  ),
-                ),
-                Positioned(
-                  top: 12, left: 12,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFEF4444),
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: Text('Featured',
-                        style: GoogleFonts.nunito(
-                            fontSize: 10,
-                            fontWeight: FontWeight.w700,
-                            color: Colors.white)),
-                  ),
-                ),
-                Center(
-                  child: Container(
-                    width: 56, height: 56,
-                    decoration: const BoxDecoration(
-                        color: Colors.white, shape: BoxShape.circle),
-                    child: const Icon(Icons.play_arrow,
-                        size: 34, color: Color(0xFF3B82F6)),
-                  ),
-                ),
-                Positioned(
-                  bottom: 14, left: 14, right: 14,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        featured['title'] ?? '',
-                        style: GoogleFonts.nunito(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w700,
-                          color: Colors.white,
-                        ),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        'by ${featured['channelTitle'] ?? 'MiniGuru'}',
-                        style: GoogleFonts.nunito(
-                            fontSize: 11, color: Colors.white70),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
+      LayoutBuilder(builder: (context, c) {
+        final avail = c.maxWidth - 32;
+        final others = _filteredVideos.skip(1).take(2).toList();
+        // Phones (and anything narrow): the single wide card, exactly as before.
+        if (avail < 560 || others.length < 2) {
+          return Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: _featuredTile(featured, height: 200),
+          );
+        }
+        // Wider screens: one big 16:9 video on the left and the two newest
+        // other videos stacked on the right, also 16:9. The sums are chosen so
+        // the right column is exactly as tall as the big video.
+        const gap = 12.0;
+        final rightW = (avail - gap * 16 / 9 - gap) / 3;
+        final leftW = rightW * 2 + gap * 16 / 9;
+        final rightH = rightW * 9 / 16;
+        final leftH = leftW * 9 / 16;
+        return Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SizedBox(width: leftW, child: _featuredTile(featured, height: leftH)),
+              const SizedBox(width: gap),
+              SizedBox(
+                width: rightW,
+                child: Column(children: [
+                  _featuredTile(others[0], height: rightH, big: false),
+                  const SizedBox(height: gap),
+                  _featuredTile(others[1], height: rightH, big: false),
+                ]),
+              ),
+            ],
           ),
-        ),
-      ),
+        );
+      }),
 
       // Materials strip below featured card (if any materials found)
       if (featuredMaterials.isNotEmpty)
@@ -1104,7 +1141,9 @@ class _HomeState extends State<Home> {
         } else if (constraints.maxWidth > 800) {
           crossAxisCount = 3;
         }
-        final videos = _filteredVideos.skip(1).take(12).toList();
+        // On wide screens the Featured block already shows videos 1-3.
+        final skipN = (constraints.maxWidth - 32 >= 560 && _filteredVideos.length >= 3) ? 3 : 1;
+        final videos = _filteredVideos.skip(skipN).take(12).toList();
         // Use ListView instead of GridView so each card can have variable height
         // (materials strip adds height below some cards)
         return ListView.builder(

@@ -276,13 +276,22 @@ class _HomeScreenState extends State<HomeScreen> {
 
     // Phones (under 600 px) are left exactly as they were.
     if (medium) {
-      final maxW = wide ? 1100.0 : 720.0;
+      final maxW = wide ? 1400.0 : 720.0;
       final inner = body;
       body = LayoutBuilder(builder: (context, c) {
         final w = c.maxWidth < maxW ? c.maxWidth : maxW;
         return Align(
           alignment: Alignment.topCenter,
-          child: SizedBox(width: w, height: c.maxHeight, child: inner),
+          child: Container(
+            width: w,
+            height: c.maxHeight,
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              border: Border.symmetric(
+                  vertical: BorderSide(color: Color(0xFFE3E6F7))),
+            ),
+            child: inner,
+          ),
         );
       });
     }
@@ -316,6 +325,7 @@ class _HomeScreenState extends State<HomeScreen> {
     }
 
     return Scaffold(
+      backgroundColor: medium ? const Color(0xFFEEF0FA) : null,
       appBar: _buildTopBar(),
       body: body,
       bottomNavigationBar: wide

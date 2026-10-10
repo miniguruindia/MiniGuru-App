@@ -761,7 +761,7 @@ class _ShopState extends State<Shop>
     super.build(context);
     final kitCount = _kit.values.fold<int>(0, (s, m) => s + (m['qty'] as int));
     return Scaffold(
-      backgroundColor: _bg,
+      backgroundColor: Colors.white,
       body: NestedScrollView(
         headerSliverBuilder: (_, __) => [_buildAppBar()],
         body: Column(children: [
@@ -1262,13 +1262,14 @@ class _MaterialTile extends StatelessWidget {
       onTap: hasAmazon ? () => launchUrl(Uri.parse(amazonUrl), mode: LaunchMode.externalApplication) : null,
       child: Container(
       decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.06), blurRadius: 8, offset: const Offset(0, 2))]),
+        border: Border.all(color: const Color(0xFFE3E6F7)),
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.07), blurRadius: 8, offset: const Offset(0, 2))]),
       child: Column(children: [
         // Image 130px
         Stack(children: [
           ClipRRect(
             borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-            child: Container(width: double.infinity, height: 130, color: const Color(0xFFF0F2FF),
+            child: Container(width: double.infinity, height: 130, color: Colors.white,
               child: imageUrl.isNotEmpty
                   ? Image.network(imageUrl, fit: BoxFit.contain,
                       errorBuilder: (_, __, ___) => Center(child: Text(icon, style: const TextStyle(fontSize: 40))))

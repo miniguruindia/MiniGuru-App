@@ -878,7 +878,10 @@ class _LadderTabState extends State<_LadderTab> {
   // chips on single scrollable lines so the rankings start near the top.
   bool _levelsOpen = false;
   bool get _narrow => MediaQuery.of(context).size.width < 600;
-  bool get _wide => MediaQuery.of(context).size.width >= 1000;
+  // Levels & Badges stay folded on every screen size (the laptop view is a
+  // centred strip, so it gets the same compact Ladder as the phone).
+  bool get _wide => false;
+  bool get _shortText => true;
 
   Widget _chipRow(List<Widget> chips) {
     if (!_narrow) return Wrap(spacing: 8, runSpacing: 8, children: chips);
@@ -1170,7 +1173,7 @@ class _LadderTabState extends State<_LadderTab> {
           ),
         ]),
         Text(
-            _narrow ? 'Goins earned in this period. Each period starts fresh!' :
+            _shortText ? 'Goins earned in this period. Each period starts fresh!' :
             'All the Goins earned in this period — projects, ratings, watching, '
             'comments and daily quests. Project categories count project Goins only. '
             'Each period starts fresh, so everyone gets a new chance to top it!',
