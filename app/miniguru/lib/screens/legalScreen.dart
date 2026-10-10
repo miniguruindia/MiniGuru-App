@@ -43,7 +43,7 @@ class _LegalScreenState extends State<LegalScreen>
   // ── Hardcoded fallbacks ─────────────────────────────────────────────
   static const _defaultPrivacy = '''
 # Privacy Policy
-**Last updated: June 2026 · MiniGuru Innovation Private Limited**
+**Last updated: October 2026 · MiniGuru Innovation Private Limited**
 
 ## 1. Introduction
 MiniGuru is built for children. Protecting their privacy is our highest responsibility. This policy explains what we collect, why, and how — in compliance with India's **Digital Personal Data Protection Act, 2023 (DPDPA)**.
@@ -53,7 +53,7 @@ MiniGuru is built for children. Protecting their privacy is our highest responsi
 - **Project content** — photos and videos uploaded by the child
 - **Usage data** — screens visited, features used (for personalisation)
 - **Profile photo** — optional, stored securely
-- **Photo search (optional)** — if a child uses "Search with a photo" in the Shop, that photo is sent to Google's Gemini AI to find matching materials. MiniGuru does not save it
+- **AI-assisted shop search (optional)** — if a child uses "Ask MiniGuru AI" or "Search with a photo" in the Shop, the words typed or the photo taken is sent to Google's Gemini AI only to find matching materials. MiniGuru does not save the photo. Normal Shop search never uses AI, and a child can always search by typing instead
 
 We do **NOT** collect Aadhar numbers, precise GPS location, biometric data, or payment card details.
 

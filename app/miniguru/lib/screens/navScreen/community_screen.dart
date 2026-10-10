@@ -874,6 +874,53 @@ class _LadderTabState extends State<_LadderTab> {
   List<dynamic> _winners = [];
   bool _allTimeLoaded = false;
 
+  // Layout (Oct 2026): phones fold Levels & Badges away and keep the filter
+  // chips on single scrollable lines so the rankings start near the top.
+  bool _levelsOpen = false;
+  bool get _narrow => MediaQuery.of(context).size.width < 600;
+  bool get _wide => MediaQuery.of(context).size.width >= 1000;
+
+  Widget _chipRow(List<Widget> chips) {
+    if (!_narrow) return Wrap(spacing: 8, runSpacing: 8, children: chips);
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(children: [
+        for (var i = 0; i < chips.length; i++) ...[
+          if (i > 0) const SizedBox(width: 8),
+          chips[i],
+        ],
+      ]),
+    );
+  }
+
+  Widget _levelsHeader() {
+    if (_wide) return const SizedBox.shrink();
+    return InkWell(
+      onTap: () => setState(() => _levelsOpen = !_levelsOpen),
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: const Color(0xFFE8EAFF)),
+        ),
+        child: Row(children: [
+          Expanded(
+            child: Text('Levels & Badges',
+                style: GoogleFonts.nunito(
+                    fontSize: 14, fontWeight: FontWeight.w800, color: const Color(0xFF1A1A2E))),
+          ),
+          Text(_levelsOpen ? 'Hide' : 'Show',
+              style: GoogleFonts.nunito(
+                  fontSize: 12, fontWeight: FontWeight.w800, color: const Color(0xFF5B6EF5))),
+          Icon(_levelsOpen ? Icons.expand_less : Icons.expand_more,
+              size: 20, color: const Color(0xFF5B6EF5)),
+        ]),
+      ),
+    );
+  }
+
   // Fallback data shown before API loads or on error
   List<_Leader> _leaderboard = const [
     _Leader(rank: 1, name: 'Aarav M.',  city: '', score: 1240, badge: '🚀'),
@@ -1047,7 +1094,7 @@ class _LadderTabState extends State<_LadderTab> {
     final usePodium = leaders.length >= 3;
 
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Wrap(spacing: 8, runSpacing: 8, children: [
+      _chipRow([
         for (final p in periods)
           _boardChip(p[1], _period == p[0], () {
             setState(() {
@@ -1059,7 +1106,7 @@ class _LadderTabState extends State<_LadderTab> {
       ]),
       const SizedBox(height: 10),
       if (!isAllTime) ...[
-        Wrap(spacing: 8, runSpacing: 8, children: [
+        _chipRow([
           _boardChip('🌍 Everyone', _scope == 'app', () {
             setState(() {
               _scope = 'app';
@@ -1074,10 +1121,7 @@ class _LadderTabState extends State<_LadderTab> {
             });
             _loadPeriodBoard();
           }),
-        ]),
-        if (_boardCategories.isNotEmpty) ...[
-          const SizedBox(height: 8),
-          Wrap(spacing: 8, runSpacing: 8, children: [
+          if (_boardCategories.isNotEmpty)
             _boardChip('All Projects', _categoryId == null, () {
               setState(() {
                 _categoryId = null;
@@ -1085,18 +1129,17 @@ class _LadderTabState extends State<_LadderTab> {
               });
               _loadPeriodBoard();
             }),
-            for (final c in _boardCategories)
-              _boardChip(
-                  '${(c['icon'] ?? '').toString().trim()} ${(c['name'] ?? '').toString()}'.trim(),
-                  _categoryId == c['id']?.toString(), () {
-                setState(() {
-                  _categoryId = c['id']?.toString();
-                  _offset = 0;
-                });
-                _loadPeriodBoard();
-              }),
-          ]),
-        ],
+          for (final c in _boardCategories)
+            _boardChip(
+                '${(c['icon'] ?? '').toString().trim()} ${(c['name'] ?? '').toString()}'.trim(),
+                _categoryId == c['id']?.toString(), () {
+              setState(() {
+                _categoryId = c['id']?.toString();
+                _offset = 0;
+              });
+              _loadPeriodBoard();
+            }),
+        ]),
         const SizedBox(height: 6),
         Row(children: [
           IconButton(
@@ -1127,6 +1170,7 @@ class _LadderTabState extends State<_LadderTab> {
           ),
         ]),
         Text(
+            _narrow ? 'Goins earned in this period. Each period starts fresh!' :
             'All the Goins earned in this period — projects, ratings, watching, '
             'comments and daily quests. Project categories count project Goins only. '
             'Each period starts fresh, so everyone gets a new chance to top it!',
@@ -1352,6 +1396,10 @@ class _LadderTabState extends State<_LadderTab> {
           const SizedBox(height: 24),
         ],
 
+        _levelsHeader(),
+        if (_wide) const SizedBox(height: 4),
+        if (_levelsOpen || _wide) ...[
+        const SizedBox(height: 12),
         // ── Level Ladder ──────────────────────────────────────────────────
         Text('Progression Levels',
             style: GoogleFonts.nunito(
@@ -1386,6 +1434,8 @@ class _LadderTabState extends State<_LadderTab> {
           children: _badges.map((b) => _BadgeCard(b: b)).toList(),
         ),
         const SizedBox(height: 24),
+        ],
+        const SizedBox(height: 12),
         const _JoinCTA(
           title: 'Climb the ladder!',
           subtitle: 'Build projects, earn Goins, and reach the top!',

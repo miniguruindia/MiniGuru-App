@@ -1037,8 +1037,9 @@ class _ShopState extends State<Shop>
     return SliverPadding(
       padding: const EdgeInsets.symmetric(horizontal: 12),
       sliver: SliverGrid(
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 2, crossAxisSpacing: 12, mainAxisSpacing: 12,
+        // Phones: exactly 2 columns as before. Tablets/laptops: 3-4 columns.
+        gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+          maxCrossAxisExtent: 260, crossAxisSpacing: 12, mainAxisSpacing: 12,
           mainAxisExtent: _cardH,
         ),
         delegate: SliverChildBuilderDelegate((context, i) {

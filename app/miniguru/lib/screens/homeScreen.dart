@@ -209,6 +209,44 @@ class _HomeScreenState extends State<HomeScreen> {
     return null;
   }
 
+  bool get _isMentorView => _user?.isMentor == true && !SessionState.isChildSession;
+
+  // Same five destinations for the bottom bar (phone/tablet) and the left
+  // rail (laptop), so the two can never drift apart.
+  List<BottomNavigationBarItem> _navItems() {
+    return [
+      const BottomNavigationBarItem(
+        icon: Icon(Icons.home_outlined),
+        activeIcon: Icon(Icons.home),
+        label: 'Home',
+      ),
+      BottomNavigationBarItem(
+        // Mentors/parents/schools see the same Consultancy tab a guest sees
+        // here — "Learners" moved into Children's Activity.
+        icon: Icon(_isMentorView ? Icons.support_agent_outlined : _isAuthenticated ? Icons.library_books_outlined : Icons.support_agent_outlined),
+        activeIcon: Icon(_isMentorView ? Icons.support_agent : _isAuthenticated ? Icons.library_books : Icons.support_agent),
+        label: _isMentorView ? 'Consult' : _isAuthenticated ? 'Community' : 'Consult',
+      ),
+      const BottomNavigationBarItem(
+        icon: Icon(Icons.shopping_bag_outlined),
+        activeIcon: Icon(Icons.shopping_bag),
+        label: 'Shop',
+      ),
+      BottomNavigationBarItem(
+        icon: Icon(_isAuthenticated ? Icons.work_outline : Icons.people_outline),
+        activeIcon: Icon(_isAuthenticated ? Icons.work : Icons.people),
+        label: _isMentorView
+            ? "Children's Activity"
+            : _isAuthenticated ? 'Projects' : 'Community',
+      ),
+      BottomNavigationBarItem(
+        icon: Icon(_isMentorView ? Icons.supervisor_account_outlined : _isAuthenticated ? Icons.person_outline : Icons.info_outline),
+        activeIcon: Icon(_isMentorView ? Icons.supervisor_account : _isAuthenticated ? Icons.person : Icons.info),
+        label: _isMentorView ? 'My Account' : _isAuthenticated ? 'Profile' : 'About',
+      ),
+    ];
+  }
+
   @override
   Widget build(BuildContext context) {
     if (!_authChecked) {
@@ -220,73 +258,93 @@ class _HomeScreenState extends State<HomeScreen> {
       );
     }
 
+    final width = MediaQuery.of(context).size.width;
+    final wide = width >= 1000;      // laptop: left rail
+    final medium = width >= 600;     // tablet and up: centred column
+    final items = _navItems();
+
+    Widget body = IndexedStack(
+      index: _currentIndex,
+      children: [
+        _getScreen(0),
+        _getScreen(1),
+        _getScreen(2),
+        _getScreen(3),
+        _getScreen(4),
+      ],
+    );
+
+    // Phones (under 600 px) are left exactly as they were.
+    if (medium) {
+      final maxW = wide ? 1100.0 : 720.0;
+      final inner = body;
+      body = LayoutBuilder(builder: (context, c) {
+        final w = c.maxWidth < maxW ? c.maxWidth : maxW;
+        return Align(
+          alignment: Alignment.topCenter,
+          child: SizedBox(width: w, height: c.maxHeight, child: inner),
+        );
+      });
+    }
+
+    if (wide) {
+      body = Row(children: [
+        NavigationRail(
+          selectedIndex: _currentIndex,
+          onDestinationSelected: _onNavBarTap,
+          labelType: NavigationRailLabelType.all,
+          backgroundColor: Colors.white,
+          minWidth: 92,
+          selectedIconTheme: const IconThemeData(color: Color(0xFF3B82F6)),
+          unselectedIconTheme: IconThemeData(color: Colors.grey.shade500),
+          selectedLabelTextStyle: GoogleFonts.nunito(
+              fontSize: 11, fontWeight: FontWeight.w700, color: const Color(0xFF3B82F6)),
+          unselectedLabelTextStyle: GoogleFonts.nunito(
+              fontSize: 10, fontWeight: FontWeight.w500, color: Colors.grey.shade600),
+          destinations: [
+            for (final it in items)
+              NavigationRailDestination(
+                icon: it.icon,
+                selectedIcon: it.activeIcon,
+                label: Text(it.label ?? '', textAlign: TextAlign.center),
+              ),
+          ],
+        ),
+        const VerticalDivider(width: 1, thickness: 1, color: Color(0xFFE8EAF6)),
+        Expanded(child: body),
+      ]);
+    }
+
     return Scaffold(
       appBar: _buildTopBar(),
-      body: IndexedStack(
-        index: _currentIndex,
-        children: [
-          _getScreen(0),
-          _getScreen(1),
-          _getScreen(2),
-          _getScreen(3),
-          _getScreen(4),
-        ],
-      ),
-      bottomNavigationBar: Container(
-        decoration: BoxDecoration(
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.08),
-              blurRadius: 10,
-              offset: const Offset(0, -2),
+      body: body,
+      bottomNavigationBar: wide
+          ? null
+          : Container(
+              decoration: BoxDecoration(
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.08),
+                    blurRadius: 10,
+                    offset: const Offset(0, -2),
+                  ),
+                ],
+              ),
+              child: BottomNavigationBar(
+                currentIndex: _currentIndex,
+                onTap: _onNavBarTap,
+                type: BottomNavigationBarType.fixed,
+                selectedItemColor: const Color(0xFF3B82F6),
+                unselectedItemColor: Colors.grey.shade500,
+                selectedLabelStyle: GoogleFonts.nunito(
+                    fontSize: 11, fontWeight: FontWeight.w700),
+                unselectedLabelStyle:
+                    GoogleFonts.nunito(fontSize: 10, fontWeight: FontWeight.w500),
+                backgroundColor: Colors.white,
+                elevation: 0,
+                items: items,
+              ),
             ),
-          ],
-        ),
-        child: BottomNavigationBar(
-          currentIndex: _currentIndex,
-          onTap: _onNavBarTap,
-          type: BottomNavigationBarType.fixed,
-          selectedItemColor: const Color(0xFF3B82F6),
-          unselectedItemColor: Colors.grey.shade500,
-          selectedLabelStyle: GoogleFonts.nunito(
-              fontSize: 11, fontWeight: FontWeight.w700),
-          unselectedLabelStyle:
-              GoogleFonts.nunito(fontSize: 10, fontWeight: FontWeight.w500),
-          backgroundColor: Colors.white,
-          elevation: 0,
-          items: [
-            const BottomNavigationBarItem(
-              icon: Icon(Icons.home_outlined),
-              activeIcon: Icon(Icons.home),
-              label: 'Home',
-            ),
-            BottomNavigationBarItem(
-              // Mentors/parents/schools now see the same Consultancy tab a
-              // guest sees here — "Learners" moved into Children's Activity.
-              icon: Icon(_user?.isMentor == true && !SessionState.isChildSession ? Icons.support_agent_outlined : _isAuthenticated ? Icons.library_books_outlined : Icons.support_agent_outlined),
-              activeIcon: Icon(_user?.isMentor == true && !SessionState.isChildSession ? Icons.support_agent : _isAuthenticated ? Icons.library_books : Icons.support_agent),
-              label: _user?.isMentor == true && !SessionState.isChildSession ? 'Consult' : _isAuthenticated ? 'Community' : 'Consult',
-            ),
-            const BottomNavigationBarItem(
-              icon: Icon(Icons.shopping_bag_outlined),
-              activeIcon: Icon(Icons.shopping_bag),
-              label: 'Shop',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(_isAuthenticated ? Icons.work_outline : Icons.people_outline),
-              activeIcon: Icon(_isAuthenticated ? Icons.work : Icons.people),
-              label: _user?.isMentor == true && !SessionState.isChildSession
-                  ? "Children's Activity"
-                  : _isAuthenticated ? 'Projects' : 'Community',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(_user?.isMentor == true && !SessionState.isChildSession ? Icons.supervisor_account_outlined : _isAuthenticated ? Icons.person_outline : Icons.info_outline),
-              activeIcon: Icon(_user?.isMentor == true && !SessionState.isChildSession ? Icons.supervisor_account : _isAuthenticated ? Icons.person : Icons.info),
-              label: _user?.isMentor == true && !SessionState.isChildSession ? 'My Account' : _isAuthenticated ? 'Profile' : 'About',
-            ),
-          ],
-        ),
-      ),
     );
   }
 }
