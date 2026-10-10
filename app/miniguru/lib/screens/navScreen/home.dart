@@ -1171,7 +1171,7 @@ class _HomeState extends State<Home> {
         final others = _filteredVideos.skip(1).take(2).toList();
         // Phones (and anything narrow): the single wide card, exactly as before,
         // with its materials list underneath.
-        if (avail < 560 || others.length < 2) {
+        if (avail < 640 || others.length < 2) {
           return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -1181,62 +1181,39 @@ class _HomeState extends State<Home> {
               _buildMaterialsStrip(featuredMaterials, videoId: featuredId),
           ]);
         }
-        // Wider screens: one big 16:9 video on the left and the two newest
-        // other videos stacked on the right, also 16:9. The sums are chosen so
-        // the right column is exactly as tall as the big video.
+        // Wider screens: the three newest videos side by side in one row (each
+        // bigger than the 4-across rows below), every video with its own
+        // materials list directly underneath, like all other videos.
         const gap = 12.0;
-        final rightW = (avail - gap * 16 / 9 - gap) / 3;
-        final leftW = rightW * 2 + gap * 16 / 9;
-        final rightH = rightW * 9 / 16;
-        final leftH = leftW * 9 / 16;
+        final colW = (avail - gap * 2) / 3;
+        final colH = colW * 9 / 16;
+        final three = [featured, ...others];
         for (final v in others) {
           final id = v['videoId']?.toString() ?? '';
           if (id.isNotEmpty && !_fetchedMaterials.contains(id)) _fetchVideoMaterials(id);
         }
-        return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                SizedBox(width: leftW, child: _featuredTile(featured, height: leftH)),
-                const SizedBox(width: gap),
-                SizedBox(
-                  width: rightW,
-                  child: Column(children: [
-                    _featuredTile(others[0], height: rightH, big: false),
-                    const SizedBox(height: gap),
-                    _featuredTile(others[1], height: rightH, big: false),
-                  ]),
-                ),
-              ],
-            ),
-          ),
-          // Materials (Amazon links): one slim bar per video; tap a bar to open its list.
-          Builder(builder: (_) {
-            final vids = [featured, ...others]
-                .where((v) => (_materialCache[v['videoId']?.toString() ?? ''] ?? []).isNotEmpty)
-                .toList();
-            if (vids.isEmpty) return const SizedBox.shrink();
-            return Padding(
-              padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
-              child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                for (var i = 0; i < vids.length; i++) ...[
-                  if (i > 0) const SizedBox(width: 10),
-                  Expanded(
-                    child: _CompactMaterials(
-                      title: (vids[i]['title'] ?? '').toString(),
-                      count: _materialCache[vids[i]['videoId']?.toString() ?? '']!.length,
-                      expanded: () => _buildMaterialsStrip(
-                          _materialCache[vids[i]['videoId']?.toString() ?? '']!,
-                          videoId: vids[i]['videoId']?.toString() ?? ''),
-                    ),
-                  ),
-                ],
-              ]),
-            );
-          }),
-        ]);
+        return Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            for (var i = 0; i < three.length; i++) ...[
+              if (i > 0) const SizedBox(width: gap),
+              Expanded(
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  _featuredTile(three[i], height: colH, big: i == 0),
+                  Builder(builder: (_) {
+                    final id = three[i]['videoId']?.toString() ?? '';
+                    final mats = _materialCache[id] ?? [];
+                    if (mats.isEmpty) return const SizedBox.shrink();
+                    return Padding(
+                      padding: const EdgeInsets.only(top: 8),
+                      child: _buildMaterialsStrip(mats, videoId: id, hMargin: 0),
+                    );
+                  }),
+                ]),
+              ),
+            ],
+          ]),
+        );
       }),
     ]);
   }
@@ -1299,7 +1276,7 @@ class _HomeState extends State<Home> {
           crossAxisCount = 3;
         }
         // On wide screens the Featured block already shows videos 1-3.
-        final skipN = (constraints.maxWidth - 32 >= 560 && _filteredVideos.length >= 3) ? 3 : 1;
+        final skipN = (constraints.maxWidth - 32 >= 640 && _filteredVideos.length >= 3) ? 3 : 1;
         final videos = _filteredVideos.skip(skipN).take(12).toList();
         // Use ListView instead of GridView so each card can have variable height
         // (materials strip adds height below some cards)
@@ -1348,11 +1325,12 @@ class _HomeState extends State<Home> {
   Widget _buildMaterialsStrip(
     List<Map<String, dynamic>> materials, {
     required String videoId,
+    double hMargin = 16,
   }) {
     if (materials.isEmpty) return const SizedBox.shrink();
 
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16),
+      margin: EdgeInsets.symmetric(horizontal: hMargin),
       padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
       decoration: BoxDecoration(
         color: const Color(0xFFFFF8E7),

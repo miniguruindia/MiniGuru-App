@@ -510,8 +510,7 @@ class _ProfileState extends State<Profile>
                   _buildHeader(),
                   SliverPadding(
                     padding: EdgeInsets.fromLTRB(_sidePad(context), 0, _sidePad(context), 100),
-                    sliver: SliverList(
-                      delegate: SliverChildListDelegate([
+                    sliver: _bodySliver(context, [
                         const SizedBox(height: 16),
                         _buildGoinsOnlyCard(),
                         const SizedBox(height: 12),
@@ -580,7 +579,6 @@ class _ProfileState extends State<Profile>
                         const SizedBox(height: 24),
                         _buildLogoutBtn(),
                       ]),
-                    ),
                   ),
                 ],
               ),
@@ -1119,11 +1117,33 @@ class _ProfileState extends State<Profile>
     );
   }
 
-  // Side padding: normal on phones; a centred ~780 px column on laptops.
+  // Side padding: a little more room on laptops; no empty gaps either side.
   double _sidePad(BuildContext context) {
-    final w = MediaQuery.of(context).size.width;
-    final strip = w >= 1000 ? (w - 93).clamp(0.0, 1400.0) : w;
-    return strip > 820 ? (strip - 780) / 2 : 16.0;
+    return MediaQuery.of(context).size.width >= 1000 ? 24.0 : 16.0;
+  }
+
+  // Phones: one column, exactly as before. Laptops: two columns using the full width
+  // (left: Goins, activity, notifications, About me, badges; right: contact verification,
+  // account options, logout).
+  Widget _bodySliver(BuildContext context, List<Widget> children) {
+    if (MediaQuery.of(context).size.width < 1000) {
+      return SliverList(delegate: SliverChildListDelegate(children));
+    }
+    final idx = children.indexWhere((x) => x is ContactVerificationCard);
+    final at = idx > 0 ? idx - 1 : children.length;
+    return SliverToBoxAdapter(
+      child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Expanded(
+            child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: children.sublist(0, at))),
+        const SizedBox(width: 24),
+        Expanded(
+            child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: children.sublist(at))),
+      ]),
+    );
   }
 
   // Tagline + small chips (age, class, city, level) in the top card.

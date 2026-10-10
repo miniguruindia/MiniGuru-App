@@ -229,6 +229,19 @@ class _HomeScreenState extends State<HomeScreen> {
 
   // Same five destinations for the bottom bar (phone/tablet) and the left
   // rail (laptop), so the two can never drift apart.
+  // MiniGuru logo for the guest "About" tab (instead of the (i) icon).
+  Widget _logoIcon(double opacity) => Opacity(
+        opacity: opacity,
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(6),
+          child: Image.asset('assets/MGlogo.png',
+              width: 24,
+              height: 24,
+              fit: BoxFit.cover,
+              errorBuilder: (_, __, ___) => const Icon(Icons.info_outline)),
+        ),
+      );
+
   List<BottomNavigationBarItem> _navItems() {
     return [
       const BottomNavigationBarItem(
@@ -256,8 +269,12 @@ class _HomeScreenState extends State<HomeScreen> {
             : _isAuthenticated ? 'Projects' : 'Community',
       ),
       BottomNavigationBarItem(
-        icon: Icon(_isMentorView ? Icons.supervisor_account_outlined : _isAuthenticated ? Icons.person_outline : Icons.info_outline),
-        activeIcon: Icon(_isMentorView ? Icons.supervisor_account : _isAuthenticated ? Icons.person : Icons.info),
+        icon: (!_isMentorView && !_isAuthenticated)
+            ? _logoIcon(0.65)
+            : Icon(_isMentorView ? Icons.supervisor_account_outlined : _isAuthenticated ? Icons.person_outline : Icons.info_outline),
+        activeIcon: (!_isMentorView && !_isAuthenticated)
+            ? _logoIcon(1.0)
+            : Icon(_isMentorView ? Icons.supervisor_account : _isAuthenticated ? Icons.person : Icons.info),
         label: _isMentorView ? 'My Account' : _isAuthenticated ? 'Profile' : 'About',
       ),
     ];
