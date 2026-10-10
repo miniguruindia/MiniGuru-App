@@ -513,12 +513,10 @@ class _HomeState extends State<Home> {
       delegate: SliverChildListDelegate([
         _buildStatsCards(),
         const SizedBox(height: 12),
-        const _NoticeStrip(),
-        const SizedBox(height: 24),
         _buildSearchBar(),
-        const SizedBox(height: 16),
+        const SizedBox(height: 12),
         _buildCategories(),
-        const SizedBox(height: 24),
+        const SizedBox(height: 16),
         _buildContinueWatching(),
         const SizedBox(height: 24),
         _buildForYou(),
@@ -548,39 +546,110 @@ class _HomeState extends State<Home> {
     // Real rank — was hardcoded 'Rank #42' for every user.
     final rankSubtitle = _myRank != null ? 'Rank #$_myRank' : 'Keep building!';
 
+    final questProgress = questCompleted
+        ? 1.0
+        : ((questWatched as num).toDouble() / ((questTarget as num).toDouble() == 0 ? 1 : (questTarget as num).toDouble())).clamp(0.0, 1.0);
+    final questMini = questCompleted
+        ? (questStreak > 1 ? 'Done 🔥$questStreak' : 'Done today!')
+        : '+$questReward pts';
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: LayoutBuilder(builder: (context, constraints) {
-        if (constraints.maxWidth < 600) {
+        // Phone: ONE slim row of three + a one-line updates strip, so the first
+        // video is visible without scrolling.
+        if (constraints.maxWidth < 700) {
           return Column(children: [
-            _buildStatCard('Daily Quest', 'Watch $questTarget Projects', questSubtitle,
-                Icons.emoji_events, const Color(0xFFFDE68A), const Color(0xFFD97706)),
-            const SizedBox(height: 12),
             Row(children: [
               Expanded(
-                  child: _buildStatCard('Score', score, rankSubtitle,
-                      Icons.stars, const Color(0xFFF3F4F6), const Color(0xFF3B82F6))),
-              const SizedBox(width: 12),
+                  child: _miniStat('DAILY QUEST', '$questWatched/$questTarget', questMini,
+                      Icons.emoji_events, const Color(0xFFD97706), progress: questProgress)),
+              const SizedBox(width: 8),
               Expanded(
-                  child: _buildStatCard('Your', projects, 'Projects',
-                      Icons.work_outline, const Color(0xFFF3F4F6), const Color(0xFF10B981))),
+                  child: _miniStat('GOINS', score, rankSubtitle, Icons.stars, const Color(0xFF3B82F6))),
+              const SizedBox(width: 8),
+              Expanded(
+                  child: _miniStat('PROJECTS', projects, 'uploaded', Icons.work_outline, const Color(0xFF10B981))),
             ]),
+            const SizedBox(height: 8),
+            const _NoticeStrip(compact: true),
           ]);
         }
-        return Row(children: [
-          Expanded(
-              child: _buildStatCard('Daily Quest', 'Watch $questTarget Projects', questSubtitle,
-                  Icons.emoji_events, const Color(0xFFFDE68A), const Color(0xFFD97706))),
-          const SizedBox(width: 12),
-          Expanded(
-              child: _buildStatCard('Score', score, rankSubtitle,
-                  Icons.stars, const Color(0xFFF3F4F6), const Color(0xFF3B82F6))),
-          const SizedBox(width: 12),
-          Expanded(
-              child: _buildStatCard('Your', projects, 'Projects',
-                  Icons.work_outline, const Color(0xFFF3F4F6), const Color(0xFF10B981))),
-        ]);
+        // Laptop / tablet: the three boxes and the updates panel side by side.
+        return IntrinsicHeight(
+          child: Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+            Expanded(
+                flex: 2,
+                child: _buildStatCard('Daily Quest', 'Watch $questTarget Projects', questSubtitle,
+                    Icons.emoji_events, const Color(0xFFFDE68A), const Color(0xFFD97706))),
+            const SizedBox(width: 12),
+            Expanded(
+                flex: 2,
+                child: _buildStatCard('Score', score, rankSubtitle,
+                    Icons.stars, const Color(0xFFF3F4F6), const Color(0xFF3B82F6))),
+            const SizedBox(width: 12),
+            Expanded(
+                flex: 2,
+                child: _buildStatCard('Your', projects, 'Projects',
+                    Icons.work_outline, const Color(0xFFF3F4F6), const Color(0xFF10B981))),
+            const SizedBox(width: 12),
+            const Expanded(flex: 3, child: _NoticeStrip(compact: false)),
+          ]),
+        );
       }),
+    );
+  }
+
+  // Slim stat box for phones (about 70 px tall).
+  Widget _miniStat(String title, String value, String sub, IconData icon, Color color,
+      {double? progress}) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color.alphaBlend(color.withOpacity(0.18), Colors.white), Colors.white],
+        ),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: color.withOpacity(0.28)),
+      ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
+        Row(children: [
+          Icon(icon, size: 13, color: color),
+          const SizedBox(width: 4),
+          Expanded(
+            child: Text(title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: GoogleFonts.nunito(
+                    fontSize: 9, letterSpacing: 0.5, fontWeight: FontWeight.w900, color: color)),
+          ),
+        ]),
+        const SizedBox(height: 2),
+        Text(value,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: GoogleFonts.nunito(
+                fontSize: 17, fontWeight: FontWeight.w900, color: const Color(0xFF1A1A2E))),
+        if (progress != null) ...[
+          const SizedBox(height: 2),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(4),
+            child: LinearProgressIndicator(
+              value: progress,
+              minHeight: 4,
+              backgroundColor: color.withOpacity(0.15),
+              valueColor: AlwaysStoppedAnimation<Color>(color),
+            ),
+          ),
+          const SizedBox(height: 2),
+        ],
+        Text(sub,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: GoogleFonts.nunito(fontSize: 9.5, fontWeight: FontWeight.w700, color: Colors.black54)),
+      ]),
     );
   }
 
@@ -1143,22 +1212,30 @@ class _HomeState extends State<Home> {
               ],
             ),
           ),
-          // Materials lists (Amazon links) for each of the three videos.
-          for (final v in [featured, ...others])
-            if ((_materialCache[v['videoId']?.toString() ?? ''] ?? []).isNotEmpty) ...[
-              const SizedBox(height: 10),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: Text('Materials for "${v['title'] ?? ''}"',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: GoogleFonts.nunito(
-                        fontSize: 12, fontWeight: FontWeight.w800, color: Colors.black87)),
-              ),
-              const SizedBox(height: 4),
-              _buildMaterialsStrip(_materialCache[v['videoId']?.toString() ?? '']!,
-                  videoId: v['videoId']?.toString() ?? ''),
-            ],
+          // Materials (Amazon links): one slim bar per video; tap a bar to open its list.
+          Builder(builder: (_) {
+            final vids = [featured, ...others]
+                .where((v) => (_materialCache[v['videoId']?.toString() ?? ''] ?? []).isNotEmpty)
+                .toList();
+            if (vids.isEmpty) return const SizedBox.shrink();
+            return Padding(
+              padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+              child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                for (var i = 0; i < vids.length; i++) ...[
+                  if (i > 0) const SizedBox(width: 10),
+                  Expanded(
+                    child: _CompactMaterials(
+                      title: (vids[i]['title'] ?? '').toString(),
+                      count: _materialCache[vids[i]['videoId']?.toString() ?? '']!.length,
+                      expanded: () => _buildMaterialsStrip(
+                          _materialCache[vids[i]['videoId']?.toString() ?? '']!,
+                          videoId: vids[i]['videoId']?.toString() ?? ''),
+                    ),
+                  ),
+                ],
+              ]),
+            );
+          }),
         ]);
       }),
     ]);
@@ -1799,6 +1876,7 @@ class _HomeState extends State<Home> {
           title: video['title']?.toString() ?? '',
           description: video['description']?.toString() ?? '',
           channelTitle: video['channelTitle']?.toString() ?? '',
+          ownerId: video['ownerId']?.toString() ?? '',
           views: video['viewCount'] is String
               ? int.tryParse(video['viewCount'])
               : video['viewCount'] as int?,
@@ -1809,12 +1887,14 @@ class _HomeState extends State<Home> {
 }
 
 
-// ── Notice strip (logged-in Home) ─────────────────────────────────────────
-// Shows what the child would want to know right now: new comments and likes
-// on their projects, and projects that are uploaded and still awaiting review.
-// Tap a box to jump to Profile (notifications) or Projects.
+// ── Updates (logged-in Home) ──────────────────────────────────────────────
+// What the child would want to know right now: recent comments and likes on
+// their projects, and projects that are uploaded and still awaiting review.
+// compact = one slim line of chips (phones); otherwise a small panel that sits
+// beside the three boxes (laptop). Tap to open Profile or Projects.
 class _NoticeStrip extends StatefulWidget {
-  const _NoticeStrip();
+  final bool compact;
+  const _NoticeStrip({this.compact = true});
   @override
   State<_NoticeStrip> createState() => _NoticeStripState();
 }
@@ -1873,34 +1953,50 @@ class _NoticeStripState extends State<_NoticeStrip> {
     });
   }
 
-  Widget _box(String emoji, String title, String sub, Color color, VoidCallback onTap) {
+  Widget _chip(String emoji, String text, Color color, VoidCallback onTap) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(14),
+      borderRadius: BorderRadius.circular(20),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
         decoration: BoxDecoration(
           color: color.withOpacity(0.10),
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(20),
           border: Border.all(color: color.withOpacity(0.30)),
         ),
+        child: Row(mainAxisSize: MainAxisSize.min, children: [
+          Text(emoji, style: const TextStyle(fontSize: 13)),
+          const SizedBox(width: 5),
+          Text(text,
+              style: GoogleFonts.nunito(
+                  fontSize: 11.5, fontWeight: FontWeight.w800, color: const Color(0xFF1A1A2E))),
+        ]),
+      ),
+    );
+  }
+
+  Widget _line(String emoji, String title, String sub, Color color, VoidCallback onTap) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(10),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 5),
         child: Row(children: [
-          Text(emoji, style: const TextStyle(fontSize: 22)),
+          Text(emoji, style: const TextStyle(fontSize: 18)),
           const SizedBox(width: 10),
           Expanded(
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Text(title,
                   style: GoogleFonts.nunito(
-                      fontSize: 13, fontWeight: FontWeight.w900, color: const Color(0xFF1A1A2E))),
+                      fontSize: 12.5, fontWeight: FontWeight.w900, color: const Color(0xFF1A1A2E))),
               if (sub.isNotEmpty)
                 Text(sub,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: GoogleFonts.nunito(
-                        fontSize: 11, fontWeight: FontWeight.w600, color: Colors.black54)),
+                    style: GoogleFonts.nunito(fontSize: 10.5, color: Colors.black54)),
             ]),
           ),
-          Icon(Icons.chevron_right, size: 18, color: color),
+          Icon(Icons.chevron_right, size: 16, color: color),
         ]),
       ),
     );
@@ -1908,40 +2004,99 @@ class _NoticeStripState extends State<_NoticeStrip> {
 
   @override
   Widget build(BuildContext context) {
-    if (!_loaded) return const SizedBox.shrink();
-    final boxes = <Widget>[
-      if (_comments > 0)
-        _box('💬', _comments == 1 ? '1 recent comment' : '$_comments recent comments',
-            _latestComment, const Color(0xFF3B82F6), () => NavShell.go(4)),
-      if (_likes > 0)
-        _box('❤️', _likes == 1 ? '1 recent like' : '$_likes recent likes',
-            'on your projects', const Color(0xFFEC4899), () => NavShell.go(4)),
-      if (_pending > 0)
-        _box('⏳', _pending == 1 ? '1 project awaiting review' : '$_pending projects awaiting review',
-            'We will tell you as soon as it is checked', const Color(0xFFD97706), () => NavShell.go(3)),
-    ];
-    if (boxes.isEmpty) {
-      boxes.add(_box('✨', 'All caught up',
-          'Upload a project to earn Goins', const Color(0xFF10B981), () => NavShell.go(3)));
-    }
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: LayoutBuilder(builder: (context, c) {
-        if (c.maxWidth < 600 || boxes.length == 1) {
-          return Column(children: [
-            for (var i = 0; i < boxes.length; i++) ...[
-              if (i > 0) const SizedBox(height: 8),
-              SizedBox(width: double.infinity, child: boxes[i]),
+    if (!_loaded) return widget.compact ? const SizedBox(height: 34) : const SizedBox.shrink();
+    final none = _comments == 0 && _likes == 0 && _pending == 0;
+    final cLabel = _comments == 1 ? '1 comment' : '$_comments comments';
+    final lLabel = _likes == 1 ? '1 like' : '$_likes likes';
+    final pLabel = _pending == 1 ? '1 project awaiting review' : '$_pending projects awaiting review';
+
+    if (widget.compact) {
+      return SizedBox(
+        width: double.infinity,
+        child: SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(children: [
+            if (none) _chip('✨', 'All caught up', const Color(0xFF10B981), () => NavShell.go(3)),
+            if (_comments > 0) ...[
+              _chip('💬', cLabel, const Color(0xFF3B82F6), () => NavShell.go(4)),
+              const SizedBox(width: 6),
             ],
-          ]);
-        }
-        return Row(children: [
-          for (var i = 0; i < boxes.length; i++) ...[
-            if (i > 0) const SizedBox(width: 10),
-            Expanded(child: boxes[i]),
-          ],
-        ]);
-      }),
+            if (_likes > 0) ...[
+              _chip('❤️', lLabel, const Color(0xFFEC4899), () => NavShell.go(4)),
+              const SizedBox(width: 6),
+            ],
+            if (_pending > 0) _chip('⏳', '$_pending awaiting review', const Color(0xFFD97706), () => NavShell.go(3)),
+          ]),
+        ),
+      );
+    }
+
+    return Container(
+      padding: const EdgeInsets.fromLTRB(14, 10, 10, 10),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFFE3E6F7)),
+      ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
+        Text('🔔 WHAT\'S NEW',
+            style: GoogleFonts.nunito(
+                fontSize: 10, letterSpacing: 0.8, fontWeight: FontWeight.w900, color: const Color(0xFF5B6EF5))),
+        const SizedBox(height: 4),
+        if (none)
+          _line('✨', 'All caught up', 'Upload a project to earn Goins', const Color(0xFF10B981), () => NavShell.go(3)),
+        if (_comments > 0)
+          _line('💬', 'Recent $cLabel', _latestComment, const Color(0xFF3B82F6), () => NavShell.go(4)),
+        if (_likes > 0)
+          _line('❤️', 'Recent $lLabel', 'on your projects', const Color(0xFFEC4899), () => NavShell.go(4)),
+        if (_pending > 0)
+          _line('⏳', pLabel, 'We will tell you as soon as it is checked', const Color(0xFFD97706), () => NavShell.go(3)),
+      ]),
     );
+  }
+}
+
+// One slim bar for a video's Amazon materials. Tap to open the full list.
+class _CompactMaterials extends StatefulWidget {
+  final String title;
+  final int count;
+  final Widget Function() expanded;
+  const _CompactMaterials({required this.title, required this.count, required this.expanded});
+  @override
+  State<_CompactMaterials> createState() => _CompactMaterialsState();
+}
+
+class _CompactMaterialsState extends State<_CompactMaterials> {
+  bool _open = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      InkWell(
+        onTap: () => setState(() => _open = !_open),
+        borderRadius: BorderRadius.circular(10),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+          decoration: BoxDecoration(
+            color: const Color(0xFFFFF8E7),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: const Color(0xFFFFDC73)),
+          ),
+          child: Row(children: [
+            const Text('🛒', style: TextStyle(fontSize: 12)),
+            const SizedBox(width: 6),
+            Expanded(
+              child: Text('${widget.count} materials · ${widget.title}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.nunito(
+                      fontSize: 11, fontWeight: FontWeight.w800, color: const Color(0xFF92400E))),
+            ),
+            Icon(_open ? Icons.expand_less : Icons.expand_more, size: 18, color: const Color(0xFF92400E)),
+          ]),
+        ),
+      ),
+      if (_open) Padding(padding: const EdgeInsets.only(top: 6), child: widget.expanded()),
+    ]);
   }
 }

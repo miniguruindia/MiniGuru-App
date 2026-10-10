@@ -42,6 +42,7 @@ class _ProfileState extends State<Profile>
   bool                 _badgesLoading   = true;
   List<dynamic>        _notifications   = [];
   int                  _unreadCount     = 0;
+  Map<String, dynamic> _about           = {};
 
   // One AnimationController per stat card (6 cards)
   late List<AnimationController> _countControllers;
@@ -81,6 +82,7 @@ class _ProfileState extends State<Profile>
       _fetchBadges(),
       _fetchNotifications(),
       _fetchPhoto(),
+      _fetchAbout(),
     ]);
   }
 
@@ -126,6 +128,13 @@ class _ProfileState extends State<Profile>
         _notifications = data ?? [];
         _unreadCount   = _notifications.length;
       });
+    } catch (_) {}
+  }
+
+  Future<void> _fetchAbout() async {
+    try {
+      final d = await _api.getProfile();
+      if (mounted) setState(() => _about = d ?? {});
     } catch (_) {}
   }
 
@@ -500,20 +509,23 @@ class _ProfileState extends State<Profile>
                 slivers: [
                   _buildHeader(),
                   SliverPadding(
-                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
+                    padding: EdgeInsets.fromLTRB(_sidePad(context), 0, _sidePad(context), 100),
                     sliver: SliverList(
                       delegate: SliverChildListDelegate([
-                        // ── Badges (right below avatar, before wallet) ──
-                        const SizedBox(height: 20),
+                        const SizedBox(height: 16),
+                        _buildGoinsOnlyCard(),
+                        const SizedBox(height: 12),
+                        _buildAnalyticsGrid(),
+                        const SizedBox(height: 18),
+                        _label('🔔 Notifications'),
+                        const SizedBox(height: 8),
+                        _buildNotifPreview(),
+                        const SizedBox(height: 18),
+                        _buildAboutCard(),
+                        const SizedBox(height: 18),
                         _label('🏅 Badges'),
                         const SizedBox(height: 10),
                         _buildBadges(),
-
-                        // ── Wallet + Goins ──
-                        const SizedBox(height: 24),
-                        _label('🪙 My Goins'),
-                        const SizedBox(height: 10),
-                        _buildGoinsOnlyCard(),
 
                         // ── Contact verification ──
                         const SizedBox(height: 24),
@@ -525,12 +537,6 @@ class _ProfileState extends State<Profile>
                           phoneVerified: _user?.phoneVerified ?? false,
                           onChanged: _fetchUser,
                         ),
-
-                        // ── Analytics with count-up ──
-                        const SizedBox(height: 24),
-                        _label('📊 Your Activity'),
-                        const SizedBox(height: 10),
-                        _buildAnalyticsGrid(),
 
                         // ── Account ──
                         const SizedBox(height: 24),
@@ -589,7 +595,7 @@ class _ProfileState extends State<Profile>
     final initials = name.isNotEmpty ? name[0].toUpperCase() : 'M';
 
     return SliverAppBar(
-      expandedHeight: 275,
+      expandedHeight: 330,
       pinned: true,
       backgroundColor: const Color(0xFF5B6EF5),
       elevation: 0,
@@ -709,20 +715,7 @@ class _ProfileState extends State<Profile>
                     ],
                   ),
                 ),
-                if (_user?.age != null) ...[
-                  const SizedBox(height: 6),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 10, vertical: 3),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.2),
-                      borderRadius: BorderRadius.circular(20)),
-                    child: Text('Age ${_user!.age}',
-                        style: GoogleFonts.nunito(
-                            fontSize: 11, color: Colors.white,
-                            fontWeight: FontWeight.w600)),
-                  ),
-                ],
+                ..._headerExtras(),
                 const SizedBox(height: 10),
                 GestureDetector(
                   onTap: () => Navigator.push(context,
@@ -1094,49 +1087,216 @@ class _ProfileState extends State<Profile>
       _StatDef('Total\nProjects',    '🏗️', const Color(0xFF8B5CF6), const Color(0xFFF5F3FF)),
     ];
 
-    return GridView.count(
-      crossAxisCount: 3,
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      crossAxisSpacing: 10,
-      mainAxisSpacing: 10,
-      childAspectRatio: 0.95,
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
       children: List.generate(stats.length, (i) {
         final s      = stats[i];
         final target = (values[i] as num).toDouble();
         return Container(
-          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
           decoration: BoxDecoration(
             color: s.bg,
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: s.color.withOpacity(0.2)),
-            boxShadow: [BoxShadow(
-                color: s.color.withOpacity(0.08),
-                blurRadius: 8, offset: const Offset(0, 2))],
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: s.color.withOpacity(0.25)),
           ),
-          child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-            Text(s.emoji, style: const TextStyle(fontSize: 20)),
-            const SizedBox(height: 6),
-            // Animated count-up
+          child: Row(mainAxisSize: MainAxisSize.min, children: [
+            Text(s.emoji, style: const TextStyle(fontSize: 15)),
+            const SizedBox(width: 6),
             AnimatedBuilder(
               animation: _countAnims[i],
-              builder: (_, __) {
-                final displayed =
-                    (_countAnims[i].value * target).round();
-                return Text('$displayed',
-                    style: GoogleFonts.nunito(
-                        fontSize: 22, fontWeight: FontWeight.w900,
-                        color: s.color));
-              },
+              builder: (_, __) => Text('${(_countAnims[i].value * target).round()}',
+                  style: GoogleFonts.nunito(
+                      fontSize: 15, fontWeight: FontWeight.w900, color: s.color)),
             ),
-            Text(s.label,
-                textAlign: TextAlign.center,
+            const SizedBox(width: 5),
+            Text(s.label.replaceAll('\n', ' '),
                 style: GoogleFonts.nunito(
-                    fontSize: 9, fontWeight: FontWeight.w600,
-                    color: s.color.withOpacity(0.8), height: 1.3)),
+                    fontSize: 10, fontWeight: FontWeight.w700, color: s.color.withOpacity(0.85))),
           ]),
         );
       }),
+    );
+  }
+
+  // Side padding: normal on phones; a centred ~780 px column on laptops.
+  double _sidePad(BuildContext context) {
+    final w = MediaQuery.of(context).size.width;
+    final strip = w >= 1000 ? (w - 93).clamp(0.0, 1400.0) : w;
+    return strip > 820 ? (strip - 780) / 2 : 16.0;
+  }
+
+  // Tagline + small chips (age, class, city, level) in the top card.
+  List<Widget> _headerExtras() {
+    final tagline = (_about['tagline'] ?? '').toString().trim();
+    final grade   = (_about['grade'] ?? '').toString().trim();
+    final city    = (_about['city'] ?? '').toString().trim();
+    final tier    = _tierForScore(_user?.score ?? 0);
+    Widget pill(String t) => Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.2),
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Text(t,
+              style: GoogleFonts.nunito(
+                  fontSize: 11, color: Colors.white, fontWeight: FontWeight.w700)),
+        );
+    return [
+      if (tagline.isNotEmpty) ...[
+        const SizedBox(height: 4),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24),
+          child: Text('“$tagline”',
+              textAlign: TextAlign.center,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: GoogleFonts.nunito(
+                  fontSize: 12, color: Colors.white.withOpacity(0.92), fontStyle: FontStyle.italic)),
+        ),
+      ],
+      const SizedBox(height: 8),
+      Wrap(spacing: 6, runSpacing: 4, alignment: WrapAlignment.center, children: [
+        if (_user?.age != null) pill('Age ${_user!.age}'),
+        if (grade.isNotEmpty) pill(grade),
+        if (city.isNotEmpty) pill(city),
+        pill('${tier.emoji} ${tier.title}'),
+      ]),
+      const SizedBox(height: 10),
+    ];
+  }
+
+  // Latest three notifications; "See all" opens the full list.
+  Widget _buildNotifPreview() {
+    final top = _notifications.take(3).toList();
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(14, 8, 14, 6),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFE8EAFF)),
+      ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        if (top.isEmpty)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            child: Text('No notifications yet — comments, likes and messages will show up here.',
+                style: GoogleFonts.nunito(fontSize: 12, color: Colors.black45)),
+          )
+        else
+          for (final n in top)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 5),
+              child: Row(children: [
+                Text((n['emoji'] ?? '🔔').toString(), style: const TextStyle(fontSize: 16)),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text((n['message'] ?? '').toString(),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.nunito(fontSize: 12.5, fontWeight: FontWeight.w600)),
+                ),
+                const SizedBox(width: 6),
+                Text(_formatAgo(n['createdAt']?.toString()),
+                    style: GoogleFonts.nunito(fontSize: 10.5, color: Colors.black38)),
+              ]),
+            ),
+        if (_notifications.isNotEmpty)
+          Align(
+            alignment: Alignment.centerRight,
+            child: TextButton(
+              onPressed: _showNotifications,
+              child: Text('See all (${_notifications.length})',
+                  style: GoogleFonts.nunito(fontSize: 12, fontWeight: FontWeight.w800)),
+            ),
+          ),
+      ]),
+    );
+  }
+
+  // "About me": what the child chose to share. Other makers see this on tap.
+  Widget _buildAboutCard() {
+    final interests = (_about['interests'] is List)
+        ? List<String>.from((_about['interests'] as List).map((e) => e.toString()))
+        : <String>[];
+    final rows = <List<String>>[
+      ['About', (_about['about'] ?? '').toString()],
+      ['Favourite subject', (_about['favouriteSubject'] ?? '').toString()],
+      ['My dream invention', (_about['dreamInvention'] ?? '').toString()],
+      ['When I grow up', (_about['whenIGrowUp'] ?? '').toString()],
+    ].where((r) => r[1].trim().isNotEmpty).toList();
+    final empty = rows.isEmpty && interests.isEmpty;
+    void edit() => Navigator.push(
+            context, MaterialPageRoute(builder: (_) => const EditProfileScreen()))
+        .then((v) { if (v == true && mounted) _loadAll(); });
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFE8EAFF)),
+      ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          Text('About me',
+              style: GoogleFonts.nunito(fontSize: 15, fontWeight: FontWeight.w800)),
+          const Spacer(),
+          GestureDetector(
+            onTap: edit,
+            child: Row(mainAxisSize: MainAxisSize.min, children: [
+              const Icon(Icons.edit_outlined, size: 14, color: Color(0xFF5B6EF5)),
+              const SizedBox(width: 4),
+              Text('Edit',
+                  style: GoogleFonts.nunito(
+                      fontSize: 12, fontWeight: FontWeight.w800, color: const Color(0xFF5B6EF5))),
+            ]),
+          ),
+        ]),
+        const SizedBox(height: 8),
+        if (empty)
+          GestureDetector(
+            onTap: edit,
+            child: Text(
+                'Tell other makers about you ✏️  Add your tagline, favourite subject and dream invention.',
+                style: GoogleFonts.nunito(fontSize: 12.5, color: Colors.black54)),
+          )
+        else ...[
+          if (interests.isNotEmpty)
+            Wrap(spacing: 6, runSpacing: 6, children: [
+              for (final i in interests)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFEEF0FF),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(i,
+                      style: GoogleFonts.nunito(
+                          fontSize: 11.5, fontWeight: FontWeight.w700, color: const Color(0xFF3F51B5))),
+                ),
+            ]),
+          for (final r in rows)
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                SizedBox(
+                  width: 120,
+                  child: Text(r[0],
+                      style: GoogleFonts.nunito(fontSize: 12, color: Colors.black45)),
+                ),
+                Expanded(
+                  child: Text(r[1],
+                      style: GoogleFonts.nunito(fontSize: 13, fontWeight: FontWeight.w700)),
+                ),
+              ]),
+            ),
+        ],
+        const SizedBox(height: 8),
+        Text('Other makers see this (plus your level and Goins) when they tap your name. Never your school, city, age or contact details.',
+            style: GoogleFonts.nunito(fontSize: 10.5, color: Colors.black38)),
+      ]),
     );
   }
 

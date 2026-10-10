@@ -108,6 +108,12 @@ model User {
   schoolName   String?
   city         String?
   interests    String[]  @default([])
+  // About-me card (Oct 2026) — all optional, free text, shown to other
+  // logged-in makers via GET /users/:id/maker-card (never school/city/age/contact).
+  tagline          String?
+  favouriteSubject String?
+  dreamInvention   String?
+  whenIGrowUp      String?
   isMentor      Boolean        @default(false)
   mentorType    GuardianType?
   guardianInfo  GuardianInfo?

@@ -933,6 +933,7 @@ const getPublishedVideoFeed = async (req, res) => {
             return {
                 id: p.id,
                 projectId: p.id,
+                ownerId: p.userId,
                 videoId,
                 title: p.title,
                 description: p.description,

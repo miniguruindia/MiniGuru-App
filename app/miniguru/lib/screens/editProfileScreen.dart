@@ -23,6 +23,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   final _parentNameCtrl  = TextEditingController();
   final _parentPhoneCtrl    = TextEditingController();
   final _guardianEmailCtrl  = TextEditingController();
+  final _taglineCtrl     = TextEditingController();
+  final _favSubjectCtrl  = TextEditingController();
+  final _dreamCtrl       = TextEditingController();
+  final _growUpCtrl      = TextEditingController();
   List<String> _interests = [];
 
   static const _allInterests = [
@@ -54,6 +58,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           _parentNameCtrl.text  = data['parentName']   ?? '';
           _parentPhoneCtrl.text   = data['parentPhone']    ?? '';
           _guardianEmailCtrl.text  = data['guardianEmail']  ?? '';
+          _taglineCtrl.text     = data['tagline']          ?? '';
+          _favSubjectCtrl.text  = data['favouriteSubject'] ?? '';
+          _dreamCtrl.text       = data['dreamInvention']   ?? '';
+          _growUpCtrl.text      = data['whenIGrowUp']      ?? '';
           _interests = List<String>.from(data['interests'] ?? []);
           _loading = false;
         });
@@ -79,6 +87,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         'parentName':  _parentNameCtrl.text.trim(),
         'parentPhone':   _parentPhoneCtrl.text.trim(),
         'guardianEmail': _guardianEmailCtrl.text.trim(),
+        'tagline':          _taglineCtrl.text.trim(),
+        'favouriteSubject': _favSubjectCtrl.text.trim(),
+        'dreamInvention':   _dreamCtrl.text.trim(),
+        'whenIGrowUp':      _growUpCtrl.text.trim(),
         'interests':   _interests,
       });
       if (mounted) {
@@ -141,6 +153,23 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 _field(_aboutCtrl, 'About Me', Icons.auto_stories_outlined,
                     hint: 'I love building robots and exploring science!',
                     maxLines: 3),
+                const SizedBox(height: 12),
+                _field(_taglineCtrl, 'My one-line tagline', Icons.format_quote_outlined,
+                    hint: 'e.g. I build robots from junk.'),
+                const SizedBox(height: 12),
+                _field(_favSubjectCtrl, 'Favourite subject', Icons.menu_book_outlined,
+                    hint: 'e.g. Maths'),
+                const SizedBox(height: 12),
+                _field(_dreamCtrl, 'My dream invention', Icons.lightbulb_outline,
+                    hint: 'e.g. A self-watering garden'),
+                const SizedBox(height: 12),
+                _field(_growUpCtrl, 'When I grow up', Icons.rocket_launch_outlined,
+                    hint: 'e.g. Engineer'),
+                const SizedBox(height: 6),
+                Text(
+                    'Other MiniGuru makers can see your tagline, interests and these answers when they tap your name. '
+                    'They never see your school, city, age or contact details.',
+                    style: GoogleFonts.nunito(fontSize: 11, color: Colors.grey[600])),
                 const SizedBox(height: 12),
                 Row(children: [
                   Expanded(child: _field(_ageCtrl, 'Age',

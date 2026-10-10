@@ -302,7 +302,8 @@ router.get('/me/profile', authenticateToken, async (req: any, res) => {
       where: { id: userId },
       select: { id: true, name: true, email: true, age: true,
         parentName: true, parentPhone: true, about: true,
-        grade: true, schoolName: true, city: true, interests: true, guardianEmail: true }
+        grade: true, schoolName: true, city: true, interests: true, guardianEmail: true,
+        tagline: true, favouriteSubject: true, dreamInvention: true, whenIGrowUp: true }
     });
     if (!user) return res.status(404).json({ message: 'User not found' });
     return res.json(user);
@@ -313,7 +314,8 @@ router.get('/me/profile', authenticateToken, async (req: any, res) => {
 router.put('/me/profile', authenticateToken, async (req: any, res) => {
   try {
     const userId = req.user?.userId;
-    const { name, age, parentName, parentPhone, about, grade, schoolName, city, interests, guardianEmail } = req.body;
+    const { name, age, parentName, parentPhone, about, grade, schoolName, city, interests, guardianEmail,
+            tagline, favouriteSubject, dreamInvention, whenIGrowUp } = req.body;
     const data: any = {};
     if (name !== undefined)        data.name        = String(name).trim();
     if (age !== undefined) {
@@ -326,17 +328,58 @@ router.put('/me/profile', authenticateToken, async (req: any, res) => {
     if (grade !== undefined)       data.grade       = grade       ? String(grade).trim()       : null;
     if (schoolName !== undefined)  data.schoolName  = schoolName  ? String(schoolName).trim()  : null;
     if (city !== undefined)        data.city        = city        ? String(city).trim()        : null;
-    if (Array.isArray(interests))  data.interests   = interests;
+    if (Array.isArray(interests))  data.interests   = interests.slice(0, 20).map((x: any) => String(x).slice(0, 40));
+    const clip = (v: any, n: number) => (v ? String(v).trim().slice(0, n) : null);
+    if (tagline !== undefined)          data.tagline          = clip(tagline, 90);
+    if (favouriteSubject !== undefined) data.favouriteSubject = clip(favouriteSubject, 60);
+    if (dreamInvention !== undefined)   data.dreamInvention   = clip(dreamInvention, 120);
+    if (whenIGrowUp !== undefined)      data.whenIGrowUp      = clip(whenIGrowUp, 60);
     if (guardianEmail !== undefined) data.guardianEmail = guardianEmail ? String(guardianEmail).trim() : null;
     const user = await prisma.user.update({
       where: { id: userId }, data,
       select: { id: true, name: true, age: true, parentName: true, parentPhone: true,
-                about: true, grade: true, schoolName: true, city: true, interests: true, guardianEmail: true }
+                about: true, grade: true, schoolName: true, city: true, interests: true, guardianEmail: true,
+                tagline: true, favouriteSubject: true, dreamInvention: true, whenIGrowUp: true }
     });
     return res.json({ message: 'Profile updated', user });
   } catch (err) { return res.status(500).json({ message: 'Failed to update profile' }); }
 });
 
+
+// ─── GET /users/:id/maker-card ────────────────────────────────────────────────
+// The small card other logged-in makers see when they tap a name on the Ladder
+// or on a video page. Deliberately NOT included: school, city, age, email,
+// phone, parent details, profile photo. Mentor/admin accounts are never shown.
+router.get('/:id/maker-card', authenticateToken, async (req: any, res) => {
+  try {
+    const id = String(req.params.id || '');
+    if (!/^[a-f0-9]{24}$/i.test(id)) return res.status(404).json({ message: 'Not found' });
+    const m: any = await prisma.user.findUnique({
+      where: { id },
+      select: { id: true, name: true, role: true, isMentor: true, score: true, about: true,
+                interests: true, tagline: true, favouriteSubject: true, dreamInvention: true, whenIGrowUp: true },
+    });
+    if (!m || m.isMentor || m.role !== 'USER') return res.status(404).json({ message: 'Not found' });
+    const lvl = getLevelForScore(m.score || 0);
+    const publishedProjects = await prisma.project.count({ where: { userId: id, status: 'published' } });
+    return res.json({
+      name: m.name,
+      levelEmoji: lvl.emoji,
+      levelTitle: lvl.title,
+      goins: m.score || 0,
+      publishedProjects,
+      tagline: m.tagline || null,
+      about: m.about || null,
+      interests: m.interests || [],
+      favouriteSubject: m.favouriteSubject || null,
+      dreamInvention: m.dreamInvention || null,
+      whenIGrowUp: m.whenIGrowUp || null,
+    });
+  } catch (err) {
+    logger.error(`maker-card error: ${(err as Error).message}`);
+    return res.status(500).json({ message: 'Could not load this maker.' });
+  }
+});
 
 // ── GET /users/leaderboard ── public, returns top 10 by Goins (user.score) ──
 // Also returns caller's rank + score if a valid JWT is present in Authorization header.

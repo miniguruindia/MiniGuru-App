@@ -1704,6 +1704,20 @@ class MiniguruApi {
   }
 
   // ─── PUT /users/me/profile ───────────────────────────────────────────────────
+  // Small public card of another maker (login required). See makerCard.dart.
+  Future<Map<String, dynamic>?> getMakerCard(String userId) async {
+    try {
+      final storedToken = await _db!.getAuthToken();
+      if (storedToken == null) return null;
+      final response = await http.get(
+        Uri.parse('$apiBaseUrl/users/$userId/maker-card'),
+        headers: {'Authorization': 'Bearer ${storedToken.accessToken}'},
+      );
+      if (response.statusCode == 200) return jsonDecode(response.body);
+    } catch (e) { print('getMakerCard: $e'); }
+    return null;
+  }
+
   Future<bool> updateProfile(Map<String, dynamic> data) async {
     final storedToken = await _db!.getAuthToken();
     if (storedToken == null) return false;

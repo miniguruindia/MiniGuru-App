@@ -15,6 +15,7 @@ import 'package:miniguru/screens/loginScreen.dart';
 import 'package:miniguru/screens/registerScreen.dart';
 import 'package:miniguru/screens/addDraftScreen.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:miniguru/widgets/makerCard.dart';
 
 class CommunityScreen extends StatefulWidget {
   const CommunityScreen({super.key});
@@ -1017,6 +1018,13 @@ class _LadderTabState extends State<_LadderTab> {
   }
 
   Widget _boardRow(Map<String, dynamic> e) {
+    final uid = (e['userId'] ?? '').toString();
+    final body = _boardRowBody(e);
+    if (uid.isEmpty) return body;
+    return GestureDetector(onTap: () => showMakerCard(context, uid), child: body);
+  }
+
+  Widget _boardRowBody(Map<String, dynamic> e) {
     final isMe = e['isMe'] == true;
     final rank = (e['rank'] as num?)?.toInt() ?? 0;
     final amount = (e['amount'] as num?)?.toInt() ?? 0;
@@ -1092,6 +1100,7 @@ class _LadderTabState extends State<_LadderTab> {
               city: '',
               score: (e['amount'] as num?)?.toInt() ?? 0,
               badge: (e['badge'] ?? '🌱').toString(),
+              userId: (e['userId'] ?? '').toString(),
             ))
         .toList();
     final usePodium = leaders.length >= 3;
@@ -1465,7 +1474,9 @@ class _PodiumCard extends StatelessWidget {
     final idx    = (leader.rank - 1).clamp(0, 2);
     final color  = colors[idx];
 
-    return Column(
+    return GestureDetector(
+      onTap: leader.userId.isEmpty ? null : () => showMakerCard(context, leader.userId),
+      child: Column(
       mainAxisAlignment: MainAxisAlignment.end,
       children: [
         // Badge emoji
@@ -1502,7 +1513,7 @@ class _PodiumCard extends StatelessWidget {
           ),
         ),
       ],
-    );
+    ));
   }
 }
 
@@ -2011,9 +2022,10 @@ class _Badge {
 class _Leader {
   final int rank, score;
   final String name, city, badge;
+  final String userId;
   const _Leader({
     required this.rank, required this.name, required this.city,
-    required this.score, required this.badge,
+    required this.score, required this.badge, this.userId = '',
   });
 }
 

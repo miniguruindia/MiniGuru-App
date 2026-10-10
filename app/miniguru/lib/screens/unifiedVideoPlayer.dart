@@ -10,6 +10,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:miniguru/network/MiniguruApi.dart';
 import 'package:miniguru/models/User.dart';
 import 'package:miniguru/constants.dart';
+import 'package:miniguru/widgets/makerCard.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class UnifiedVideoPlayer extends StatefulWidget {
@@ -19,6 +20,7 @@ class UnifiedVideoPlayer extends StatefulWidget {
   final String description;
   final String channelTitle;
   final int? views;
+  final String ownerId; // creator's user id (opens their maker card)
 
   const UnifiedVideoPlayer({
     Key? key,
@@ -28,6 +30,7 @@ class UnifiedVideoPlayer extends StatefulWidget {
     required this.description,
     required this.channelTitle,
     this.views,
+    this.ownerId = '',
   }) : super(key: key);
 
   @override
@@ -816,10 +819,21 @@ class _UnifiedVideoPlayerState extends State<UnifiedVideoPlayer> {
                                   const SizedBox(width: 8),
                                   const Text('·', style: TextStyle(color: Colors.black38)),
                                   const SizedBox(width: 8),
-                                  Text(
-                                    'by ${widget.channelTitle}',
-                                    style: GoogleFonts.nunito(
-                                        fontSize: 13, color: Colors.black54),
+                                  GestureDetector(
+                                    onTap: widget.ownerId.isEmpty
+                                        ? null
+                                        : () => showMakerCard(context, widget.ownerId),
+                                    child: Text(
+                                      'by ${widget.channelTitle}',
+                                      style: GoogleFonts.nunito(
+                                          fontSize: 13,
+                                          color: widget.ownerId.isEmpty
+                                              ? Colors.black54
+                                              : const Color(0xFF5B6EF5),
+                                          decoration: widget.ownerId.isEmpty
+                                              ? null
+                                              : TextDecoration.underline),
+                                    ),
                                   ),
                                 ],
                               ),
