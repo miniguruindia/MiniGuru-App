@@ -6,6 +6,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.changeLoginId = exports.changePassword = exports.resetPassword = exports.forgotPassword = exports.register = exports.refreshToken = exports.logout = exports.login = void 0;
+const uniqueLoginId_1 = require("../../utils/uniqueLoginId");
 const bcryptjs_1 = __importDefault(require("bcryptjs"));
 const crypto_1 = __importDefault(require("crypto"));
 const express_validator_1 = require("express-validator");
@@ -360,9 +361,12 @@ const changeLoginId = async (req, res) => {
         if (cleanId.toLowerCase() === user.email.toLowerCase()) {
             return res.status(200).json({ message: 'That is already your MiniGuru ID', loginId: cleanId });
         }
-        const taken = await prismaClient_1.default.user.findFirst({ where: { email: { equals: cleanId, mode: 'insensitive' } } });
-        if (taken) {
-            return res.status(409).json({ message: 'That MiniGuru ID is already taken — try another' });
+        if (await (0, uniqueLoginId_1.isLoginIdTaken)(cleanId, userId)) {
+            const suggestion = await (0, uniqueLoginId_1.nextFreeLoginId)(cleanId.replace('@miniguru.in', ''), userId);
+            return res.status(409).json({
+                message: `That MiniGuru ID is already taken — try ${suggestion}`,
+                suggestion,
+            });
         }
         await prismaClient_1.default.user.update({
             where: { id: userId },

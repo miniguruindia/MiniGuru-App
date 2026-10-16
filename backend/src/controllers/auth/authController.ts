@@ -2,6 +2,7 @@
 // COMPLETE FILE - Replace entire file with this
 
 
+import { isLoginIdTaken, nextFreeLoginId } from '../../utils/uniqueLoginId';
 import { Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
@@ -493,9 +494,12 @@ const changeLoginId = async (req: AuthRequest, res: Response) => {
            return res.status(200).json({ message: 'That is already your MiniGuru ID', loginId: cleanId });
        }
 
-       const taken = await prisma.user.findFirst({ where: { email: { equals: cleanId, mode: 'insensitive' } } });
-       if (taken) {
-           return res.status(409).json({ message: 'That MiniGuru ID is already taken — try another' });
+       if (await isLoginIdTaken(cleanId, userId)) {
+           const suggestion = await nextFreeLoginId(cleanId.replace('@miniguru.in', ''), userId);
+           return res.status(409).json({
+               message: `That MiniGuru ID is already taken — try ${suggestion}`,
+               suggestion,
+           });
        }
 
        await prisma.user.update({

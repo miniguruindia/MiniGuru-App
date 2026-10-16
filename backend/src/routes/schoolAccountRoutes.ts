@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
 import prisma from '../utils/prismaClient';
+import { nextFreeLoginId } from '../utils/uniqueLoginId';
 import { authenticateToken, authorizeAdmin } from '../middleware/authMiddleware';
 
 const router = Router();
@@ -42,14 +43,7 @@ async function buildUniqueSchoolEmail(institutionName: string, city?: string): P
 
 async function buildUniqueChildEmail(name: string): Promise<string> {
   const base = name.trim().toLowerCase().split(/\s+/).join('.') || 'student';
-  let email = `${base}@miniguru.in`;
-  let suffix = 2;
-  // eslint-disable-next-line no-await-in-loop
-  while (await prisma.user.findUnique({ where: { email } })) {
-    email = `${base}${suffix}@miniguru.in`;
-    suffix += 1;
-  }
-  return email;
+  return nextFreeLoginId(base);
 }
 
 // ── GET /admin/schools — list all School / T-LAB accounts ─────────────────

@@ -7,6 +7,7 @@ const express_1 = require("express");
 const bcryptjs_1 = __importDefault(require("bcryptjs"));
 const crypto_1 = __importDefault(require("crypto"));
 const prismaClient_1 = __importDefault(require("../utils/prismaClient"));
+const uniqueLoginId_1 = require("../utils/uniqueLoginId");
 const authMiddleware_1 = require("../middleware/authMiddleware");
 const router = (0, express_1.Router)();
 // Every route in this file is admin-only.
@@ -39,14 +40,7 @@ async function buildUniqueSchoolEmail(institutionName, city) {
 }
 async function buildUniqueChildEmail(name) {
     const base = name.trim().toLowerCase().split(/\s+/).join('.') || 'student';
-    let email = `${base}@miniguru.in`;
-    let suffix = 2;
-    // eslint-disable-next-line no-await-in-loop
-    while (await prismaClient_1.default.user.findUnique({ where: { email } })) {
-        email = `${base}${suffix}@miniguru.in`;
-        suffix += 1;
-    }
-    return email;
+    return (0, uniqueLoginId_1.nextFreeLoginId)(base);
 }
 // ── GET /admin/schools — list all School / T-LAB accounts ─────────────────
 router.get('/schools', async (req, res) => {

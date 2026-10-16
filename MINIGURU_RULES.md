@@ -138,7 +138,7 @@ firebase deploy --only hosting
 | MongoDB | cluster0.ykoud6h.mongodb.net / db: miniguru |
 | Codespace | bug-free-fiesta-69xwgg4jwj6r34gpv |
 | Amazon tag | miniguru04-21 (ALWAYS this tag, hardcoded everywhere) |
-| Admin login | admin@miniguru.in / Nisarg@311 |
+| Admin login | admin@miniguru.in / password kept in the founder's password manager (never in the repo) |
 | SendGrid | Free plan, 100/day, domain: miniguru.in |
 | FROM_EMAIL | connect@miniguru.in |
 | Gemini project | gen-lang-client-0578136455 (free tier, no billing enabled) |

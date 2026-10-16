@@ -33,14 +33,26 @@ export default function AdminResetPage() {
     setLoading(true)
 
     try {
-      // TODO: Call backend API to change password
-      await new Promise(resolve => setTimeout(resolve, 1000))
-      setMessage('Password changed successfully! Please login with your new password.')
-      setCurrentPassword('')
-      setNewPassword('')
-      setConfirmPassword('')
+      const v = `; ${document.cookie}`
+      const p = v.split('; auth_token=')
+      const token = p.length === 2 ? p.pop()!.split(';').shift()! : ''
+      const base = process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_API_BASE_URL || ''
+      const res = await fetch(`${base}/auth/change-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ currentPassword, newPassword }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        setError(data.message || data.error || 'Failed to change password. Please check your current password.')
+      } else {
+        setMessage('Password changed successfully! Please login with your new password.')
+        setCurrentPassword('')
+        setNewPassword('')
+        setConfirmPassword('')
+      }
     } catch (err) {
-      setError('Failed to change password. Please check your current password.')
+      setError('Could not reach the server. Please try again.')
     } finally {
       setLoading(false)
     }

@@ -4,6 +4,7 @@ import prisma from '../utils/prismaClient';
 import { authenticateToken } from '../middleware/authMiddleware';
 import { sendEmail } from '../services/emailService';
 import logger from '../logger';
+import { nextFreeLoginId, createUserWithFreeId } from '../utils/uniqueLoginId';
 
 const router = Router();
 
@@ -173,12 +174,8 @@ router.post('/children', authenticateToken, async (req: Request, res: Response) 
 
     // Auto-generate login credentials
     const nameParts = name.trim().toLowerCase().split(' ');
-    const baseEmail = nameParts.join('.') + '@miniguru.in';
-    // Make email unique if already taken
-    const existing = await prisma.user.findUnique({ where: { email: baseEmail } });
-    const autoEmail = existing
-      ? nameParts.join('.') + '.' + Math.floor(1000 + Math.random() * 9000) + '@miniguru.in'
-      : baseEmail;
+    // Unique numbered ID if already taken (parth.shresth -> parth2.shresth)
+    const autoEmail = await nextFreeLoginId(nameParts.join('.'));
 
     // Create real User account for child — password is MG + PIN (6 chars)
     const autoPassword = 'MG' + String(pin);
@@ -450,13 +447,8 @@ router.post('/children/bulk', authenticateToken, async (req: any, res: Response)
       // else entirely. The existing counter-suffix mechanism below already
       // handles collisions once a school's first-name pool is exhausted —
       // unchanged, just applied to the shorter base pattern now.
-      const baseEmail     = `${firstName}.${schoolCode}@miniguru.in`;
-
-      let email = baseEmail; let counter = 2;
-      while (await prisma.user.findUnique({ where: { email } })) {
-        email = `${firstName}${counter}.${schoolCode}@miniguru.in`;
-        counter++;
-      }
+      // Oct 2026: numbering is now case-insensitive and race-safe (parth.ssm -> parth2.ssm)
+      const idBase        = `${firstName}.${schoolCode}`;
 
       const displayFirst = childName.trim().split(' ')[0];
       const password     = `${displayFirst}@${year}`;
@@ -467,15 +459,14 @@ router.post('/children/bulk', authenticateToken, async (req: any, res: Response)
       const passwordHash = await bcrypt.hash(password, 10);
       const pinHash      = await bcrypt.hash(pin, 10);
 
-      const linkedUser = await prisma.user.create({
-        data: {
-          email, passwordHash,
-          name: childName.trim(),
-          age: 10,
-          phoneNumber: `child_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
-          role: 'USER', score: 100, isMentor: false,
-        }
-      });
+      const linkedUser = await createUserWithFreeId(idBase, (email: string) => ({
+        email, passwordHash,
+        name: childName.trim(),
+        age: 10,
+        phoneNumber: `child_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+        role: 'USER', score: 100, isMentor: false,
+      }));
+      const email = linkedUser.email;
 
       await prisma.childProfile.create({
         data: {

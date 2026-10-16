@@ -12,7 +12,7 @@
 //
 // Run from the repo root's backend/ folder:
 //   cd ~/MiniGuru-App/backend
-//   export DATABASE_URL="mongodb+srv://miniguru_db:Nisarg%40311@cluster0.ykoud6h.mongodb.net/miniguru?retryWrites=true&w=majority&appName=Cluster0"
+//   export DATABASE_URL="<your Atlas connection string - never paste it into the repo>"
 //   npx ts-node seed_material_expansion.ts
 //
 // (The DATABASE_URL export is only needed in a FRESH Cloud Shell session

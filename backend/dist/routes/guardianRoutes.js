@@ -9,6 +9,7 @@ const prismaClient_1 = __importDefault(require("../utils/prismaClient"));
 const authMiddleware_1 = require("../middleware/authMiddleware");
 const emailService_1 = require("../services/emailService");
 const logger_1 = __importDefault(require("../logger"));
+const uniqueLoginId_1 = require("../utils/uniqueLoginId");
 const router = (0, express_1.Router)();
 // ── Verification-on-registration helpers ──────────────────────────────────
 // Parent/School self-registration never had an OTP step at all (unlike
@@ -162,12 +163,8 @@ router.post('/children', authMiddleware_1.authenticateToken, async (req, res) =>
         const pinHash = await bcryptjs_1.default.hash(String(pin), 10);
         // Auto-generate login credentials
         const nameParts = name.trim().toLowerCase().split(' ');
-        const baseEmail = nameParts.join('.') + '@miniguru.in';
-        // Make email unique if already taken
-        const existing = await prismaClient_1.default.user.findUnique({ where: { email: baseEmail } });
-        const autoEmail = existing
-            ? nameParts.join('.') + '.' + Math.floor(1000 + Math.random() * 9000) + '@miniguru.in'
-            : baseEmail;
+        // Unique numbered ID if already taken (parth.shresth -> parth2.shresth)
+        const autoEmail = await (0, uniqueLoginId_1.nextFreeLoginId)(nameParts.join('.'));
         // Create real User account for child — password is MG + PIN (6 chars)
         const autoPassword = 'MG' + String(pin);
         const passwordHash = await bcryptjs_1.default.hash(autoPassword, 10);
@@ -417,13 +414,8 @@ router.post('/children/bulk', authMiddleware_1.authenticateToken, async (req, re
             // else entirely. The existing counter-suffix mechanism below already
             // handles collisions once a school's first-name pool is exhausted —
             // unchanged, just applied to the shorter base pattern now.
-            const baseEmail = `${firstName}.${schoolCode}@miniguru.in`;
-            let email = baseEmail;
-            let counter = 2;
-            while (await prismaClient_1.default.user.findUnique({ where: { email } })) {
-                email = `${firstName}${counter}.${schoolCode}@miniguru.in`;
-                counter++;
-            }
+            // Oct 2026: numbering is now case-insensitive and race-safe (parth.ssm -> parth2.ssm)
+            const idBase = `${firstName}.${schoolCode}`;
             const displayFirst = childName.trim().split(' ')[0];
             const password = `${displayFirst}@${year}`;
             const pin = parentPhone
@@ -431,15 +423,14 @@ router.post('/children/bulk', authMiddleware_1.authenticateToken, async (req, re
                 : '1234';
             const passwordHash = await bcryptjs_1.default.hash(password, 10);
             const pinHash = await bcryptjs_1.default.hash(pin, 10);
-            const linkedUser = await prismaClient_1.default.user.create({
-                data: {
-                    email, passwordHash,
-                    name: childName.trim(),
-                    age: 10,
-                    phoneNumber: `child_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
-                    role: 'USER', score: 100, isMentor: false,
-                }
-            });
+            const linkedUser = await (0, uniqueLoginId_1.createUserWithFreeId)(idBase, (email) => ({
+                email, passwordHash,
+                name: childName.trim(),
+                age: 10,
+                phoneNumber: `child_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+                role: 'USER', score: 100, isMentor: false,
+            }));
+            const email = linkedUser.email;
             await prismaClient_1.default.childProfile.create({
                 data: {
                     guardianId: userId,
