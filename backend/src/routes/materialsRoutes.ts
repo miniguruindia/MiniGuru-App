@@ -12,6 +12,9 @@ import {
   runAmazonSuggestionScan,
   runAmazonRefreshCheck,
   runPhotoAudit,
+  runMaterialsMaintenance,
+  amazonImageKey,
+  MAINTENANCE_KEY,
   approveAmazonSuggestion,
   rejectAmazonSuggestion,
 } from '../services/amazonSuggestionService';
@@ -1081,6 +1084,83 @@ router.post('/admin/amazon-photo-audit', authenticateToken, requireAdmin, async 
   } catch (err) {
     console.error('[materials] POST /admin/amazon-photo-audit error:', err);
     res.status(500).json({ error: 'Photo audit failed' });
+  }
+});
+
+// ── Combined daily maintenance (Oct 2026) ────────────────────────────────
+// Same two ways in as the older refresh route: Cloud Scheduler with the shared
+// secret header, or a logged-in admin (the "Scan & Refresh now" button).
+router.post('/admin/materials-daily/run', async (req: any, res: any) => {
+  const schedulerSecret = req.headers['x-refresh-secret'];
+  const isScheduler = !!process.env.AMAZON_REFRESH_SECRET && schedulerSecret === process.env.AMAZON_REFRESH_SECRET;
+  const exec = async () => {
+    try {
+      const summary = await runMaterialsMaintenance(isScheduler ? {} : { refreshLimit: 100, scanLimit: 10 });
+      res.json(summary);
+    } catch (err) {
+      console.error('[materials] POST /admin/materials-daily/run error:', err);
+      res.status(500).json({ error: 'Maintenance run failed' });
+    }
+  };
+  if (isScheduler) return exec();
+  return authenticateToken(req, res, () => requireAdmin(req, res, exec));
+});
+
+// What the admin page shows as proof the automatic run is working.
+router.get('/admin/materials-daily/status', authenticateToken, requireAdmin, async (_req: any, res: any) => {
+  try {
+    const row = await prisma.siteContent.findUnique({ where: { key: MAINTENANCE_KEY } });
+    const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const [linked, checked24h, photoMismatches] = await Promise.all([
+      prisma.material.count({ where: { amazonASIN: { not: null }, isActive: true } }),
+      prisma.material.count({ where: { amazonASIN: { not: null }, isActive: true, amazonLastCheckedAt: { gte: since } } }),
+      prisma.material.count({ where: { photoMismatch: true, isActive: true } as any }),
+    ]);
+    res.json({
+      lastRun: row?.value ?? null,
+      lastRunSavedAt: row?.updatedAt ?? null,
+      schedulerSecretSet: !!process.env.AMAZON_REFRESH_SECRET,
+      linked, checked24h, photoMismatches,
+    });
+  } catch (err) {
+    console.error('[materials] GET /admin/materials-daily/status error:', err);
+    res.status(500).json({ error: 'Failed to load status' });
+  }
+});
+
+// Materials whose stored Amazon photo differs from Amazon's current one.
+router.get('/admin/photo-mismatches', authenticateToken, requireAdmin, async (_req: any, res: any) => {
+  try {
+    const rows: any[] = await prisma.material.findMany({
+      where: { photoMismatch: true, isActive: true } as any,
+      orderBy: { name: 'asc' },
+      take: 500,
+    });
+    res.json(rows.map((m) => ({
+      materialId: m.id,
+      materialName: m.name,
+      appImageUrl: m.imageUrl,
+      amazonImageUrl: m.photoMismatchAmazonUrl,
+    })));
+  } catch (err) {
+    console.error('[materials] GET /admin/photo-mismatches error:', err);
+    res.status(500).json({ error: 'Failed to load photo mismatches' });
+  }
+});
+
+// action 'keep' = keep my photo (remember Amazon's current picture so it is not flagged again);
+// anything else = just clear the flag (used after "Use Amazon photo" or "Exclude").
+router.post('/admin/photo-mismatches/:id/resolve', authenticateToken, requireAdmin, async (req: any, res: any) => {
+  try {
+    const m: any = await prisma.material.findUnique({ where: { id: req.params.id } });
+    if (!m) return res.status(404).json({ error: 'Material not found' });
+    const data: any = { photoMismatch: false, photoMismatchAmazonUrl: null };
+    if (req.body?.action === 'keep') data.photoIgnoredKey = amazonImageKey(m.photoMismatchAmazonUrl);
+    await prisma.material.update({ where: { id: req.params.id }, data });
+    res.json({ success: true });
+  } catch (err) {
+    console.error('[materials] POST /admin/photo-mismatches/:id/resolve error:', err);
+    res.status(500).json({ error: 'Failed to resolve' });
   }
 });
 

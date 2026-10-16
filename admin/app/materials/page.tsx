@@ -646,7 +646,7 @@ function ImageIssuesTab({ apiBase, onMaterialsChanged, flash }: {
           </Card>
 
           <Card className="p-4 border-0 shadow-sm">
-            <h3 className="font-semibold text-gray-900 mb-3">⚠️ Possible Photo Mismatch ({lowConfidence.length})</h3>
+            <h3 className="font-semibold text-gray-900 mb-3">⚠️ AI photo check — low-confidence matches ({lowConfidence.length})</h3>
             {lowConfidence.length === 0 ? (
               <p className="text-sm text-gray-400 py-4 text-center">No low-confidence matches waiting for review.</p>
             ) : (
@@ -660,12 +660,14 @@ function ImageIssuesTab({ apiBase, onMaterialsChanged, flash }: {
                       <p className="text-sm text-gray-900">{s.materialName}</p>
                       <p className="text-xs text-amber-700">{s.imageConfidenceNote || 'Low confidence photo match'} ({Math.round((s.imageConfidence || 0) * 100)}%)</p>
                     </div>
-                    <p className="text-xs text-gray-400 whitespace-nowrap">Review in AI Scan &amp; Refresh tab</p>
+                    <p className="text-xs text-gray-400 whitespace-nowrap">Review in Suggestions tab</p>
                   </div>
                 ))}
               </div>
             )}
           </Card>
+
+          <PhotoMismatchSection apiBase={apiBase} onMaterialsChanged={onMaterialsChanged} flash={flash} />
         </>
       )}
 
@@ -700,6 +702,300 @@ function ImageIssuesTab({ apiBase, onMaterialsChanged, flash }: {
   )
 }
 
+// ── AI Amazon matches — shown at the top of the Suggestions tab (Oct 2026) ──
+function AiMatchesSection({ apiBase, onMaterialsChanged, flash, onEditMaterial }: {
+  apiBase: string
+  onMaterialsChanged: () => void
+  flash: (msg: string, isError?: boolean) => void
+  onEditMaterial: (materialId: string) => void
+}) {
+  const [pending, setPending] = React.useState<AmazonSuggestionRow[]>([])
+  const [loading, setLoading] = React.useState(true)
+  const [findingFor, setFindingFor] = React.useState<{ id: string; name: string } | null>(null)
+
+  const load = React.useCallback(async () => {
+    setLoading(true)
+    try {
+      const token = await authToken()
+      const r = await fetch(`${apiBase}/materials/admin/amazon-suggestions?status=PENDING`, { headers: { Authorization: `Bearer ${token}` } })
+      const p = await r.json()
+      setPending(Array.isArray(p) ? p : [])
+    } catch (e: any) {
+      flash('Failed to load AI matches: ' + e.message, true)
+    } finally {
+      setLoading(false)
+    }
+  }, [apiBase])
+
+  React.useEffect(() => { load() }, [load])
+
+  const resolveSuggestion = async (id: string, action: 'approve' | 'reject') => {
+    try {
+      const token = await authToken()
+      const res = await fetch(`${apiBase}/materials/admin/amazon-suggestions/${id}/${action}`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      })
+      if (!res.ok) throw new Error((await res.json()).error || 'Failed')
+      flash(action === 'approve' ? 'Linked!' : 'Dismissed')
+      await load()
+      onMaterialsChanged()
+    } catch (e: any) {
+      flash(`Could not ${action}: ` + e.message, true)
+    }
+  }
+
+  const excludeFromShop = async (suggestionId: string, materialName: string) => {
+    try {
+      const token = await authToken()
+      const res = await fetch(`${apiBase}/materials/admin/amazon-suggestions/${suggestionId}/exclude-from-shop`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      if (!res.ok) throw new Error((await res.json()).error || 'Failed')
+      flash(`"${materialName}" excluded from Shop — stays available for planning.`)
+      await load()
+      onMaterialsChanged()
+    } catch (e: any) {
+      flash('Could not exclude: ' + e.message, true)
+    }
+  }
+
+  return (
+    <>
+      <Card className="p-4 border-0 shadow-sm mb-4">
+        <h3 className="font-semibold text-gray-900 mb-1">🤖 AI Amazon matches awaiting your approval ({pending.length})</h3>
+        <p className="text-xs text-gray-400 mb-3">Found by the automatic scan for materials that have no Amazon link yet. Nothing is applied until you tap Link.</p>
+        {loading ? (
+          <p className="text-sm text-gray-400 text-center py-4">Loading…</p>
+        ) : pending.length === 0 ? (
+          <p className="text-sm text-gray-400 py-4 text-center">Nothing waiting — the scan will add new matches here.</p>
+        ) : (
+          <div className="space-y-2">
+            {pending.map(s => (
+              <div key={s.id} className="flex items-center gap-3 p-2 border border-gray-200 rounded-lg">
+                <div className="w-12 h-12 flex-shrink-0 bg-white border rounded flex items-center justify-center overflow-hidden">
+                  {s.suggestedImageUrl
+                    ? <img src={s.suggestedImageUrl} alt="" className="max-w-full max-h-full object-contain" />
+                    : <Package size={18} className="text-gray-300" />}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm text-gray-900">
+                    <span className="font-medium">{s.materialName}</span> → {s.suggestedTitle}
+                  </p>
+                  <p className="text-xs text-gray-500 font-mono">
+                    {s.suggestedAsin}{s.suggestedPriceRupees != null ? ` · ₹${s.suggestedPriceRupees}` : ''}
+                    {s.imageConfidence != null && (
+                      <span className={s.imageConfidence >= 0.7 ? 'text-green-600' : 'text-amber-600'}>
+                        {' · photo match '}{Math.round(s.imageConfidence * 100)}%
+                      </span>
+                    )}
+                  </p>
+                  {s.imageConfidenceNote && <p className="text-xs text-gray-400">{s.imageConfidenceNote}</p>}
+                </div>
+                <div className="flex gap-1">
+                  <button onClick={() => setFindingFor({ id: s.materialId, name: s.materialName })}
+                    title="Search again"
+                    className="px-2 py-1 bg-white border border-orange-300 text-orange-600 rounded text-xs hover:bg-orange-50">🔍 Find</button>
+                  <button onClick={() => resolveSuggestion(s.id, 'approve')}
+                    className="px-2 py-1 bg-green-600 text-white rounded text-xs hover:bg-green-700">✓ Link</button>
+                  <button onClick={() => onEditMaterial(s.materialId)}
+                    title="Edit this material"
+                    className="px-2 py-1 bg-white border border-gray-300 text-gray-600 rounded text-xs hover:bg-gray-50">✎</button>
+                  <button onClick={() => excludeFromShop(s.id, s.materialName)}
+                    title="Keep planning-only, don't sell via Amazon"
+                    className="px-2 py-1 bg-white border border-amber-300 text-amber-700 rounded text-xs hover:bg-amber-50 whitespace-nowrap">Exclude</button>
+                  <button onClick={() => resolveSuggestion(s.id, 'reject')}
+                    className="px-2 py-1 border border-gray-300 text-gray-600 rounded text-xs hover:bg-gray-50">✕</button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </Card>
+      {findingFor && (
+        <FindOnAmazonModal
+          material={findingFor}
+          apiBase={apiBase}
+          onClose={() => setFindingFor(null)}
+          onPicked={async (asin, priceRupees, imageUrl, extractedUnit, title) => {
+            const pickedFor = findingFor
+            setFindingFor(null)
+            if (!pickedFor) return
+            try {
+              const token = await authToken()
+              const res = await fetch(`${apiBase}/materials/admin/${pickedFor.id}/link-amazon`, {
+                method: 'POST',
+                headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify({ asin, priceRupees, imageUrl, extractedUnit, description: title }),
+              })
+              if (!res.ok) throw new Error((await res.json()).error || 'Failed to link')
+              flash(`Linked "${pickedFor.name}" directly`)
+              await load()
+              onMaterialsChanged()
+            } catch (e: any) {
+              flash('Could not link: ' + e.message, true)
+            }
+          }}
+        />
+      )}
+    </>
+  )
+}
+
+// ── Photo differs from Amazon — shown inside the Image Issues tab (Oct 2026) ──
+function PhotoMismatchSection({ apiBase, onMaterialsChanged, flash }: {
+  apiBase: string
+  onMaterialsChanged: () => void
+  flash: (msg: string, isError?: boolean) => void
+}) {
+  const [rows, setRows] = React.useState<any[]>([])
+  const [loading, setLoading] = React.useState(true)
+  const [running, setRunning] = React.useState(false)
+
+  const load = React.useCallback(async () => {
+    setLoading(true)
+    try {
+      const token = await authToken()
+      const r = await fetch(`${apiBase}/materials/admin/photo-mismatches`, { headers: { Authorization: `Bearer ${token}` } })
+      const d = await r.json()
+      setRows(Array.isArray(d) ? d : [])
+    } catch (e: any) {
+      flash('Failed to load photo mismatches: ' + e.message, true)
+    } finally {
+      setLoading(false)
+    }
+  }, [apiBase])
+
+  React.useEffect(() => { load() }, [load])
+
+  const checkNow = async () => {
+    setRunning(true)
+    try {
+      const token = await authToken()
+      const res = await fetch(`${apiBase}/materials/admin/amazon-photo-audit`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ limit: 150 }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed')
+      flash(`Checked ${data.checked} linked materials.`)
+      await load()
+    } catch (e: any) {
+      flash('Photo check failed: ' + e.message, true)
+    } finally {
+      setRunning(false)
+    }
+  }
+
+  const resolve = async (materialId: string, action: 'keep' | 'clear') => {
+    const token = await authToken()
+    await fetch(`${apiBase}/materials/admin/photo-mismatches/${materialId}/resolve`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action }),
+    })
+    setRows(prev => prev.filter(r => r.materialId !== materialId))
+  }
+
+  const useAmazonPhoto = async (r: any) => {
+    try {
+      const token = await authToken()
+      await fetch(`${apiBase}/materials/admin/${r.materialId}`, {
+        method: 'PUT',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ imageUrl: r.amazonImageUrl }),
+      })
+      await resolve(r.materialId, 'clear')
+      flash(`Updated "${r.materialName}"'s photo from Amazon.`)
+      onMaterialsChanged()
+    } catch (e: any) {
+      flash('Could not update photo: ' + e.message, true)
+    }
+  }
+
+  const excludeFromShop = async (r: any) => {
+    try {
+      const token = await authToken()
+      await fetch(`${apiBase}/materials/admin/${r.materialId}`, {
+        method: 'PUT',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ showInShop: false }),
+      })
+      await resolve(r.materialId, 'clear')
+      flash(`"${r.materialName}" excluded from Shop — stays available for planning.`)
+      onMaterialsChanged()
+    } catch (e: any) {
+      flash('Could not exclude: ' + e.message, true)
+    }
+  }
+
+  return (
+    <Card className="p-4 border-0 shadow-sm">
+      <div className="flex items-center justify-between mb-3">
+        <h3 className="font-semibold text-gray-900">🖼️ Photo differs from Amazon ({rows.length})</h3>
+        <button onClick={checkNow} disabled={running}
+          className="px-3 py-1.5 bg-white border border-gray-300 text-gray-700 rounded text-xs hover:bg-gray-50 disabled:opacity-50 flex items-center gap-1">
+          {running ? <Loader2 className="animate-spin" size={14} /> : null}
+          {running ? 'Checking…' : '🔎 Check now'}
+        </button>
+      </div>
+      <p className="text-xs text-gray-400 mb-3">
+        Checked automatically for every linked material along with the daily refresh. Only materials that use an Amazon photo are compared — a photo you uploaded yourself is never flagged. Nothing changes until you choose.
+      </p>
+      {loading ? (
+        <p className="text-sm text-gray-400 text-center py-4">Loading…</p>
+      ) : rows.length === 0 ? (
+        <p className="text-sm text-gray-400 py-4 text-center">No photo differences waiting. ✅</p>
+      ) : (
+        <div className="space-y-2">
+          {rows.map((d: any) => (
+            <div key={d.materialId} className="flex items-center gap-3 p-2 bg-purple-50 border border-purple-200 rounded-lg">
+              <div className="flex items-center gap-2 flex-shrink-0">
+                <div className="text-center">
+                  <div className="w-12 h-12 bg-white border rounded flex items-center justify-center overflow-hidden">
+                    {d.appImageUrl
+                      ? <img src={d.appImageUrl} alt="" className="max-w-full max-h-full object-contain" />
+                      : <Package size={16} className="text-gray-300" />}
+                  </div>
+                  <p className="text-[10px] text-gray-400 mt-0.5">In app</p>
+                </div>
+                <span className="text-gray-300">→</span>
+                <div className="text-center">
+                  <div className="w-12 h-12 bg-white border rounded flex items-center justify-center overflow-hidden">
+                    {d.amazonImageUrl
+                      ? <img src={d.amazonImageUrl} alt="" className="max-w-full max-h-full object-contain" />
+                      : <Package size={16} className="text-gray-300" />}
+                  </div>
+                  <p className="text-[10px] text-gray-400 mt-0.5">On Amazon</p>
+                </div>
+              </div>
+              <p className="text-sm text-gray-900 flex-1 min-w-0">{d.materialName}</p>
+              <div className="flex flex-col gap-1 flex-shrink-0">
+                <button onClick={() => useAmazonPhoto(d)}
+                  className="px-2 py-1 bg-purple-600 text-white rounded text-xs hover:bg-purple-700 whitespace-nowrap">
+                  Use Amazon Photo
+                </button>
+                <button onClick={() => resolve(d.materialId, 'keep')}
+                  className="px-2 py-1 bg-white border border-gray-300 text-gray-700 rounded text-xs hover:bg-gray-50 whitespace-nowrap">
+                  Keep mine
+                </button>
+                <button onClick={() => excludeFromShop(d)}
+                  title="Keep planning-only, don't sell via Amazon"
+                  className="px-2 py-1 bg-white border border-amber-300 text-amber-700 rounded text-xs hover:bg-amber-50 whitespace-nowrap">
+                  Exclude
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </Card>
+  )
+}
+
 function AiSuggestionsTab({ apiBase, onMaterialsChanged, flash, onEditMaterial }: {
   apiBase: string
   onMaterialsChanged: () => void
@@ -707,76 +1003,24 @@ function AiSuggestionsTab({ apiBase, onMaterialsChanged, flash, onEditMaterial }
   onEditMaterial: (materialId: string) => void
 }) {
   const [scanning, setScanning] = React.useState(false)
-  const [pending, setPending] = React.useState<AmazonSuggestionRow[]>([])
   const [noMatch, setNoMatch] = React.useState<AmazonSuggestionRow[]>([])
   const [needsAttention, setNeedsAttention] = React.useState<any[]>([])
   const [loading, setLoading] = React.useState(true)
   const [lastScan, setLastScan] = React.useState<string | null>(null)
   const [findingFor, setFindingFor] = React.useState<{ id: string; name: string } | null>(null)
-  const [photoAudit, setPhotoAudit] = React.useState<{ checked: number; differences: any[]; stoppedEarly: boolean } | null>(null)
-  const [auditRunning, setAuditRunning] = React.useState(false)
-
-  const runPhotoAudit = async () => {
-    setAuditRunning(true)
-    try {
-      const token = await authToken()
-      const res = await fetch(`${apiBase}/materials/admin/amazon-photo-audit`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ limit: 200 }),
-      })
-      if (!res.ok) throw new Error((await res.json()).error || 'Failed')
-      setPhotoAudit(await res.json())
-    } catch (e: any) {
-      flash('Photo audit failed: ' + e.message, true)
-    } finally {
-      setAuditRunning(false)
-    }
-  }
-
-  const useAmazonPhoto = async (materialId: string, amazonImageUrl: string, materialName: string) => {
-    try {
-      const token = await authToken()
-      await fetch(`${apiBase}/materials/admin/${materialId}`, {
-        method: 'PUT',
-        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ imageUrl: amazonImageUrl }),
-      })
-      flash(`Updated "${materialName}"'s photo from Amazon.`)
-      setPhotoAudit(prev => prev ? { ...prev, differences: prev.differences.filter((d: any) => d.materialId !== materialId) } : prev)
-      onMaterialsChanged()
-    } catch (e: any) {
-      flash('Could not update photo: ' + e.message, true)
-    }
-  }
-
-  const excludeMaterialFromShop = async (materialId: string, materialName: string) => {
-    try {
-      const token = await authToken()
-      await fetch(`${apiBase}/materials/admin/${materialId}`, {
-        method: 'PUT',
-        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ showInShop: false }),
-      })
-      flash(`"${materialName}" excluded from Shop — stays available for planning.`)
-      setPhotoAudit(prev => prev ? { ...prev, differences: prev.differences.filter((d: any) => d.materialId !== materialId) } : prev)
-      onMaterialsChanged()
-    } catch (e: any) {
-      flash('Could not exclude: ' + e.message, true)
-    }
-  }
+  const [status, setStatus] = React.useState<any>(null)
 
   const loadAll = React.useCallback(async () => {
     setLoading(true)
     try {
       const token = await authToken()
       const headers = { Authorization: `Bearer ${token}` }
-      const [p, n, a] = await Promise.all([
-        fetch(`${apiBase}/materials/admin/amazon-suggestions?status=PENDING`, { headers }).then(r => r.json()),
+      const [n, a, st] = await Promise.all([
         fetch(`${apiBase}/materials/admin/amazon-suggestions?status=NO_MATCH`, { headers }).then(r => r.json()),
         fetch(`${apiBase}/materials/admin/amazon-needs-attention`, { headers }).then(r => r.json()),
+        fetch(`${apiBase}/materials/admin/materials-daily/status`, { headers }).then(r => r.json()).catch(() => null),
       ])
-      setPending(Array.isArray(p) ? p : [])
+      setStatus(st && !st.error ? st : null)
       setNoMatch(Array.isArray(n) ? n : [])
       setNeedsAttention(Array.isArray(a) ? a : [])
     } catch (e: any) {
@@ -788,44 +1032,23 @@ function AiSuggestionsTab({ apiBase, onMaterialsChanged, flash, onEditMaterial }
 
   React.useEffect(() => { loadAll() }, [loadAll])
 
-  const runScan = async () => {
+  const runAll = async () => {
     setScanning(true)
     try {
       const token = await authToken()
-      const res = await fetch(`${apiBase}/materials/admin/amazon-suggestions/scan`, {
+      const res = await fetch(`${apiBase}/materials/admin/materials-daily/run`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ limit: 25 }),
+        body: JSON.stringify({}),
       })
       const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'Scan failed')
-      setLastScan(`Scanned ${data.scanned} materials — ${data.suggested} suggestions, ${data.noMatch} no match${data.suggestionsEnriched ? `, enriched ${data.suggestionsEnriched} child suggestions` : ''}${data.stoppedEarly ? ' (stopped early — run again to continue)' : ''}.`)
-      flash('Scan complete')
-      await loadAll()
-    } catch (e: any) {
-      flash('Scan failed: ' + e.message, true)
-    } finally {
-      setScanning(false)
-    }
-  }
-
-  const runRefresh = async () => {
-    setScanning(true)
-    try {
-      const token = await authToken()
-      const res = await fetch(`${apiBase}/materials/admin/amazon-refresh/run`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ limit: 50 }),
-      })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'Refresh failed')
-      setLastScan(`Checked ${data.checked} linked materials — ${data.flagged} now need attention, ${data.cleared} still fine.`)
-      flash('Refresh complete')
+      if (!res.ok) throw new Error(data.error || 'Run failed')
+      setLastScan(`Checked ${data.refresh.checked} linked materials (${data.refresh.flagged} need attention) and scanned ${data.scan.scanned} materials with no ASIN (${data.scan.suggested} new matches, ${data.scan.noMatch} no match) in ${data.durationSec}s. Photos were compared in the same pass.`)
+      flash('Scan & refresh complete')
       await loadAll()
       onMaterialsChanged()
     } catch (e: any) {
-      flash('Refresh failed: ' + e.message, true)
+      flash('Scan & refresh failed: ' + e.message, true)
     } finally {
       setScanning(false)
     }
@@ -872,18 +1095,32 @@ function AiSuggestionsTab({ apiBase, onMaterialsChanged, flash, onEditMaterial }
     <div className="space-y-4">
       <Card className="p-4 border-0 shadow-sm">
         <div className="flex flex-wrap items-center gap-3">
-          <button onClick={runScan} disabled={scanning}
+          <button onClick={runAll} disabled={scanning}
             className="px-4 py-2 bg-orange-500 text-white rounded-lg text-sm font-medium hover:bg-orange-600 disabled:opacity-50">
-            {scanning ? '🤖 Working…' : '🤖 Scan for Missing ASINs'}
-          </button>
-          <button onClick={runRefresh} disabled={scanning}
-            className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 disabled:opacity-50">
-            {scanning ? '…' : '🔄 Refresh Linked ASINs'}
+            {scanning ? '🤖 Working… (about a minute)' : '🤖 Scan & Refresh now'}
           </button>
           <p className="text-xs text-gray-400 flex-1">
-            Scan finds candidates for materials with no ASIN (and enriches child material suggestions too). Refresh re-checks already-linked ASINs for price/availability drift. Nothing is ever applied without your approval below.
+            One button for both jobs: it re-checks every linked ASIN for price, availability and photo (oldest-checked first), and looks for Amazon matches for materials with no ASIN. It also runs by itself several times a day. Nothing is applied without your approval — AI matches wait in the <b>Suggestions</b> tab, photo differences in the <b>Image Issues</b> tab.
           </p>
         </div>
+        {status && (
+          <div className="mt-3 text-xs text-gray-600 space-y-0.5">
+            <p>
+              Linked items checked in the last 24 hours: <b>{status.checked24h}</b> of <b>{status.linked}</b>
+              {status.linked > 0 && status.checked24h >= status.linked ? ' ✅ everything covered' : ''}
+            </p>
+            <p>
+              Last automatic/manual run:{' '}
+              {status.lastRun
+                ? <b>{new Date(status.lastRun.startedAt).toLocaleString('en-IN')}</b>
+                : <b>never</b>}
+              {status.lastRun ? ` — refreshed ${status.lastRun.refresh?.checked ?? 0}, scanned ${status.lastRun.scan?.scanned ?? 0}` : ''}
+            </p>
+            {!status.schedulerSecretSet && (
+              <p className="text-amber-700">⚠️ The automatic daily run is not switched on yet — ask Claude for the one-time scheduler setup commands.</p>
+            )}
+          </div>
+        )}
         {lastScan && <p className="text-xs text-gray-500 mt-2">{lastScan}</p>}
       </Card>
 
@@ -922,55 +1159,7 @@ function AiSuggestionsTab({ apiBase, onMaterialsChanged, flash, onEditMaterial }
           )}
 
           <Card className="p-4 border-0 shadow-sm">
-            <h3 className="font-semibold text-gray-900 mb-3">🟢 Pending Suggestions ({pending.length})</h3>
-            {pending.length === 0 ? (
-              <p className="text-sm text-gray-400 py-4 text-center">Nothing pending — run a scan above.</p>
-            ) : (
-              <div className="space-y-2">
-                {pending.map(s => (
-                  <div key={s.id} className="flex items-center gap-3 p-2 border border-gray-200 rounded-lg">
-                    <div className="w-12 h-12 flex-shrink-0 bg-white border rounded flex items-center justify-center overflow-hidden">
-                      {s.suggestedImageUrl
-                        ? <img src={s.suggestedImageUrl} alt="" className="max-w-full max-h-full object-contain" />
-                        : <Package size={18} className="text-gray-300" />}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm text-gray-900">
-                        <span className="font-medium">{s.materialName}</span> → {s.suggestedTitle}
-                      </p>
-                      <p className="text-xs text-gray-500 font-mono">
-                        {s.suggestedAsin}{s.suggestedPriceRupees != null ? ` · ₹${s.suggestedPriceRupees}` : ''}
-                        {s.imageConfidence != null && (
-                          <span className={s.imageConfidence >= 0.7 ? 'text-green-600' : 'text-amber-600'}>
-                            {' · photo match '}{Math.round(s.imageConfidence * 100)}%
-                          </span>
-                        )}
-                      </p>
-                      {s.imageConfidenceNote && <p className="text-xs text-gray-400">{s.imageConfidenceNote}</p>}
-                    </div>
-                    <div className="flex gap-1">
-                      <button onClick={() => setFindingFor({ id: s.materialId, name: s.materialName })}
-                        title="Search again"
-                        className="px-2 py-1 bg-white border border-orange-300 text-orange-600 rounded text-xs hover:bg-orange-50">🔍 Find</button>
-                      <button onClick={() => resolveSuggestion(s.id, 'approve')}
-                        className="px-2 py-1 bg-green-600 text-white rounded text-xs hover:bg-green-700">✓ Link</button>
-                      <button onClick={() => onEditMaterial(s.materialId)}
-                        title="Edit this material"
-                        className="px-2 py-1 bg-white border border-gray-300 text-gray-600 rounded text-xs hover:bg-gray-50">✎</button>
-                      <button onClick={() => excludeFromShop(s.id, s.materialName)}
-                        title="Keep planning-only, don't sell via Amazon"
-                        className="px-2 py-1 bg-white border border-amber-300 text-amber-700 rounded text-xs hover:bg-amber-50 whitespace-nowrap">Exclude</button>
-                      <button onClick={() => resolveSuggestion(s.id, 'reject')}
-                        className="px-2 py-1 border border-gray-300 text-gray-600 rounded text-xs hover:bg-gray-50">✕</button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </Card>
-
-          <Card className="p-4 border-0 shadow-sm">
-            <h3 className="font-semibold text-gray-900 mb-3">🔍 No Match Found ({noMatch.length})</h3>
+            <h3 className="font-semibold text-gray-900 mb-3">🔍 No Amazon match — items without an ASIN ({noMatch.length})</h3>
             {noMatch.length === 0 ? (
               <p className="text-sm text-gray-400 py-4 text-center">Nothing here.</p>
             ) : (
@@ -1006,66 +1195,6 @@ function AiSuggestionsTab({ apiBase, onMaterialsChanged, flash, onEditMaterial }
             )}
           </Card>
 
-          <Card className="p-4 border-0 shadow-sm">
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="font-semibold text-gray-900">
-                🖼️ Image Mismatch{photoAudit ? ` (${photoAudit.differences.length})` : ''}
-              </h3>
-              <button onClick={runPhotoAudit} disabled={auditRunning}
-                className="px-3 py-1.5 bg-white border border-gray-300 text-gray-700 rounded text-xs hover:bg-gray-50 disabled:opacity-50 flex items-center gap-1">
-                {auditRunning ? <Loader2 className="animate-spin" size={14} /> : null}
-                {auditRunning ? 'Checking…' : '🔎 Run Photo Audit'}
-              </button>
-            </div>
-            <p className="text-xs text-gray-400 mb-3">
-              Checks every linked material's current photo against what Amazon shows for its ASIN today
-              — flags anything different, or missing entirely. Never changes anything on its own; you
-              decide per item below.
-            </p>
-            {!photoAudit ? (
-              <p className="text-sm text-gray-400 py-4 text-center">Not run yet this session — click "Run Photo Audit" above.</p>
-            ) : photoAudit.differences.length === 0 ? (
-              <p className="text-sm text-gray-400 py-4 text-center">Checked {photoAudit.checked} linked materials — all photos match. ✅</p>
-            ) : (
-              <div className="space-y-2">
-                {photoAudit.differences.map((d: any) => (
-                  <div key={d.materialId} className="flex items-center gap-3 p-2 bg-purple-50 border border-purple-200 rounded-lg">
-                    <div className="flex items-center gap-2 flex-shrink-0">
-                      <div className="text-center">
-                        <div className="w-12 h-12 bg-white border rounded flex items-center justify-center overflow-hidden">
-                          {d.appImageUrl
-                            ? <img src={d.appImageUrl} alt="" className="max-w-full max-h-full object-contain" />
-                            : <Package size={16} className="text-gray-300" />}
-                        </div>
-                        <p className="text-[10px] text-gray-400 mt-0.5">In app</p>
-                      </div>
-                      <span className="text-gray-300">→</span>
-                      <div className="text-center">
-                        <div className="w-12 h-12 bg-white border rounded flex items-center justify-center overflow-hidden">
-                          {d.amazonImageUrl
-                            ? <img src={d.amazonImageUrl} alt="" className="max-w-full max-h-full object-contain" />
-                            : <Package size={16} className="text-gray-300" />}
-                        </div>
-                        <p className="text-[10px] text-gray-400 mt-0.5">On Amazon</p>
-                      </div>
-                    </div>
-                    <p className="text-sm text-gray-900 flex-1 min-w-0">{d.materialName}</p>
-                    <div className="flex flex-col gap-1 flex-shrink-0">
-                      <button onClick={() => useAmazonPhoto(d.materialId, d.amazonImageUrl, d.materialName)}
-                        className="px-2 py-1 bg-purple-600 text-white rounded text-xs hover:bg-purple-700 whitespace-nowrap">
-                        Use Amazon Photo
-                      </button>
-                      <button onClick={() => excludeMaterialFromShop(d.materialId, d.materialName)}
-                        title="Keep planning-only, don't sell via Amazon"
-                        className="px-2 py-1 bg-white border border-amber-300 text-amber-700 rounded text-xs hover:bg-amber-50 whitespace-nowrap">
-                        Exclude
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </Card>
         </>
       )}
       {findingFor && (
@@ -1621,7 +1750,12 @@ function MaterialsPageInner() {
         {tab === 'ai' && <AiSuggestionsTab apiBase={API_BASE} onMaterialsChanged={load} flash={flash} onEditMaterial={onEditMaterial} />}
 
         {/* ── SUGGESTIONS FROM USERS TAB ── */}
-        {tab === 'suggestions' && <SuggestionsTab />}
+        {tab === 'suggestions' && (
+          <>
+            <AiMatchesSection apiBase={API_BASE} onMaterialsChanged={load} flash={flash} onEditMaterial={onEditMaterial} />
+            <SuggestionsTab />
+          </>
+        )}
 
         {/* ── IMAGE ISSUES TAB ── */}
         {tab === 'images' && <ImageIssuesTab apiBase={API_BASE} onMaterialsChanged={load} flash={flash} />}

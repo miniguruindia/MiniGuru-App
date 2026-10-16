@@ -18,11 +18,14 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.MAINTENANCE_KEY = void 0;
+exports.amazonImageKey = amazonImageKey;
 exports.runAmazonSuggestionScan = runAmazonSuggestionScan;
 exports.runPhotoAudit = runPhotoAudit;
 exports.runAmazonRefreshCheck = runAmazonRefreshCheck;
 exports.approveAmazonSuggestion = approveAmazonSuggestion;
 exports.rejectAmazonSuggestion = rejectAmazonSuggestion;
+exports.runMaterialsMaintenance = runMaterialsMaintenance;
 const prismaClient_1 = __importDefault(require("../utils/prismaClient"));
 const amazonProductService_1 = require("./amazonProductService");
 const materialSearchAssistService_1 = require("./materialSearchAssistService");
@@ -32,6 +35,36 @@ const SCAN_DELAY_MS = 1100; // conservative spacing between Amazon calls
 const SCAN_TIME_BUDGET_MS = 8 * 60 * 1000; // stay well under Cloud Run's 600s timeout
 function sleep(ms) {
     return new Promise((resolve) => setTimeout(resolve, ms));
+}
+// ── Photo comparison (Oct 2026) ────────────────────────────────────────
+// Amazon photo URLs look like .../images/I/71abcXYZ._SL1500_.jpg — the id is
+// the part after /I/. Two URLs with the same id are the same picture even if
+// the size suffix differs.
+function amazonImageKey(url) {
+    if (!url)
+        return null;
+    const m = url.match(/\/images\/I\/([^./?]+)/i);
+    return m ? m[1] : null;
+}
+/** True only when BOTH photos are Amazon photos and they are different pictures.
+ *  A photo uploaded by an admin (not an Amazon URL) is a deliberate choice and is never flagged. */
+function photoDiffers(appUrl, liveUrl) {
+    const a = amazonImageKey(appUrl);
+    const l = amazonImageKey(liveUrl);
+    return !!a && !!l && a !== l;
+}
+/** Fields to save after looking at one material's live Amazon data. */
+function photoPatch(m, live) {
+    const now = new Date();
+    if (!live?.imageUrl)
+        return { photoCheckedAt: now };
+    const liveKey = amazonImageKey(live.imageUrl);
+    const differs = photoDiffers(m.imageUrl, live.imageUrl) && m.photoIgnoredKey !== liveKey;
+    return {
+        photoCheckedAt: now,
+        photoMismatch: differs,
+        photoMismatchAmazonUrl: differs ? live.imageUrl : null,
+    };
 }
 /**
  * Scans SHOP-VISIBLE materials with no amazonASIN, up to `limit`, creating
@@ -61,13 +94,28 @@ async function runAmazonSuggestionScan(limit = 25) {
         stoppedEarly: false,
         suggestionsEnriched: 0,
     };
+    // Oct 2026: an admin's "reject" is also respected for 30 days, so the daily
+    // automatic scan does not keep re-suggesting the same rejected match.
+    const rejectedSince = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
     const unresolvedMaterialIds = new Set((await prismaClient_1.default.amazonSuggestion.findMany({
-        where: { status: { in: ['PENDING', 'NO_MATCH'] } },
+        where: {
+            OR: [
+                { status: { in: ['PENDING', 'NO_MATCH'] } },
+                { status: 'REJECTED', resolvedAt: { gte: rejectedSince } },
+            ],
+        },
         select: { materialId: true },
     })).map((s) => s.materialId));
+    // Oct 2026 BUGFIX: the old query took the first (limit x 2) items oldest-first
+    // and then skipped the ones that already had a result, so once ~50 items had
+    // results the scan never reached the rest. Items with a result are now left
+    // out of the query itself, so every run moves on to new items.
     const candidates = await prismaClient_1.default.material.findMany({
-        where: { amazonASIN: null, isActive: true, showInShop: true },
-        take: limit * 2, // over-fetch a bit since some will be skipped (already has a result)
+        where: {
+            amazonASIN: null, isActive: true, showInShop: true,
+            ...(unresolvedMaterialIds.size ? { id: { notIn: Array.from(unresolvedMaterialIds) } } : {}),
+        },
+        take: limit,
         orderBy: { createdAt: 'asc' },
     });
     for (const material of candidates) {
@@ -208,14 +256,12 @@ async function runPhotoAudit(limit = 100) {
             break;
         }
         const byAsin = new Map(result.results.map((r) => [r.asin, r]));
-        await prismaClient_1.default.material.updateMany({
-            where: { id: { in: batch.map((m) => m.id) } },
-            data: { photoCheckedAt: new Date() },
-        });
         for (const material of batch) {
             checked += 1;
             const live = material.amazonASIN ? byAsin.get(material.amazonASIN) : undefined;
-            if (live?.imageUrl && live.imageUrl !== material.imageUrl) {
+            const patch = photoPatch(material, live);
+            await prismaClient_1.default.material.update({ where: { id: material.id }, data: patch });
+            if (patch.photoMismatch && live?.imageUrl) {
                 differences.push({
                     materialId: material.id,
                     materialName: material.name,
@@ -304,6 +350,7 @@ async function runAmazonRefreshCheck(limit = 50) {
                     amazonLastCheckedAt: new Date(),
                     ...(priceUpdate !== undefined ? { priceEstimate: priceUpdate } : {}),
                     ...extra,
+                    ...photoPatch(m, live),
                 },
             });
             if (needsAttention)
@@ -374,4 +421,30 @@ async function rejectAmazonSuggestion(suggestionId, adminId) {
         where: { id: suggestionId },
         data: { status: 'REJECTED', resolvedAt: new Date(), resolvedByAdminId: adminId },
     });
+}
+exports.MAINTENANCE_KEY = 'materials_maintenance_last_run';
+async function runMaterialsMaintenance(opts = {}) {
+    const started = Date.now();
+    const refresh = await runAmazonRefreshCheck(opts.refreshLimit ?? 150);
+    // Keep the whole round well inside Cloud Run's request timeout.
+    const scan = Date.now() - started < 120000
+        ? await runAmazonSuggestionScan(opts.scanLimit ?? 15)
+        : { scanned: 0, suggested: 0, noMatch: 0, skipped: 0, stoppedEarly: true, suggestionsEnriched: 0 };
+    const summary = {
+        startedAt: new Date(started).toISOString(),
+        refresh,
+        scan,
+        durationSec: Math.round((Date.now() - started) / 1000),
+    };
+    try {
+        await prismaClient_1.default.siteContent.upsert({
+            where: { key: exports.MAINTENANCE_KEY },
+            update: { value: summary },
+            create: { key: exports.MAINTENANCE_KEY, value: summary },
+        });
+    }
+    catch (err) {
+        console.error('[amazonSuggestionService] could not save maintenance summary:', err);
+    }
+    return summary;
 }

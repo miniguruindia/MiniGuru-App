@@ -6,7 +6,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   Users, Video, Package, ArrowUpRight,
-  RefreshCw, Coins, Megaphone, ShieldAlert,
+  RefreshCw, Gauge, Megaphone, ShieldAlert,
   Lightbulb, HandCoins, AlertTriangle, Globe, TrendingUp, FolderOpen, ExternalLink,
 } from 'lucide-react'
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts'
@@ -58,11 +58,14 @@ export default function DashboardPage() {
   const [lastRefreshed, setLastRefreshed] = useState('')
 
   // ── "Needs Your Attention" counts ──────────────────────────────────────
-  const [pendingVideos,      setPendingVideos]      = useState(0)
   const [pendingCommunity,   setPendingCommunity]   = useState(0)
   const [pendingContact,     setPendingContact]     = useState(0)
   const [pendingSuggestions, setPendingSuggestions] = useState(0)
   const [pendingGoinTopUps,  setPendingGoinTopUps]  = useState(0)
+  const [pendingAiMatches,   setPendingAiMatches]   = useState(0)
+
+  // ── Cost & quotas summary (from the Cost page's own endpoint) ──────────
+  const [costInfo, setCostInfo] = useState<{ nearLimit: number; emailLine: string } | null>(null)
 
   // ── Website traffic (Google Analytics GA4) ─────────────────────────────
   const [webAnalytics, setWebAnalytics] = useState<{
@@ -105,19 +108,41 @@ export default function DashboardPage() {
 
       // Attention counts — fetched independently and in parallel so a
       // single slow/broken endpoint doesn't block or break the rest.
-      const [videos, happenings, challenges, contact, suggestions, topups] = await Promise.all([
-        safeCount(`${API_BASE}/admin/projects/pending`, d => Array.isArray(d) ? d.length : (d.projects?.length ?? 0)),
+      const [happenings, challenges, contact, suggestions, topups, aiMatches] = await Promise.all([
         safeCount(`${API_BASE}/admin/happenings`, d => (d.happenings || []).filter((h: any) => h.status === 'PENDING').length),
         safeCount(`${API_BASE}/admin/challenges`, d => (d.challenges || []).filter((c: any) => c.status === 'PENDING').length),
         safeCount(`${API_BASE}/admin/contact-change-requests`, d => (d.requests || []).length),
         safeCount(`${API_BASE}/admin/product-suggestions?status=pending`, d => (d.suggestions || []).length),
         safeCount(`${API_BASE}/goins/admin/topup/pending`, d => (d.requests || []).length),
+        safeCount(`${API_BASE}/materials/admin/amazon-suggestions?status=PENDING`, d => Array.isArray(d) ? d.length : 0),
       ])
-      setPendingVideos(videos)
+      setPendingAiMatches(aiMatches)
       setPendingCommunity(happenings + challenges)
       setPendingContact(contact)
       setPendingSuggestions(suggestions)
       setPendingGoinTopUps(topups)
+
+      // Cost & quota summary — independent, never breaks the dashboard.
+      try {
+        const cRes = await fetch(`${API_BASE}/admin/cost-dashboard`, { headers, credentials: 'include' })
+        if (cRes.ok) {
+          const c = await cRes.json()
+          const ratios: number[] = []
+          const add = (used: any, limit: any) => { if (typeof used === 'number' && typeof limit === 'number' && limit > 0) ratios.push(used / limit) }
+          add(c?.email?.sentToday, c?.email?.dailyLimit)
+          add(c?.gemini?.callsToday, 1450)
+          add(c?.youtube?.uploads?.uploadsToday, c?.youtube?.uploads?.dailyLimit)
+          add(c?.youtube?.otherCalls?.estimatedUnitsToday, c?.youtube?.otherCalls?.dailyLimit)
+          add(c?.mongodb?.usedMB, c?.mongodb?.limitMB)
+          add(c?.firebaseStorage?.usedGB, c?.firebaseStorage?.limitGB)
+          add(c?.shopAi?.callsToday, c?.shopAi?.dailyCap)
+          add(c?.phoneAuth?.startedToday, c?.phoneAuth?.dailyCap)
+          setCostInfo({
+            nearLimit: ratios.filter(r => r >= 0.85).length,
+            emailLine: c?.email ? `Email ${c.email.sentToday}/${c.email.dailyLimit} today` : 'Open the cost page',
+          })
+        }
+      } catch { /* leave costInfo null */ }
 
       // Independent fetch — a missing/misconfigured GA4 setup should never
       // break the rest of the dashboard, so this is wrapped separately.
@@ -161,20 +186,16 @@ export default function DashboardPage() {
       href: '/materials'
     },
     {
-      title: 'Goins Awarded',
-      value: '—',
-      sub: 'View in Goins page',
-      icon: Coins,
+      title: 'Cost & Quotas',
+      value: costInfo ? (costInfo.nearLimit === 0 ? 'All OK' : `${costInfo.nearLimit} near limit`) : '—',
+      sub: costInfo ? costInfo.emailLine : 'Open the cost page',
+      icon: Gauge,
       gradient: 'from-emerald-500 to-teal-500',
-      href: '/goins'
+      href: '/cost-dashboard'
     },
   ]
 
   const attentionItems = [
-    {
-      label: 'Videos awaiting approval', count: pendingVideos, icon: Video,
-      href: '/videos', color: 'purple',
-    },
     {
       label: 'Community submissions pending', count: pendingCommunity, icon: Megaphone,
       href: '/community', color: 'indigo',
@@ -184,7 +205,8 @@ export default function DashboardPage() {
       href: '/people?tab=contact', color: 'red',
     },
     {
-      label: 'Material suggestions from users', count: pendingSuggestions, icon: Lightbulb,
+      label: 'Material suggestions', count: pendingSuggestions + pendingAiMatches, icon: Lightbulb,
+      sub: `${pendingAiMatches} AI Amazon matches · ${pendingSuggestions} ideas from users`,
       href: '/materials?tab=suggestions', color: 'amber',
     },
     {
@@ -314,26 +336,34 @@ export default function DashboardPage() {
                 <Megaphone className="h-3.5 w-3.5" /> Send Announcement
               </button>
             </div>
-            <div className="space-y-2">
-              {attentionItems.map(item => {
+            {/* One row of 4 cards, then 4 empty slots kept free for future items */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
+              {attentionItems.map((item: any) => {
                 const Icon = item.icon
                 const c = colorClasses[item.color]
                 return (
                   <button key={item.label} onClick={() => router.push(item.href)}
-                    className={`w-full flex items-center justify-between p-3.5 rounded-lg border transition-colors ${c.bg}`}>
-                    <div className="flex items-center gap-3">
-                      <Icon className={`h-4 w-4 ${c.iconBg}`} />
-                      <span className={`text-sm font-medium ${c.text}`}>{item.label}</span>
+                    className={`text-left flex flex-col justify-between min-h-[104px] p-4 rounded-lg border transition-colors ${c.bg}`}>
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        <Icon className={`h-4 w-4 ${c.iconBg}`} />
+                        <span className={`text-sm font-medium ${c.text}`}>{item.label}</span>
+                      </div>
+                      <ArrowUpRight className={`h-3.5 w-3.5 flex-shrink-0 ${item.count > 0 ? c.iconBg : 'text-gray-300'}`} />
                     </div>
-                    <div className="flex items-center gap-2">
-                      <span className={`text-sm font-bold ${item.count > 0 ? c.text : 'text-gray-300'}`}>
-                        {item.count}
-                      </span>
-                      <ArrowUpRight className={`h-3.5 w-3.5 ${item.count > 0 ? c.iconBg : 'text-gray-300'}`} />
+                    <div>
+                      <span className={`text-2xl font-bold ${item.count > 0 ? c.text : 'text-gray-300'}`}>{item.count}</span>
+                      {item.sub && <p className="text-[11px] text-gray-500 mt-0.5">{item.sub}</p>}
                     </div>
                   </button>
                 )
               })}
+              {Array.from({ length: Math.max(0, 8 - attentionItems.length) }).map((_, i) => (
+                <div key={`empty-${i}`}
+                  className="min-h-[104px] rounded-lg border border-dashed border-gray-200 bg-gray-50/50 flex items-center justify-center">
+                  <span className="text-xs text-gray-300">Reserved</span>
+                </div>
+              ))}
             </div>
           </Card>
         </div>

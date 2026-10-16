@@ -590,6 +590,12 @@ model Material {
   descriptionAuto       Boolean   @default(false)
   // Last time the photo check looked at this item (rotation).
   photoCheckedAt        DateTime?
+  // Oct 2026: result of the automatic photo check against Amazon. Optional so
+  // existing documents that lack these fields keep reading fine.
+  photoMismatch          Boolean?
+  photoMismatchAmazonUrl String?
+  // Amazon photo id the admin chose to keep their own photo against ("Keep mine")
+  photoIgnoredKey        String?
   // Oct 2026: set on a VARIANT to the id of its main item. The main item has
   // this empty. Variants are ordinary materials (own name, photo, link) that
   // the Shop groups under the main item; all options of a group share a rate.

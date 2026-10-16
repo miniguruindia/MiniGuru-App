@@ -27,6 +27,37 @@ function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+// ── Photo comparison (Oct 2026) ────────────────────────────────────────
+// Amazon photo URLs look like .../images/I/71abcXYZ._SL1500_.jpg — the id is
+// the part after /I/. Two URLs with the same id are the same picture even if
+// the size suffix differs.
+export function amazonImageKey(url?: string | null): string | null {
+  if (!url) return null;
+  const m = url.match(/\/images\/I\/([^./?]+)/i);
+  return m ? m[1] : null;
+}
+
+/** True only when BOTH photos are Amazon photos and they are different pictures.
+ *  A photo uploaded by an admin (not an Amazon URL) is a deliberate choice and is never flagged. */
+function photoDiffers(appUrl?: string | null, liveUrl?: string | null): boolean {
+  const a = amazonImageKey(appUrl);
+  const l = amazonImageKey(liveUrl);
+  return !!a && !!l && a !== l;
+}
+
+/** Fields to save after looking at one material's live Amazon data. */
+function photoPatch(m: any, live: any): any {
+  const now = new Date();
+  if (!live?.imageUrl) return { photoCheckedAt: now };
+  const liveKey = amazonImageKey(live.imageUrl);
+  const differs = photoDiffers(m.imageUrl, live.imageUrl) && m.photoIgnoredKey !== liveKey;
+  return {
+    photoCheckedAt: now,
+    photoMismatch: differs,
+    photoMismatchAmazonUrl: differs ? live.imageUrl : null,
+  };
+}
+
 export interface ScanSummary {
   scanned: number;
   suggested: number;
@@ -65,16 +96,31 @@ export async function runAmazonSuggestionScan(limit: number = 25): Promise<ScanS
     suggestionsEnriched: 0,
   };
 
+  // Oct 2026: an admin's "reject" is also respected for 30 days, so the daily
+  // automatic scan does not keep re-suggesting the same rejected match.
+  const rejectedSince = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
   const unresolvedMaterialIds = new Set(
     (await prisma.amazonSuggestion.findMany({
-      where: { status: { in: ['PENDING', 'NO_MATCH'] } },
+      where: {
+        OR: [
+          { status: { in: ['PENDING', 'NO_MATCH'] } },
+          { status: 'REJECTED', resolvedAt: { gte: rejectedSince } },
+        ],
+      },
       select: { materialId: true },
     })).map((s) => s.materialId)
   );
 
+  // Oct 2026 BUGFIX: the old query took the first (limit x 2) items oldest-first
+  // and then skipped the ones that already had a result, so once ~50 items had
+  // results the scan never reached the rest. Items with a result are now left
+  // out of the query itself, so every run moves on to new items.
   const candidates = await prisma.material.findMany({
-    where: { amazonASIN: null, isActive: true, showInShop: true },
-    take: limit * 2, // over-fetch a bit since some will be skipped (already has a result)
+    where: {
+      amazonASIN: null, isActive: true, showInShop: true,
+      ...(unresolvedMaterialIds.size ? { id: { notIn: Array.from(unresolvedMaterialIds) } } : {}),
+    },
+    take: limit,
     orderBy: { createdAt: 'asc' },
   });
 
@@ -242,15 +288,12 @@ export async function runPhotoAudit(limit: number = 100): Promise<{ checked: num
     }
     const byAsin = new Map(result.results.map((r) => [r.asin, r]));
 
-    await prisma.material.updateMany({
-      where: { id: { in: batch.map((m) => m.id) } },
-      data: { photoCheckedAt: new Date() } as any,
-    });
-
     for (const material of batch) {
       checked += 1;
       const live = material.amazonASIN ? byAsin.get(material.amazonASIN) : undefined;
-      if (live?.imageUrl && live.imageUrl !== material.imageUrl) {
+      const patch = photoPatch(material as any, live);
+      await prisma.material.update({ where: { id: material.id }, data: patch as any });
+      if (patch.photoMismatch && live?.imageUrl) {
         differences.push({
           materialId: material.id,
           materialName: material.name,
@@ -349,7 +392,8 @@ export async function runAmazonRefreshCheck(limit: number = 50): Promise<Refresh
           amazonLastCheckedAt: new Date(),
           ...(priceUpdate !== undefined ? { priceEstimate: priceUpdate } : {}),
           ...extra,
-        },
+          ...photoPatch(m, live),
+        } as any,
       });
 
       if (needsAttention) summary.flagged += 1;
@@ -429,4 +473,47 @@ export async function rejectAmazonSuggestion(suggestionId: string, adminId: stri
     where: { id: suggestionId },
     data: { status: 'REJECTED', resolvedAt: new Date(), resolvedByAdminId: adminId },
   });
+}
+
+
+// ── Combined maintenance round (Oct 2026) ────────────────────────────────
+// What the Cloud Scheduler job and the admin "Scan & Refresh now" button run:
+// 1) re-check linked ASINs, oldest-checked first (price, availability AND
+//    photo in one Amazon call), 2) look for Amazon matches for items with no
+//    ASIN. Each round covers the least-recently checked items, so running it
+//    several times a day walks through the whole catalogue.
+export interface MaintenanceSummary {
+  startedAt: string;
+  refresh: RefreshSummary;
+  scan: ScanSummary;
+  durationSec: number;
+}
+
+export const MAINTENANCE_KEY = 'materials_maintenance_last_run';
+
+export async function runMaterialsMaintenance(
+  opts: { refreshLimit?: number; scanLimit?: number } = {}
+): Promise<MaintenanceSummary> {
+  const started = Date.now();
+  const refresh = await runAmazonRefreshCheck(opts.refreshLimit ?? 150);
+  // Keep the whole round well inside Cloud Run's request timeout.
+  const scan: ScanSummary = Date.now() - started < 120_000
+    ? await runAmazonSuggestionScan(opts.scanLimit ?? 15)
+    : { scanned: 0, suggested: 0, noMatch: 0, skipped: 0, stoppedEarly: true, suggestionsEnriched: 0 };
+  const summary: MaintenanceSummary = {
+    startedAt: new Date(started).toISOString(),
+    refresh,
+    scan,
+    durationSec: Math.round((Date.now() - started) / 1000),
+  };
+  try {
+    await prisma.siteContent.upsert({
+      where: { key: MAINTENANCE_KEY },
+      update: { value: summary as any },
+      create: { key: MAINTENANCE_KEY, value: summary as any },
+    });
+  } catch (err) {
+    console.error('[amazonSuggestionService] could not save maintenance summary:', err);
+  }
+  return summary;
 }

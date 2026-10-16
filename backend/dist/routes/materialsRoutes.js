@@ -1078,6 +1078,86 @@ router.post('/admin/amazon-photo-audit', authMiddleware_1.authenticateToken, req
         res.status(500).json({ error: 'Photo audit failed' });
     }
 });
+// ── Combined daily maintenance (Oct 2026) ────────────────────────────────
+// Same two ways in as the older refresh route: Cloud Scheduler with the shared
+// secret header, or a logged-in admin (the "Scan & Refresh now" button).
+router.post('/admin/materials-daily/run', async (req, res) => {
+    const schedulerSecret = req.headers['x-refresh-secret'];
+    const isScheduler = !!process.env.AMAZON_REFRESH_SECRET && schedulerSecret === process.env.AMAZON_REFRESH_SECRET;
+    const exec = async () => {
+        try {
+            const summary = await (0, amazonSuggestionService_1.runMaterialsMaintenance)(isScheduler ? {} : { refreshLimit: 100, scanLimit: 10 });
+            res.json(summary);
+        }
+        catch (err) {
+            console.error('[materials] POST /admin/materials-daily/run error:', err);
+            res.status(500).json({ error: 'Maintenance run failed' });
+        }
+    };
+    if (isScheduler)
+        return exec();
+    return (0, authMiddleware_1.authenticateToken)(req, res, () => requireAdmin(req, res, exec));
+});
+// What the admin page shows as proof the automatic run is working.
+router.get('/admin/materials-daily/status', authMiddleware_1.authenticateToken, requireAdmin, async (_req, res) => {
+    try {
+        const row = await prismaClient_1.default.siteContent.findUnique({ where: { key: amazonSuggestionService_1.MAINTENANCE_KEY } });
+        const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
+        const [linked, checked24h, photoMismatches] = await Promise.all([
+            prismaClient_1.default.material.count({ where: { amazonASIN: { not: null }, isActive: true } }),
+            prismaClient_1.default.material.count({ where: { amazonASIN: { not: null }, isActive: true, amazonLastCheckedAt: { gte: since } } }),
+            prismaClient_1.default.material.count({ where: { photoMismatch: true, isActive: true } }),
+        ]);
+        res.json({
+            lastRun: row?.value ?? null,
+            lastRunSavedAt: row?.updatedAt ?? null,
+            schedulerSecretSet: !!process.env.AMAZON_REFRESH_SECRET,
+            linked, checked24h, photoMismatches,
+        });
+    }
+    catch (err) {
+        console.error('[materials] GET /admin/materials-daily/status error:', err);
+        res.status(500).json({ error: 'Failed to load status' });
+    }
+});
+// Materials whose stored Amazon photo differs from Amazon's current one.
+router.get('/admin/photo-mismatches', authMiddleware_1.authenticateToken, requireAdmin, async (_req, res) => {
+    try {
+        const rows = await prismaClient_1.default.material.findMany({
+            where: { photoMismatch: true, isActive: true },
+            orderBy: { name: 'asc' },
+            take: 500,
+        });
+        res.json(rows.map((m) => ({
+            materialId: m.id,
+            materialName: m.name,
+            appImageUrl: m.imageUrl,
+            amazonImageUrl: m.photoMismatchAmazonUrl,
+        })));
+    }
+    catch (err) {
+        console.error('[materials] GET /admin/photo-mismatches error:', err);
+        res.status(500).json({ error: 'Failed to load photo mismatches' });
+    }
+});
+// action 'keep' = keep my photo (remember Amazon's current picture so it is not flagged again);
+// anything else = just clear the flag (used after "Use Amazon photo" or "Exclude").
+router.post('/admin/photo-mismatches/:id/resolve', authMiddleware_1.authenticateToken, requireAdmin, async (req, res) => {
+    try {
+        const m = await prismaClient_1.default.material.findUnique({ where: { id: req.params.id } });
+        if (!m)
+            return res.status(404).json({ error: 'Material not found' });
+        const data = { photoMismatch: false, photoMismatchAmazonUrl: null };
+        if (req.body?.action === 'keep')
+            data.photoIgnoredKey = (0, amazonSuggestionService_1.amazonImageKey)(m.photoMismatchAmazonUrl);
+        await prismaClient_1.default.material.update({ where: { id: req.params.id }, data });
+        res.json({ success: true });
+    }
+    catch (err) {
+        console.error('[materials] POST /admin/photo-mismatches/:id/resolve error:', err);
+        res.status(500).json({ error: 'Failed to resolve' });
+    }
+});
 // ── GET /:id — PUBLIC, must be LAST ──────────────────────────────────────────
 router.get('/:id', async (req, res) => {
     try {
