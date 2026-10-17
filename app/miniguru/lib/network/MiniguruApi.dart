@@ -774,6 +774,29 @@ class MiniguruApi {
     }
   }
 
+  /// Type-ahead for "Working with a friend?": children whose name or MiniGuru ID
+  /// starts with / contains the typed letters, same school first. Each entry:
+  /// {'id','name','loginId','sameSchool'}. Empty list on any problem.
+  Future<List<Map<String, dynamic>>> searchCollaborators(String query) async {
+    final authToken = await _getValidToken();
+    if (authToken == null) return [];
+    try {
+      final response = await http.get(
+        Uri.parse('$_baseUrl/project/search-collaborators?q=${Uri.encodeQueryComponent(query.trim())}'),
+        headers: _buildHeaders(authToken.accessToken),
+      );
+      if (response.statusCode == 200) {
+        final body = jsonDecode(response.body) as Map<String, dynamic>;
+        return (body['results'] as List? ?? [])
+            .map((e) => Map<String, dynamic>.from(e as Map))
+            .toList();
+      }
+      return [];
+    } catch (e) {
+      return [];
+    }
+  }
+
   // ── T-LAB Happenings + STEAM Challenges submission workflow ────────────
   // Any mentor/school/T-LAB/parent account can submit either. Submissions
   // land as PENDING until an admin approves them (see communitySubmissionsRoutes.ts).

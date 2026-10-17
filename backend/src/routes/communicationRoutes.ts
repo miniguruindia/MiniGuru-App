@@ -11,7 +11,22 @@ const router = express.Router();
 
 const FROM_EMAIL = process.env.FROM_EMAIL || 'connect@miniguru.in';
 
-function htmlWrap(title: string, body: string) {
+function escHtml(s: string) {
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+// Plain text from the admin form -> safe HTML with line breaks kept.
+function htmlText(s: string) {
+  return escHtml(s).replace(/\r?\n/g, '<br/>');
+}
+// A MiniGuru login ID (@miniguru.in) cannot receive mail. Children's mail goes
+// to the guardian's address; if there is no real inbox at all, skip the email.
+function realInbox(u: { email: string; guardianEmail?: string | null }): string | null {
+  const to = (u.guardianEmail || u.email || '').trim();
+  if (!to || to.toLowerCase().endsWith('@miniguru.in')) return null;
+  return to;
+}
+
+function htmlWrap(title: string, body: string, footerNote?: string) {
   return `<!DOCTYPE html><html><head><style>
     body{font-family:Arial,sans-serif;line-height:1.6;color:#333;margin:0;padding:0}
     .wrap{max-width:600px;margin:0 auto;padding:20px}
@@ -21,7 +36,7 @@ function htmlWrap(title: string, body: string) {
   </style></head><body><div class="wrap">
     <div class="header"><h2 style="margin:0">${title}</h2></div>
     <div class="content">${body}</div>
-    <div class="footer">&copy; ${new Date().getFullYear()} MiniGuru India. All rights reserved.<br/>
+    <div class="footer">${footerNote ? `<p style="margin:0 0 8px">${escHtml(footerNote)}</p>` : ''}&copy; ${new Date().getFullYear()} MiniGuru India. All rights reserved.<br/>
     <small>You are receiving this because you have a MiniGuru account.</small></div>
   </div></body></html>`;
 }
@@ -99,10 +114,10 @@ router.delete('/inbox/:id', authenticateToken, authorizeAdmin, async (req, res) 
 // alsoEmail is ever used for something genuinely urgent).
 router.post('/broadcast', authenticateToken, authorizeAdmin, async (req, res) => {
   try {
-    const { subject, message, alsoEmail } = req.body;
+    const { subject, message, alsoEmail, previewText } = req.body;
     if (!subject || !message) return res.status(400).json({ message: 'subject and message required' });
 
-    const users = await prisma.user.findMany({ select: { id: true, email: true, name: true } });
+    const users = await prisma.user.findMany({ select: { id: true, email: true, name: true, guardianEmail: true } });
     if (users.length === 0) return res.status(400).json({ message: 'No users found' });
 
     await notifyManyUsers({
@@ -115,9 +130,15 @@ router.post('/broadcast', authenticateToken, authorizeAdmin, async (req, res) =>
     let sent = 0;
     let failed = 0;
     if (alsoEmail === true) {
+      // One email per real inbox (a parent with several children gets one),
+      // sent to the guardian's address for children.
+      const seen = new Set<string>();
       for (const user of users) {
+        const to = realInbox(user);
+        if (!to || seen.has(to.toLowerCase())) continue;
+        seen.add(to.toLowerCase());
         try {
-          await sendEmail({ to: user.email, subject, html: htmlWrap(subject, `<p>${message}</p>`), fromOverride: OFFICIAL_FROM });
+          await sendEmail({ to, subject, html: htmlWrap(subject, `<p>${htmlText(message)}</p>`, previewText), fromOverride: OFFICIAL_FROM });
           sent++;
         } catch { failed++; }
       }
@@ -139,18 +160,18 @@ router.post('/broadcast', authenticateToken, authorizeAdmin, async (req, res) =>
 // send a real email (e.g. reaching someone who doesn't check the app often).
 router.post('/send', authenticateToken, authorizeAdmin, async (req, res) => {
   try {
-    const { userId, email: toEmail, subject, message, alsoEmail } = req.body;
+    const { userId, email: toEmail, subject, message, alsoEmail, previewText } = req.body;
     if (!subject || !message) return res.status(400).json({ message: 'subject and message required' });
     if (!userId && !toEmail) return res.status(400).json({ message: 'userId or email required' });
 
-    let recipient: { id: string; email: string; name: string } | null = null;
+    let recipient: { id: string; email: string; name: string; guardianEmail?: string | null } | null = null;
     if (userId) {
       recipient = await prisma.user.findUnique({
-        where: { id: userId }, select: { id: true, email: true, name: true }
+        where: { id: userId }, select: { id: true, email: true, name: true, guardianEmail: true }
       });
     } else {
       recipient = await prisma.user.findUnique({
-        where: { email: toEmail }, select: { id: true, email: true, name: true }
+        where: { email: toEmail }, select: { id: true, email: true, name: true, guardianEmail: true }
       });
     }
     if (!recipient) return res.status(404).json({ message: 'User not found' });
@@ -163,12 +184,18 @@ router.post('/send', authenticateToken, authorizeAdmin, async (req, res) => {
     });
 
     let emailed = false;
+    let emailNote: string | undefined;
     if (alsoEmail === true) {
-      await sendEmail({ to: recipient.email, subject, html: htmlWrap(subject, `<p>${message}</p>`), fromOverride: OFFICIAL_FROM });
-      emailed = true;
+      const to = realInbox(recipient);
+      if (to) {
+        await sendEmail({ to, subject, html: htmlWrap(subject, `<p>${htmlText(message)}</p>`, previewText), fromOverride: OFFICIAL_FROM });
+        emailed = true;
+      } else {
+        emailNote = 'In-app message sent. No real email address on file for this person, so no email was sent.';
+      }
     }
     logger.info(`Direct message sent to ${recipient.email} (in-app${emailed ? ' + email' : ' only'})`);
-    return res.json({ success: true, sentTo: recipient.email, emailed });
+    return res.json({ success: true, sentTo: recipient.email, emailed, emailNote });
   } catch (error) {
     logger.error(`Direct send error: ${(error as Error).message}`);
     return res.status(500).json({ message: 'Failed to send message' });

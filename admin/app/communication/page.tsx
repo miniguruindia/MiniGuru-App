@@ -222,11 +222,11 @@ function BroadcastTab() {
         <div><label className="block text-sm font-medium text-gray-700 mb-1">Message</label>
           <p className="text-xs text-gray-400 mb-1">Plain text — line breaks are preserved</p>
           <textarea className={ta} rows={10} placeholder="Write your message here..." value={message} onChange={e => setMessage(e.target.value)} /></div>
-        <div><label className="block text-sm font-medium text-gray-700 mb-1">Footer note <span className="text-gray-400 font-normal">(optional)</span></label>
+        <div><label className="block text-sm font-medium text-gray-700 mb-1">Footer note <span className="text-gray-400 font-normal">(optional — shown at the bottom of the email only)</span></label>
           <input className={inp} placeholder="e.g. Questions? Reply to this email." value={preview} onChange={e => setPreview(e.target.value)} /></div>
         <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
           <input type="checkbox" checked={alsoEmail} onChange={e => setAlsoEmail(e.target.checked)} />
-          Also email everyone (uses SendGrid quota — leave off for routine announcements)
+          Also email everyone (uses the daily email limit — leave off for routine announcements; children's emails go to their parent/guardian)
         </label>
         <button onClick={send} disabled={sending}
           className="flex items-center gap-2 px-6 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 disabled:opacity-50">
@@ -334,7 +334,7 @@ function DirectTab() {
           <textarea className={ta} rows={8} placeholder="Write your message..." value={message} onChange={e => setMessage(e.target.value)} /></div>
         <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
           <input type="checkbox" checked={alsoEmail} onChange={e => setAlsoEmail(e.target.checked)} />
-          Also email this person (uses SendGrid quota)
+          Also email this person (uses the daily email limit)
         </label>
         <button onClick={send} disabled={sending || !selected}
           className="flex items-center gap-2 px-6 py-2.5 bg-purple-600 text-white rounded-lg text-sm font-semibold hover:bg-purple-700 disabled:opacity-50">

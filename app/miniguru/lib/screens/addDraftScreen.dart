@@ -1,4 +1,5 @@
 // lib/screens/addDraftScreen.dart
+import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
@@ -66,6 +67,10 @@ class _AddDraftScreenState extends State<AddDraftScreen>
   String _desiredPrivacyStatus = 'PUBLIC'; // 'PUBLIC' | 'UNLISTED' | 'PRIVATE'
   bool _collabSearching = false;
   final TextEditingController _collabCtrl = TextEditingController();
+  // Type-ahead suggestions for the friend box (same school first).
+  List<Map<String, dynamic>> _collabSuggestions = [];
+  Timer? _collabDebounce;
+  int _collabQuerySeq = 0;
   bool                 _loading             = true;
   bool                 _submitting          = false;
   int                  _draftId             = -1;
@@ -138,6 +143,7 @@ class _AddDraftScreenState extends State<AddDraftScreen>
     _descCtrl.dispose();
     _categoryCtrl.dispose();
     _fadeCtrl.dispose();
+    _collabDebounce?.cancel();
     _collabCtrl.dispose();
     super.dispose();
   }
@@ -958,6 +964,35 @@ class _AddDraftScreenState extends State<AddDraftScreen>
         ),
       );
 
+  void _onCollabChanged(String text) {
+    _collabDebounce?.cancel();
+    final q = text.trim();
+    if (q.isEmpty) {
+      setState(() => _collabSuggestions = []);
+      return;
+    }
+    _collabDebounce = Timer(const Duration(milliseconds: 300), () async {
+      final seq = ++_collabQuerySeq;
+      final results = await MiniguruApi().searchCollaborators(q);
+      if (!mounted || seq != _collabQuerySeq) return;
+      setState(() {
+        _collabSuggestions = results
+            .where((r) => !_collaborators.any((c) => c['id'] == r['id']))
+            .toList();
+      });
+    });
+  }
+
+  void _pickCollabSuggestion(Map<String, dynamic> s) {
+    final id = s['id'] as String;
+    if (_collaborators.any((c) => c['id'] == id)) return;
+    setState(() {
+      _collaborators.add({'id': id, 'name': s['name'] as String});
+      _collabSuggestions = [];
+      _collabCtrl.clear();
+    });
+  }
+
   Future<void> _addCollaborator(String miniguruId) async {
     if (miniguruId.trim().isEmpty) return;
     if (_collaborators.any((c) => c['id'] == miniguruId.trim())) return;
@@ -1144,8 +1179,9 @@ class _AddDraftScreenState extends State<AddDraftScreen>
         ]),
         const SizedBox(height: 4),
         Text(
-          'Add their MiniGuru ID — Goins from this project will be split '
-          'equally between everyone added. Can only be added before you submit.',
+          'Type a few letters of your friend\'s name — friends from your school '
+          'show first. Goins from this project will be split equally between '
+          'everyone added. Can only be added before you submit.',
           style: GoogleFonts.nunito(color: _muted, fontSize: 12),
         ),
         const SizedBox(height: 12),
@@ -1173,7 +1209,7 @@ class _AddDraftScreenState extends State<AddDraftScreen>
               controller: _collabCtrl,
               style: GoogleFonts.nunito(fontSize: 13),
               decoration: InputDecoration(
-                hintText: 'e.g. aarav.ujjain@miniguru.in',
+                hintText: 'Type a name, or a full MiniGuru ID',
                 hintStyle: GoogleFonts.nunito(fontSize: 12, color: _muted),
                 isDense: true,
                 contentPadding:
@@ -1182,9 +1218,11 @@ class _AddDraftScreenState extends State<AddDraftScreen>
                     borderRadius: BorderRadius.circular(10),
                     borderSide: BorderSide(color: _cardBorder)),
               ),
+              onChanged: _onCollabChanged,
               onSubmitted: (v) {
                 _addCollaborator(v);
                 _collabCtrl.clear();
+                setState(() => _collabSuggestions = []);
               },
             ),
           ),
@@ -1214,6 +1252,65 @@ class _AddDraftScreenState extends State<AddDraftScreen>
             ),
           ),
         ]),
+        if (_collabSuggestions.isNotEmpty) ...[
+          const SizedBox(height: 8),
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: _cardBorder),
+            ),
+            child: Column(
+              children: _collabSuggestions.map((s) {
+                final same = s['sameSchool'] == true;
+                final name = (s['name'] ?? '').toString();
+                return InkWell(
+                  onTap: () => _pickCollabSuggestion(s),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                    child: Row(children: [
+                      CircleAvatar(
+                        radius: 14,
+                        backgroundColor: const Color(0xFFF0F4FF),
+                        child: Text(
+                          name.isNotEmpty ? name[0].toUpperCase() : '?',
+                          style: GoogleFonts.nunito(
+                              fontSize: 12, fontWeight: FontWeight.w800, color: _ink),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(name,
+                                style: GoogleFonts.nunito(
+                                    fontSize: 13, fontWeight: FontWeight.w800, color: _ink)),
+                            Text((s['loginId'] ?? '').toString(),
+                                style: GoogleFonts.nunito(fontSize: 11, color: _muted)),
+                          ],
+                        ),
+                      ),
+                      if (same)
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFE6F7EC),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Text('Your school',
+                              style: GoogleFonts.nunito(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w800,
+                                  color: const Color(0xFF1E8E3E))),
+                        ),
+                    ]),
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
+        ],
       ]),
     );
   }

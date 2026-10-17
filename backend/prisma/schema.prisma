@@ -240,7 +240,9 @@ model VideoView {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   createdAt DateTime @default(now())
 
-  @@unique([videoId, userId])
+  // Oct 2026: the old @@unique([videoId, userId]) was removed on purpose — the
+  // app records one view per user per video PER DAY (+1 Goin per day), so
+  // several rows for the same pair are normal.
   @@index([videoId])
   @@index([userId])
   @@map("video_views")
@@ -414,7 +416,8 @@ model Comment {
   project       Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
   projectId     String   @db.ObjectId
 
-  @@unique([projectId, commentedById])
+  // Oct 2026: the old @@unique([projectId, commentedById]) was removed so a
+  // person is never limited to one comment per project.
   @@index([commentedById])
   @@index([projectId])
   @@map("comments")

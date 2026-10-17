@@ -2331,8 +2331,9 @@ function SuggestionsTab() {
       </div>
       <p className="text-sm text-gray-500 mb-4">
         Materials children asked for that don't exist yet — from the shop's suggestion box and the
-        material picker's "Add your own item" custom material flow. Resolving here doesn't create the
-        Material for you — add it normally in the All Materials tab first, then mark it added here.
+        material picker's "Add your own item" custom material flow. <b>Approve &amp; Add</b> creates the
+        material for you straight away (using the child's suggested Goins rate and any Amazon match the
+        scan found) and marks the suggestion done. You can fine-tune it afterwards in the All Materials tab.
       </p>
 
       <div className="flex gap-2 mb-5">

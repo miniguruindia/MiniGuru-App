@@ -1,5 +1,5 @@
 import express from 'express';
-import { createProject, updateProject, getProjectById, getAllProjectsForUser , getAllProjects, findCollaborator, getPublishedVideoFeed, requestUploadUrl} from '../controllers/project/projectController';
+import { createProject, updateProject, getProjectById, getAllProjectsForUser , getAllProjects, findCollaborator, searchCollaborators, getPublishedVideoFeed, requestUploadUrl} from '../controllers/project/projectController';
 import { getProjectsByCategory, getAllProjectCategories, createProjectCategory, updateProjectCategory, deleteProjectCategory } from '../controllers/project/categoryController';
 import { authenticateToken } from '../middleware/authMiddleware';
 import { resolveSubject } from '../middleware/resolveSubject';
@@ -41,6 +41,8 @@ projectRouter.get('/categories/:categoryName/', getProjectsByCategory);
 // MUST be registered before get('/:id') below (Rule 28) or Express will
 // match 'find-collaborator' as the :id param instead.
 projectRouter.get('/find-collaborator/:miniguruId', authenticateToken, findCollaborator);
+// Type-ahead for the same screen: suggests children by the letters typed (same school first).
+projectRouter.get('/search-collaborators', authenticateToken, searchCollaborators);
 
 // Public video feed for the home screen — reads from MiniGuru's own DB,
 // zero YouTube API calls (see getPublishedVideoFeed for why this replaced

@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.findCollaborator = exports.deleteProjectByID = exports.getPublishedVideoFeed = exports.getAllProjects = exports.getAllProjectsForUser = exports.getProjectById = exports.adminUpdateProject = exports.updateProject = exports.requestUploadUrl = exports.createProject = void 0;
+exports.searchCollaborators = exports.findCollaborator = exports.deleteProjectByID = exports.getPublishedVideoFeed = exports.getAllProjects = exports.getAllProjectsForUser = exports.getProjectById = exports.adminUpdateProject = exports.updateProject = exports.requestUploadUrl = exports.createProject = void 0;
 const fs_1 = __importDefault(require("fs"));
 const prismaClient_1 = __importDefault(require("../../utils/prismaClient"));
 const project_1 = __importDefault(require("../../services/project/project"));
@@ -1008,3 +1008,83 @@ const findCollaborator = async (req, res) => {
     }
 };
 exports.findCollaborator = findCollaborator;
+/**
+ * GET /project/search-collaborators?q=ab
+ * Type-ahead for "Working with a friend?" while planning a project.
+ *  - Children from the same school / T-LAB (same school account) are listed
+ *    first and appear from the very first letter.
+ *  - Children from other schools appear only after 3 letters, so the list
+ *    cannot be browsed letter by letter.
+ *  - Only name, login ID and a same-school flag are returned. Never contact
+ *    details, school, city or age. Mentors, parents and admins are not listed.
+ */
+const searchCollaborators = async (req, res) => {
+    const requesterId = req.user?.userId;
+    if (!requesterId)
+        return res.status(401).json({ error: "Unauthorized" });
+    const q = String(req.query.q ?? "").trim().toLowerCase();
+    if (q.length < 1 || q.length > 40)
+        return res.json({ results: [] });
+    try {
+        const me = await prismaClient_1.default.user.findUnique({
+            where: { id: requesterId },
+            select: { id: true, isMentor: true },
+        });
+        // The school/T-LAB (mentor) accounts whose students count as "same school".
+        const myLinks = await prismaClient_1.default.childProfile.findMany({
+            where: { linkedUserId: requesterId },
+            select: { guardianId: true },
+        });
+        const guardianIds = Array.from(new Set([
+            ...(me?.isMentor ? [requesterId] : []),
+            ...myLinks.map((l) => l.guardianId),
+        ]));
+        const classmates = guardianIds.length
+            ? await prismaClient_1.default.childProfile.findMany({
+                where: { guardianId: { in: guardianIds }, linkedUserId: { not: null } },
+                select: { linkedUserId: true },
+                take: 2000,
+            })
+            : [];
+        const sameIds = new Set(classmates.map((c) => c.linkedUserId).filter((id) => !!id && id !== requesterId));
+        const nameOrId = {
+            OR: [
+                { name: { contains: q, mode: "insensitive" } },
+                { email: { startsWith: q, mode: "insensitive" } },
+            ],
+        };
+        const MAX = 8;
+        const same = sameIds.size
+            ? await prismaClient_1.default.user.findMany({
+                where: { id: { in: Array.from(sameIds) }, isMentor: false, ...nameOrId },
+                select: { id: true, name: true, email: true },
+                orderBy: { name: "asc" },
+                take: MAX,
+            })
+            : [];
+        let others = [];
+        if (q.length >= 3 && same.length < MAX) {
+            others = await prismaClient_1.default.user.findMany({
+                where: {
+                    id: { notIn: [requesterId, ...Array.from(sameIds)] },
+                    isMentor: false,
+                    role: "USER",
+                    ...nameOrId,
+                },
+                select: { id: true, name: true, email: true },
+                orderBy: { name: "asc" },
+                take: MAX - same.length,
+            });
+        }
+        return res.json({
+            results: [
+                ...same.map((u) => ({ id: u.id, name: u.name, loginId: u.email, sameSchool: true })),
+                ...others.map((u) => ({ id: u.id, name: u.name, loginId: u.email, sameSchool: false })),
+            ],
+        });
+    }
+    catch (error) {
+        return res.status(500).json({ error: error.message });
+    }
+};
+exports.searchCollaborators = searchCollaborators;
