@@ -34,7 +34,11 @@ jobs:
 
       - name: Flutter build web (release)
         working-directory: app/miniguru
-        run: flutter build web --release --no-tree-shake-icons
+        # --pwa-strategy=none: no offline cache service worker. The old one kept serving the
+        # previous build on the first visit after every deploy (side strip missing until a hard
+        # refresh). With 'none' the browser always loads the newest build, and the stub
+        # service worker removes the old cache from browsers that already have it.
+        run: flutter build web --release --no-tree-shake-icons --pwa-strategy=none
 
       - name: Deploy to Firebase Hosting
         uses: FirebaseExtended/action-hosting-deploy@v0

@@ -39,7 +39,7 @@ class _HomeScreenState extends State<HomeScreen> {
   void initState() {
     super.initState();
     NavShell.index.addListener(_onShellIndex);
-    WidgetsBinding.instance.addPostFrameCallback((_) => NavShell.visible.value = true);
+    NavShell.attach();
     _checkAuth();
   }
 
@@ -51,7 +51,7 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void dispose() {
     NavShell.index.removeListener(_onShellIndex);
-    WidgetsBinding.instance.addPostFrameCallback((_) => NavShell.visible.value = false);
+    NavShell.detach();
     super.dispose();
   }
 

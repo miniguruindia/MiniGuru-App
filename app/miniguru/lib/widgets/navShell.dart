@@ -18,6 +18,22 @@ class NavShell {
   static final ValueNotifier<List<BottomNavigationBarItem>> items =
       ValueNotifier<List<BottomNavigationBarItem>>(const []);
 
+  // Counts live HomeScreens so a closing one can never hide the strip that a
+  // newly opened one just asked for (the two post-frame callbacks could run
+  // in either order). The strip shows while at least one HomeScreen exists.
+  static int _alive = 0;
+  static void _sync() =>
+      WidgetsBinding.instance.addPostFrameCallback((_) => visible.value = _alive > 0);
+  static void attach() {
+    _alive++;
+    _sync();
+  }
+
+  static void detach() {
+    if (_alive > 0) _alive--;
+    _sync();
+  }
+
   /// Switch tab from anywhere: close any pages on top and show tab [i].
   static void go(int i) {
     index.value = i;
