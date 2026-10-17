@@ -16,6 +16,7 @@ import 'package:miniguru/screens/mentor/mentorActivityTab.dart';
 import 'package:miniguru/models/User.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:miniguru/widgets/navShell.dart';
+import 'package:miniguru/widgets/mgIcons.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -160,7 +161,7 @@ class _HomeScreenState extends State<HomeScreen> {
       return PreferredSize(
         preferredSize: const Size.fromHeight(36),
         child: Container(
-          color: const Color(0xFF5B6EF5),
+          color: const Color(0xFF4285F4),
           alignment: Alignment.center,
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -207,11 +208,11 @@ class _HomeScreenState extends State<HomeScreen> {
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: const [
-                        Icon(Icons.supervisor_account, size: 18, color: Color(0xFF3B82F6)),
+                        Icon(Icons.supervisor_account, size: 18, color: Color(0xFF4285F4)),
                         SizedBox(width: 6),
                         Text('My Account',
                             style: TextStyle(
-                                fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF3B82F6))),
+                                fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF4285F4))),
                       ],
                     ),
                   ),
@@ -242,41 +243,46 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
       );
 
+  // One coloured tab: filled icon on a tinted pill when selected, same
+  // colour a little softer when not. Colours: Google blue / green / yellow /
+  // red (see widgets/mgIcons.dart).
+  BottomNavigationBarItem _tab(IconData outlined, IconData filled, Color color, String label) {
+    return BottomNavigationBarItem(
+      icon: NavIcon(icon: outlined, color: color),
+      activeIcon: NavIcon(icon: filled, color: color, selected: true),
+      label: label,
+    );
+  }
+
   List<BottomNavigationBarItem> _navItems() {
     return [
-      const BottomNavigationBarItem(
-        icon: Icon(Icons.home_outlined),
-        activeIcon: Icon(Icons.home),
-        label: 'Home',
+      _tab(Icons.home_outlined, Icons.home_rounded, GColors.blue, 'Home'),
+      // Mentors/parents/schools see the same Consultancy tab a guest sees
+      // here — "Learners" moved into Children's Activity.
+      _tab(
+        (_isMentorView || !_isAuthenticated) ? Icons.support_agent_outlined : Icons.groups_outlined,
+        (_isMentorView || !_isAuthenticated) ? Icons.support_agent : Icons.groups_rounded,
+        GColors.green,
+        _isMentorView ? 'Consult' : _isAuthenticated ? 'Community' : 'Consult',
       ),
-      BottomNavigationBarItem(
-        // Mentors/parents/schools see the same Consultancy tab a guest sees
-        // here — "Learners" moved into Children's Activity.
-        icon: Icon(_isMentorView ? Icons.support_agent_outlined : _isAuthenticated ? Icons.library_books_outlined : Icons.support_agent_outlined),
-        activeIcon: Icon(_isMentorView ? Icons.support_agent : _isAuthenticated ? Icons.library_books : Icons.support_agent),
-        label: _isMentorView ? 'Consult' : _isAuthenticated ? 'Community' : 'Consult',
-      ),
-      const BottomNavigationBarItem(
-        icon: Icon(Icons.shopping_bag_outlined),
-        activeIcon: Icon(Icons.shopping_bag),
-        label: 'Shop',
-      ),
-      BottomNavigationBarItem(
-        icon: Icon(_isAuthenticated ? Icons.work_outline : Icons.people_outline),
-        activeIcon: Icon(_isAuthenticated ? Icons.work : Icons.people),
-        label: _isMentorView
+      _tab(Icons.shopping_bag_outlined, Icons.shopping_bag_rounded, GColors.yellow, 'Shop'),
+      _tab(
+        _isAuthenticated ? Icons.rocket_launch_outlined : Icons.groups_outlined,
+        _isAuthenticated ? Icons.rocket_launch_rounded : Icons.groups_rounded,
+        GColors.red,
+        _isMentorView
             ? "Children's Activity"
             : _isAuthenticated ? 'Projects' : 'Community',
       ),
-      BottomNavigationBarItem(
-        icon: (!_isMentorView && !_isAuthenticated)
-            ? _logoIcon(0.65)
-            : Icon(_isMentorView ? Icons.supervisor_account_outlined : _isAuthenticated ? Icons.person_outline : Icons.info_outline),
-        activeIcon: (!_isMentorView && !_isAuthenticated)
-            ? _logoIcon(1.0)
-            : Icon(_isMentorView ? Icons.supervisor_account : _isAuthenticated ? Icons.person : Icons.info),
-        label: _isMentorView ? 'My Account' : _isAuthenticated ? 'Profile' : 'About',
-      ),
+      (!_isMentorView && !_isAuthenticated)
+          ? BottomNavigationBarItem(
+              icon: _logoIcon(0.65), activeIcon: _logoIcon(1.0), label: 'About')
+          : _tab(
+              _isMentorView ? Icons.supervisor_account_outlined : Icons.person_outline_rounded,
+              _isMentorView ? Icons.supervisor_account : Icons.person_rounded,
+              GColors.blue,
+              _isMentorView ? 'My Account' : 'Profile',
+            ),
     ];
   }
 
@@ -286,7 +292,7 @@ class _HomeScreenState extends State<HomeScreen> {
       return const Scaffold(
         backgroundColor: Colors.white,
         body: Center(
-          child: CircularProgressIndicator(color: Color(0xFF3B82F6)),
+          child: CircularProgressIndicator(color: Color(0xFF4285F4)),
         ),
       );
     }
@@ -355,7 +361,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 currentIndex: _currentIndex,
                 onTap: _onNavBarTap,
                 type: BottomNavigationBarType.fixed,
-                selectedItemColor: const Color(0xFF3B82F6),
+                selectedItemColor: const Color(0xFF4285F4),
                 unselectedItemColor: Colors.grey.shade500,
                 selectedLabelStyle: GoogleFonts.nunito(
                     fontSize: 11, fontWeight: FontWeight.w700),

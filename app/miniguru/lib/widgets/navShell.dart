@@ -85,12 +85,13 @@ class _Rail extends StatelessWidget {
                   selectedIndex: idx.clamp(0, items.length - 1),
                   onDestinationSelected: NavShell.go,
                   labelType: NavigationRailLabelType.all,
+                  useIndicator: false, // the coloured icon pill already shows the open tab
                   backgroundColor: Colors.white,
                   minWidth: 92,
-                  selectedIconTheme: const IconThemeData(color: Color(0xFF3B82F6)),
+                  selectedIconTheme: const IconThemeData(color: Color(0xFF4285F4)),
                   unselectedIconTheme: IconThemeData(color: Colors.grey.shade500),
                   selectedLabelTextStyle: GoogleFonts.nunito(
-                      fontSize: 11, fontWeight: FontWeight.w700, color: const Color(0xFF3B82F6)),
+                      fontSize: 11, fontWeight: FontWeight.w700, color: const Color(0xFF4285F4)),
                   unselectedLabelTextStyle: GoogleFonts.nunito(
                       fontSize: 10, fontWeight: FontWeight.w500, color: Colors.grey.shade600),
                   destinations: [

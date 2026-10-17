@@ -473,7 +473,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   style: GoogleFonts.nunito(
                     fontWeight: FontWeight.w900,
                     fontSize: 32,
-                    color: const Color(0xFF1B5E20),
+                    color: const Color(0xFF1E8E3E),
                   ),
                 ),
                 Text('Welcome Back!',

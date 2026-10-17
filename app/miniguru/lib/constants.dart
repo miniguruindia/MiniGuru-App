@@ -47,43 +47,43 @@ class MGColors {
   MGColors._();
 
   // ── Backgrounds
-  static const bg         = Color(0xFFF5F7FF);   // soft lavender-white
+  static const bg         = Color(0xFFF1F6FE);   // soft lavender-white
   static const bgCard     = Color(0xFFFFFFFF);   // pure white cards
-  static const bgCardAlt  = Color(0xFFF0F4FF);   // slightly tinted surface
+  static const bgCardAlt  = Color(0xFFF1F6FE);   // slightly tinted surface
 
   // ── Brand
-  static const primary      = Color(0xFF5B6EF5);   // indigo-blue (kids, trustworthy)
-  static const primaryLight = Color(0xFFDDE1FF);   // tinted primary bg
-  static const primaryDark  = Color(0xFF3A4DD4);
+  static const primary      = Color(0xFF4285F4);   // indigo-blue (kids, trustworthy)
+  static const primaryLight = Color(0xFFE8F0FE);   // tinted primary bg
+  static const primaryDark  = Color(0xFF1A73E8);
 
   // ── Goins — golden economy
-  static const goins      = Color(0xFFE8A000);   // warm amber gold (readable on white)
+  static const goins      = Color(0xFFF9AB00);   // warm amber gold (readable on white)
   static const goinsLight = Color(0xFFFFF3CC);   // pale gold bg
   static const goinsGlow  = Color(0x33E8A000);
 
   // ── Accents
-  static const coral      = Color(0xFFFF5C5C);   // energy / alerts / checkout
-  static const coralLight = Color(0xFFFFECEC);
-  static const mint       = Color(0xFF00B894);   // success / approved
-  static const mintLight  = Color(0xFFD4F5EE);
+  static const coral      = Color(0xFFEA4335);   // energy / alerts / checkout
+  static const coralLight = Color(0xFFFCE8E6);
+  static const mint       = Color(0xFF34A853);   // success / approved
+  static const mintLight  = Color(0xFFE6F4EA);
   static const sky        = Color(0xFF0984E3);   // info / videos
   static const skyLight   = Color(0xFFD6EEFF);
 
   // ── Pastel category palette
   static const List<Color> categoryPalette = [
-    Color(0xFF5B6EF5),   // indigo
-    Color(0xFFFF5C5C),   // coral
-    Color(0xFF00B894),   // mint
-    Color(0xFFE8A000),   // gold
+    Color(0xFF4285F4),   // indigo
+    Color(0xFFEA4335),   // coral
+    Color(0xFF34A853),   // mint
+    Color(0xFFF9AB00),   // gold
     Color(0xFF0984E3),   // sky
     Color(0xFFFF9F43),   // orange
     Color(0xFFEE5A24),   // deep orange
   ];
 
   static const List<Color> categoryPaletteLight = [
-    Color(0xFFDDE1FF),
-    Color(0xFFFFECEC),
-    Color(0xFFD4F5EE),
+    Color(0xFFE8F0FE),
+    Color(0xFFFCE8E6),
+    Color(0xFFE6F4EA),
     Color(0xFFFFF3CC),
     Color(0xFFD6EEFF),
     Color(0xFFFFEDD5),
@@ -97,9 +97,9 @@ class MGColors {
   static const textMuted     = Color(0xFFAAAAAC);   // placeholders
 
   // ── Borders & dividers
-  static const border      = Color(0xFFE8EAFF);
+  static const border      = Color(0xFFE8F0FE);
   static const borderMid   = Color(0xFFD0D4F0);
-  static const divider     = Color(0xFFF0F2FF);
+  static const divider     = Color(0xFFE8F0FE);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -129,7 +129,7 @@ class MGShadow {
 
   static List<BoxShadow> card = [
     BoxShadow(
-      color: const Color(0xFF5B6EF5).withOpacity(0.08),
+      color: const Color(0xFF4285F4).withOpacity(0.08),
       blurRadius: 16,
       offset: const Offset(0, 4),
     ),
@@ -158,7 +158,7 @@ class MGShadow {
 
   static List<BoxShadow> nav = [
     BoxShadow(
-      color: const Color(0xFF5B6EF5).withOpacity(0.12),
+      color: const Color(0xFF4285F4).withOpacity(0.12),
       blurRadius: 24,
       offset: const Offset(0, -4),
     ),
@@ -173,31 +173,31 @@ class MGGradients {
   static const primaryBg = LinearGradient(
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
-    colors: [Color(0xFFEEF0FF), Color(0xFFF5F7FF)],
+    colors: [Color(0xFFE8F0FE), Color(0xFFF1F6FE)],
   );
 
   static const heroCard = LinearGradient(
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
-    colors: [Color(0xFF5B6EF5), Color(0xFF8B5CF6)],
+    colors: [Color(0xFF4285F4), Color(0xFF669DF6)],
   );
 
   static const coinCard = LinearGradient(
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
-    colors: [Color(0xFFFFF8E1), Color(0xFFFFF3CC)],
+    colors: [Color(0xFFFEF7E0), Color(0xFFFFF3CC)],
   );
 
   static const mintCard = LinearGradient(
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
-    colors: [Color(0xFFD4F5EE), Color(0xFFEAFFF9)],
+    colors: [Color(0xFFE6F4EA), Color(0xFFEAFFF9)],
   );
 
   static const coralCard = LinearGradient(
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
-    colors: [Color(0xFFFFECEC), Color(0xFFFFF5F5)],
+    colors: [Color(0xFFFCE8E6), Color(0xFFFFF5F5)],
   );
 
   static LinearGradient categoryGradient(int index) {

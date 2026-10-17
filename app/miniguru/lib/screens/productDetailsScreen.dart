@@ -7,7 +7,7 @@ import 'package:miniguru/repository/cartRepository.dart';
 import 'package:miniguru/secrets.dart';
 
 const _ink    = Color(0xFF1A1A2E);
-const _accent = Color(0xFF5B6EF5);
+const _accent = Color(0xFF4285F4);
 const _cream  = Color(0xFFFFFBF2);
 const _muted  = Color(0xFF6B6B8A);
 
@@ -114,7 +114,7 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
         background: Stack(children: [
           imgs.isEmpty
               ? Container(
-                  color: const Color(0xFFEEEEFF),
+                  color: const Color(0xFFE8F0FE),
                   child: const Center(child: Icon(Icons.inventory_2_outlined, size: 80, color: Color(0xFFBBBBDD))))
               : PageView.builder(
                   controller: _pageCtrl,
@@ -123,7 +123,7 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
                   itemBuilder: (_, i) {
                     final url = _imgUrl(imgs[i]);
                     return url.isEmpty
-                        ? Container(color: const Color(0xFFEEEEFF))
+                        ? Container(color: const Color(0xFFE8F0FE))
                         : InteractiveViewer(
                             minScale: 0.5,
                             maxScale: 4.0,
@@ -131,7 +131,7 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
                               color: Colors.white,
                               child: Image.network(url, fit: BoxFit.contain,
                                   errorBuilder: (_, __, ___) => Container(
-                                      color: const Color(0xFFEEEEFF),
+                                      color: const Color(0xFFE8F0FE),
                                       child: const Icon(Icons.broken_image_outlined, size: 60, color: Color(0xFFBBBBDD))))));
                   }),
           if (imgs.length > 1)
@@ -169,7 +169,7 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(6),
                       child: Image.network(_imgUrl(imgs[i]), fit: BoxFit.contain,
-                          errorBuilder: (_, __, ___) => Container(color: const Color(0xFFEEEEFF))),
+                          errorBuilder: (_, __, ___) => Container(color: const Color(0xFFE8F0FE))),
                     ),
                   ),
                 )),

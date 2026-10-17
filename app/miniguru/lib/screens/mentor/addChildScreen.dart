@@ -73,19 +73,19 @@ class _AddChildScreenState extends State<AddChildScreen> {
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFE8EAF6),
+                    color: const Color(0xFFE8F0FE),
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                     Row(children: [
-                      const Icon(Icons.email_outlined, size: 16, color: Color(0xFF5B6EF5)),
+                      const Icon(Icons.email_outlined, size: 16, color: Color(0xFF4285F4)),
                       const SizedBox(width: 8),
                       Expanded(child: Text(email,
                         style: GoogleFonts.nunito(fontWeight: FontWeight.w700, fontSize: 14))),
                     ]),
                     const SizedBox(height: 8),
                     Row(children: [
-                      const Icon(Icons.lock_outline, size: 16, color: Color(0xFF5B6EF5)),
+                      const Icon(Icons.lock_outline, size: 16, color: Color(0xFF4285F4)),
                       const SizedBox(width: 8),
                       Text('Password: $password',
                         style: GoogleFonts.nunito(fontWeight: FontWeight.w700, fontSize: 14)),
@@ -99,10 +99,10 @@ class _AddChildScreenState extends State<AddChildScreen> {
               actions: [
                 TextButton.icon(
                   icon: const Icon(Icons.copy, size: 16,
-                      color: Color(0xFF5B6EF5)),
+                      color: Color(0xFF4285F4)),
                   label: Text('Copy',
                       style: GoogleFonts.nunito(
-                          color: const Color(0xFF5B6EF5),
+                          color: const Color(0xFF4285F4),
                           fontWeight: FontWeight.w700)),
                   onPressed: () {
                     Clipboard.setData(ClipboardData(
@@ -111,7 +111,7 @@ class _AddChildScreenState extends State<AddChildScreen> {
                       SnackBar(
                         content: Text('Copied!',
                             style: GoogleFonts.nunito(color: Colors.white)),
-                        backgroundColor: const Color(0xFF10B981),
+                        backgroundColor: const Color(0xFF34A853),
                         behavior: SnackBarBehavior.floating,
                         shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(10)),
@@ -120,7 +120,7 @@ class _AddChildScreenState extends State<AddChildScreen> {
                 ),
                 ElevatedButton(
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF5B6EF5),
+                    backgroundColor: const Color(0xFF4285F4),
                     shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(10)),
                   ),
@@ -185,7 +185,7 @@ class _AddChildScreenState extends State<AddChildScreen> {
                   padding: const EdgeInsets.all(20),
                   decoration: BoxDecoration(
                     gradient: const LinearGradient(
-                        colors: [Color(0xFF5B6EF5), Color(0xFF8B9FF8)]),
+                        colors: [Color(0xFF4285F4), Color(0xFF8AB4F8)]),
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Column(

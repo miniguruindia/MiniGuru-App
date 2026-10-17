@@ -294,7 +294,7 @@ class _ContactVerificationCardState extends State<ContactVerificationCard> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE8EAF6)),
+        border: Border.all(color: const Color(0xFFE8F0FE)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

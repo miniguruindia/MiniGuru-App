@@ -25,9 +25,9 @@ class _CartScreenState extends State<CartScreen> {
   double _walletBalance = 0.0;
   bool _loading = true;
 
-  static const _accent    = Color(0xFF5B6EF5);
-  static const _bg        = Color(0xFFF5F7FF);
-  static const _gold      = Color(0xFFE8A000);
+  static const _accent    = Color(0xFF4285F4);
+  static const _bg        = Color(0xFFF1F6FE);
+  static const _gold      = Color(0xFFF9AB00);
   static const _goldLight = Color(0xFFFFF3CC);
 
   @override
@@ -157,7 +157,7 @@ class _CartScreenState extends State<CartScreen> {
                     style: GoogleFonts.nunito(
                         fontSize: 13,
                         fontWeight: FontWeight.w700,
-                        color: const Color(0xFF8B6800)),
+                        color: const Color(0xFFB06F00)),
                   ),
                 ),
               ]),
@@ -224,19 +224,19 @@ class _CartScreenState extends State<CartScreen> {
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
         color: _hasSufficientBalance
-            ? const Color(0xFFE8F5E9)
+            ? const Color(0xFFE6F4EA)
             : _goldLight,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
           color: _hasSufficientBalance
-              ? const Color(0xFF10B981).withOpacity(0.4)
+              ? const Color(0xFF34A853).withOpacity(0.4)
               : _gold.withOpacity(0.4),
         ),
       ),
       child: Row(children: [
         Icon(
           Icons.account_balance_wallet_outlined,
-          color: _hasSufficientBalance ? const Color(0xFF10B981) : _gold,
+          color: _hasSufficientBalance ? const Color(0xFF34A853) : _gold,
           size: 22,
         ),
         const SizedBox(width: 10),
@@ -253,19 +253,19 @@ class _CartScreenState extends State<CartScreen> {
                     fontWeight: FontWeight.w900,
                     color: _hasSufficientBalance
                         ? const Color(0xFF065F46)
-                        : const Color(0xFF8B6800))),
+                        : const Color(0xFFB06F00))),
           ]),
         ),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
           decoration: BoxDecoration(
             color: _hasSufficientBalance
-                ? const Color(0xFFD4F5EE)
+                ? const Color(0xFFE6F4EA)
                 : _goldLight,
             borderRadius: BorderRadius.circular(20),
             border: Border.all(
               color: _hasSufficientBalance
-                  ? const Color(0xFF10B981).withOpacity(0.5)
+                  ? const Color(0xFF34A853).withOpacity(0.5)
                   : _gold.withOpacity(0.5),
             ),
           ),
@@ -275,7 +275,7 @@ class _CartScreenState extends State<CartScreen> {
                 fontSize: 11,
                 fontWeight: FontWeight.w800,
                 color: _hasSufficientBalance
-                    ? const Color(0xFF10B981)
+                    ? const Color(0xFF34A853)
                     : _gold),
           ),
         ),
@@ -318,7 +318,7 @@ class _CartScreenState extends State<CartScreen> {
                   fit: BoxFit.cover,
                   errorBuilder: (_, __, ___) => Container(
                     width: 72, height: 72,
-                    color: const Color(0xFFE8EAFF),
+                    color: const Color(0xFFE8F0FE),
                     child: const Icon(Icons.image_outlined, color: _accent),
                   ),
                 ),
@@ -428,7 +428,7 @@ class _CartScreenState extends State<CartScreen> {
                     fontWeight: FontWeight.w600)),
           ]),
           const SizedBox(height: 8),
-          const Divider(color: Color(0xFFE8EAFF)),
+          const Divider(color: Color(0xFFE8F0FE)),
           const SizedBox(height: 8),
           Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
             Text('Total',
@@ -462,7 +462,7 @@ class _CartScreenState extends State<CartScreen> {
                     style: GoogleFonts.nunito(
                         fontSize: 12,
                         fontWeight: FontWeight.w700,
-                        color: const Color(0xFF8B6800)),
+                        color: const Color(0xFFB06F00)),
                   ),
                 ),
               ]),

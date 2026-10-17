@@ -36,9 +36,9 @@ class _MentorActivityTabState extends State<MentorActivityTab> {
 
   // Merged in from the old separate "Learners" tab (MentorChildrenTab).
   final List<List<Color>> _learnerGradients = const [
-    [Color(0xFF5B6EF5), Color(0xFF8B9FF8)],
-    [Color(0xFFE8A000), Color(0xFFF5C842)],
-    [Color(0xFF2ECC71), Color(0xFF55E89D)],
+    [Color(0xFF4285F4), Color(0xFF8AB4F8)],
+    [Color(0xFFF9AB00), Color(0xFFFDD663)],
+    [Color(0xFF34A853), Color(0xFF81C995)],
     [Color(0xFFE74C3C), Color(0xFFFF7675)],
     [Color(0xFF9B59B6), Color(0xFFBE85D4)],
   ];
@@ -506,7 +506,7 @@ class _MentorActivityTabState extends State<MentorActivityTab> {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFFFF3CD),
+                    color: const Color(0xFFFEF7E0),
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Row(
@@ -518,7 +518,7 @@ class _MentorActivityTabState extends State<MentorActivityTab> {
                           style: GoogleFonts.nunito(
                               fontSize: 11,
                               fontWeight: FontWeight.w800,
-                              color: const Color(0xFFE8A000))),
+                              color: const Color(0xFFF9AB00))),
                     ],
                   ),
                 ),
@@ -627,7 +627,7 @@ class _MentorActivityTabState extends State<MentorActivityTab> {
                   padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
                   decoration: const BoxDecoration(
                     gradient: LinearGradient(
-                      colors: [Color(0xFF5B6EF5), Color(0xFF8B9FF8)],
+                      colors: [Color(0xFF4285F4), Color(0xFF8AB4F8)],
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
                     ),
@@ -804,12 +804,12 @@ class _MentorActivityTabState extends State<MentorActivityTab> {
                 final child = entry.value;
                 final barFraction = child.score <= 0 ? 0.0 : child.score / maxScore;
                 final barColor = rank == 0
-                    ? const Color(0xFFD97706)
+                    ? const Color(0xFFF9AB00)
                     : rank == 1
                         ? const Color(0xFF9CA3AF)
                         : rank == 2
-                            ? const Color(0xFFB45309)
-                            : const Color(0xFF5B6EF5);
+                            ? const Color(0xFFB06F00)
+                            : const Color(0xFF4285F4);
                 return Padding(
                   padding: const EdgeInsets.symmetric(vertical: 2.5),
                   child: Row(
@@ -886,7 +886,7 @@ class _MentorActivityTabState extends State<MentorActivityTab> {
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFFF5C5C),
+                  color: const Color(0xFFEA4335),
                   borderRadius: BorderRadius.circular(10),
                   border: Border.all(color: Colors.white, width: 1.5),
                 ),
@@ -934,7 +934,7 @@ class _MentorActivityTabState extends State<MentorActivityTab> {
         MaterialPageRoute(
             builder: (_) => ProjectDetailsScreen(
               project: project,
-              backgroundColor: const Color(0xFF5B6EF5),
+              backgroundColor: const Color(0xFF4285F4),
               user: _user!,
             )),
       ),

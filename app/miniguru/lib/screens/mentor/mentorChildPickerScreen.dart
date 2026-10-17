@@ -143,11 +143,11 @@ class _MentorChildPickerScreenState extends State<MentorChildPickerScreen> {
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: const [
-                          Icon(Icons.supervisor_account, size: 18, color: Color(0xFF3B82F6)),
+                          Icon(Icons.supervisor_account, size: 18, color: Color(0xFF4285F4)),
                           SizedBox(width: 6),
                           Text('My Account',
                               style: TextStyle(
-                                  fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF3B82F6))),
+                                  fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF4285F4))),
                         ],
                       ),
                     ),
@@ -202,7 +202,7 @@ class _MentorChildPickerScreenState extends State<MentorChildPickerScreen> {
       padding: const EdgeInsets.fromLTRB(24, 24, 24, 20),
       decoration: const BoxDecoration(
         gradient: LinearGradient(
-          colors: [Color(0xFF5B6EF5), Color(0xFF8B9FF8)],
+          colors: [Color(0xFF4285F4), Color(0xFF8AB4F8)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -272,9 +272,9 @@ class _MentorChildPickerScreenState extends State<MentorChildPickerScreen> {
 
   Widget _buildChildCard(ChildProfile child) {
     final colors = [
-      [const Color(0xFF5B6EF5), const Color(0xFF8B9FF8)],
-      [const Color(0xFFE8A000), const Color(0xFFF5C842)],
-      [const Color(0xFF2ECC71), const Color(0xFF55E89D)],
+      [const Color(0xFF4285F4), const Color(0xFF8AB4F8)],
+      [const Color(0xFFF9AB00), const Color(0xFFFDD663)],
+      [const Color(0xFF34A853), const Color(0xFF81C995)],
       [const Color(0xFFE74C3C), const Color(0xFFFF7675)],
       [const Color(0xFF9B59B6), const Color(0xFFBE85D4)],
     ];
@@ -347,7 +347,7 @@ class _MentorChildPickerScreenState extends State<MentorChildPickerScreen> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
               decoration: BoxDecoration(
-                color: const Color(0xFFFFF3CD),
+                color: const Color(0xFFFEF7E0),
                 borderRadius: BorderRadius.circular(20),
               ),
               child: Row(
@@ -359,7 +359,7 @@ class _MentorChildPickerScreenState extends State<MentorChildPickerScreen> {
                       style: GoogleFonts.nunito(
                           fontSize: 13,
                           fontWeight: FontWeight.w800,
-                          color: const Color(0xFFE8A000))),
+                          color: const Color(0xFFF9AB00))),
                 ],
               ),
             ),
@@ -391,7 +391,7 @@ class _MentorChildPickerScreenState extends State<MentorChildPickerScreen> {
               width: 72,
               height: 72,
               decoration: BoxDecoration(
-                color: const Color(0xFFF0F2FF),
+                color: const Color(0xFFE8F0FE),
                 shape: BoxShape.circle,
                 border: Border.all(
                     color: pastelBlueText.withOpacity(0.3), width: 2),

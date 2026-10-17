@@ -10,6 +10,8 @@ import 'package:miniguru/screens/registerScreen.dart';
 import 'package:miniguru/services/youtube_service.dart';
 import 'package:miniguru/screens/unifiedVideoPlayer.dart';
 import 'package:miniguru/screens/navScreen/profile.dart';
+import 'package:miniguru/screens/notificationsScreen.dart';
+import 'package:miniguru/widgets/mgIcons.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -77,7 +79,7 @@ class _ArrowScrollRowState extends State<_ArrowScrollRow> {
       ),
       child: IconButton(
         padding: EdgeInsets.zero,
-        icon: Icon(icon, size: 18, color: const Color(0xFF3B82F6)),
+        icon: Icon(icon, size: 18, color: const Color(0xFF4285F4)),
         onPressed: onTap,
       ),
     );
@@ -135,18 +137,18 @@ class _HomeState extends State<Home> {
   // disconnected from the real category names admins actually create —
   // used only as a last-resort fallback now, if the fetch ever fails.
   List<Map<String, dynamic>> _categories = [
-    {'name': 'Robotics',  'icon': '🤖', 'color': Color(0xFF93C5FD)},
-    {'name': 'Mechanics', 'icon': '🔧', 'color': Color(0xFFFDE68A)},
-    {'name': 'ArtCraft',  'icon': '🎨', 'color': Color(0xFFFCA5A5)},
-    {'name': 'Science',   'icon': '🔬', 'color': Color(0xFF86EFAC)},
+    {'name': 'Robotics',  'icon': '🤖', 'color': Color(0xFF8AB4F8)},
+    {'name': 'Mechanics', 'icon': '🔧', 'color': Color(0xFFFDD663)},
+    {'name': 'ArtCraft',  'icon': '🎨', 'color': Color(0xFFF28B82)},
+    {'name': 'Science',   'icon': '🔬', 'color': Color(0xFF81C995)},
   ];
   bool _categoriesLoaded = false;
 
   // Rotating palette for real categories (ProjectCategory has no color
   // field of its own — this keeps chips visually distinct and stable).
   static const List<Color> _categoryPalette = [
-    Color(0xFF93C5FD), Color(0xFFFDE68A), Color(0xFFFCA5A5), Color(0xFF86EFAC),
-    Color(0xFFC4B5FD), Color(0xFFFDBA74), Color(0xFF67E8F9), Color(0xFFF9A8D4),
+    Color(0xFF8AB4F8), Color(0xFFFDD663), Color(0xFF81C995), Color(0xFFF28B82),
+    Color(0xFF669DF6), Color(0xFFFCC934), Color(0xFF5BB974), Color(0xFFEE675C),
   ];
 
   List<Map<String, dynamic>> _allVideos = [];
@@ -160,6 +162,8 @@ class _HomeState extends State<Home> {
   // fake text ("3/5 • +50 pts", "Rank #42") for every single user.
   Map<String, dynamic>? _dailyQuest;
   int? _myRank;
+  // Number of notifications, shown on the bell next to "Hi, <name>".
+  int _unread = 0;
 
   @override
   void initState() {
@@ -212,7 +216,10 @@ class _HomeState extends State<Home> {
           _isLoading = false;
         });
       }
-      if (userData != null) _loadDailyQuestAndRank();
+      if (userData != null) {
+        _loadDailyQuestAndRank();
+        _loadUnread();
+      }
     } catch (e) {
       if (mounted) {
         setState(() {
@@ -222,6 +229,13 @@ class _HomeState extends State<Home> {
         });
       }
     }
+  }
+
+  Future<void> _loadUnread() async {
+    try {
+      final n = await _miniguruApi.getNotifications();
+      if (mounted) setState(() => _unread = n?.length ?? 0);
+    } catch (_) {}
   }
 
   Future<void> _loadDailyQuestAndRank() async {
@@ -407,7 +421,7 @@ class _HomeState extends State<Home> {
           Container(
             width: 32, height: 32,
             decoration: BoxDecoration(
-              color: const Color(0xFF3B82F6),
+              color: GColors.blue,
               borderRadius: BorderRadius.circular(8),
             ),
             child: ClipRRect(
@@ -427,8 +441,10 @@ class _HomeState extends State<Home> {
         ],
       ),
       actions: [
-        if (_isAuthenticated && user != null)
-          _buildUserAvatar()
+        if (_isAuthenticated && user != null) ...[
+          _buildBell(),
+          _buildUserAvatar(),
+        ]
         else
           Padding(
             padding: const EdgeInsets.only(right: 8),
@@ -438,11 +454,52 @@ class _HomeState extends State<Home> {
                   style: GoogleFonts.nunito(
                     fontSize: 13,
                     fontWeight: FontWeight.w700,
-                    color: const Color(0xFF3B82F6),
+                    color: const Color(0xFF4285F4),
                   )),
             ),
           ),
       ],
+    );
+  }
+
+  // Notification bell with a red count badge; opens the full Notifications page.
+  Widget _buildBell() {
+    return Padding(
+      padding: const EdgeInsets.only(right: 6),
+      child: InkWell(
+        customBorder: const CircleBorder(),
+        onTap: () async {
+          await Navigator.of(context).push(MaterialPageRoute(
+            settings: const RouteSettings(name: NotificationsScreen.id),
+            builder: (_) => const NotificationsScreen(),
+          ));
+          _loadUnread();
+        },
+        child: Padding(
+          padding: const EdgeInsets.all(8),
+          child: Stack(clipBehavior: Clip.none, children: [
+            const Icon(Icons.notifications_rounded, size: 26, color: GColors.yellow),
+            if (_unread > 0)
+              Positioned(
+                right: -6,
+                top: -6,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                  constraints: const BoxConstraints(minWidth: 17),
+                  decoration: BoxDecoration(
+                    color: GColors.red,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: Colors.white, width: 1.5),
+                  ),
+                  child: Text(_unread > 9 ? '9+' : '$_unread',
+                      textAlign: TextAlign.center,
+                      style: GoogleFonts.nunito(
+                          fontSize: 10, fontWeight: FontWeight.w900, color: Colors.white)),
+                ),
+              ),
+          ]),
+        ),
+      ),
     );
   }
 
@@ -486,7 +543,7 @@ class _HomeState extends State<Home> {
           PopupMenuItem(
             value: 'profile',
             child: Row(children: [
-              const Icon(Icons.person_outline, size: 18, color: Color(0xFF3B82F6)),
+              const Icon(Icons.person_outline, size: 18, color: Color(0xFF4285F4)),
               const SizedBox(width: 12),
               Text('Profile', style: GoogleFonts.nunito(fontSize: 14)),
             ]),
@@ -563,13 +620,13 @@ class _HomeState extends State<Home> {
             Row(children: [
               Expanded(
                   child: _miniStat('DAILY QUEST', '$questWatched/$questTarget', questMini,
-                      Icons.emoji_events, const Color(0xFFD97706), progress: questProgress)),
+                      Icons.emoji_events, GColors.yellow, progress: questProgress)),
               const SizedBox(width: 8),
               Expanded(
-                  child: _miniStat('GOINS', score, rankSubtitle, Icons.stars, const Color(0xFF3B82F6))),
+                  child: _miniStat('GOINS', score, rankSubtitle, Icons.stars, GColors.blue)),
               const SizedBox(width: 8),
               Expanded(
-                  child: _miniStat('PROJECTS', projects, 'uploaded', Icons.work_outline, const Color(0xFF10B981))),
+                  child: _miniStat('PROJECTS', projects, 'uploaded', Icons.work_outline, GColors.green)),
             ]),
             const SizedBox(height: 8),
             const _NoticeStrip(compact: true),
@@ -581,17 +638,17 @@ class _HomeState extends State<Home> {
             Expanded(
                 flex: 2,
                 child: _buildStatCard('Daily Quest', 'Watch $questTarget Projects', questSubtitle,
-                    Icons.emoji_events, const Color(0xFFFDE68A), const Color(0xFFD97706))),
+                    Icons.emoji_events, GColors.yellowLight, GColors.yellow)),
             const SizedBox(width: 12),
             Expanded(
                 flex: 2,
                 child: _buildStatCard('Score', score, rankSubtitle,
-                    Icons.stars, const Color(0xFFF3F4F6), const Color(0xFF3B82F6))),
+                    Icons.stars, GColors.blueLight, GColors.blue)),
             const SizedBox(width: 12),
             Expanded(
                 flex: 2,
                 child: _buildStatCard('Your', projects, 'Projects',
-                    Icons.work_outline, const Color(0xFFF3F4F6), const Color(0xFF10B981))),
+                    Icons.work_outline, GColors.greenLight, GColors.green)),
             const SizedBox(width: 12),
             const Expanded(flex: 3, child: _NoticeStrip(compact: false)),
           ]),
@@ -828,7 +885,7 @@ class _HomeState extends State<Home> {
                 onPressed: () => _openSeeAll(title, fullList),
                 child: Text('See All →',
                     style: GoogleFonts.nunito(
-                        fontSize: 12, color: const Color(0xFF3B82F6))),
+                        fontSize: 12, color: const Color(0xFF4285F4))),
               ),
           ],
         ),
@@ -892,7 +949,7 @@ class _HomeState extends State<Home> {
         decoration: InputDecoration(
           hintText: 'Search projects, makers...',
           hintStyle: GoogleFonts.nunito(fontSize: 14, color: Colors.black38),
-          prefixIcon: const Icon(Icons.search, color: Colors.black38, size: 20),
+          prefixIcon: const Icon(Icons.search_rounded, color: GColors.blue, size: 22),
           suffixIcon: _searchController.text.isNotEmpty
               ? IconButton(
                   icon: const Icon(Icons.clear, color: Colors.black38, size: 20),
@@ -901,11 +958,11 @@ class _HomeState extends State<Home> {
                     setState(() => _filteredVideos = _allVideos);
                   },
                 )
-              : const Icon(Icons.tune, color: Colors.black38, size: 20),
+              : const Icon(Icons.tune_rounded, color: GColors.green, size: 20),
           filled: true,
-          fillColor: const Color(0xFFF3F4F6),
+          fillColor: GColors.blueLight,
           border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(14),
               borderSide: BorderSide.none),
           contentPadding: const EdgeInsets.symmetric(vertical: 12),
         ),
@@ -955,14 +1012,14 @@ class _HomeState extends State<Home> {
                       width: 60, height: 60,
                       decoration: BoxDecoration(
                         color: _selectedCategory == 'All'
-                            ? const Color(0xFF3B82F6)
-                            : const Color(0xFFE5E7EB),
+                            ? GColors.blue
+                            : GColors.blueLight,
                         borderRadius: BorderRadius.circular(16),
                       ),
                       child: Icon(Icons.apps,
                           color: _selectedCategory == 'All'
                               ? Colors.white
-                              : Colors.black54,
+                              : GColors.blue,
                           size: 28),
                     ),
                     const SizedBox(height: 6),
@@ -978,7 +1035,7 @@ class _HomeState extends State<Home> {
                                 ? FontWeight.w700
                                 : FontWeight.normal,
                             color: _selectedCategory == 'All'
-                                ? const Color(0xFF3B82F6)
+                                ? GColors.blue
                                 : Colors.black87,
                           ),
                           textAlign: TextAlign.center),
@@ -1000,7 +1057,7 @@ class _HomeState extends State<Home> {
                         decoration: BoxDecoration(
                           color: isSelected
                               ? cat['color']
-                              : const Color(0xFFF3F4F6),
+                              : (cat['color'] as Color).withOpacity(0.25),
                           borderRadius: BorderRadius.circular(16),
                         ),
                         alignment: Alignment.center,
@@ -1084,7 +1141,7 @@ class _HomeState extends State<Home> {
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFEF4444),
+                      color: const Color(0xFFEA4335),
                       borderRadius: BorderRadius.circular(6),
                     ),
                     child: Text('Featured',
@@ -1097,7 +1154,7 @@ class _HomeState extends State<Home> {
                   width: big ? 56 : 40, height: big ? 56 : 40,
                   decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
                   child: Icon(Icons.play_arrow,
-                      size: big ? 34 : 26, color: const Color(0xFF3B82F6)),
+                      size: big ? 34 : 26, color: const Color(0xFF4285F4)),
                 ),
               ),
               Positioned(
@@ -1159,7 +1216,7 @@ class _HomeState extends State<Home> {
               onPressed: () => _openSeeAll('Featured', _filteredVideos),
               child: Text('See All →',
                   style: GoogleFonts.nunito(
-                      fontSize: 12, color: const Color(0xFF3B82F6))),
+                      fontSize: 12, color: const Color(0xFF4285F4))),
             ),
           ],
         ),
@@ -1223,7 +1280,7 @@ class _HomeState extends State<Home> {
       return const Center(
         child: Padding(
           padding: EdgeInsets.all(32),
-          child: CircularProgressIndicator(color: Color(0xFF3B82F6)),
+          child: CircularProgressIndicator(color: Color(0xFF4285F4)),
         ),
       );
     }
@@ -1333,7 +1390,7 @@ class _HomeState extends State<Home> {
       margin: EdgeInsets.symmetric(horizontal: hMargin),
       padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
       decoration: BoxDecoration(
-        color: const Color(0xFFFFF8E7),
+        color: const Color(0xFFFEF7E0),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: const Color(0xFFFFDC73), width: 1),
       ),
@@ -1348,7 +1405,7 @@ class _HomeState extends State<Home> {
               style: GoogleFonts.nunito(
                 fontSize: 11,
                 fontWeight: FontWeight.w700,
-                color: const Color(0xFF92400E),
+                color: const Color(0xFFB06F00),
               ),
             ),
             const Spacer(),
@@ -1559,7 +1616,7 @@ class _HomeState extends State<Home> {
                         decoration: const BoxDecoration(
                             color: Colors.white, shape: BoxShape.circle),
                         child: const Icon(Icons.play_arrow,
-                            size: 30, color: Color(0xFF3B82F6)),
+                            size: 30, color: Color(0xFF4285F4)),
                       ),
                     ),
                     Positioned(
@@ -1630,7 +1687,7 @@ class _HomeState extends State<Home> {
                         decoration: const BoxDecoration(
                             color: Colors.white, shape: BoxShape.circle),
                         child: const Icon(Icons.play_arrow,
-                            size: 20, color: Color(0xFF3B82F6)),
+                            size: 20, color: Color(0xFF4285F4)),
                       ),
                     ),
                   ],
@@ -1707,7 +1764,7 @@ class _HomeState extends State<Home> {
                         shape: BoxShape.circle,
                       ),
                       child: const Icon(Icons.play_arrow,
-                          size: 22, color: Color(0xFF3B82F6)),
+                          size: 22, color: Color(0xFF4285F4)),
                     ),
                   ),
                   Positioned(
@@ -1754,7 +1811,7 @@ class _HomeState extends State<Home> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 5),
       decoration: BoxDecoration(
-        color: const Color(0xFFFFF8E7),
+        color: const Color(0xFFFEF7E0),
         borderRadius: BorderRadius.circular(8),
         border: Border.all(color: const Color(0xFFFFDC73), width: 1),
       ),
@@ -1994,16 +2051,16 @@ class _NoticeStripState extends State<_NoticeStrip> {
         child: SingleChildScrollView(
           scrollDirection: Axis.horizontal,
           child: Row(children: [
-            if (none) _chip('✨', 'All caught up', const Color(0xFF10B981), () => NavShell.go(3)),
+            if (none) _chip('✨', 'All caught up', GColors.green, () => NavShell.go(3)),
             if (_comments > 0) ...[
-              _chip('💬', cLabel, const Color(0xFF3B82F6), () => NavShell.go(4)),
+              _chip('💬', cLabel, GColors.blue, () => NavShell.go(4)),
               const SizedBox(width: 6),
             ],
             if (_likes > 0) ...[
-              _chip('❤️', lLabel, const Color(0xFFEC4899), () => NavShell.go(4)),
+              _chip('❤️', lLabel, GColors.red, () => NavShell.go(4)),
               const SizedBox(width: 6),
             ],
-            if (_pending > 0) _chip('⏳', '$_pending awaiting review', const Color(0xFFD97706), () => NavShell.go(3)),
+            if (_pending > 0) _chip('⏳', '$_pending awaiting review', GColors.yellow, () => NavShell.go(3)),
           ]),
         ),
       );
@@ -2019,16 +2076,16 @@ class _NoticeStripState extends State<_NoticeStrip> {
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
         Text('🔔 WHAT\'S NEW',
             style: GoogleFonts.nunito(
-                fontSize: 10, letterSpacing: 0.8, fontWeight: FontWeight.w900, color: const Color(0xFF5B6EF5))),
+                fontSize: 10, letterSpacing: 0.8, fontWeight: FontWeight.w900, color: GColors.blue)),
         const SizedBox(height: 4),
         if (none)
-          _line('✨', 'All caught up', 'Upload a project to earn Goins', const Color(0xFF10B981), () => NavShell.go(3)),
+          _line('✨', 'All caught up', 'Upload a project to earn Goins', GColors.green, () => NavShell.go(3)),
         if (_comments > 0)
-          _line('💬', 'Recent $cLabel', _latestComment, const Color(0xFF3B82F6), () => NavShell.go(4)),
+          _line('💬', 'Recent $cLabel', _latestComment, GColors.blue, () => NavShell.go(4)),
         if (_likes > 0)
-          _line('❤️', 'Recent $lLabel', 'on your projects', const Color(0xFFEC4899), () => NavShell.go(4)),
+          _line('❤️', 'Recent $lLabel', 'on your projects', GColors.red, () => NavShell.go(4)),
         if (_pending > 0)
-          _line('⏳', pLabel, 'We will tell you as soon as it is checked', const Color(0xFFD97706), () => NavShell.go(3)),
+          _line('⏳', pLabel, 'We will tell you as soon as it is checked', GColors.yellow, () => NavShell.go(3)),
       ]),
     );
   }
@@ -2056,7 +2113,7 @@ class _CompactMaterialsState extends State<_CompactMaterials> {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
           decoration: BoxDecoration(
-            color: const Color(0xFFFFF8E7),
+            color: const Color(0xFFFEF7E0),
             borderRadius: BorderRadius.circular(10),
             border: Border.all(color: const Color(0xFFFFDC73)),
           ),
@@ -2068,9 +2125,9 @@ class _CompactMaterialsState extends State<_CompactMaterials> {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: GoogleFonts.nunito(
-                      fontSize: 11, fontWeight: FontWeight.w800, color: const Color(0xFF92400E))),
+                      fontSize: 11, fontWeight: FontWeight.w800, color: const Color(0xFFB06F00))),
             ),
-            Icon(_open ? Icons.expand_less : Icons.expand_more, size: 18, color: const Color(0xFF92400E)),
+            Icon(_open ? Icons.expand_less : Icons.expand_more, size: 18, color: const Color(0xFFB06F00)),
           ]),
         ),
       ),

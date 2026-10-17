@@ -26,17 +26,17 @@ import 'homeScreen.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 // ── Light theme colours ───────────────────────────────────────────────────────
-const _blue      = Color(0xFF5B6EF5);
-const _green     = Color(0xFF10B981);
-const _amber     = Color(0xFFF59E0B);
-const _red       = Color(0xFFEF4444);
-const _purple    = Color(0xFF8B5CF6);
-const _bg        = Color(0xFFF5F7FF);   // was _bgDark 0xFF0F172A
+const _blue      = Color(0xFF4285F4);
+const _green     = Color(0xFF34A853);
+const _amber     = Color(0xFFF9AB00);
+const _red       = Color(0xFFEA4335);
+const _purple    = Color(0xFF669DF6);
+const _bg        = Color(0xFFF1F6FE);   // was _bgDark 0xFF0F172A
 const _card      = Color(0xFFFFFFFF);   // was 0xFF1E293B
-const _cardBorder= Color(0xFFE8EAFF);  // was _cardLight 0xFF334155
+const _cardBorder= Color(0xFFE8F0FE);  // was _cardLight 0xFF334155
 const _ink       = Color(0xFF1A1A2E);
 const _muted     = Color(0xFF8888AA);
-const _accent    = Color(0xFF5B6EF5);   // appbar — was _navy 0xFF1E3A8A
+const _accent    = Color(0xFF4285F4);   // appbar — was _navy 0xFF1E3A8A
 
 class AddDraftScreen extends StatefulWidget {
   final int? draftId;
@@ -469,7 +469,7 @@ class _AddDraftScreenState extends State<AddDraftScreen>
               }
             },
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF5B6EF5),
+              backgroundColor: const Color(0xFF4285F4),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
             ),
             child: Text('Done', style: GoogleFonts.nunito(fontWeight: FontWeight.w800, color: Colors.white)),
@@ -548,7 +548,7 @@ class _AddDraftScreenState extends State<AddDraftScreen>
                   if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(
                     content: Text('Materials sent to $email ✓',
                         style: GoogleFonts.poppins(color: Colors.white, fontWeight: FontWeight.w700)),
-                    backgroundColor: const Color(0xFF10B981),
+                    backgroundColor: const Color(0xFF34A853),
                     behavior: SnackBarBehavior.floating,
                     duration: const Duration(seconds: 4),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -593,7 +593,7 @@ class _AddDraftScreenState extends State<AddDraftScreen>
                   filled: true, fillColor: const Color(0xFF0F172A),
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
                   errorText: err,
-                  errorStyle: GoogleFonts.poppins(color: const Color(0xFFEF4444)),
+                  errorStyle: GoogleFonts.poppins(color: const Color(0xFFEA4335)),
                 ),
               ),
               const SizedBox(height: 16),
@@ -774,10 +774,10 @@ class _AddDraftScreenState extends State<AddDraftScreen>
           hintStyle:  GoogleFonts.nunito(color: const Color(0xFFCCCCDD), fontSize: 13),
           prefixIcon: Icon(icon, color: _muted, size: 18),
           filled:     true,
-          fillColor:  const Color(0xFFF8F9FF),
+          fillColor:  const Color(0xFFF1F6FE),
           enabledBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
-            borderSide:   const BorderSide(color: Color(0xFFE8EAFF)),
+            borderSide:   const BorderSide(color: Color(0xFFE8F0FE)),
           ),
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
@@ -802,10 +802,10 @@ class _AddDraftScreenState extends State<AddDraftScreen>
           labelStyle: GoogleFonts.nunito(color: _muted, fontSize: 13),
           prefixIcon: const Icon(Icons.category_rounded, color: _muted, size: 18),
           filled:    true,
-          fillColor: const Color(0xFFF8F9FF),
+          fillColor: const Color(0xFFF1F6FE),
           enabledBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
-            borderSide:   const BorderSide(color: Color(0xFFE8EAFF)),
+            borderSide:   const BorderSide(color: Color(0xFFE8F0FE)),
           ),
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
@@ -838,7 +838,7 @@ class _AddDraftScreenState extends State<AddDraftScreen>
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
           decoration: BoxDecoration(
-            color:        const Color(0xFFF8F9FF),
+            color:        const Color(0xFFF1F6FE),
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
                 color: date != null ? _blue.withOpacity(0.5) : _cardBorder),
@@ -927,7 +927,7 @@ class _AddDraftScreenState extends State<AddDraftScreen>
         child: Container(
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
-            color:        const Color(0xFFF8F9FF),
+            color:        const Color(0xFFF1F6FE),
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
                 color: hasFile ? accent.withOpacity(0.5) : _cardBorder),
@@ -1135,13 +1135,13 @@ class _AddDraftScreenState extends State<AddDraftScreen>
       child: Container(
         padding: const EdgeInsets.all(10),
         decoration: BoxDecoration(
-          color: selected ? const Color(0xFFEEF0FF) : Colors.white,
+          color: selected ? const Color(0xFFE8F0FE) : Colors.white,
           borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: selected ? const Color(0xFF5B6EF5) : _cardBorder, width: selected ? 1.5 : 1),
+          border: Border.all(color: selected ? const Color(0xFF4285F4) : _cardBorder, width: selected ? 1.5 : 1),
         ),
         child: Row(children: [
           Icon(selected ? Icons.radio_button_checked : Icons.radio_button_off,
-              size: 20, color: selected ? const Color(0xFF5B6EF5) : _muted),
+              size: 20, color: selected ? const Color(0xFF4285F4) : _muted),
           const SizedBox(width: 10),
           Expanded(
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -1194,7 +1194,7 @@ class _AddDraftScreenState extends State<AddDraftScreen>
                       label: Text(c['name']!,
                           style: GoogleFonts.nunito(
                               fontSize: 12, fontWeight: FontWeight.w700)),
-                      backgroundColor: const Color(0xFFF0F4FF),
+                      backgroundColor: const Color(0xFFF1F6FE),
                       deleteIcon: const Icon(Icons.close, size: 16),
                       onDeleted: () =>
                           setState(() => _collaborators.remove(c)),
@@ -1271,7 +1271,7 @@ class _AddDraftScreenState extends State<AddDraftScreen>
                     child: Row(children: [
                       CircleAvatar(
                         radius: 14,
-                        backgroundColor: const Color(0xFFF0F4FF),
+                        backgroundColor: const Color(0xFFF1F6FE),
                         child: Text(
                           name.isNotEmpty ? name[0].toUpperCase() : '?',
                           style: GoogleFonts.nunito(
@@ -1346,7 +1346,7 @@ class _AddDraftScreenState extends State<AddDraftScreen>
               width:   double.infinity,
               padding: const EdgeInsets.symmetric(vertical: 20),
               decoration: BoxDecoration(
-                color:        const Color(0xFFF8F9FF),
+                color:        const Color(0xFFF1F6FE),
                 borderRadius: BorderRadius.circular(12),
                 border:       Border.all(
                     color: _cardBorder, style: BorderStyle.solid),
@@ -1370,7 +1370,7 @@ class _AddDraftScreenState extends State<AddDraftScreen>
                   Container(
                     width:  36, height: 36,
                     decoration: BoxDecoration(
-                        color:        const Color(0xFFF0F4FF),
+                        color:        const Color(0xFFF1F6FE),
                         borderRadius: BorderRadius.circular(8)),
                     child: pm.item.imageUrl != null &&
                             pm.item.imageUrl!.isNotEmpty
@@ -1435,7 +1435,7 @@ class _AddDraftScreenState extends State<AddDraftScreen>
           padding:   const EdgeInsets.fromLTRB(16, 10, 16, 12),
           decoration: BoxDecoration(
             color:  _card,
-            border: const Border(top: BorderSide(color: Color(0xFFE8EAFF))),
+            border: const Border(top: BorderSide(color: Color(0xFFE8F0FE))),
             boxShadow: [
               BoxShadow(
                 color:      Colors.black.withOpacity(0.05),
@@ -1474,7 +1474,7 @@ class _AddDraftScreenState extends State<AddDraftScreen>
                     horizontal: 14, vertical: 10),
                 margin: const EdgeInsets.only(right: 8),
                 decoration: BoxDecoration(
-                  color:        const Color(0xFFF0F4FF),
+                  color:        const Color(0xFFF1F6FE),
                   borderRadius: BorderRadius.circular(12),
                   border:       Border.all(color: _cardBorder),
                 ),
@@ -1562,9 +1562,9 @@ class _ProjectKitSheet extends StatelessWidget {
   final List<PickedMaterial> pickedMaterials;
   const _ProjectKitSheet({required this.pickedMaterials});
 
-  static const _bg     = Color(0xFFF5F7FF);
-  static const _accent = Color(0xFF5B6EF5);
-  static const _amber  = Color(0xFFE8A000);
+  static const _bg     = Color(0xFFF1F6FE);
+  static const _accent = Color(0xFF4285F4);
+  static const _amber  = Color(0xFFF9AB00);
   static const _ink    = Color(0xFF1A1A2E);
   static const _muted  = Color(0xFF8888AA);
 
@@ -1671,8 +1671,8 @@ class _KitItem extends StatelessWidget {
   final bool hasLink;
   const _KitItem({required this.picked, required this.hasLink});
 
-  static const _accent = Color(0xFF5B6EF5);
-  static const _amber  = Color(0xFFE8A000);
+  static const _accent = Color(0xFF4285F4);
+  static const _amber  = Color(0xFFF9AB00);
   static const _ink    = Color(0xFF1A1A2E);
   static const _muted  = Color(0xFF8888AA);
 

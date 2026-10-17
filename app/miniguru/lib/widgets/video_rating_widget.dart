@@ -181,7 +181,7 @@ class _VideoRatingWidgetState extends State<VideoRatingWidget> {
                   style: GoogleFonts.nunito(fontWeight: FontWeight.w900),
                 ),
               ]),
-              backgroundColor: const Color(0xFF1B5E20),
+              backgroundColor: const Color(0xFF1E8E3E),
               duration: const Duration(seconds: 3),
             ),
           );
@@ -215,14 +215,14 @@ class _VideoRatingWidgetState extends State<VideoRatingWidget> {
         margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: const Color(0xFFE8EAF6),
+          color: const Color(0xFFE8F0FE),
           borderRadius: BorderRadius.circular(12),
         ),
         child: Row(children: [
           const Text('⭐ ', style: TextStyle(fontSize: 16)),
           Expanded(child: Text(
             'Login to rate this project and award Goins',
-            style: GoogleFonts.nunito(fontSize: 13, fontWeight: FontWeight.w900, color: Color(0xFF3F51B5)),
+            style: GoogleFonts.nunito(fontSize: 13, fontWeight: FontWeight.w900, color: Color(0xFF1A73E8)),
           )),
         ]),
       );
@@ -237,7 +237,7 @@ class _VideoRatingWidgetState extends State<VideoRatingWidget> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE8EAF6)),
+        border: Border.all(color: const Color(0xFFE8F0FE)),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.04),
@@ -257,7 +257,7 @@ class _VideoRatingWidgetState extends State<VideoRatingWidget> {
               style: GoogleFonts.nunito(
                 fontWeight: FontWeight.w900,
                 fontSize: 16,
-                color: const Color(0xFF3F51B5),
+                color: const Color(0xFF1A73E8),
               ),
             ),
             const Spacer(),
@@ -277,7 +277,7 @@ class _VideoRatingWidgetState extends State<VideoRatingWidget> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
               decoration: BoxDecoration(
-                color: const Color(0xFFE8F5E9),
+                color: const Color(0xFFE6F4EA),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Row(children: [
@@ -290,7 +290,7 @@ class _VideoRatingWidgetState extends State<VideoRatingWidget> {
                     style: GoogleFonts.nunito(
                       fontSize: 12,
                       fontWeight: FontWeight.w900,
-                      color: const Color(0xFF2E7D32),
+                      color: const Color(0xFF1E8E3E),
                     ),
                   ),
                 ),
@@ -319,12 +319,12 @@ class _VideoRatingWidgetState extends State<VideoRatingWidget> {
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   decoration: BoxDecoration(
                     color: isSelected
-                        ? const Color(0xFF5B6EF5)
-                        : const Color(0xFFE8EAF6),
+                        ? const Color(0xFF4285F4)
+                        : const Color(0xFFE8F0FE),
                     borderRadius: BorderRadius.circular(24),
                     border: Border.all(
                       color: isSelected
-                          ? const Color(0xFF5B6EF5)
+                          ? const Color(0xFF4285F4)
                           : const Color(0xFFBDBDBD),
                       width: 1.5,
                     ),
@@ -343,7 +343,7 @@ class _VideoRatingWidgetState extends State<VideoRatingWidget> {
                             style: GoogleFonts.nunito(
                               fontWeight: FontWeight.w900,
                               fontSize: 13,
-                              color: isSelected ? Colors.white : const Color(0xFF3F51B5),
+                              color: isSelected ? Colors.white : const Color(0xFF1A73E8),
                             ),
                           ),
                           if (breakdownCount > 0)
@@ -398,9 +398,9 @@ class _VideoRatingWidgetState extends State<VideoRatingWidget> {
             child: ElevatedButton(
               onPressed: (_submitting || selectedCount == 0) ? null : _submitRating,
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF5B6EF5),
+                backgroundColor: const Color(0xFF4285F4),
                 foregroundColor: Colors.white,
-                disabledBackgroundColor: const Color(0xFFE8EAF6),
+                disabledBackgroundColor: const Color(0xFFE8F0FE),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),

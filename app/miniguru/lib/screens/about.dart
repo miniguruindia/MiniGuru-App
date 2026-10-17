@@ -8,15 +8,15 @@ import 'package:miniguru/network/MiniguruApi.dart';
 
 // ─── COLOURS ────────────────────────────────────────────────────────────────
 class _AC {
-  static const deepGreen  = Color(0xFF1B5E20);
-  static const paleGreen  = Color(0xFFF1F8F1);
+  static const deepGreen  = Color(0xFF1E8E3E);
+  static const paleGreen  = Color(0xFFE6F4EA);
   static const white      = Colors.white;
   static const ink        = Color(0xFF1A1A2E);
   static const muted      = Color(0xFF6B7280);
-  static const accent     = Color(0xFF5B6EF5);
-  static const amber      = Color(0xFFE8A000);
-  static const chipBg     = Color(0xFFE8F5E9);
-  static const chipText   = Color(0xFF2E7D32);
+  static const accent     = Color(0xFF4285F4);
+  static const amber      = Color(0xFFF9AB00);
+  static const chipBg     = Color(0xFFE6F4EA);
+  static const chipText   = Color(0xFF1E8E3E);
 }
 
 // ─── TYPE HELPERS ───────────────────────────────────────────────────────────
@@ -83,7 +83,7 @@ class _AboutScreenState extends State<AboutScreen> {
         : null;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FF),
+      backgroundColor: const Color(0xFFF1F6FE),
       body: SafeArea(
         child: SingleChildScrollView(
           child: Column(
@@ -409,7 +409,7 @@ class _FounderHorizontal extends StatelessWidget {
             errorBuilder: (_, __, ___) => Container(
                 width: 220, height: 280, color: _AC.chipBg,
                 child: const Icon(Icons.person, size: 80,
-                    color: Color(0xFF2E7D32)))),
+                    color: Color(0xFF1E8E3E)))),
       ),
       Expanded(
           child: Padding(
@@ -436,7 +436,7 @@ class _FounderVertical extends StatelessWidget {
                 height: 240, color: _AC.chipBg,
                 child: const Center(
                     child: Icon(Icons.person, size: 80,
-                        color: Color(0xFF2E7D32))))),
+                        color: Color(0xFF1E8E3E))))),
       ),
       Padding(
           padding: const EdgeInsets.all(24),
@@ -699,7 +699,7 @@ class _PlatformFeaturesSection extends StatelessWidget {
     final isMobile = w < 700;
 
     return Container(
-      color: const Color(0xFFF5F7FF),
+      color: const Color(0xFFF1F6FE),
       padding: EdgeInsets.symmetric(
           horizontal: isMobile ? 24 : 64,
           vertical: isMobile ? 48 : 72),
@@ -1055,7 +1055,7 @@ class _TLabNetworkSection extends StatelessWidget {
     ];
 
     return Container(
-      color: const Color(0xFFF5F7FF),
+      color: const Color(0xFFF1F6FE),
       padding: EdgeInsets.symmetric(
           horizontal: isMobile ? 24 : 64,
           vertical: isMobile ? 48 : 72),

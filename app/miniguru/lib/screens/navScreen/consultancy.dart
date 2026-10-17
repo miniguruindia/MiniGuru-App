@@ -137,9 +137,9 @@ class _ConsultancyPageState extends State<ConsultancyPage> {
       margin: const EdgeInsets.fromLTRB(16, 0, 16, 14),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(colors: [Color(0xFFFFF3CD), Color(0xFFFFE08A)]),
+        gradient: const LinearGradient(colors: [Color(0xFFFEF7E0), Color(0xFFFFE08A)]),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFF59E0B)),
+        border: Border.all(color: const Color(0xFFF9AB00)),
       ),
       child: Row(children: [
         if (label.isNotEmpty)
@@ -160,7 +160,7 @@ class _ConsultancyPageState extends State<ConsultancyPage> {
                 style: GoogleFonts.poppins(
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
-                    color: const Color(0xFF92400E),
+                    color: const Color(0xFFB06F00),
                     height: 1.4)),
           ),
       ]),
@@ -296,20 +296,20 @@ class _ConsultancyPageState extends State<ConsultancyPage> {
             width: double.infinity,
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: const Color(0xFFFFF8E1),
+              color: const Color(0xFFFEF7E0),
               borderRadius: BorderRadius.circular(10),
             ),
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Text('🎁 Perks',
                   style: GoogleFonts.poppins(
-                      fontSize: 11, fontWeight: FontWeight.bold, color: const Color(0xFF92400E))),
+                      fontSize: 11, fontWeight: FontWeight.bold, color: const Color(0xFFB06F00))),
               const SizedBox(height: 4),
               for (final perk in perks)
                 Padding(
                   padding: const EdgeInsets.only(bottom: 3),
                   child: Text('• $perk',
                       style: GoogleFonts.poppins(
-                          fontSize: 12, color: const Color(0xFF92400E), height: 1.4)),
+                          fontSize: 12, color: const Color(0xFFB06F00), height: 1.4)),
                 ),
             ]),
           ),
@@ -365,7 +365,7 @@ class _ConsultancyPageState extends State<ConsultancyPage> {
               border: Border.all(color: const Color(0xFFE5E7EB)),
             ),
             child: Row(children: [
-              const Icon(Icons.description_outlined, color: Color(0xFF1B5E20)),
+              const Icon(Icons.description_outlined, color: Color(0xFF1E8E3E)),
               const SizedBox(width: 10),
               Expanded(
                 child: Text(
@@ -375,7 +375,7 @@ class _ConsultancyPageState extends State<ConsultancyPage> {
                     style: GoogleFonts.poppins(
                         fontSize: 13, fontWeight: FontWeight.w600, color: Colors.black87)),
               ),
-              const Icon(Icons.file_download_outlined, color: Color(0xFF1B5E20)),
+              const Icon(Icons.file_download_outlined, color: Color(0xFF1E8E3E)),
             ]),
           ),
         ),
@@ -479,7 +479,7 @@ class _ConsultancyPageState extends State<ConsultancyPage> {
                             m['url'].toString(),
                             fit: BoxFit.contain,
                             errorBuilder: (_, __, ___) => const Center(
-                              child: Icon(Icons.broken_image_outlined, color: Color(0xFF1B5E20)),
+                              child: Icon(Icons.broken_image_outlined, color: Color(0xFF1E8E3E)),
                             ),
                           ),
                         ),
@@ -553,7 +553,7 @@ class _ConsultancyPageState extends State<ConsultancyPage> {
       collectionId: c['id'].toString(),
       name: (c['name'] ?? '').toString(),
       icon: (c['icon'] ?? '').toString(),
-      accent: isHome ? const Color(0xFF4C1D95) : const Color(0xFF1B5E20),
+      accent: isHome ? const Color(0xFF1A5BC4) : const Color(0xFF1E8E3E),
     );
   }
 
@@ -671,7 +671,7 @@ class _ConsultancyPageState extends State<ConsultancyPage> {
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [Color(0xFF1B5E20), Color(0xFF2E7D32)],
+          colors: [Color(0xFF1E8E3E), Color(0xFF1E8E3E)],
         ),
       ),
       padding: const EdgeInsets.fromLTRB(20, 24, 20, 28),
@@ -760,13 +760,13 @@ class _ConsultancyPageState extends State<ConsultancyPage> {
                   children: [
                     Icon(_services[i]['icon'] as IconData,
                         size: 13,
-                        color: sel ? const Color(0xFF1B5E20) : Colors.black45),
+                        color: sel ? const Color(0xFF1E8E3E) : Colors.black45),
                     const SizedBox(width: 4),
                     Text(_services[i]['label'] as String,
                         style: GoogleFonts.poppins(
                             fontSize: 11,
                             fontWeight: sel ? FontWeight.w600 : FontWeight.normal,
-                            color: sel ? const Color(0xFF1B5E20) : Colors.black45)),
+                            color: sel ? const Color(0xFF1E8E3E) : Colors.black45)),
                   ],
                 ),
               ),
@@ -790,7 +790,7 @@ class _ConsultancyPageState extends State<ConsultancyPage> {
           padding: const EdgeInsets.all(24),
           decoration: BoxDecoration(
             gradient: const LinearGradient(
-                colors: [Color(0xFF1B5E20), Color(0xFF388E3C)]),
+                colors: [Color(0xFF1E8E3E), Color(0xFF388E3C)]),
             borderRadius: BorderRadius.circular(16),
           ),
           child: Column(
@@ -839,7 +839,7 @@ class _ConsultancyPageState extends State<ConsultancyPage> {
           child: Column(children: [
             _differentiatorCard(
               icon: Icons.groups_outlined,
-              iconColor: const Color(0xFF1B5E20),
+              iconColor: const Color(0xFF1E8E3E),
               title: 'Children Run It',
               body: 'An elected Planning Team manages weekly meetings. A Finance Team '
                   'runs the Goin economy. A Material Team oversees tools and resources. '
@@ -848,7 +848,7 @@ class _ConsultancyPageState extends State<ConsultancyPage> {
             const SizedBox(height: 12),
             _differentiatorCard(
               assetIcon: 'assets/Goine.png',
-              iconColor: const Color(0xFFE8A000),
+              iconColor: const Color(0xFFF9AB00),
               title: 'A Real Economy',
               body: 'The Goin is T-LAB\'s internal currency. Children earn Goins for '
                   'making and sharing, spend them on materials, and negotiate the value '
@@ -925,13 +925,13 @@ class _ConsultancyPageState extends State<ConsultancyPage> {
 
         // ── OUR PROCESS ──────────────────────────────────────────────────
         _sectionTitle('Our Process', Icons.autorenew),
-        _processStep('01', const Color(0xFF1B5E20),
+        _processStep('01', const Color(0xFF1E8E3E),
             'Understanding Your School',
             'We spend time in your school — meeting teachers, conducting a workshop '
             'with children to make them co-creators, assessing the space, and '
             'learning what matters to your community. T-LAB adapts to context. '
             'This step ensures the adaptation is right.'),
-        _processStep('02', const Color(0xFF2E7D32),
+        _processStep('02', const Color(0xFF1E8E3E),
             'Designing Your T-LAB',
             'A space layout, material list, and session structure tailored to your '
             'room, your children, and your school\'s rhythm — designed with your '
@@ -962,7 +962,7 @@ class _ConsultancyPageState extends State<ConsultancyPage> {
         _sectionTitle('Investment', Icons.account_balance_wallet_outlined),
         _cmsOffer('tlab'),
         if (_cmsPlans('tlab').isNotEmpty)
-          _cmsPlansBlock('tlab', const Color(0xFF1B5E20))
+          _cmsPlansBlock('tlab', const Color(0xFF1E8E3E))
         else
           Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -986,7 +986,7 @@ class _ConsultancyPageState extends State<ConsultancyPage> {
                 amount: '₹80,000 – ₹1,50,000',
                 note: 'Varies by room size and existing resources. Excludes room '
                     'renovation and decoration.',
-                amountColor: const Color(0xFF1B5E20),
+                amountColor: const Color(0xFF1E8E3E),
               ),
               const SizedBox(height: 10),
               _investmentCard(
@@ -996,7 +996,7 @@ class _ConsultancyPageState extends State<ConsultancyPage> {
                     'orientation, remote support, handbook, and MiniGuru school access',
                 amount: 'On enquiry',
                 note: 'Travel, food, and accommodation for onsite visits arranged by school.',
-                amountColor: const Color(0xFF1B5E20),
+                amountColor: const Color(0xFF1E8E3E),
                 isEnquiry: true,
               ),
               const SizedBox(height: 10),
@@ -1007,15 +1007,15 @@ class _ConsultancyPageState extends State<ConsultancyPage> {
                     '',
                 amount: '₹5,000 – ₹10,000 / month',
                 note: 'Facilitator is appointed by and on the payroll of the school.',
-                amountColor: const Color(0xFF1B5E20),
+                amountColor: const Color(0xFF1E8E3E),
               ),
               const SizedBox(height: 16),
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFF1F8F1),
+                  color: const Color(0xFFE6F4EA),
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: const Color(0xFFA5D6A7)),
+                  border: Border.all(color: const Color(0xFF81C995)),
                 ),
                 child: Text(
                   '"We have implemented T-LAB in government schools with minimal budgets '
@@ -1024,7 +1024,7 @@ class _ConsultancyPageState extends State<ConsultancyPage> {
                   style: GoogleFonts.poppins(
                       fontSize: 13,
                       fontStyle: FontStyle.italic,
-                      color: const Color(0xFF2E7D32),
+                      color: const Color(0xFF1E8E3E),
                       height: 1.6),
                 ),
               ),
@@ -1069,7 +1069,7 @@ class _ConsultancyPageState extends State<ConsultancyPage> {
                 padding: const EdgeInsets.only(left: 16),
                 decoration: const BoxDecoration(
                   border: Border(
-                      left: BorderSide(color: Color(0xFF1B5E20), width: 4)),
+                      left: BorderSide(color: Color(0xFF1E8E3E), width: 4)),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -1101,15 +1101,15 @@ class _ConsultancyPageState extends State<ConsultancyPage> {
                     'https://photos.app.goo.gl/nJDG4s6FTt5KCDCLA'),
                 child: Row(children: [
                   const Icon(Icons.photo_library_outlined,
-                      size: 16, color: Color(0xFF1B5E20)),
+                      size: 16, color: Color(0xFF1E8E3E)),
                   const SizedBox(width: 6),
                   Text('View T-LAB photo gallery',
                       style: GoogleFonts.poppins(
                           fontSize: 13,
-                          color: const Color(0xFF1B5E20),
+                          color: const Color(0xFF1E8E3E),
                           fontWeight: FontWeight.w600,
                           decoration: TextDecoration.underline,
-                          decorationColor: const Color(0xFF1B5E20))),
+                          decorationColor: const Color(0xFF1E8E3E))),
                 ]),
               ),
             ],
@@ -1121,9 +1121,9 @@ class _ConsultancyPageState extends State<ConsultancyPage> {
           margin: const EdgeInsets.fromLTRB(16, 24, 16, 0),
           padding: const EdgeInsets.all(24),
           decoration: BoxDecoration(
-            color: const Color(0xFFF1F8F1),
+            color: const Color(0xFFE6F4EA),
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: const Color(0xFFA5D6A7)),
+            border: Border.all(color: const Color(0xFF81C995)),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -1132,7 +1132,7 @@ class _ConsultancyPageState extends State<ConsultancyPage> {
                   style: GoogleFonts.poppins(
                       fontSize: 17,
                       fontWeight: FontWeight.bold,
-                      color: const Color(0xFF1B5E20))),
+                      color: const Color(0xFF1E8E3E))),
               const SizedBox(height: 8),
               Text(
                 'The first conversation is always about your school — your children, '
@@ -1152,7 +1152,7 @@ class _ConsultancyPageState extends State<ConsultancyPage> {
                         style: GoogleFonts.poppins(
                             fontSize: 13, fontWeight: FontWeight.bold)),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF1B5E20),
+                      backgroundColor: const Color(0xFF1E8E3E),
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(vertical: 14),
                       shape: RoundedRectangleBorder(
@@ -1182,7 +1182,7 @@ class _ConsultancyPageState extends State<ConsultancyPage> {
           padding: const EdgeInsets.all(24),
           decoration: BoxDecoration(
             gradient: const LinearGradient(
-                colors: [Color(0xFF92400E), Color(0xFFF59E0B)]),
+                colors: [Color(0xFFB06F00), Color(0xFFF9AB00)]),
             borderRadius: BorderRadius.circular(16),
           ),
           child: Column(
@@ -1230,7 +1230,7 @@ class _ConsultancyPageState extends State<ConsultancyPage> {
         _sectionTitle('Workshop Formats', Icons.event_available_outlined),
         _cmsOffer('workshop'),
         if (_cmsPlans('workshop').isNotEmpty)
-          _cmsPlansBlock('workshop', const Color(0xFFD97706))
+          _cmsPlansBlock('workshop', const Color(0xFFF9AB00))
         else
           Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -1273,12 +1273,12 @@ class _ConsultancyPageState extends State<ConsultancyPage> {
           child: Row(children: [
             Expanded(
                 child: _audienceCard('👧', 'Students', 'Ages 8–14\nSchool level',
-                    const Color(0xFFFFF8F0), const Color(0xFFF59E0B))),
+                    const Color(0xFFFEF7E0), const Color(0xFFF9AB00))),
             const SizedBox(width: 12),
             Expanded(
                 child: _audienceCard('👩‍🏫', 'Teachers',
                     'STEAM facilitator\nenrichment focus',
-                    const Color(0xFFF1F8F1), const Color(0xFF1B5E20))),
+                    const Color(0xFFE6F4EA), const Color(0xFF1E8E3E))),
           ]),
         ),
 
@@ -1286,7 +1286,7 @@ class _ConsultancyPageState extends State<ConsultancyPage> {
           margin: const EdgeInsets.fromLTRB(16, 24, 16, 0),
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
-            color: const Color(0xFFFFF8F0),
+            color: const Color(0xFFFEF7E0),
             borderRadius: BorderRadius.circular(14),
             border: Border.all(color: const Color(0xFFFDE68A)),
           ),
@@ -1296,7 +1296,7 @@ class _ConsultancyPageState extends State<ConsultancyPage> {
               Text('Interested in a workshop?',
                   style: GoogleFonts.poppins(
                       fontSize: 15, fontWeight: FontWeight.bold,
-                      color: const Color(0xFF92400E))),
+                      color: const Color(0xFFB06F00))),
               const SizedBox(height: 6),
               Text(
                 'Tell us your school, the number of participants, and dates. '
@@ -1345,7 +1345,7 @@ class _ConsultancyPageState extends State<ConsultancyPage> {
           padding: const EdgeInsets.all(24),
           decoration: BoxDecoration(
             gradient: const LinearGradient(
-                colors: [Color(0xFF4C1D95), Color(0xFF7C3AED)]),
+                colors: [Color(0xFF1A5BC4), Color(0xFF1A73E8)]),
             borderRadius: BorderRadius.circular(16),
           ),
           child: Column(
@@ -1418,7 +1418,7 @@ class _ConsultancyPageState extends State<ConsultancyPage> {
 
         // ── HOW IT WORKS ─────────────────────────────────────────────────
         _sectionTitle('How It Works', Icons.autorenew),
-        _homeStep('01', const Color(0xFF4C1D95),
+        _homeStep('01', const Color(0xFF1A5BC4),
             'A Conversation — With Your Child',
             'We begin with a short call with you and your child together. What is '
             'your child curious about? What do they like to make, take apart, or '
@@ -1433,13 +1433,13 @@ class _ConsultancyPageState extends State<ConsultancyPage> {
             'space — even a corner of a room or a single dedicated shelf works — '
             'and a curated materials list matched to your child\'s interests. '
             'Not a generic kit. A specific starter collection for specific ideas.'),
-        _homeStep('03', const Color(0xFF7C3AED),
+        _homeStep('03', const Color(0xFF1A73E8),
             'Setting Up',
             'Materials arrive with a setup guide, age-appropriate safety notes for '
             'parents, and a first-project suggestion to help the corner come alive '
             'immediately. For families in Bhopal, Ujjain, Pune, or nearby cities, '
             'we offer an optional in-person setup session.'),
-        _homeStep('04', const Color(0xFF8B5CF6),
+        _homeStep('04', const Color(0xFF669DF6),
             'Staying Connected',
             'Periodic check-in calls where your child shares what they have made, '
             'gets suggestions for what to try next, and connects with the MiniGuru '
@@ -1451,7 +1451,7 @@ class _ConsultancyPageState extends State<ConsultancyPage> {
         _sectionTitle('Plans', Icons.inventory_2_outlined),
         _cmsOffer('corner'),
         if (_cmsPlans('corner').isNotEmpty)
-          _cmsPlansBlock('corner', const Color(0xFF4C1D95))
+          _cmsPlansBlock('corner', const Color(0xFF1A5BC4))
         else
           Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -1461,7 +1461,7 @@ class _ConsultancyPageState extends State<ConsultancyPage> {
               icon: '💻',
               name: 'Full Virtual Support',
               tag: 'Most Popular',
-              tagColor: const Color(0xFFF59E0B),
+              tagColor: const Color(0xFFF9AB00),
               highlight: true,
               price: '₹3,999',
               bestFor: 'Families who want ongoing guidance',
@@ -1482,7 +1482,7 @@ class _ConsultancyPageState extends State<ConsultancyPage> {
               icon: '📱',
               name: 'Virtual Setup',
               tag: 'Starter',
-              tagColor: const Color(0xFF7C3AED),
+              tagColor: const Color(0xFF1A73E8),
               highlight: false,
               price: '₹1,499',
               bestFor: 'Families anywhere in India',
@@ -1582,7 +1582,7 @@ class _ConsultancyPageState extends State<ConsultancyPage> {
           margin: const EdgeInsets.fromLTRB(16, 24, 16, 0),
           padding: const EdgeInsets.all(24),
           decoration: BoxDecoration(
-            color: const Color(0xFFF5F3FF),
+            color: const Color(0xFFE8F0FE),
             borderRadius: BorderRadius.circular(16),
             border: Border.all(color: const Color(0xFFDDD6FE)),
           ),
@@ -1592,7 +1592,7 @@ class _ConsultancyPageState extends State<ConsultancyPage> {
               Text('Start with a conversation',
                   style: GoogleFonts.poppins(
                       fontSize: 17, fontWeight: FontWeight.bold,
-                      color: const Color(0xFF4C1D95))),
+                      color: const Color(0xFF1A5BC4))),
               const SizedBox(height: 8),
               Text(
                 'Tell us about your child — their age, what they are curious about '
@@ -1609,7 +1609,7 @@ class _ConsultancyPageState extends State<ConsultancyPage> {
                         'Hello MiniGuru! I would like to book a discovery call '
                         'for a home tinkering corner for my child.'),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF4C1D95),
+                      backgroundColor: const Color(0xFF1A5BC4),
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(vertical: 13),
                       shape: RoundedRectangleBorder(
@@ -1658,7 +1658,7 @@ class _ConsultancyPageState extends State<ConsultancyPage> {
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
-            colors: [Color(0xFF1B5E20), Color(0xFF2E7D32)]),
+            colors: [Color(0xFF1E8E3E), Color(0xFF1E8E3E)]),
         borderRadius: BorderRadius.circular(16),
       ),
       child: Column(children: [
@@ -1675,7 +1675,7 @@ class _ConsultancyPageState extends State<ConsultancyPage> {
               icon: Icons.phone,
               label: 'Call Us',
               bg: Colors.white,
-              textColor: const Color(0xFF1B5E20),
+              textColor: const Color(0xFF1E8E3E),
               onTap: () => _launchUrl('tel:$_phone'),
             ),
           ),
@@ -1760,12 +1760,12 @@ class _ConsultancyPageState extends State<ConsultancyPage> {
       margin: const EdgeInsets.fromLTRB(16, 14, 16, 0),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFFFFFBEB),
+        color: const Color(0xFFFEF7E0),
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: const Color(0xFFFDE68A)),
       ),
       child: Row(children: [
-        const Icon(Icons.star, color: Color(0xFFF59E0B), size: 28),
+        const Icon(Icons.star, color: Color(0xFFF9AB00), size: 28),
         const SizedBox(width: 12),
         Expanded(
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -1782,7 +1782,7 @@ class _ConsultancyPageState extends State<ConsultancyPage> {
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
             decoration: BoxDecoration(
-              color: const Color(0xFFF59E0B),
+              color: const Color(0xFFF9AB00),
               borderRadius: BorderRadius.circular(8),
             ),
             child: Text('Login',
@@ -1801,7 +1801,7 @@ class _ConsultancyPageState extends State<ConsultancyPage> {
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 22, 16, 12),
       child: Row(children: [
-        Icon(icon, size: 18, color: const Color(0xFF1B5E20)),
+        Icon(icon, size: 18, color: const Color(0xFF1E8E3E)),
         const SizedBox(width: 8),
         Expanded(
           child: Text(title,
@@ -1878,9 +1878,9 @@ class _ConsultancyPageState extends State<ConsultancyPage> {
         Container(
           width: 40, height: 40,
           decoration: BoxDecoration(
-              color: const Color(0xFFE8F5E9),
+              color: const Color(0xFFE6F4EA),
               borderRadius: BorderRadius.circular(10)),
-          child: Icon(icon, color: const Color(0xFF1B5E20), size: 22),
+          child: Icon(icon, color: const Color(0xFF1E8E3E), size: 22),
         ),
         const SizedBox(width: 14),
         Expanded(
@@ -1949,7 +1949,7 @@ class _ConsultancyPageState extends State<ConsultancyPage> {
       ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(children: [
-          Icon(icon, size: 18, color: const Color(0xFF1B5E20)),
+          Icon(icon, size: 18, color: const Color(0xFF1E8E3E)),
           const SizedBox(width: 8),
           Text(label,
               style: GoogleFonts.poppins(
@@ -1972,10 +1972,10 @@ class _ConsultancyPageState extends State<ConsultancyPage> {
               child: Text('Contact us →',
                   style: GoogleFonts.poppins(
                       fontSize: 12,
-                      color: const Color(0xFF1B5E20),
+                      color: const Color(0xFF1E8E3E),
                       fontWeight: FontWeight.w600,
                       decoration: TextDecoration.underline,
-                      decorationColor: const Color(0xFF1B5E20))),
+                      decorationColor: const Color(0xFF1E8E3E))),
             ),
           ],
         ]),
@@ -2002,13 +2002,13 @@ class _ConsultancyPageState extends State<ConsultancyPage> {
             clipBehavior: Clip.antiAlias,
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(14),
-              color: const Color(0xFFE8F5E9),
+              color: const Color(0xFFE6F4EA),
             ),
             child: Image.network(
               _tlabImages[i],
               fit: BoxFit.cover,
               errorBuilder: (_, __, ___) => const Center(
-                child: Icon(Icons.broken_image_outlined, color: Color(0xFF1B5E20)),
+                child: Icon(Icons.broken_image_outlined, color: Color(0xFF1E8E3E)),
               ),
             ),
           ),
@@ -2033,7 +2033,7 @@ class _ConsultancyPageState extends State<ConsultancyPage> {
                 fontSize: 13, fontWeight: FontWeight.bold, color: Colors.black87)),
         const SizedBox(height: 4),
         Text(location,
-            style: GoogleFonts.poppins(fontSize: 11, color: const Color(0xFF1B5E20),
+            style: GoogleFonts.poppins(fontSize: 11, color: const Color(0xFF1E8E3E),
                 fontWeight: FontWeight.w600)),
         const SizedBox(height: 6),
         Text(detail,
@@ -2046,7 +2046,7 @@ class _ConsultancyPageState extends State<ConsultancyPage> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFFF5F3FF),
+        color: const Color(0xFFE8F0FE),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: const Color(0xFFDDD6FE)),
       ),
@@ -2056,7 +2056,7 @@ class _ConsultancyPageState extends State<ConsultancyPage> {
           decoration: BoxDecoration(
               color: const Color(0xFFEDE9FE),
               borderRadius: BorderRadius.circular(10)),
-          child: Icon(icon, color: const Color(0xFF4C1D95), size: 22),
+          child: Icon(icon, color: const Color(0xFF1A5BC4), size: 22),
         ),
         const SizedBox(width: 14),
         Expanded(
@@ -2116,15 +2116,15 @@ class _ConsultancyPageState extends State<ConsultancyPage> {
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: const Color(0xFFF1F8F1),
+              color: const Color(0xFFE6F4EA),
               borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: const Color(0xFFA5D6A7)),
+              border: Border.all(color: const Color(0xFF81C995)),
             ),
             child: Text('"$callout"',
                 style: GoogleFonts.poppins(
                     fontSize: 12,
                     fontStyle: FontStyle.italic,
-                    color: const Color(0xFF2E7D32),
+                    color: const Color(0xFF1E8E3E),
                     height: 1.5)),
           ),
         ],
@@ -2138,10 +2138,10 @@ class _ConsultancyPageState extends State<ConsultancyPage> {
     required String bestFor, required List<String> features,
     required String ctaLabel, required String ctaMessage,
   }) {
-    final bg = highlight ? const Color(0xFF4C1D95) : Colors.white;
+    final bg = highlight ? const Color(0xFF1A5BC4) : Colors.white;
     final textColor = highlight ? Colors.white : Colors.black87;
     final subColor = highlight ? Colors.white60 : Colors.black54;
-    final checkColor = highlight ? const Color(0xFFA78BFA) : const Color(0xFF7C3AED);
+    final checkColor = highlight ? const Color(0xFFA78BFA) : const Color(0xFF1A73E8);
 
     return Container(
       padding: const EdgeInsets.all(18),
@@ -2151,7 +2151,7 @@ class _ConsultancyPageState extends State<ConsultancyPage> {
         border: highlight ? null : Border.all(color: const Color(0xFFE5E7EB)),
         boxShadow: highlight
             ? [BoxShadow(
-                color: const Color(0xFF4C1D95).withOpacity(0.25),
+                color: const Color(0xFF1A5BC4).withOpacity(0.25),
                 blurRadius: 16, offset: const Offset(0, 4))]
             : [],
       ),
@@ -2171,7 +2171,7 @@ class _ConsultancyPageState extends State<ConsultancyPage> {
           Text(price,
               style: GoogleFonts.poppins(
                   fontSize: 16, fontWeight: FontWeight.bold,
-                  color: highlight ? Colors.white : const Color(0xFF4C1D95))),
+                  color: highlight ? Colors.white : const Color(0xFF1A5BC4))),
         ]),
         const SizedBox(height: 10),
         Text(icon, style: const TextStyle(fontSize: 28)),
@@ -2204,8 +2204,8 @@ class _ConsultancyPageState extends State<ConsultancyPage> {
             onPressed: () => _launchWhatsApp(ctaMessage),
             style: ElevatedButton.styleFrom(
               backgroundColor: highlight
-                  ? const Color(0xFF7C3AED)
-                  : const Color(0xFF4C1D95),
+                  ? const Color(0xFF1A73E8)
+                  : const Color(0xFF1A5BC4),
               foregroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(vertical: 11),
               shape: RoundedRectangleBorder(
@@ -2305,9 +2305,9 @@ class _ConsultancyPageState extends State<ConsultancyPage> {
     required String emoji, required String title, required String duration,
     required bool darkBg, required List<String> points,
   }) {
-    final bg        = darkBg ? const Color(0xFF1B5E20) : const Color(0xFFFFF8F0);
-    final textColor = darkBg ? Colors.white : const Color(0xFF92400E);
-    final checkColor= darkBg ? Colors.white54 : const Color(0xFFF59E0B);
+    final bg        = darkBg ? const Color(0xFF1E8E3E) : const Color(0xFFFEF7E0);
+    final textColor = darkBg ? Colors.white : const Color(0xFFB06F00);
+    final checkColor= darkBg ? Colors.white54 : const Color(0xFFF9AB00);
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -2343,7 +2343,7 @@ class _ConsultancyPageState extends State<ConsultancyPage> {
                       child: Text(p,
                           style: GoogleFonts.poppins(
                               fontSize: 11,
-                              color: darkBg ? Colors.white70 : const Color(0xFF92400E))),
+                              color: darkBg ? Colors.white70 : const Color(0xFFB06F00))),
                     ),
                   ]),
                 )),

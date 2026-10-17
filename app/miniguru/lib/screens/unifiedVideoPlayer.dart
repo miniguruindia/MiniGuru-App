@@ -71,27 +71,27 @@ class _UnifiedVideoPlayerState extends State<UnifiedVideoPlayer> {
     'aesthetic': {
       'icon': Icons.palette_outlined,
       'label': 'Aesthetic',
-      'color': Color(0xFFEC4899),
+      'color': Color(0xFFEA4335),
     },
     'functional': {
       'icon': Icons.settings_outlined,
       'label': 'Works Well',
-      'color': Color(0xFF3B82F6),
+      'color': Color(0xFF4285F4),
     },
     'sturdy': {
       'icon': Icons.construction_outlined,
       'label': 'Well-Built',
-      'color': Color(0xFF8B5CF6),
+      'color': Color(0xFF669DF6),
     },
     'creative': {
       'icon': Icons.lightbulb_outline,
       'label': 'Creative',
-      'color': Color(0xFFF59E0B),
+      'color': Color(0xFFF9AB00),
     },
     'educational': {
       'icon': Icons.school_outlined,
       'label': 'Educational',
-      'color': Color(0xFF10B981),
+      'color': Color(0xFF34A853),
     },
   };
 
@@ -681,7 +681,7 @@ class _UnifiedVideoPlayerState extends State<UnifiedVideoPlayer> {
                   if (amazonUrl != null && amazonUrl.isNotEmpty)
                     GestureDetector(
                       onTap: () => launchUrl(Uri.parse(amazonUrl), mode: LaunchMode.externalApplication),
-                      child: const Icon(Icons.open_in_new_rounded, size: 14, color: Color(0xFFD97706)),
+                      child: const Icon(Icons.open_in_new_rounded, size: 14, color: Color(0xFFF9AB00)),
                     ),
                 ],
               ),
@@ -694,8 +694,8 @@ class _UnifiedVideoPlayerState extends State<UnifiedVideoPlayer> {
             label: Text('Send this kit to a parent',
                 style: GoogleFonts.nunito(fontSize: 12, fontWeight: FontWeight.w700)),
             style: OutlinedButton.styleFrom(
-              foregroundColor: const Color(0xFF5B6EF5),
-              side: const BorderSide(color: Color(0xFF5B6EF5)),
+              foregroundColor: const Color(0xFF4285F4),
+              side: const BorderSide(color: Color(0xFF4285F4)),
               minimumSize: const Size(double.infinity, 40),
             ),
           ),
@@ -767,7 +767,7 @@ class _UnifiedVideoPlayerState extends State<UnifiedVideoPlayer> {
                     }
                   },
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF5B6EF5),
+                    backgroundColor: const Color(0xFF4285F4),
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                   ),
@@ -829,7 +829,7 @@ class _UnifiedVideoPlayerState extends State<UnifiedVideoPlayer> {
                                           fontSize: 13,
                                           color: widget.ownerId.isEmpty
                                               ? Colors.black54
-                                              : const Color(0xFF5B6EF5),
+                                              : const Color(0xFF4285F4),
                                           decoration: widget.ownerId.isEmpty
                                               ? null
                                               : TextDecoration.underline),

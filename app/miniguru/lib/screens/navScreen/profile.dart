@@ -4,6 +4,7 @@
 import 'dart:convert';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import 'package:miniguru/screens/notificationsScreen.dart';
 import 'package:flutter/services.dart';
 import 'package:miniguru/screens/legalScreen.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -163,92 +164,24 @@ class _ProfileState extends State<Profile>
       if (mounted) {
         setState(() { _avatarBytes = bytes; _isUploadingPhoto = false; });
         _snack(ok ? '✅ Photo updated!' : '❌ Upload failed',
-               ok ? const Color(0xFF10B981) : const Color(0xFFEF4444));
+               ok ? const Color(0xFF34A853) : const Color(0xFFEA4335));
       }
     } catch (e) {
       if (mounted) {
         setState(() => _isUploadingPhoto = false);
-        _snack('Error: $e', const Color(0xFFEF4444));
+        _snack('Error: $e', const Color(0xFFEA4335));
       }
     }
   }
 
-  // ── Notifications sheet ───────────────────────────────────────────────────
+  // ── Notifications ─────────────────────────────────────────────────────────
+  // Opens the full Notifications page (same page as the bell on Home).
   void _showNotifications() {
     setState(() => _unreadCount = 0);
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => DraggableScrollableSheet(
-        initialChildSize: 0.6, maxChildSize: 0.9, minChildSize: 0.3,
-        builder: (_, ctrl) => Container(
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-          ),
-          child: Column(children: [
-            const SizedBox(height: 12),
-            Container(width: 40, height: 4,
-                decoration: BoxDecoration(color: Colors.black12,
-                    borderRadius: BorderRadius.circular(2))),
-            const SizedBox(height: 16),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: Row(children: [
-                Text('🔔 Notifications',
-                    style: GoogleFonts.nunito(
-                        fontSize: 18, fontWeight: FontWeight.w800)),
-                const Spacer(),
-                if (_notifications.isNotEmpty)
-                  Text('${_notifications.length} new',
-                      style: GoogleFonts.nunito(
-                          fontSize: 12, color: const Color(0xFF5B6EF5),
-                          fontWeight: FontWeight.w700)),
-              ]),
-            ),
-            const SizedBox(height: 8),
-            const Divider(height: 1),
-            Expanded(
-              child: _notifications.isEmpty
-                  ? Center(child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Text('🔕', style: TextStyle(fontSize: 40)),
-                        const SizedBox(height: 12),
-                        Text('No notifications yet',
-                            style: GoogleFonts.nunito(
-                                color: Colors.black45, fontSize: 14)),
-                      ]))
-                  : ListView.separated(
-                      controller: ctrl,
-                      padding: const EdgeInsets.all(16),
-                      itemCount: _notifications.length,
-                      separatorBuilder: (_, __) => const Divider(height: 1),
-                      itemBuilder: (_, i) {
-                        final n = _notifications[i];
-                        return ListTile(
-                          contentPadding: EdgeInsets.zero,
-                          leading: CircleAvatar(
-                            backgroundColor: n['type'] == 'like'
-                                ? const Color(0xFFFFF3CC)
-                                : const Color(0xFFEEF0FF),
-                            child: Text(n['emoji'] ?? '🔔',
-                                style: const TextStyle(fontSize: 18)),
-                          ),
-                          title: Text(n['message'] ?? '',
-                              style: GoogleFonts.nunito(
-                                  fontSize: 13, fontWeight: FontWeight.w600)),
-                          subtitle: Text(_formatAgo(n['createdAt']),
-                              style: GoogleFonts.nunito(
-                                  fontSize: 11, color: Colors.black45)),
-                        );
-                      }),
-            ),
-          ]),
-        ),
-      ),
-    );
+    Navigator.of(context).push(MaterialPageRoute(
+      settings: const RouteSettings(name: NotificationsScreen.id),
+      builder: (_) => const NotificationsScreen(),
+    ));
   }
 
   // ── Change password ───────────────────────────────────────────────────────
@@ -297,17 +230,17 @@ class _ProfileState extends State<Profile>
                       curCtrl.text, newCtrl.text);
                   if (dlg.mounted) Navigator.pop(dlg);
                   if (r.statusCode == 200) {
-                    _snack('Password changed!', const Color(0xFF10B981));
+                    _snack('Password changed!', const Color(0xFF34A853));
                     await Future.delayed(const Duration(seconds: 2));
                     if (mounted) _logout();
                   } else {
                     final err = jsonDecode(r.body);
                     _snack(err['message'] ?? 'Failed',
-                        const Color(0xFFEF4444));
+                        const Color(0xFFEA4335));
                   }
                 } catch (e) {
                   if (dlg.mounted) Navigator.pop(dlg);
-                  _snack('Error: $e', const Color(0xFFEF4444));
+                  _snack('Error: $e', const Color(0xFFEA4335));
                 }
               },
               child: changing
@@ -389,17 +322,17 @@ class _ProfileState extends State<Profile>
                     final body = jsonDecode(r.body);
                     final confirmedId = body['loginId'] ?? newId;
                     _snack('Your new ID is $confirmedId — use it next time you log in!',
-                        const Color(0xFF10B981));
+                        const Color(0xFF34A853));
                     await Future.delayed(const Duration(seconds: 2));
                     if (mounted) _logout();
                   } else {
                     final err = jsonDecode(r.body);
                     _snack(err['message'] ?? 'Failed',
-                        const Color(0xFFEF4444));
+                        const Color(0xFFEA4335));
                   }
                 } catch (e) {
                   if (dlg.mounted) Navigator.pop(dlg);
-                  _snack('Error: $e', const Color(0xFFEF4444));
+                  _snack('Error: $e', const Color(0xFFEA4335));
                 }
               },
               child: changing
@@ -450,7 +383,7 @@ class _ProfileState extends State<Profile>
           TextButton(onPressed: () => Navigator.pop(context, true),
               child: Text('Logout',
                   style: GoogleFonts.nunito(
-                      color: const Color(0xFFEF4444),
+                      color: const Color(0xFFEA4335),
                       fontWeight: FontWeight.bold))),
         ],
       ),
@@ -462,7 +395,7 @@ class _ProfileState extends State<Profile>
         if (mounted) Navigator.of(context)
             .pushNamedAndRemoveUntil(LoginScreen.id, (r) => false);
       } catch (e) {
-        _snack('Error: $e', const Color(0xFFEF4444));
+        _snack('Error: $e', const Color(0xFFEA4335));
       }
     }
   }
@@ -496,13 +429,13 @@ class _ProfileState extends State<Profile>
   Widget build(BuildContext context) {
     super.build(context);
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FF),
+      backgroundColor: const Color(0xFFF1F6FE),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator(
-              color: Color(0xFF5B6EF5)))
+              color: Color(0xFF4285F4)))
           : RefreshIndicator(
               onRefresh: _loadAll,
-              color: const Color(0xFF5B6EF5),
+              color: const Color(0xFF4285F4),
               child: CustomScrollView(
                 physics: const AlwaysScrollableScrollPhysics(
                     parent: BouncingScrollPhysics()),
@@ -541,21 +474,21 @@ class _ProfileState extends State<Profile>
                         const SizedBox(height: 24),
                         _label('⚙️ Account'),
                         const SizedBox(height: 10),
-                        _tile(Icons.edit_outlined, 'Edit Profile', const Color(0xFF5B6EF5),
+                        _tile(Icons.edit_outlined, 'Edit Profile', const Color(0xFF4285F4),
             () => Navigator.push(context, MaterialPageRoute(builder: (_) => const EditProfileScreen())).then((v) { if (v == true && mounted) _loadAll(); })),
         const SizedBox(height: 8),
         _tile(Icons.lock_reset, 'Change Password',
-                            const Color(0xFF5B6EF5), _changePassword),
+                            const Color(0xFF4285F4), _changePassword),
                         const SizedBox(height: 8),
                         _tile(Icons.badge_outlined, 'Change MiniGuru ID',
-                            const Color(0xFF5B6EF5), _changeLoginId),
+                            const Color(0xFF4285F4), _changeLoginId),
                         const SizedBox(height: 8),
                         _tile(Icons.privacy_tip_outlined, 'Privacy Policy',
-                            const Color(0xFF60A5FA),
+                            const Color(0xFF8AB4F8),
                             () => Navigator.push(context, MaterialPageRoute(builder: (_) => const LegalScreen(initialTab: 0)))),
                         const SizedBox(height: 8),
                         _tile(Icons.description_outlined, 'Terms & Conditions',
-                            const Color(0xFF60A5FA),
+                            const Color(0xFF8AB4F8),
                             () => Navigator.push(context, MaterialPageRoute(builder: (_) => const LegalScreen(initialTab: 1)))),
                         const SizedBox(height: 8),
                         _tile(Icons.home_work_outlined, 'Set up a Tinkering Corner / T-LAB',
@@ -566,14 +499,14 @@ class _ProfileState extends State<Profile>
                                     builder: (_) => Scaffold(
                                           appBar: AppBar(
                                             title: const Text('Tinkering Corner & T-LAB'),
-                                            backgroundColor: const Color(0xFF1B5E20),
+                                            backgroundColor: const Color(0xFF1E8E3E),
                                             foregroundColor: Colors.white,
                                           ),
                                           body: const ConsultancyPage(initialService: 2),
                                         )))),
                         const SizedBox(height: 8),
                         _tile(Icons.info_outline, 'About MiniGuru',
-                            const Color(0xFF60A5FA),
+                            const Color(0xFF8AB4F8),
                             () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AboutScreen()))),
 
                         const SizedBox(height: 24),
@@ -595,7 +528,7 @@ class _ProfileState extends State<Profile>
     return SliverAppBar(
       expandedHeight: 330,
       pinned: true,
-      backgroundColor: const Color(0xFF5B6EF5),
+      backgroundColor: const Color(0xFF4285F4),
       elevation: 0,
       actions: [
         Stack(children: [
@@ -609,7 +542,7 @@ class _ProfileState extends State<Profile>
               child: Container(
                 width: 16, height: 16,
                 decoration: const BoxDecoration(
-                    color: Color(0xFFEF4444), shape: BoxShape.circle),
+                    color: Color(0xFFEA4335), shape: BoxShape.circle),
                 child: Center(child: Text('$_unreadCount',
                     style: GoogleFonts.nunito(
                         fontSize: 9, color: Colors.white,
@@ -628,7 +561,7 @@ class _ProfileState extends State<Profile>
             gradient: LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
-              colors: [Color(0xFF5B6EF5), Color(0xFF8B5CF6)],
+              colors: [Color(0xFF4285F4), Color(0xFF669DF6)],
             ),
           ),
           child: SafeArea(
@@ -667,7 +600,7 @@ class _ProfileState extends State<Profile>
                       child: Container(
                         width: 30, height: 30,
                         decoration: BoxDecoration(
-                          color: const Color(0xFFE8A000),
+                          color: const Color(0xFFF9AB00),
                           shape: BoxShape.circle,
                           border: Border.all(color: Colors.white, width: 2)),
                         child: _isUploadingPhoto
@@ -748,15 +681,15 @@ class _ProfileState extends State<Profile>
     if (_badgesLoading) {
       return const Center(child: Padding(
           padding: EdgeInsets.all(12),
-          child: CircularProgressIndicator(color: Color(0xFF5B6EF5))));
+          child: CircularProgressIndicator(color: Color(0xFF4285F4))));
     }
 
     // Badge colours by category
     final catColors = {
-      'projects': [const Color(0xFF3B82F6), const Color(0xFFEFF6FF)],
-      'goins':    [const Color(0xFFE8A000), const Color(0xFFFFFBEB)],
-      'learning': [const Color(0xFF10B981), const Color(0xFFF0FDF4)],
-      'social':   [const Color(0xFFEC4899), const Color(0xFFFFF1F2)],
+      'projects': [const Color(0xFF4285F4), const Color(0xFFF1F6FE)],
+      'goins':    [const Color(0xFFF9AB00), const Color(0xFFFEF7E0)],
+      'learning': [const Color(0xFF34A853), const Color(0xFFE6F4EA)],
+      'social':   [const Color(0xFFEA4335), const Color(0xFFFFF1F2)],
     };
 
     // Sort: earned first
@@ -772,7 +705,7 @@ class _ProfileState extends State<Profile>
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: const Color(0xFFE8EAFF))),
+          border: Border.all(color: const Color(0xFFE8F0FE))),
         child: Center(child: Text('Complete projects to earn badges! 🏅',
             style: GoogleFonts.nunito(
                 color: Colors.black45, fontSize: 13))));
@@ -789,7 +722,7 @@ class _ProfileState extends State<Profile>
           final isEarned = b['earned'] == true;
           final cat      = b['category'] as String? ?? 'projects';
           final colors   = catColors[cat] ??
-              [const Color(0xFF5B6EF5), const Color(0xFFEEF0FF)];
+              [const Color(0xFF4285F4), const Color(0xFFE8F0FE)];
           final accent   = colors[0];
           final bg       = colors[1];
 
@@ -805,7 +738,7 @@ class _ProfileState extends State<Profile>
                 border: Border.all(
                   color: isEarned
                       ? accent.withOpacity(0.4)
-                      : const Color(0xFFE8EAFF),
+                      : const Color(0xFFE8F0FE),
                   width: isEarned ? 2 : 1,
                 ),
                 boxShadow: isEarned
@@ -893,11 +826,11 @@ class _ProfileState extends State<Profile>
         gradient: LinearGradient(
           colors: inDebt
               ? const [Color(0xFFB0413E), Color(0xFFE57373)]
-              : const [Color(0xFFE8A000), Color(0xFFFFCC02)],
+              : const [Color(0xFFF9AB00), Color(0xFFFFCC02)],
           begin: Alignment.topLeft, end: Alignment.bottomRight),
         borderRadius: BorderRadius.circular(18),
         boxShadow: [BoxShadow(
-          color: (inDebt ? const Color(0xFFB0413E) : const Color(0xFFE8A000)).withOpacity(0.3),
+          color: (inDebt ? const Color(0xFFB0413E) : const Color(0xFFF9AB00)).withOpacity(0.3),
           blurRadius: 12, offset: const Offset(0, 4))],
       ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -1016,11 +949,11 @@ class _ProfileState extends State<Profile>
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
             gradient: const LinearGradient(
-              colors: [Color(0xFFFFD60A), Color(0xFFE8A000)],
+              colors: [Color(0xFFFFD60A), Color(0xFFF9AB00)],
               begin: Alignment.topLeft, end: Alignment.bottomRight),
             borderRadius: BorderRadius.circular(16),
             boxShadow: [BoxShadow(
-                color: const Color(0xFFE8A000).withOpacity(0.35),
+                color: const Color(0xFFF9AB00).withOpacity(0.35),
                 blurRadius: 12, offset: const Offset(0, 4))],
           ),
           child: Column(crossAxisAlignment: CrossAxisAlignment.start,
@@ -1064,7 +997,7 @@ class _ProfileState extends State<Profile>
     if (_analyticsLoading) {
       return const Center(child: Padding(
           padding: EdgeInsets.all(20),
-          child: CircularProgressIndicator(color: Color(0xFF5B6EF5))));
+          child: CircularProgressIndicator(color: Color(0xFF4285F4))));
     }
 
     final values = [
@@ -1077,12 +1010,12 @@ class _ProfileState extends State<Profile>
     ];
 
     final stats = [
-      _StatDef('Videos\nWatched',    '🎬', const Color(0xFF60A5FA), const Color(0xFFEFF6FF)),
-      _StatDef('Ongoing\nProjects',  '🔧', const Color(0xFF5B6EF5), const Color(0xFFEEF0FF)),
-      _StatDef('Completed\nBuilds',  '✅', const Color(0xFF10B981), const Color(0xFFF0FDF4)),
-      _StatDef('Likes\nReceived',    '⭐', const Color(0xFFE8A000), const Color(0xFFFFFBEB)),
-      _StatDef('Comments\nReceived', '💬', const Color(0xFFEC4899), const Color(0xFFFFF1F2)),
-      _StatDef('Total\nProjects',    '🏗️', const Color(0xFF8B5CF6), const Color(0xFFF5F3FF)),
+      _StatDef('Videos\nWatched',    '🎬', const Color(0xFF8AB4F8), const Color(0xFFF1F6FE)),
+      _StatDef('Ongoing\nProjects',  '🔧', const Color(0xFF4285F4), const Color(0xFFE8F0FE)),
+      _StatDef('Completed\nBuilds',  '✅', const Color(0xFF34A853), const Color(0xFFE6F4EA)),
+      _StatDef('Likes\nReceived',    '⭐', const Color(0xFFF9AB00), const Color(0xFFFEF7E0)),
+      _StatDef('Comments\nReceived', '💬', const Color(0xFFEA4335), const Color(0xFFFFF1F2)),
+      _StatDef('Total\nProjects',    '🏗️', const Color(0xFF669DF6), const Color(0xFFE8F0FE)),
     ];
 
     return Wrap(
@@ -1195,7 +1128,7 @@ class _ProfileState extends State<Profile>
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFE8EAFF)),
+        border: Border.all(color: const Color(0xFFE8F0FE)),
       ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         if (top.isEmpty)
@@ -1256,7 +1189,7 @@ class _ProfileState extends State<Profile>
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFE8EAFF)),
+        border: Border.all(color: const Color(0xFFE8F0FE)),
       ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(children: [
@@ -1266,11 +1199,11 @@ class _ProfileState extends State<Profile>
           GestureDetector(
             onTap: edit,
             child: Row(mainAxisSize: MainAxisSize.min, children: [
-              const Icon(Icons.edit_outlined, size: 14, color: Color(0xFF5B6EF5)),
+              const Icon(Icons.edit_outlined, size: 14, color: Color(0xFF4285F4)),
               const SizedBox(width: 4),
               Text('Edit',
                   style: GoogleFonts.nunito(
-                      fontSize: 12, fontWeight: FontWeight.w800, color: const Color(0xFF5B6EF5))),
+                      fontSize: 12, fontWeight: FontWeight.w800, color: const Color(0xFF4285F4))),
             ]),
           ),
         ]),
@@ -1289,12 +1222,12 @@ class _ProfileState extends State<Profile>
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFEEF0FF),
+                    color: const Color(0xFFE8F0FE),
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Text(i,
                       style: GoogleFonts.nunito(
-                          fontSize: 11.5, fontWeight: FontWeight.w700, color: const Color(0xFF3F51B5))),
+                          fontSize: 11.5, fontWeight: FontWeight.w700, color: const Color(0xFF1A73E8))),
                 ),
             ]),
           for (final r in rows)
@@ -1333,7 +1266,7 @@ class _ProfileState extends State<Profile>
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: const Color(0xFFE8EAFF)),
+          border: Border.all(color: const Color(0xFFE8F0FE)),
           boxShadow: [BoxShadow(
               color: Colors.black.withOpacity(0.04),
               blurRadius: 8, offset: const Offset(0, 2))],
@@ -1363,7 +1296,7 @@ class _ProfileState extends State<Profile>
       onPressed: _logout,
       style: ElevatedButton.styleFrom(
         backgroundColor: const Color(0xFFFEE2E2),
-        foregroundColor: const Color(0xFFEF4444),
+        foregroundColor: const Color(0xFFEA4335),
         elevation: 0,
         padding: const EdgeInsets.symmetric(vertical: 16),
         shape: RoundedRectangleBorder(
@@ -1372,7 +1305,7 @@ class _ProfileState extends State<Profile>
       label: Text('Logout',
           style: GoogleFonts.nunito(
               fontWeight: FontWeight.w700, fontSize: 15,
-              color: const Color(0xFFEF4444))),
+              color: const Color(0xFFEA4335))),
     ),
   );
 }

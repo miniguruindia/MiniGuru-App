@@ -37,7 +37,7 @@ class _MakerCardSheet extends StatelessWidget {
           if (snap.connectionState != ConnectionState.done) {
             return const SizedBox(
               height: 220,
-              child: Center(child: CircularProgressIndicator(color: Color(0xFF5B6EF5))),
+              child: Center(child: CircularProgressIndicator(color: Color(0xFF4285F4))),
             );
           }
           final d = snap.data;
@@ -91,7 +91,7 @@ class _MakerCardSheet extends StatelessWidget {
             gradient: LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
-                colors: [Color(0xFF5B6EF5), Color(0xFF8B5CF6)]),
+                colors: [Color(0xFF4285F4), Color(0xFF669DF6)]),
             borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
           ),
           child: Column(children: [
@@ -131,12 +131,12 @@ class _MakerCardSheet extends StatelessWidget {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFEEF0FF),
+                      color: const Color(0xFFE8F0FE),
                       borderRadius: BorderRadius.circular(20),
                     ),
                     child: Text(i,
                         style: GoogleFonts.nunito(
-                            fontSize: 12, fontWeight: FontWeight.w700, color: const Color(0xFF3F51B5))),
+                            fontSize: 12, fontWeight: FontWeight.w700, color: const Color(0xFF1A73E8))),
                   ),
               ]),
               const SizedBox(height: 12),

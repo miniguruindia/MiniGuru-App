@@ -102,7 +102,7 @@ class _PinEntryScreenState extends State<PinEntryScreen>
                 height: 90,
                 decoration: const BoxDecoration(
                   gradient: LinearGradient(
-                      colors: [Color(0xFF5B6EF5), Color(0xFF8B9FF8)]),
+                      colors: [Color(0xFF4285F4), Color(0xFF8AB4F8)]),
                   shape: BoxShape.circle,
                 ),
                 child: Center(

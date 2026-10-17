@@ -14,13 +14,13 @@ import 'package:miniguru/network/MiniguruApi.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-const Color _bg     = Color(0xFFF5F7FF);
+const Color _bg     = Color(0xFFF1F6FE);
 const Color _ink    = Color(0xFF1A1A2E);
-const Color _accent = Color(0xFF5B6EF5);
-const Color _amber  = Color(0xFFE8A000);
+const Color _accent = Color(0xFF4285F4);
+const Color _amber  = Color(0xFFF9AB00);
 const Color _card   = Color(0xFFFFFFFF);
 const Color _muted  = Color(0xFF8888AA);
-const Color _green  = Color(0xFF2E7D32);
+const Color _green  = Color(0xFF1E8E3E);
 const Color _orange = Color(0xFFFF9900);
 
 const double _cardH = 232.0; // room for the Goins line
@@ -394,7 +394,7 @@ class _ShopState extends State<Shop>
             Text(m['name']?.toString() ?? '', maxLines: 2, overflow: TextOverflow.ellipsis,
                 style: GoogleFonts.nunito(fontSize: 13, fontWeight: FontWeight.w800, color: _ink)),
             Text('🪙 ${_goinsOf(m)} Goins per $unit',
-                style: GoogleFonts.nunito(fontSize: 11, fontWeight: FontWeight.w700, color: const Color(0xFFB45309))),
+                style: GoogleFonts.nunito(fontSize: 11, fontWeight: FontWeight.w700, color: const Color(0xFFB06F00))),
             if (reason.isNotEmpty)
               Text(reason, maxLines: 2, overflow: TextOverflow.ellipsis,
                   style: GoogleFonts.nunito(fontSize: 11, color: _muted)),
@@ -522,7 +522,7 @@ class _ShopState extends State<Shop>
               Text(o['name']?.toString() ?? '', maxLines: 2, overflow: TextOverflow.ellipsis,
                   style: GoogleFonts.nunito(fontSize: 13, fontWeight: FontWeight.w800, color: _ink)),
               Text('🪙 ${_goinsOf(o)} Goins per $unit',
-                  style: GoogleFonts.nunito(fontSize: 11, fontWeight: FontWeight.w700, color: const Color(0xFFB45309))),
+                  style: GoogleFonts.nunito(fontSize: 11, fontWeight: FontWeight.w700, color: const Color(0xFFB06F00))),
             ]),
           ),
           if (ticked)
@@ -668,7 +668,7 @@ class _ShopState extends State<Shop>
                           style: GoogleFonts.nunito(fontWeight: FontWeight.w700, color: Colors.white),
                         )),
                       ]),
-                      backgroundColor: const Color(0xFF2E7D32),
+                      backgroundColor: const Color(0xFF1E8E3E),
                       behavior: SnackBarBehavior.floating,
                       duration: const Duration(seconds: 4),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -701,12 +701,12 @@ class _ShopState extends State<Shop>
               if (sent) ...[
                 Container(
                   padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(color: const Color(0xFFE8F5E9), borderRadius: BorderRadius.circular(12)),
+                  decoration: BoxDecoration(color: const Color(0xFFE6F4EA), borderRadius: BorderRadius.circular(12)),
                   child: Row(children: [
-                    const Icon(Icons.check_circle_rounded, color: Color(0xFF2E7D32)),
+                    const Icon(Icons.check_circle_rounded, color: Color(0xFF1E8E3E)),
                     const SizedBox(width: 10),
                     Expanded(child: Text('Email sent! Parent will receive full kit list with a one-tap Amazon buy link.',
-                        style: GoogleFonts.nunito(fontSize: 13, color: Color(0xFF2E7D32), fontWeight: FontWeight.w700))),
+                        style: GoogleFonts.nunito(fontSize: 13, color: Color(0xFF1E8E3E), fontWeight: FontWeight.w700))),
                   ]),
                 ),
                 const SizedBox(height: 16),
@@ -728,7 +728,7 @@ class _ShopState extends State<Shop>
                     hintText: 'parent@example.com',
                     hintStyle: GoogleFonts.nunito(color: _muted, fontSize: 14),
                     prefixIcon: const Icon(Icons.email_outlined, color: _muted, size: 20),
-                    filled: true, fillColor: const Color(0xFFF8F9FF),
+                    filled: true, fillColor: const Color(0xFFF1F6FE),
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
                     errorText: err,
                   ),
@@ -808,7 +808,7 @@ class _ShopState extends State<Shop>
           Text('Add to kit → buy on Amazon 🛒', style: GoogleFonts.nunito(fontSize: 10, color: Colors.white70)),
         ]),
         background: Container(decoration: const BoxDecoration(
-          gradient: LinearGradient(colors: [Color(0xFF4B5EE4), Color(0xFF7C8EFF)],
+          gradient: LinearGradient(colors: [Color(0xFF4B5EE4), Color(0xFF669DF6)],
               begin: Alignment.topLeft, end: Alignment.bottomRight))),
       ),
     );
@@ -1094,7 +1094,7 @@ class _ShopState extends State<Shop>
       Container(
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          gradient: const LinearGradient(colors: [Color(0xFF4B5EE4), Color(0xFF7C8EFF)],
+          gradient: const LinearGradient(colors: [Color(0xFF4B5EE4), Color(0xFF669DF6)],
               begin: Alignment.topLeft, end: Alignment.bottomRight),
           borderRadius: BorderRadius.circular(14)),
         child: Row(children: [
@@ -1140,7 +1140,7 @@ class _ShopState extends State<Shop>
         const SizedBox(height: 6),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          decoration: BoxDecoration(color: const Color(0xFFFFF8E1), borderRadius: BorderRadius.circular(10),
+          decoration: BoxDecoration(color: const Color(0xFFFEF7E0), borderRadius: BorderRadius.circular(10),
               border: Border.all(color: const Color(0xFFFFE082))),
           child: Row(children: [
             const Icon(Icons.info_outline_rounded, size: 14, color: Color(0xFFE65100)),
@@ -1199,7 +1199,7 @@ class _ShopState extends State<Shop>
           Text(price > 0 ? '₹${price.toStringAsFixed(0)} / $unit' : (hasAmazon ? 'Check on Amazon' : 'Collect locally'),
               style: GoogleFonts.nunito(fontSize: 11, color: _muted)),
           Text('🪙 ${((mat['goinsPrice'] ?? mat['goinsPerUnit'] ?? 0) as num).toInt()} Goins / $unit',
-              style: GoogleFonts.nunito(fontSize: 11, fontWeight: FontWeight.w700, color: const Color(0xFFB45309))),
+              style: GoogleFonts.nunito(fontSize: 11, fontWeight: FontWeight.w700, color: const Color(0xFFB06F00))),
         ])),
         Row(children: [
           _stepBtn(Icons.remove_rounded, () => _changeQty(id, -1)),
@@ -1235,11 +1235,11 @@ class _MaterialTile extends StatelessWidget {
       required this.onAdd, required this.onInc, required this.onDec,
       this.variantCount = 1});
 
-  static const _accent = Color(0xFF5B6EF5);
+  static const _accent = Color(0xFF4285F4);
   static const _ink    = Color(0xFF1A1A2E);
   static const _muted  = Color(0xFF8888AA);
   static const _orange = Color(0xFFFF9900);
-  static const _green  = Color(0xFF2E7D32);
+  static const _green  = Color(0xFF1E8E3E);
 
   @override
   Widget build(BuildContext context) {
@@ -1310,7 +1310,7 @@ class _MaterialTile extends StatelessWidget {
                 overflow: TextOverflow.ellipsis,
               ),
               Text('🪙 $goins Goins per $unit',
-                  style: GoogleFonts.nunito(fontSize: 11, fontWeight: FontWeight.w800, color: const Color(0xFFB45309)),
+                  style: GoogleFonts.nunito(fontSize: 11, fontWeight: FontWeight.w800, color: const Color(0xFFB06F00)),
                   maxLines: 1, overflow: TextOverflow.ellipsis),
               if (price > 0)
                 Text('Est. price — see Amazon for current rate',

@@ -6,10 +6,10 @@ import 'package:miniguru/models/GoinTransaction.dart';
 import 'package:miniguru/repository/GoinsRepository.dart';
 
 // ── Colours ──────────────────────────────────────────────────
-const _blue  = Color(0xFF3B82F6);
-const _green = Color(0xFF10B981);
-const _amber = Color(0xFFF59E0B);
-const _red   = Color(0xFFEF4444);
+const _blue  = Color(0xFF4285F4);
+const _green = Color(0xFF34A853);
+const _amber = Color(0xFFF9AB00);
+const _red   = Color(0xFFEA4335);
 const _card  = Color(0xFF1E293B);
 
 // ─────────────────────────────────────────────────────────────
@@ -497,7 +497,7 @@ class _GoinsAwardDialog extends StatelessWidget {
                 decoration: BoxDecoration(
                   gradient: const LinearGradient(colors: [
                     Color(0xFF1E3A8A),
-                    Color(0xFF3B82F6)
+                    Color(0xFF4285F4)
                   ]),
                   borderRadius: BorderRadius.circular(12),
                 ),

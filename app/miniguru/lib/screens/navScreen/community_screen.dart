@@ -79,11 +79,11 @@ class _CommunityScreenState extends State<CommunityScreen>
       case 'FEATURED':
         return const Color(0xFFFFD60A);
       case 'UPCOMING':
-        return const Color(0xFF3B82F6);
+        return const Color(0xFF4285F4);
       case 'MILESTONE':
-        return const Color(0xFF10B981);
+        return const Color(0xFF34A853);
       case 'AWARD':
-        return const Color(0xFFEC4899);
+        return const Color(0xFFEA4335);
       case 'PAST':
       case 'PAST HIGHLIGHT':
         return const Color(0xFF6B6B8A);
@@ -104,12 +104,12 @@ class _CommunityScreenState extends State<CommunityScreen>
 
   Color _categoryColor(String category) {
     final c = category.toLowerCase();
-    if (c.contains('electr')) return const Color(0xFFF59E0B);
-    if (c.contains('robot')) return const Color(0xFF8B5CF6);
-    if (c.contains('scien')) return const Color(0xFF10B981);
-    if (c.contains('mechan')) return const Color(0xFF3B82F6);
-    if (c.contains('art') || c.contains('craft')) return const Color(0xFFEC4899);
-    return const Color(0xFF3B82F6);
+    if (c.contains('electr')) return const Color(0xFFF9AB00);
+    if (c.contains('robot')) return const Color(0xFF669DF6);
+    if (c.contains('scien')) return const Color(0xFF34A853);
+    if (c.contains('mechan')) return const Color(0xFF4285F4);
+    if (c.contains('art') || c.contains('craft')) return const Color(0xFFEA4335);
+    return const Color(0xFF4285F4);
   }
 
   String _resourceEmoji(String type) {
@@ -130,15 +130,15 @@ class _CommunityScreenState extends State<CommunityScreen>
   Color _resourceColor(String type) {
     switch (type.toUpperCase()) {
       case 'PDF':
-        return const Color(0xFF3B82F6);
+        return const Color(0xFF4285F4);
       case 'DOC':
-        return const Color(0xFF8B5CF6);
+        return const Color(0xFF669DF6);
       case 'VIDEO':
-        return const Color(0xFFEC4899);
+        return const Color(0xFFEA4335);
       case 'LIST':
-        return const Color(0xFF10B981);
+        return const Color(0xFF34A853);
       default:
-        return const Color(0xFF3B82F6);
+        return const Color(0xFF4285F4);
     }
   }
 
@@ -270,7 +270,7 @@ class _CommunityScreenState extends State<CommunityScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FF),
+      backgroundColor: const Color(0xFFF1F6FE),
       body: NestedScrollView(
         headerSliverBuilder: (_, __) => [_buildHeader()],
         body: TabBarView(
@@ -395,17 +395,17 @@ const _defaultHappenings = [
   _Happening(
     emoji: '🏠', lab: 'Rohan\'s Home Corner', city: 'Mumbai',
     update: 'Completed 12 projects this month — youngest maker to hit Level 3!',
-    tag: 'Milestone', tagColor: Color(0xFF10B981), date: 'Mar 1, 2026',
+    tag: 'Milestone', tagColor: Color(0xFF34A853), date: 'Mar 1, 2026',
   ),
   _Happening(
     emoji: '🏢', lab: 'Maker Hub Bengaluru', city: 'Bengaluru',
     update: 'Opened doors to 40 new young makers from government schools.',
-    tag: 'New Lab', tagColor: Color(0xFF3B82F6), date: 'Feb 28, 2026',
+    tag: 'New Lab', tagColor: Color(0xFF4285F4), date: 'Feb 28, 2026',
   ),
   _Happening(
     emoji: '🏫', lab: 'DPS Innovation Lab', city: 'Delhi',
     update: 'Won regional STEAM fair with their MiniGuru robotics project.',
-    tag: 'Award', tagColor: Color(0xFFEC4899), date: 'Feb 25, 2026',
+    tag: 'Award', tagColor: Color(0xFFEA4335), date: 'Feb 25, 2026',
   ),
 ];
 
@@ -414,19 +414,19 @@ const _defaultChallenges = [
     title: 'Bridge Builder March', category: 'Mechanics', categoryEmoji: '⚙️',
     desc: 'Build the strongest bridge using only cardboard and rubber bands. Max span: 30cm.',
     status: 0, reward: 200, deadline: 'Mar 15, 2026', participants: 87,
-    color: Color(0xFF3B82F6),
+    color: Color(0xFF4285F4),
   ),
   _Challenge(
     title: 'Solar Science Sprint', category: 'Science', categoryEmoji: '🔬',
     desc: 'Build a device powered only by sunlight. Anything goes — fan, car, pump!',
     status: 0, reward: 300, deadline: 'Mar 20, 2026', participants: 54,
-    color: Color(0xFF10B981),
+    color: Color(0xFF34A853),
   ),
   _Challenge(
     title: 'LED Art Festival', category: 'ArtCraft', categoryEmoji: '🎨',
     desc: 'Create illuminated artwork using LEDs. Judged on creativity and circuit design.',
     status: 1, reward: 150, deadline: 'Apr 1, 2026', participants: 0,
-    color: Color(0xFFEC4899),
+    color: Color(0xFFEA4335),
   ),
 ];
 
@@ -434,32 +434,32 @@ const _defaultResources = [
   _Resource(
     emoji: '📋', title: 'Project Planning Template', tag: 'Students',
     desc: 'A fillable PDF to plan your next STEAM project step by step.',
-    tagColor: Color(0xFF3B82F6), type: 'PDF', url: '',
+    tagColor: Color(0xFF4285F4), type: 'PDF', url: '',
   ),
   _Resource(
     emoji: '🏫', title: 'T-LAB Setup Guide', tag: 'Schools',
     desc: 'Complete guide for schools to set up a tinkering lab from scratch.',
-    tagColor: Color(0xFF10B981), type: 'PDF', url: '',
+    tagColor: Color(0xFF34A853), type: 'PDF', url: '',
   ),
   _Resource(
     emoji: '🎓', title: 'Mentor Handbook', tag: 'Mentors',
     desc: 'How to guide young makers — facilitation tips for parents and teachers.',
-    tagColor: Color(0xFF8B5CF6), type: 'PDF', url: '',
+    tagColor: Color(0xFF669DF6), type: 'PDF', url: '',
   ),
   _Resource(
     emoji: '🔋', title: 'Electronics Starter Kit List', tag: 'Students',
     desc: 'Curated list of components every home T-LAB should have under ₹2,000.',
-    tagColor: Color(0xFF3B82F6), type: 'List', url: '',
+    tagColor: Color(0xFF4285F4), type: 'List', url: '',
   ),
   _Resource(
     emoji: '🤖', title: 'Robotics Challenge Toolkit', tag: 'Challenge',
     desc: 'Worksheets, circuit diagrams and tips for the monthly robot challenge.',
-    tagColor: Color(0xFFEC4899), type: 'ZIP', url: '',
+    tagColor: Color(0xFFEA4335), type: 'ZIP', url: '',
   ),
   _Resource(
     emoji: '📊', title: 'STEAM Skills Rubric', tag: 'Schools',
     desc: 'Assessment rubric for teachers to evaluate project quality and creativity.',
-    tagColor: Color(0xFF10B981), type: 'XLSX', url: '',
+    tagColor: Color(0xFF34A853), type: 'XLSX', url: '',
   ),
 ];
 
@@ -504,10 +504,10 @@ class _HappeningCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE8EAFF)),
+        border: Border.all(color: const Color(0xFFE8F0FE)),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF5B6EF5).withOpacity(0.06),
+            color: const Color(0xFF4285F4).withOpacity(0.06),
             blurRadius: 12,
             offset: const Offset(0, 3),
           ),
@@ -541,7 +541,7 @@ class _HappeningCard extends StatelessWidget {
                 style: GoogleFonts.nunito(
                     fontSize: 10, fontWeight: FontWeight.w700,
                     color: h.tagColor == const Color(0xFFFFD60A)
-                        ? const Color(0xFF8B6800)
+                        ? const Color(0xFFB06F00)
                         : h.tagColor)),
           ),
         ]),
@@ -565,7 +565,7 @@ class _SetupBanner extends StatelessWidget {
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
-          colors: [Color(0xFF3B82F6), Color(0xFF1D4ED8)],
+          colors: [Color(0xFF4285F4), Color(0xFF1D4ED8)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -595,7 +595,7 @@ class _SetupBanner extends StatelessWidget {
                 child: Text('Apply now →',
                     style: GoogleFonts.nunito(
                         fontSize: 12, fontWeight: FontWeight.w800,
-                        color: const Color(0xFF3B82F6))),
+                        color: const Color(0xFF4285F4))),
               ),
             ),
           ]),
@@ -636,9 +636,9 @@ class _ChallengesTabState extends State<_ChallengesTab> {
         ),
         const SizedBox(height: 12),
         Row(children: [
-          _filterChip('Ongoing', 0, const Color(0xFF10B981)),
+          _filterChip('Ongoing', 0, const Color(0xFF34A853)),
           const SizedBox(width: 8),
-          _filterChip('Upcoming', 1, const Color(0xFF3B82F6)),
+          _filterChip('Upcoming', 1, const Color(0xFF4285F4)),
           const SizedBox(width: 8),
           _filterChip('Past', 2, const Color(0xFF6B6B8A)),
         ]),
@@ -671,7 +671,7 @@ class _ChallengesTabState extends State<_ChallengesTab> {
         decoration: BoxDecoration(
           color: active ? color : Colors.white,
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: active ? color : const Color(0xFFE8EAFF)),
+          border: Border.all(color: active ? color : const Color(0xFFE8F0FE)),
         ),
         child: Text(label,
             style: GoogleFonts.nunito(
@@ -723,8 +723,8 @@ class _ChallengeCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final statusLabel = ['ONGOING', 'UPCOMING', 'ENDED'][c.status];
     final statusColor = [
-      const Color(0xFF10B981),
-      const Color(0xFF3B82F6),
+      const Color(0xFF34A853),
+      const Color(0xFF4285F4),
       const Color(0xFF6B6B8A),
     ][c.status];
 
@@ -732,7 +732,7 @@ class _ChallengeCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE8EAFF)),
+        border: Border.all(color: const Color(0xFFE8F0FE)),
         boxShadow: [
           BoxShadow(
             color: c.color.withOpacity(0.07),
@@ -780,14 +780,14 @@ class _ChallengeCard extends StatelessWidget {
             const SizedBox(height: 12),
             Row(children: [
               _pill('🪙 ${c.reward}G reward',
-                  const Color(0xFFE8A000), const Color(0xFFFFF3CC)),
+                  const Color(0xFFF9AB00), const Color(0xFFFFF3CC)),
               const SizedBox(width: 8),
               _pill('📅 ${c.deadline}',
-                  const Color(0xFF3B82F6), const Color(0xFFDDE1FF)),
+                  const Color(0xFF4285F4), const Color(0xFFE8F0FE)),
               if (c.participants > 0) ...[
                 const SizedBox(width: 8),
                 _pill('👥 ${c.participants}',
-                    const Color(0xFF10B981), const Color(0xFFD4F5EE)),
+                    const Color(0xFF34A853), const Color(0xFFE6F4EA)),
               ],
             ]),
             if (c.status != 2) ...[
@@ -852,12 +852,12 @@ class _LadderTabState extends State<_LadderTab> {
   ];
 
   static const _badges = [
-    _Badge('🎬', 'Director',   'Upload 5 project videos',       Color(0xFFEC4899)),
-    _Badge('⭐', 'Star Maker', 'Get 50 likes total',             Color(0xFFE8A000)),
-    _Badge('🤝', 'Mentor',     'Help 10 other makers',           Color(0xFF3B82F6)),
-    _Badge('🔥', 'Streak',     '7-day activity streak',          Color(0xFFEF4444)),
-    _Badge('🏅', 'Champion',   'Win a challenge',                Color(0xFF8B5CF6)),
-    _Badge('🌏', 'Global',     'Project viewed in 5 countries',  Color(0xFF10B981)),
+    _Badge('🎬', 'Director',   'Upload 5 project videos',       Color(0xFFEA4335)),
+    _Badge('⭐', 'Star Maker', 'Get 50 likes total',             Color(0xFFF9AB00)),
+    _Badge('🤝', 'Mentor',     'Help 10 other makers',           Color(0xFF4285F4)),
+    _Badge('🔥', 'Streak',     '7-day activity streak',          Color(0xFFEA4335)),
+    _Badge('🏅', 'Champion',   'Win a challenge',                Color(0xFF669DF6)),
+    _Badge('🌏', 'Global',     'Project viewed in 5 countries',  Color(0xFF34A853)),
   ];
 
   // ── Period boards (Oct 2026) ───────────────────────────────────────────
@@ -907,7 +907,7 @@ class _LadderTabState extends State<_LadderTab> {
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: const Color(0xFFE8EAFF)),
+          border: Border.all(color: const Color(0xFFE8F0FE)),
         ),
         child: Row(children: [
           Expanded(
@@ -917,9 +917,9 @@ class _LadderTabState extends State<_LadderTab> {
           ),
           Text(_levelsOpen ? 'Hide' : 'Show',
               style: GoogleFonts.nunito(
-                  fontSize: 12, fontWeight: FontWeight.w800, color: const Color(0xFF5B6EF5))),
+                  fontSize: 12, fontWeight: FontWeight.w800, color: const Color(0xFF4285F4))),
           Icon(_levelsOpen ? Icons.expand_less : Icons.expand_more,
-              size: 20, color: const Color(0xFF5B6EF5)),
+              size: 20, color: const Color(0xFF4285F4)),
         ]),
       ),
     );
@@ -1003,16 +1003,16 @@ class _LadderTabState extends State<_LadderTab> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
         decoration: BoxDecoration(
-          color: selected ? const Color(0xFF5B6EF5) : Colors.white,
+          color: selected ? const Color(0xFF4285F4) : Colors.white,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
-              color: selected ? const Color(0xFF5B6EF5) : const Color(0xFFE8EAFF)),
+              color: selected ? const Color(0xFF4285F4) : const Color(0xFFE8F0FE)),
         ),
         child: Text(label,
             style: GoogleFonts.nunito(
                 fontSize: 12,
                 fontWeight: FontWeight.w800,
-                color: selected ? Colors.white : const Color(0xFF3F51B5))),
+                color: selected ? Colors.white : const Color(0xFF1A73E8))),
       ),
     );
   }
@@ -1032,10 +1032,10 @@ class _LadderTabState extends State<_LadderTab> {
       margin: const EdgeInsets.only(bottom: 6),
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       decoration: BoxDecoration(
-        color: isMe ? const Color(0xFFEEF0FF) : Colors.white,
+        color: isMe ? const Color(0xFFE8F0FE) : Colors.white,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-            color: isMe ? const Color(0xFF5B6EF5) : const Color(0xFFE8EAFF)),
+            color: isMe ? const Color(0xFF4285F4) : const Color(0xFFE8F0FE)),
       ),
       child: Row(children: [
         SizedBox(
@@ -1069,7 +1069,7 @@ class _LadderTabState extends State<_LadderTab> {
               style: GoogleFonts.nunito(
                   fontSize: 11,
                   fontWeight: FontWeight.w800,
-                  color: const Color(0xFF8B6800))),
+                  color: const Color(0xFFB06F00))),
         ),
       ]),
     );
@@ -1192,7 +1192,7 @@ class _LadderTabState extends State<_LadderTab> {
           const Center(
             child: Padding(
               padding: EdgeInsets.symmetric(vertical: 28),
-              child: CircularProgressIndicator(color: Color(0xFF5B6EF5), strokeWidth: 2),
+              child: CircularProgressIndicator(color: Color(0xFF4285F4), strokeWidth: 2),
             ),
           )
         else if (_boardError)
@@ -1207,7 +1207,7 @@ class _LadderTabState extends State<_LadderTab> {
           Container(
             padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
-              color: const Color(0xFFF5F7FF),
+              color: const Color(0xFFF1F6FE),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Text(
@@ -1219,7 +1219,7 @@ class _LadderTabState extends State<_LadderTab> {
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: const Color(0xFFF5F7FF),
+              color: const Color(0xFFF1F6FE),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Text(
@@ -1236,7 +1236,7 @@ class _LadderTabState extends State<_LadderTab> {
                   style: GoogleFonts.nunito(
                       fontSize: 13,
                       fontWeight: FontWeight.w800,
-                      color: const Color(0xFF3F51B5))),
+                      color: const Color(0xFF1A73E8))),
             ),
           if (usePodium)
             Row(
@@ -1269,7 +1269,7 @@ class _LadderTabState extends State<_LadderTab> {
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: const Color(0xFFE8EAFF)),
+                  border: Border.all(color: const Color(0xFFE8F0FE)),
                 ),
                 child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                   Text((w['label'] ?? '').toString(),
@@ -1357,7 +1357,7 @@ class _LadderTabState extends State<_LadderTab> {
             child: Padding(
               padding: EdgeInsets.symmetric(vertical: 32),
               child: CircularProgressIndicator(
-                  color: Color(0xFF5B6EF5), strokeWidth: 2),
+                  color: Color(0xFF4285F4), strokeWidth: 2),
             ),
           )
         else ...[
@@ -1395,7 +1395,7 @@ class _LadderTabState extends State<_LadderTab> {
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: const Color(0xFFE8EAFF)),
+                border: Border.all(color: const Color(0xFFE8F0FE)),
               ),
               child: Column(
                 children: rest.asMap().entries.map((e) => _LeaderRow(
@@ -1497,7 +1497,7 @@ class _PodiumCard extends StatelessWidget {
           '${leader.score}G',
           style: GoogleFonts.nunito(
               fontSize: 10, fontWeight: FontWeight.w700,
-              color: const Color(0xFF8B6800)),
+              color: const Color(0xFFB06F00)),
         ),
         const SizedBox(height: 4),
         // Podium block
@@ -1606,14 +1606,14 @@ class _LeaderRow extends StatelessWidget {
     ];
     final rankColor = leader.rank <= 3
         ? topColors[leader.rank - 1]
-        : const Color(0xFFE8EAFF);
+        : const Color(0xFFE8F0FE);
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
         border: isLast
             ? null
-            : const Border(bottom: BorderSide(color: Color(0xFFE8EAFF))),
+            : const Border(bottom: BorderSide(color: Color(0xFFE8F0FE))),
       ),
       child: Row(children: [
         Container(
@@ -1651,7 +1651,7 @@ class _LeaderRow extends StatelessWidget {
           child: Text('🪙 ${leader.score}G',
               style: GoogleFonts.nunito(
                   fontSize: 11, fontWeight: FontWeight.w800,
-                  color: const Color(0xFF8B6800))),
+                  color: const Color(0xFFB06F00))),
         ),
       ]),
     );
@@ -1685,7 +1685,7 @@ class _ResourcesTab extends StatelessWidget {
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: const Color(0xFFE8EAFF)),
+              border: Border.all(color: const Color(0xFFE8F0FE)),
             ),
             child: Text(
                 'New guides and handbooks are on the way — patent how-tos, '
@@ -1741,7 +1741,7 @@ class _PatentInfoCard extends StatelessWidget {
       margin: const EdgeInsets.only(top: 6),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFFFFFBEB),
+        color: const Color(0xFFFEF7E0),
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: const Color(0xFFFDE68A)),
       ),
@@ -1761,21 +1761,21 @@ class _PatentInfoCard extends StatelessWidget {
         const SizedBox(height: 4),
         Text('Learn more from the official sources',
             style: GoogleFonts.nunito(
-                fontSize: 12, fontWeight: FontWeight.w800, color: const Color(0xFF92400E))),
+                fontSize: 12, fontWeight: FontWeight.w800, color: const Color(0xFFB06F00))),
         const SizedBox(height: 4),
         ..._links.map((l) => InkWell(
               onTap: () => launchUrl(Uri.parse(l[1]), mode: LaunchMode.externalApplication),
               child: Padding(
                 padding: const EdgeInsets.symmetric(vertical: 4),
                 child: Row(children: [
-                  const Icon(Icons.open_in_new_rounded, size: 14, color: Color(0xFF3B82F6)),
+                  const Icon(Icons.open_in_new_rounded, size: 14, color: Color(0xFF4285F4)),
                   const SizedBox(width: 6),
                   Expanded(
                     child: Text(l[0],
                         style: GoogleFonts.nunito(
                             fontSize: 12,
                             fontWeight: FontWeight.w700,
-                            color: const Color(0xFF3B82F6),
+                            color: const Color(0xFF4285F4),
                             decoration: TextDecoration.underline)),
                   ),
                 ]),
@@ -1797,7 +1797,7 @@ class _ResourceCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFE8EAFF)),
+        border: Border.all(color: const Color(0xFFE8F0FE)),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.03),
@@ -1871,11 +1871,11 @@ class _ResourceCard extends StatelessWidget {
           child: Container(
             width: 36, height: 36,
             decoration: BoxDecoration(
-              color: const Color(0xFFEFF6FF),
+              color: const Color(0xFFF1F6FE),
               borderRadius: BorderRadius.circular(10),
             ),
             child: const Icon(Icons.download_rounded,
-                color: Color(0xFF3B82F6), size: 18),
+                color: Color(0xFF4285F4), size: 18),
           ),
         ),
       ]),

@@ -165,7 +165,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     width: double.infinity,
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFF0F2FF),
+                      color: const Color(0xFFE8F0FE),
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: SelectableText(loginEmail,
@@ -397,7 +397,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         const SizedBox(height: 8),
         Text('MiniGuru',
             style: GoogleFonts.nunito(
-                fontWeight: FontWeight.w900, fontSize: 32, color: const Color(0xFF1B5E20))),
+                fontWeight: FontWeight.w900, fontSize: 32, color: const Color(0xFF1E8E3E))),
         Text('Create Account',
             style: GoogleFonts.nunito(
                 fontSize: 26, fontWeight: FontWeight.w900, color: Colors.black87)),
@@ -410,7 +410,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
           emoji: '🧒',
           title: 'Child / Individual',
           subtitle: 'I am a student aged 8–14\nregistering for myself',
-          gradient: const LinearGradient(colors: [Color(0xFF5B6EF5), Color(0xFF8B9FF8)]),
+          gradient: const LinearGradient(colors: [Color(0xFF4285F4), Color(0xFF8AB4F8)]),
         ),
         const SizedBox(height: 16),
         _typeCard(
@@ -418,7 +418,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
           emoji: '👨‍👩‍👧',
           title: 'Parent / Guardian',
           subtitle: 'I am registering my child\nor children',
-          gradient: const LinearGradient(colors: [Color(0xFFE8A000), Color(0xFFF5C842)]),
+          gradient: const LinearGradient(colors: [Color(0xFFF9AB00), Color(0xFFFDD663)]),
         ),
         const SizedBox(height: 16),
         _typeCard(
@@ -426,7 +426,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
           emoji: '🏫',
           title: 'School / T-LAB',
           subtitle: 'I am registering students\nfrom a school or makerspace',
-          gradient: const LinearGradient(colors: [Color(0xFF2ECC71), Color(0xFF55E89D)]),
+          gradient: const LinearGradient(colors: [Color(0xFF34A853), Color(0xFF81C995)]),
         ),
         const SizedBox(height: 32),
         SizedBox(
@@ -596,7 +596,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFE8EAF6),
+                  color: const Color(0xFFE8F0FE),
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(color: pastelBlueText.withOpacity(0.3)),
                 ),
@@ -882,7 +882,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
           decoration: BoxDecoration(
-            color: const Color(0xFFE8EAF6),
+            color: const Color(0xFFE8F0FE),
             borderRadius: BorderRadius.circular(10),
           ),
           child: Row(
@@ -946,7 +946,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
             decoration: BoxDecoration(
-              color: const Color(0xFFFFEBEE),
+              color: const Color(0xFFFCE8E6),
               borderRadius: BorderRadius.circular(10),
             ),
             child: Row(
@@ -996,16 +996,16 @@ class _RegisterScreenState extends State<RegisterScreen> {
         Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: const Color(0xFFE8F5E9),
+            color: const Color(0xFFE6F4EA),
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: const Color(0xFF2E7D32).withOpacity(0.2)),
+            border: Border.all(color: const Color(0xFF1E8E3E).withOpacity(0.2)),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text('📌 Save these login details!',
                   style: GoogleFonts.nunito(
-                      fontWeight: FontWeight.w900, fontSize: 14, color: const Color(0xFF2E7D32))),
+                      fontWeight: FontWeight.w900, fontSize: 14, color: const Color(0xFF1E8E3E))),
               const SizedBox(height: 8),
               Text('Login ID: $_miniguruId',
                   style: GoogleFonts.nunito(fontWeight: FontWeight.w700, fontSize: 13)),
