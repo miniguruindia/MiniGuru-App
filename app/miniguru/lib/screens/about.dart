@@ -745,7 +745,7 @@ class _PlatformFeaturesSection extends StatelessWidget {
                   const SizedBox(height: 16),
                   _FeatureCard(
                     icon: Icons.shopping_bag_outlined,
-                    iconColor: const Color(0xFF7B1FA2),
+                    iconColor: const Color(0xFF1A73E8),
                     title: 'Materials for Your Projects',
                     body: 'The MiniGuru shop carries curated tinkering materials — '
                         'electronics components, craft supplies, and making tools — at '
@@ -792,7 +792,7 @@ class _PlatformFeaturesSection extends StatelessWidget {
                         const SizedBox(height: 20),
                         _FeatureCard(
                           icon: Icons.shopping_bag_outlined,
-                          iconColor: const Color(0xFF7B1FA2),
+                          iconColor: const Color(0xFF1A73E8),
                           title: 'Materials for Your Projects',
                           body: 'The MiniGuru shop carries curated tinkering materials — '
                               'electronics components, craft supplies, and making tools — at '

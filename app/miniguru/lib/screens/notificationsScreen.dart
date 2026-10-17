@@ -88,7 +88,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           icon: const Icon(Icons.arrow_back_rounded, color: Colors.white),
           onPressed: () => Navigator.of(context).maybePop(),
         ),
-        const Icon(Icons.notifications_rounded, color: Color(0xFFFBBC04), size: 26),
+        const Icon(Icons.notifications_rounded, color: Color(0xFFF9AB00), size: 26),
         const SizedBox(width: 8),
         Expanded(
           child: Text('Notifications',

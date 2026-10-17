@@ -1143,10 +1143,10 @@ class _ShopState extends State<Shop>
           decoration: BoxDecoration(color: const Color(0xFFFEF7E0), borderRadius: BorderRadius.circular(10),
               border: Border.all(color: const Color(0xFFFFE082))),
           child: Row(children: [
-            const Icon(Icons.info_outline_rounded, size: 14, color: Color(0xFFE65100)),
+            const Icon(Icons.info_outline_rounded, size: 14, color: Color(0xFFF9AB00)),
             const SizedBox(width: 6),
             Expanded(child: Text('Make sure your parent is logged into Amazon before tapping above.',
-                style: GoogleFonts.nunito(fontSize: 11, color: Color(0xFFE65100)))),
+                style: GoogleFonts.nunito(fontSize: 11, color: Color(0xFFF9AB00)))),
           ]),
         ),
         const SizedBox(height: 10),

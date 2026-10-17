@@ -39,8 +39,8 @@ class _MentorActivityTabState extends State<MentorActivityTab> {
     [Color(0xFF4285F4), Color(0xFF8AB4F8)],
     [Color(0xFFF9AB00), Color(0xFFFDD663)],
     [Color(0xFF34A853), Color(0xFF81C995)],
-    [Color(0xFFE74C3C), Color(0xFFFF7675)],
-    [Color(0xFF9B59B6), Color(0xFFBE85D4)],
+    [Color(0xFFE74C3C), Color(0xFFEA4335)],
+    [Color(0xFF669DF6), Color(0xFFAECBFA)],
   ];
 
   @override

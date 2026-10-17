@@ -825,12 +825,12 @@ class _ProfileState extends State<Profile>
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: inDebt
-              ? const [Color(0xFFB0413E), Color(0xFFE57373)]
+              ? const [Color(0xFFEA4335), Color(0xFFEA4335)]
               : const [Color(0xFFF9AB00), Color(0xFFFFCC02)],
           begin: Alignment.topLeft, end: Alignment.bottomRight),
         borderRadius: BorderRadius.circular(18),
         boxShadow: [BoxShadow(
-          color: (inDebt ? const Color(0xFFB0413E) : const Color(0xFFF9AB00)).withOpacity(0.3),
+          color: (inDebt ? const Color(0xFFEA4335) : const Color(0xFFF9AB00)).withOpacity(0.3),
           blurRadius: 12, offset: const Offset(0, 4))],
       ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -902,7 +902,7 @@ class _ProfileState extends State<Profile>
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
               gradient: const LinearGradient(
-                colors: [Color(0xFF667EEA), Color(0xFF764BA2)],
+                colors: [Color(0xFF667EEA), Color(0xFF669DF6)],
                 begin: Alignment.topLeft, end: Alignment.bottomRight),
               borderRadius: BorderRadius.circular(16),
               boxShadow: [BoxShadow(
@@ -1295,7 +1295,7 @@ class _ProfileState extends State<Profile>
     child: ElevatedButton.icon(
       onPressed: _logout,
       style: ElevatedButton.styleFrom(
-        backgroundColor: const Color(0xFFFEE2E2),
+        backgroundColor: const Color(0xFFFCE8E6),
         foregroundColor: const Color(0xFFEA4335),
         elevation: 0,
         padding: const EdgeInsets.symmetric(vertical: 16),

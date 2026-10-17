@@ -621,7 +621,7 @@ class _MakerHandsIllustration extends StatelessWidget {
             width: 200,
             height: 160,
             decoration: BoxDecoration(
-              color: const Color(0xFFFFF3E0),
+              color: const Color(0xFFFEF7E0),
               borderRadius: BorderRadius.circular(24),
               boxShadow: [
                 BoxShadow(
@@ -691,7 +691,7 @@ class _ProjectCollageIllustration extends StatelessWidget {
             Positioned(
               top: 0,
               right: 0,
-              child: _ProjectCard('🌋', 'Volcano', const Color(0xFFE53935)),
+              child: _ProjectCard('🌋', 'Volcano', const Color(0xFFEA4335)),
             ),
             // Bottom-left card
             Positioned(

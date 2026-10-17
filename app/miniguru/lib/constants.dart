@@ -10,12 +10,12 @@ import 'package:google_fonts/google_fonts.dart';
 const backgroundWhite   = Color(0xFFFAFAFA);
 const pastelBlue        = Color(0xFFCBE2FF);
 const pastelRed         = Color(0xFFFFE9EE);
-const pastelYellow      = Color(0xFFFDE0C0);
+const pastelYellow      = Color(0xFFFEF7E0);
 const pastelGreen       = Color(0xFFA6F5A6);
 const buttonBlack       = Color(0xFF121212);
 const pastelBlueText    = Color(0xFF80B8FF);
-const pastelYellowText  = Color(0xFFFAB367);
-const pastelRedText     = Color(0xFFFF9BB5);
+const pastelYellowText  = Color(0xFFFDD663);
+const pastelRedText     = Color(0xFFEA4335);
 const pastelGreenText   = Color(0xFF5AEC5A);
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -76,8 +76,8 @@ class MGColors {
     Color(0xFF34A853),   // mint
     Color(0xFFF9AB00),   // gold
     Color(0xFF0984E3),   // sky
-    Color(0xFFFF9F43),   // orange
-    Color(0xFFEE5A24),   // deep orange
+    Color(0xFFF9AB00),   // orange
+    Color(0xFFF9AB00),   // deep orange
   ];
 
   static const List<Color> categoryPaletteLight = [
@@ -86,8 +86,8 @@ class MGColors {
     Color(0xFFE6F4EA),
     Color(0xFFFFF3CC),
     Color(0xFFD6EEFF),
-    Color(0xFFFFEDD5),
-    Color(0xFFFFE0D4),
+    Color(0xFFFEF7E0),
+    Color(0xFFFEF7E0),
   ];
 
   // ── Text

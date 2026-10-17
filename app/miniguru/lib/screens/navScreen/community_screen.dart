@@ -298,7 +298,7 @@ class _CommunityScreenState extends State<CommunityScreen>
             gradient: LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
-              colors: [Color(0xFF1A1A2E), Color(0xFF3B1F6E)],
+              colors: [Color(0xFF1A1A2E), Color(0xFF1A73E8)],
             ),
           ),
           child: SafeArea(
@@ -846,9 +846,9 @@ class _LadderTabState extends State<_LadderTab> {
     _Level('🌱', 'Sprout',       '0–99G',          'Just starting out',    Color(0xFF86EFAC), 0.0),
     _Level('🔧', 'Builder',      '100–999G',       'Getting handy',        Color(0xFF93C5FD), 0.15),
     _Level('⚙️', 'Engineer',     '1,000–9,999G',   'Serious maker',        Color(0xFFFDE68A), 0.35),
-    _Level('🚀', 'Innovator',    '10,000–99,999G', 'Creating new things',  Color(0xFFFCA5A5), 0.60),
-    _Level('🏆', 'Master Maker', '100,000–999,999G','Top of the ladder',   Color(0xFFD8B4FE), 0.85),
-    _Level('🌟', 'Legend',       '1,000,000G+',    'MiniGuru Hall of Fame',Color(0xFFFDBA74), 1.0),
+    _Level('🚀', 'Innovator',    '10,000–99,999G', 'Creating new things',  Color(0xFFF28B82), 0.60),
+    _Level('🏆', 'Master Maker', '100,000–999,999G','Top of the ladder',   Color(0xFFAECBFA), 0.85),
+    _Level('🌟', 'Legend',       '1,000,000G+',    'MiniGuru Hall of Fame',Color(0xFFFDD663), 1.0),
   ];
 
   static const _badges = [
@@ -1920,7 +1920,7 @@ class _JoinCTA extends StatelessWidget {
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
-          colors: [Color(0xFF1A1A2E), Color(0xFF3B1F6E)],
+          colors: [Color(0xFF1A1A2E), Color(0xFF1A73E8)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),

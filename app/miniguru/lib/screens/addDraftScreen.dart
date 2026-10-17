@@ -891,7 +891,7 @@ class _AddDraftScreenState extends State<AddDraftScreen>
       margin: const EdgeInsets.only(top: 8),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: uploading ? Colors.orange.withOpacity(0.12) : const Color(0xFFFFF4E5),
+        color: uploading ? Colors.orange.withOpacity(0.12) : const Color(0xFFFEF7E0),
         borderRadius: BorderRadius.circular(10),
         border: Border.all(color: Colors.orange.withOpacity(0.4)),
       ),

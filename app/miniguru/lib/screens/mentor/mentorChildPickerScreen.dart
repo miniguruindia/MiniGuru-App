@@ -275,8 +275,8 @@ class _MentorChildPickerScreenState extends State<MentorChildPickerScreen> {
       [const Color(0xFF4285F4), const Color(0xFF8AB4F8)],
       [const Color(0xFFF9AB00), const Color(0xFFFDD663)],
       [const Color(0xFF34A853), const Color(0xFF81C995)],
-      [const Color(0xFFE74C3C), const Color(0xFFFF7675)],
-      [const Color(0xFF9B59B6), const Color(0xFFBE85D4)],
+      [const Color(0xFFE74C3C), const Color(0xFFEA4335)],
+      [const Color(0xFF669DF6), const Color(0xFFAECBFA)],
     ];
     final idx = _children.indexOf(child) % colors.length;
     final gradient = LinearGradient(colors: colors[idx]);

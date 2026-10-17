@@ -148,7 +148,7 @@ class _HomeState extends State<Home> {
   // field of its own — this keeps chips visually distinct and stable).
   static const List<Color> _categoryPalette = [
     Color(0xFF8AB4F8), Color(0xFFFDD663), Color(0xFF81C995), Color(0xFFF28B82),
-    Color(0xFF669DF6), Color(0xFFFCC934), Color(0xFF5BB974), Color(0xFFEE675C),
+    Color(0xFF669DF6), Color(0xFFFDD663), Color(0xFF5BB974), Color(0xFFEE675C),
   ];
 
   List<Map<String, dynamic>> _allVideos = [];

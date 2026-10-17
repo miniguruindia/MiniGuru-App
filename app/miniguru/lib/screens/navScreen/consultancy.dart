@@ -137,7 +137,7 @@ class _ConsultancyPageState extends State<ConsultancyPage> {
       margin: const EdgeInsets.fromLTRB(16, 0, 16, 14),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(colors: [Color(0xFFFEF7E0), Color(0xFFFFE08A)]),
+        gradient: const LinearGradient(colors: [Color(0xFFFEF7E0), Color(0xFFFDD663)]),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: const Color(0xFFF9AB00)),
       ),
@@ -146,7 +146,7 @@ class _ConsultancyPageState extends State<ConsultancyPage> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
             decoration: BoxDecoration(
-              color: const Color(0xFFDC2626),
+              color: const Color(0xFFEA4335),
               borderRadius: BorderRadius.circular(8),
             ),
             child: Text(label,
@@ -254,7 +254,7 @@ class _ConsultancyPageState extends State<ConsultancyPage> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFDC2626),
+                  color: const Color(0xFFEA4335),
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Text(discount,
@@ -1427,7 +1427,7 @@ class _ConsultancyPageState extends State<ConsultancyPage> {
             callout: 'The corner must belong to your child, not to the parent\'s idea '
                 'of what their child should be interested in. This first conversation '
                 'ensures it does.'),
-        _homeStep('02', const Color(0xFF6D28D9),
+        _homeStep('02', const Color(0xFF1A73E8),
             'Your Space & Materials Plan',
             'Based on the conversation, we design a simple layout for the available '
             'space — even a corner of a room or a single dedicated shelf works — '
@@ -2141,7 +2141,7 @@ class _ConsultancyPageState extends State<ConsultancyPage> {
     final bg = highlight ? const Color(0xFF1A5BC4) : Colors.white;
     final textColor = highlight ? Colors.white : Colors.black87;
     final subColor = highlight ? Colors.white60 : Colors.black54;
-    final checkColor = highlight ? const Color(0xFFA78BFA) : const Color(0xFF1A73E8);
+    final checkColor = highlight ? const Color(0xFF669DF6) : const Color(0xFF1A73E8);
 
     return Container(
       padding: const EdgeInsets.all(18),
