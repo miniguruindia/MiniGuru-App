@@ -10,6 +10,29 @@ const authMiddleware_1 = require("../middleware/authMiddleware");
 const router = (0, express_1.Router)();
 const AMAZON_TAG = 'miniguru04-21';
 const FROM_EMAIL = process.env.FROM_EMAIL || 'connect@miniguru.in';
+// Records one emailed materials list for the admin "tentative earnings"
+// estimate. Never blocks or fails the email: any problem is only logged.
+async function recordListShare(source, senderName, rows) {
+    try {
+        const itemCount = rows.length;
+        const amazonRows = rows.filter((r) => r.asin);
+        const amazonValue = Math.round(amazonRows.reduce((s, r) => s + r.price * r.qty, 0));
+        const totalValue = Math.round(rows.reduce((s, r) => s + r.price * r.qty, 0));
+        await prismaClient_1.default.listShare.create({
+            data: {
+                source,
+                senderName: senderName ? senderName.slice(0, 80) : null,
+                itemCount,
+                amazonItems: amazonRows.length,
+                amazonValue,
+                totalValue,
+            },
+        });
+    }
+    catch (e) {
+        console.error('recordListShare failed (email was still sent):', e?.message || e);
+    }
+}
 router.post('/send-to-parent', async (req, res) => {
     try {
         const { childName, parentEmail, projectTitle, items } = req.body;
@@ -61,6 +84,11 @@ ${amazonCartUrl ? '<div style="text-align:center;margin:28px 0"><a href="' + ama
             html,
             fromOverride: emailService_1.OFFICIAL_FROM, // lower-stakes mail, connect@ reserved for OTP/reset
         });
+        await recordListShare('send-to-parent', String(childName || ''), items.map((i) => ({
+            asin: !!i.amazonASIN,
+            price: Number(i.priceEstimate) > 0 ? Number(i.priceEstimate) : 0,
+            qty: Math.max(1, Math.min(999, Math.floor(Number(i.qty)) || 1)),
+        })));
         return res.status(200).json({ success: true, amazonCartUrl, itemCount: items.length });
     }
     catch (err) {
@@ -165,6 +193,7 @@ ${buttons ? '<div style="text-align:center;margin:26px 0">' + buttons + '<p styl
             fromOverride: emailService_1.OFFICIAL_FROM,
         });
         listSendLog.set(ip, [...recent, now]);
+        await recordListShare('send-list', senderName, clean.map((i) => ({ asin: !!i.asin, price: i.price, qty: i.qty })));
         return res.status(200).json({ success: true, itemCount: clean.length, cartParts: cartUrls.length });
     }
     catch (err) {

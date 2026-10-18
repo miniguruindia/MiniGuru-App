@@ -48,6 +48,9 @@ interface Snapshot {
   gcpConsoleOnly: { note: string }
 }
 
+interface AmzBucket { lists: number; amazonListValue: number; allListValue: number; estimatedEarnings: number }
+interface AmzEstimate { commissionPct: number; today: AmzBucket; last30Days: AmzBucket; allTime: AmzBucket; note: string }
+
 function Bar({ used, limit, dangerAt = 0.85 }: { used: number; limit: number; dangerAt?: number }) {
   const pct = limit > 0 ? Math.min(100, (used / limit) * 100) : 0
   const color = pct / 100 >= dangerAt ? 'bg-red-500' : pct / 100 >= 0.6 ? 'bg-amber-500' : 'bg-emerald-500'
@@ -92,6 +95,7 @@ export default function CostDashboardPage() {
   const [data, setData] = useState<Snapshot | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [amz, setAmz] = useState<AmzEstimate | null>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -104,6 +108,10 @@ export default function CostDashboardPage() {
       if (!res.ok) throw new Error(`Server returned ${res.status}`)
       const json = await res.json()
       setData(json)
+      try {
+        const er = await fetch(`${API_BASE}/admin/amazon-estimate`, { headers: { Authorization: `Bearer ${token}` } })
+        if (er.ok) setAmz(await er.json())
+      } catch { /* optional */ }
     } catch (e: any) {
       setError(e?.message || 'Could not load cost dashboard')
     } finally {
@@ -225,6 +233,25 @@ export default function CostDashboardPage() {
                 note={data.amazon.note}
               />
             </div>
+
+            {amz && (
+              <Card className="p-5 mt-4">
+                <div className="flex items-center gap-2 mb-1">
+                  <ShoppingCart className="w-4 h-4 text-gray-500" />
+                  <h3 className="font-semibold text-sm">Materials lists sent to parents / schools (Amazon part)</h3>
+                </div>
+                <div className="grid grid-cols-3 gap-4 mt-3">
+                  {([['Today', amz.today], ['Last 30 days', amz.last30Days], ['All time', amz.allTime]] as const).map(([label, b]) => (
+                    <div key={label}>
+                      <p className="text-xs text-gray-500">{label}</p>
+                      <p className="text-xl font-bold">₹{b.amazonListValue.toLocaleString('en-IN')}</p>
+                      <p className="text-xs text-gray-500">{b.lists} lists · tentative earning ₹{b.estimatedEarnings.toLocaleString('en-IN')}</p>
+                    </div>
+                  ))}
+                </div>
+                <p className="text-xs text-gray-400 mt-3 italic">{amz.note}</p>
+              </Card>
+            )}
 
             <Card className="p-5 mt-4 bg-gray-50 border-dashed">
               <div className="flex items-center gap-2 mb-1">

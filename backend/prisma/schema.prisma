@@ -894,3 +894,20 @@ model GoinsEvent {
   @@index([categoryId, createdAt])
   @@map("goins_events")
 }
+
+// Materials lists a child/school emailed from the Shop (Oct 2026). One row per
+// email sent. Used only for the admin "tentative Amazon earnings" estimate
+// (a % of the Amazon part of each list). No relations, no personal contact
+// details (the recipient address is NOT stored).
+model ListShare {
+  id             String   @id @default(auto()) @map("_id") @db.ObjectId
+  source         String   // "send-to-parent" | "send-list"
+  senderName     String?
+  itemCount      Int
+  amazonItems    Int
+  amazonValue    Int      // rupees: sum of price x qty for items that have an Amazon ASIN
+  totalValue     Int      // rupees: sum of price x qty for all items
+  createdAt      DateTime @default(now())
+
+  @@map("list_shares")
+}
