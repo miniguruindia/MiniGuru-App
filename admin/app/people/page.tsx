@@ -621,13 +621,171 @@ function ContactChangesTab() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// PAGE — one nav entry, three tabs
+// TAB 4 — MERGE DUPLICATE ACCOUNTS (admin only)
+// ═══════════════════════════════════════════════════════════════════════════
+type MergeUser = { id: string; name: string; email: string; age?: number; score: number; projects: number; school: string | null }
+
+function MergePicker({ label, tone, value, onPick }: { label: string; tone: string; value: MergeUser | null; onPick: (u: MergeUser | null) => void }) {
+  const [q, setQ] = useState('')
+  const [results, setResults] = useState<MergeUser[]>([])
+  const [busy, setBusy] = useState(false)
+
+  const search = async () => {
+    if (q.trim().length < 2) return
+    setBusy(true)
+    try {
+      const token = await authToken()
+      const res = await fetch(`${API_BASE}/admin/merge-accounts/search?q=${encodeURIComponent(q.trim())}`, { headers: { Authorization: `Bearer ${token}` } })
+      const j = await res.json()
+      setResults(j.users || [])
+    } catch { setResults([]) }
+    setBusy(false)
+  }
+
+  return (
+    <Card className={`p-4 border-2 ${tone}`}>
+      <h3 className="font-semibold text-sm mb-2">{label}</h3>
+      {value ? (
+        <div className="text-sm">
+          <p className="font-semibold">{value.name}</p>
+          <p className="text-gray-500">{value.email}</p>
+          <p className="text-gray-600 mt-1">🪙 {value.score} Goins · {value.projects} projects{value.school ? ` · ${value.school}` : ' · individual'}</p>
+          <button className="text-xs text-blue-600 mt-2 underline" onClick={() => onPick(null)}>Change</button>
+        </div>
+      ) : (
+        <>
+          <div className="flex gap-2">
+            <input value={q} onChange={e => setQ(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') search() }}
+              placeholder="Type name or login ID, press Enter"
+              className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm" />
+            <Button variant="outline" onClick={search} disabled={busy}>{busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}</Button>
+          </div>
+          <div className="mt-2 space-y-1 max-h-56 overflow-auto">
+            {results.map(u => (
+              <button key={u.id} onClick={() => onPick(u)} className="w-full text-left text-sm border rounded-lg px-3 py-2 hover:bg-gray-50">
+                <span className="font-medium">{u.name}</span> <span className="text-gray-500">{u.email}</span>
+                <span className="block text-xs text-gray-500">🪙 {u.score} · {u.projects} projects{u.school ? ` · ${u.school}` : ' · individual'}</span>
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+    </Card>
+  )
+}
+
+function MergeTab() {
+  const [keep, setKeep] = useState<MergeUser | null>(null)
+  const [drop, setDrop] = useState<MergeUser | null>(null)
+  const [preview, setPreview] = useState<any>(null)
+  const [err, setErr] = useState('')
+  const [excludeStarter, setExcludeStarter] = useState(true)
+  const [typed, setTyped] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [done, setDone] = useState<any>(null)
+
+  const reset = () => { setKeep(null); setDrop(null); setPreview(null); setErr(''); setTyped(''); setDone(null) }
+
+  const loadPreview = async () => {
+    if (!keep || !drop) return
+    setErr(''); setPreview(null); setBusy(true)
+    try {
+      const token = await authToken()
+      const res = await fetch(`${API_BASE}/admin/merge-accounts/preview?keepId=${keep.id}&dropId=${drop.id}`, { headers: { Authorization: `Bearer ${token}` } })
+      const j = await res.json()
+      if (!res.ok) setErr(j.message || 'Could not preview')
+      else setPreview(j)
+    } catch { setErr('Could not reach the server') }
+    setBusy(false)
+  }
+
+  const doMerge = async () => {
+    if (!keep || !drop) return
+    setBusy(true); setErr('')
+    try {
+      const token = await authToken()
+      const res = await fetch(`${API_BASE}/admin/merge-accounts`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ keepId: keep.id, dropId: drop.id, excludeStarterGoins: excludeStarter, confirm: typed }),
+      })
+      const j = await res.json()
+      if (!res.ok) setErr(j.message || 'Merge failed')
+      else setDone(j)
+    } catch { setErr('Could not reach the server') }
+    setBusy(false)
+  }
+
+  const labels: Record<string, string> = {
+    projects: 'Projects', collaborations: 'Projects as collaborator', videoViews: 'Video views', videoLikes: 'Video likes',
+    videoComments: 'Video comments', notifications: 'Notifications', projectComments: 'Project comments', projectLikes: 'Project likes',
+    orders: 'Orders', ratingsGiven: 'Ratings given', ratingsReceived: 'Ratings received', goinsLedgerRows: 'Goins ledger rows',
+    dailyQuestDays: 'Daily quest days', goinsRequests: 'Goins requests', videoUploads: 'Video uploads', activeSchoolLinks: 'School links', pendingJoinRequests: 'Waiting join requests',
+  }
+
+  if (done) {
+    return (
+      <Card className="p-6 space-y-3">
+        <h2 className="text-lg font-semibold text-green-700 flex items-center gap-2"><Check className="h-5 w-5" /> Accounts merged</h2>
+        <p className="text-sm">Everything now lives on <b>{done.keptName}</b>. New Goins total: <b>{done.goinsAfter}</b>. The other account is closed and can no longer log in.</p>
+        <Button onClick={reset}>Merge another pair</Button>
+      </Card>
+    )
+  }
+
+  return (
+    <div className="space-y-4">
+      <Card className="p-4 bg-amber-50 border-amber-200 text-sm text-amber-900">
+        Use this when one child made two accounts. Pick the account to <b>keep</b> and the duplicate to <b>close</b>. Goins add up, projects and
+        everything else move to the kept account, and the child's name on projects becomes the kept account's name. The closed account is not
+        deleted but can no longer log in. This cannot be undone from here, so check the preview first.
+      </Card>
+      <div className="grid md:grid-cols-2 gap-4">
+        <MergePicker label="1. Account to KEEP" tone="border-green-300" value={keep} onPick={u => { setKeep(u); setPreview(null) }} />
+        <MergePicker label="2. Duplicate account to CLOSE" tone="border-red-300" value={drop} onPick={u => { setDrop(u); setPreview(null) }} />
+      </div>
+      {keep && drop && !preview && (
+        <Button onClick={loadPreview} disabled={busy}>{busy ? 'Checking...' : 'Show what will move'}</Button>
+      )}
+      {err && <p className="text-sm text-red-600">{err}</p>}
+      {preview && (
+        <Card className="p-5 space-y-4">
+          <h3 className="font-semibold">Preview — nothing has changed yet</h3>
+          <div className="text-sm grid sm:grid-cols-2 gap-x-6 gap-y-1">
+            {Object.entries(preview.counts).map(([k, v]) => (
+              <div key={k} className="flex justify-between border-b border-gray-100 py-1"><span className="text-gray-600">{labels[k] || k}</span><b>{String(v)}</b></div>
+            ))}
+          </div>
+          <div className="text-sm bg-gray-50 rounded-lg p-3 space-y-1">
+            <p>Goins now: {preview.keep.name} <b>{preview.goins.keepNow}</b> + {preview.drop.name} <b>{preview.goins.dropNow}</b></p>
+            <label className="flex items-center gap-2 mt-1">
+              <input type="checkbox" checked={excludeStarter} onChange={e => setExcludeStarter(e.target.checked)} />
+              Do not count the closed account's {preview.goins.starterBonusOfClosed} starter Goins (every new account gets 100 free)
+            </label>
+            <p>New total: <b>{excludeStarter ? preview.goins.totalWithoutStarter : preview.goins.totalIfAll}</b></p>
+          </div>
+          <div className="flex items-center gap-2 flex-wrap">
+            <input value={typed} onChange={e => setTyped(e.target.value)} placeholder="Type MERGE to confirm"
+              className="border border-gray-300 rounded-lg px-3 py-2 text-sm w-48" />
+            <Button onClick={doMerge} disabled={busy || typed !== 'MERGE'} className="bg-red-600 hover:bg-red-700 text-white">
+              {busy ? 'Merging...' : 'Merge accounts'}
+            </Button>
+            <Button variant="outline" onClick={reset}>Start over</Button>
+          </div>
+        </Card>
+      )}
+    </div>
+  )
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// PAGE — one nav entry, four tabs
 // ═══════════════════════════════════════════════════════════════════════════
 function PeoplePageInner() {
   const searchParams = useSearchParams()
-  const initialTab = (['directory', 'schools', 'contact'].includes(searchParams.get('tab') || '')
-    ? searchParams.get('tab') : 'directory') as 'directory' | 'schools' | 'contact'
-  const [tab, setTab] = useState<'directory' | 'schools' | 'contact'>(initialTab)
+  const initialTab = (['directory', 'schools', 'contact', 'merge'].includes(searchParams.get('tab') || '')
+    ? searchParams.get('tab') : 'directory') as 'directory' | 'schools' | 'contact' | 'merge'
+  const [tab, setTab] = useState<'directory' | 'schools' | 'contact' | 'merge'>(initialTab)
 
   return (
     <AdminLayout>
@@ -652,11 +810,16 @@ function PeoplePageInner() {
             className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
               tab === 'contact' ? 'bg-blue-600 text-white' : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'
             }`}><ShieldAlert className="h-4 w-4" /> Contact Changes</button>
+          <button onClick={() => setTab('merge')}
+            className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+              tab === 'merge' ? 'bg-blue-600 text-white' : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'
+            }`}><UsersIcon className="h-4 w-4" /> Merge Accounts</button>
         </div>
 
         {tab === 'directory' && <DirectoryTab />}
         {tab === 'schools' && <SchoolsTab />}
         {tab === 'contact' && <ContactChangesTab />}
+        {tab === 'merge' && <MergeTab />}
       </div>
     </AdminLayout>
   )

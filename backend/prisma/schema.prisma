@@ -927,3 +927,20 @@ model SchoolJoinRequest {
   @@index([childUserId, status])
   @@map("school_join_requests")
 }
+
+// Audit trail for admin account merges (Oct 2026). One row per merge: which
+// account was kept, which was closed, and how many records moved.
+model AccountMergeLog {
+  id            String   @id @default(auto()) @map("_id") @db.ObjectId
+  keepUserId    String   @db.ObjectId
+  droppedUserId String   @db.ObjectId
+  droppedName   String
+  droppedEmail  String
+  keptName      String
+  summary       Json
+  doneBy        String?
+  createdAt     DateTime @default(now())
+
+  @@index([keepUserId])
+  @@map("account_merge_logs")
+}

@@ -36,6 +36,7 @@ const userAnalyticsRoutes_1 = __importDefault(require("./routes/userAnalyticsRou
 const cmsRoutes_1 = __importDefault(require("./routes/cmsRoutes"));
 const guardianRoutes_1 = __importDefault(require("./routes/guardianRoutes"));
 const schoolJoinRoutes_1 = __importDefault(require("./routes/schoolJoinRoutes"));
+const accountMergeRoutes_1 = __importDefault(require("./routes/accountMergeRoutes"));
 const communicationRoutes_1 = __importDefault(require("./routes/communicationRoutes")); // ← NEW
 const goinsRoutes_1 = __importDefault(require("./routes/goinsRoutes")); // ← NEW
 const dailyQuestRoutes_1 = __importDefault(require("./routes/dailyQuestRoutes"));
@@ -290,6 +291,7 @@ try {
     app.use('/admin', adminRoutes_1.default);
     app.use('/admin', schoolAccountRoutes_1.default); // ← NEW: school/T-LAB admin accounts
     app.use('/admin', costDashboardRoutes_1.default); // ← NEW: admin cost/quota dashboard
+    app.use('/admin', accountMergeRoutes_1.default); // admin-only: merge duplicate child accounts
     app.use(communitySubmissionsRoutes_1.default); // ← NEW: serves /happenings, /admin/happenings, /challenges, /admin/challenges
     app.use('/payment', paymentRoutes_1.default);
     app.use('/api/videos', videoRoutes_1.default);

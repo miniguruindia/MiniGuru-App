@@ -33,6 +33,7 @@ import userAnalyticsRouter from './routes/userAnalyticsRoutes';
 import cmsRouter from './routes/cmsRoutes';
 import guardianRouter from './routes/guardianRoutes';
 import schoolJoinRouter from './routes/schoolJoinRoutes';
+import accountMergeRouter from './routes/accountMergeRoutes';
 import communicationRouter from './routes/communicationRoutes';   // ← NEW
 import goinsRouter from './routes/goinsRoutes';           // ← NEW
 import dailyQuestRouter from './routes/dailyQuestRoutes';
@@ -304,6 +305,7 @@ try {
   app.use('/admin', adminRouter);
   app.use('/admin', schoolAccountRouter);   // ← NEW: school/T-LAB admin accounts
   app.use('/admin', costDashboardRouter);   // ← NEW: admin cost/quota dashboard
+  app.use('/admin', accountMergeRouter);   // admin-only: merge duplicate child accounts
   app.use(communitySubmissionsRouter);   // ← NEW: serves /happenings, /admin/happenings, /challenges, /admin/challenges
   app.use('/payment', paymentRouter);
   app.use('/api/videos', videoRoutes);
