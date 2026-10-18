@@ -1564,6 +1564,55 @@ class MiniguruApi {
     return null;
   }
 
+  /// Looks up an independent child by login ID (school/parent accounts only).
+  /// Returns {name, age, loginId} or {error: message}.
+  Future<Map<String, dynamic>> lookupExistingChild(String loginId) async {
+    try {
+      final authToken = await _db!.getAuthToken();
+      if (authToken == null) return {'error': 'Please log in again.'};
+      final response = await http.get(
+        Uri.parse('$_baseUrl/mentor/children/lookup?loginId=${Uri.encodeQueryComponent(loginId)}'),
+        headers: _buildHeaders(authToken.accessToken),
+      );
+      final data = jsonDecode(response.body);
+      if (response.statusCode == 200) return data as Map<String, dynamic>;
+      return {'error': (data is Map && data['message'] != null) ? data['message'].toString() : 'Could not find the child.'};
+    } catch (e) { print('❌ lookupExistingChild: $e'); }
+    return {'error': 'Could not reach MiniGuru. Check your internet and try again.'};
+  }
+
+  /// Adds an independent child to this school/parent. Returns {pin} or {error}.
+  Future<Map<String, dynamic>> addExistingChild(String loginId, {String? grade}) async {
+    try {
+      final authToken = await _db!.getAuthToken();
+      if (authToken == null) return {'error': 'Please log in again.'};
+      final response = await http.post(
+        Uri.parse('$_baseUrl/mentor/children/add-existing'),
+        headers: _buildHeaders(authToken.accessToken),
+        body: jsonEncode({'loginId': loginId, if (grade != null && grade.isNotEmpty) 'grade': grade}),
+      );
+      final data = jsonDecode(response.body);
+      if (response.statusCode == 201) return data as Map<String, dynamic>;
+      return {'error': (data is Map && data['message'] != null) ? data['message'].toString() : 'Could not add the child.'};
+    } catch (e) { print('❌ addExistingChild: $e'); }
+    return {'error': 'Could not reach MiniGuru. Check your internet and try again.'};
+  }
+
+  /// Removes a child from this school/parent list. The child keeps their own
+  /// account, Goins and projects and becomes independent again.
+  Future<bool> removeChildFromSchool(String childId) async {
+    try {
+      final authToken = await _db!.getAuthToken();
+      if (authToken == null) return false;
+      final response = await http.delete(
+        Uri.parse('$_baseUrl/mentor/children/$childId'),
+        headers: _buildHeaders(authToken.accessToken),
+      );
+      return response.statusCode == 200;
+    } catch (e) { print('❌ removeChildFromSchool: $e'); }
+    return false;
+  }
+
   Future<bool> verifyChildPin(String childId, String pin) async {
     try {
       final authToken = await _db!.getAuthToken();

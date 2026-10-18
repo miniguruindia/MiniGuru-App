@@ -106,10 +106,139 @@ class _MentorChildPickerScreenState extends State<MentorChildPickerScreen> {
               _loadData();
             },
           ),
+          const SizedBox(height: 8),
+          ListTile(
+            leading: Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF9AB00).withOpacity(0.12),
+                borderRadius: BorderRadius.circular(12)),
+              child: const Icon(Icons.link, color: Color(0xFFF9AB00))),
+            title: Text('Add Existing Child',
+                style: GoogleFonts.nunito(fontWeight: FontWeight.w800)),
+            subtitle: Text('Child already registered on their own — add by login ID',
+                style: GoogleFonts.nunito(fontSize: 12, color: Colors.grey)),
+            onTap: () {
+              Navigator.pop(context);
+              _addExistingChildDialog();
+            },
+          ),
           const SizedBox(height: 12),
         ]),
       ),
     );
+  }
+
+  Future<void> _addExistingChildDialog() async {
+    final idCtrl = TextEditingController();
+    final gradeCtrl = TextEditingController();
+    String? error;
+    Map<String, dynamic>? found;
+    bool busy = false;
+    await showDialog(
+      context: context,
+      builder: (dialogCtx) => StatefulBuilder(builder: (ctx, setD) {
+        Future<void> find() async {
+          setD(() { busy = true; error = null; found = null; });
+          final r = await _api.lookupExistingChild(idCtrl.text.trim());
+          setD(() {
+            busy = false;
+            if (r['error'] != null) { error = r['error'].toString(); } else { found = r; }
+          });
+        }
+        Future<void> add() async {
+          setD(() { busy = true; error = null; });
+          final r = await _api.addExistingChild(idCtrl.text.trim(), grade: gradeCtrl.text.trim());
+          if (r['error'] != null) {
+            setD(() { busy = false; error = r['error'].toString(); });
+            return;
+          }
+          if (dialogCtx.mounted) Navigator.pop(dialogCtx);
+          if (!mounted) return;
+          await showDialog(
+            context: context,
+            builder: (c2) => AlertDialog(
+              title: Text('Child added', style: GoogleFonts.nunito(fontWeight: FontWeight.w900)),
+              content: Text(
+                '${found?['name'] ?? 'The child'} is now in your list.\n\n'
+                'Their own login, Goins and projects are unchanged.\n'
+                'PIN for your view of this child: ${r['pin']}\n(write it down — it is shown only now)',
+                style: GoogleFonts.nunito()),
+              actions: [TextButton(onPressed: () => Navigator.pop(c2), child: const Text('OK'))],
+            ),
+          );
+          _loadData();
+        }
+        return AlertDialog(
+          title: Text('Add existing child', style: GoogleFonts.nunito(fontWeight: FontWeight.w900)),
+          content: SingleChildScrollView(
+            child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text("Type the child's MiniGuru login ID (for example riya.sharma@miniguru.in).",
+                  style: GoogleFonts.nunito(fontSize: 13, color: Colors.grey[700])),
+              const SizedBox(height: 12),
+              TextField(
+                controller: idCtrl,
+                enabled: found == null && !busy,
+                decoration: const InputDecoration(labelText: 'Login ID', border: OutlineInputBorder()),
+                onSubmitted: (_) { if (found == null && !busy) find(); },
+              ),
+              if (found != null) ...[
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(color: const Color(0xFFE6F4EA), borderRadius: BorderRadius.circular(12)),
+                  child: Text('Found: ${found!['name']} (age ${found!['age']})\nAdd this child to your school?',
+                      style: GoogleFonts.nunito(fontWeight: FontWeight.w800)),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: gradeCtrl,
+                  decoration: const InputDecoration(labelText: 'Grade / class (optional)', border: OutlineInputBorder()),
+                ),
+              ],
+              if (error != null) ...[
+                const SizedBox(height: 12),
+                Text(error!, style: GoogleFonts.nunito(color: const Color(0xFFEA4335), fontWeight: FontWeight.w700)),
+              ],
+            ]),
+          ),
+          actions: [
+            TextButton(onPressed: busy ? null : () => Navigator.pop(dialogCtx), child: const Text('Cancel')),
+            if (found == null)
+              ElevatedButton(onPressed: busy ? null : find, child: Text(busy ? 'Searching...' : 'Find child'))
+            else
+              ElevatedButton(onPressed: busy ? null : add, child: Text(busy ? 'Adding...' : 'Yes, add')),
+          ],
+        );
+      }),
+    );
+  }
+
+  Future<void> _confirmRemoveChild(ChildProfile child) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (c) => AlertDialog(
+        title: Text('Remove ${child.name}?', style: GoogleFonts.nunito(fontWeight: FontWeight.w900)),
+        content: Text(
+          'Use this when the child has left your school.\n\n'
+          '${child.name} keeps their own account, Goins and projects and becomes an individual learner again. '
+          'They will no longer appear in your list or school Ladder. You can add them again later by login ID.',
+          style: GoogleFonts.nunito()),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Cancel')),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFEA4335), foregroundColor: Colors.white),
+            onPressed: () => Navigator.pop(c, true),
+            child: const Text('Remove')),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    final done = await _api.removeChildFromSchool(child.id);
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(done ? '${child.name} removed from your list' : 'Could not remove. Please try again.')));
+    if (done) _loadData();
   }
 
   @override
@@ -297,7 +426,8 @@ class _MentorChildPickerScreenState extends State<MentorChildPickerScreen> {
           );
         }
       },
-      child: Container(
+      child: Stack(children: [
+       Container(
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(20),
@@ -365,7 +495,19 @@ class _MentorChildPickerScreenState extends State<MentorChildPickerScreen> {
             ),
           ],
         ),
-      ),
+       ),
+       Positioned(
+         top: 2, right: 2,
+         child: PopupMenuButton<String>(
+           tooltip: 'More',
+           icon: Icon(Icons.more_vert, size: 20, color: Colors.grey[500]),
+           onSelected: (v) { if (v == 'remove') _confirmRemoveChild(child); },
+           itemBuilder: (_) => const [
+             PopupMenuItem(value: 'remove', child: Text('Remove from my school (child left)')),
+           ],
+         ),
+       ),
+      ]),
     );
   }
 

@@ -403,6 +403,93 @@ router.delete('/children/:childId', authenticateToken, async (req: Request, res:
 });
 
 
+// ─── Existing independent child -> this school (Oct 2026) ───────────────────
+// A child who registered on their own can be added to a school/parent account
+// by their login ID. Nothing is copied: the child keeps the SAME account, Goins
+// and projects; only a ChildProfile row linking them to this school is added.
+// Removing them later (DELETE /children/:id above) just deactivates that row,
+// so the child becomes independent again with everything intact.
+function normaliseLoginId(raw: any): string {
+  const v = String(raw || '').trim().toLowerCase();
+  if (!v) return '';
+  return v.includes('@') ? v : v + '@miniguru.in';
+}
+
+async function findAddableChild(loginId: string, mentorId: string) {
+  const user = await prisma.user.findUnique({
+    where: { email: loginId },
+    select: { id: true, name: true, age: true, role: true, isMentor: true },
+  });
+  if (!user || user.role !== 'USER' || user.isMentor) return { error: 'No child account found with that login ID.' as string };
+  const active = await prisma.childProfile.findFirst({
+    where: { linkedUserId: user.id, isActive: true },
+    select: { id: true, guardianId: true },
+  });
+  if (active && active.guardianId === mentorId) return { error: 'This child is already in your list.' as string };
+  if (active) {
+    return { error: 'This child is already linked to another school or parent. They must be removed there first.' as string };
+  }
+  return { user };
+}
+
+// GET /mentor/children/lookup?loginId=...  -> shows only the first name part to confirm
+router.get('/children/lookup', authenticateToken, async (req: Request, res: Response) => {
+  try {
+    const mentorId = (req as any).user?.id;
+    const mentor = await prisma.user.findUnique({ where: { id: mentorId } });
+    if (!mentor || !mentor.isMentor) return res.status(403).json({ message: 'Only school/parent accounts can add children' });
+    const loginId = normaliseLoginId(req.query.loginId);
+    if (!loginId) return res.status(400).json({ message: 'Enter the child\'s login ID' });
+    const r = await findAddableChild(loginId, mentorId);
+    if ('error' in r) return res.status(404).json({ message: r.error });
+    return res.json({ name: r.user.name, age: r.user.age, loginId });
+  } catch (err: any) {
+    console.error('lookup child error:', err);
+    return res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
+// POST /mentor/children/add-existing  { loginId, grade? }
+router.post('/children/add-existing', authenticateToken, async (req: Request, res: Response) => {
+  try {
+    const mentorId = (req as any).user?.id;
+    const mentor = await prisma.user.findUnique({ where: { id: mentorId } });
+    if (!mentor || !mentor.isMentor) return res.status(403).json({ message: 'Only school/parent accounts can add children' });
+    const loginId = normaliseLoginId(req.body?.loginId);
+    if (!loginId) return res.status(400).json({ message: 'Enter the child\'s login ID' });
+    const r = await findAddableChild(loginId, mentorId);
+    if ('error' in r) return res.status(404).json({ message: r.error });
+    const user = r.user;
+
+    const pin = String(Math.floor(1000 + Math.random() * 9000));
+    const pinHash = await bcrypt.hash(pin, 10);
+    const grade = req.body?.grade ? String(req.body.grade).trim().slice(0, 20) : null;
+
+    // Same school added this child before and removed them? Switch that row back on.
+    const earlier = await prisma.childProfile.findFirst({
+      where: { guardianId: mentorId, linkedUserId: user.id },
+      select: { id: true },
+    });
+    const select = { id: true, name: true, age: true, grade: true, avatar: true, score: true, isActive: true, createdAt: true } as const;
+    const child = earlier
+      ? await prisma.childProfile.update({ where: { id: earlier.id }, data: { isActive: true, pinHash, ...(grade ? { grade } : {}) }, select })
+      : await prisma.childProfile.create({
+          data: { guardianId: mentorId, name: user.name, age: user.age, grade, pinHash, linkedUserId: user.id },
+          select,
+        });
+    logger.info(`Existing child ${user.id} added to mentor ${mentorId}`);
+    return res.status(201).json({
+      message: 'Child added to your school',
+      child,
+      pin,
+      note: 'The child keeps their own login, Goins and projects. The PIN is for the teacher/parent view only.',
+    });
+  } catch (err: any) {
+    console.error('add existing child error:', err);
+    return res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 function getSchoolCode(name: string): string {
   return name.split(/\s+/).map((w: string) => w[0]?.toLowerCase() || '').join('').slice(0, 4);
