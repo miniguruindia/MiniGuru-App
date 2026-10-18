@@ -32,6 +32,7 @@ import shopRoutes from './routes/shopRoutes';
 import userAnalyticsRouter from './routes/userAnalyticsRoutes';
 import cmsRouter from './routes/cmsRoutes';
 import guardianRouter from './routes/guardianRoutes';
+import schoolJoinRouter from './routes/schoolJoinRoutes';
 import communicationRouter from './routes/communicationRoutes';   // ← NEW
 import goinsRouter from './routes/goinsRoutes';           // ← NEW
 import dailyQuestRouter from './routes/dailyQuestRoutes';
@@ -316,6 +317,7 @@ try {
   app.use('/users', userAnalyticsRouter);
   app.use('/cms', cmsRouter);
 app.use('/mentor', guardianRouter);
+app.use('/school-join', schoolJoinRouter);
   app.use('/communication', communicationRouter);
   app.use('/admin/communication', communicationRouter);
   app.use('/admin/cms', cmsRouter);           // ← NEW: Goins balance, deduct, award

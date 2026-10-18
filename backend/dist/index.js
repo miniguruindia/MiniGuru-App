@@ -35,6 +35,7 @@ const shopRoutes_1 = __importDefault(require("./routes/shopRoutes"));
 const userAnalyticsRoutes_1 = __importDefault(require("./routes/userAnalyticsRoutes"));
 const cmsRoutes_1 = __importDefault(require("./routes/cmsRoutes"));
 const guardianRoutes_1 = __importDefault(require("./routes/guardianRoutes"));
+const schoolJoinRoutes_1 = __importDefault(require("./routes/schoolJoinRoutes"));
 const communicationRoutes_1 = __importDefault(require("./routes/communicationRoutes")); // ← NEW
 const goinsRoutes_1 = __importDefault(require("./routes/goinsRoutes")); // ← NEW
 const dailyQuestRoutes_1 = __importDefault(require("./routes/dailyQuestRoutes"));
@@ -302,6 +303,7 @@ try {
     app.use('/users', userAnalyticsRoutes_1.default);
     app.use('/cms', cmsRoutes_1.default);
     app.use('/mentor', guardianRoutes_1.default);
+    app.use('/school-join', schoolJoinRoutes_1.default);
     app.use('/communication', communicationRoutes_1.default);
     app.use('/admin/communication', communicationRoutes_1.default);
     app.use('/admin/cms', cmsRoutes_1.default); // ← NEW: Goins balance, deduct, award

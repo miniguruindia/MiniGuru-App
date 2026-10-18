@@ -9,6 +9,7 @@ import 'package:miniguru/screens/mentor/addChildScreen.dart';
 import 'package:miniguru/screens/mentor/bulkAddStudentsScreen.dart';
 import 'package:miniguru/screens/mentor/pinEntryScreen.dart';
 import 'package:miniguru/state/sessionState.dart';
+import 'package:miniguru/widgets/schoolJoinWidgets.dart';
 
 class MentorChildPickerScreen extends StatefulWidget {
   const MentorChildPickerScreen({super.key});
@@ -292,6 +293,7 @@ class _MentorChildPickerScreenState extends State<MentorChildPickerScreen> {
                 child: CustomScrollView(
                   slivers: [
                     SliverToBoxAdapter(child: _buildHeader()),
+                    SliverToBoxAdapter(child: SchoolJoinBanner(key: ValueKey('joinbanner-${_children.length}'), onChanged: _loadData)),
                     SliverToBoxAdapter(child: _buildSectionLabel('Switch to learner')),
                     SliverPadding(
                       padding: const EdgeInsets.symmetric(horizontal: 20),

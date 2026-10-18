@@ -1564,6 +1564,25 @@ class MiniguruApi {
     return null;
   }
 
+  /// School join requests (child asks, school approves). Returns the decoded
+  /// JSON plus '_status' (HTTP code). On network trouble: {'_status': 0, 'message': ...}.
+  Future<Map<String, dynamic>> schoolJoinCall(String method, String path, {Map<String, dynamic>? body}) async {
+    try {
+      final authToken = await _db!.getAuthToken();
+      if (authToken == null) return {'_status': 401, 'message': 'Please log in again.'};
+      final uri = Uri.parse('$_baseUrl/school-join$path');
+      final headers = _buildHeaders(authToken.accessToken);
+      final http.Response r = method == 'POST'
+          ? await http.post(uri, headers: headers, body: jsonEncode(body ?? {}))
+          : await http.get(uri, headers: headers);
+      final data = jsonDecode(r.body);
+      final out = data is Map<String, dynamic> ? Map<String, dynamic>.from(data) : <String, dynamic>{};
+      out['_status'] = r.statusCode;
+      return out;
+    } catch (e) { print('❌ schoolJoinCall: $e'); }
+    return {'_status': 0, 'message': 'Could not reach MiniGuru. Check your internet and try again.'};
+  }
+
   /// Looks up an independent child by login ID (school/parent accounts only).
   /// Returns {name, age, loginId} or {error: message}.
   Future<Map<String, dynamic>> lookupExistingChild(String loginId) async {

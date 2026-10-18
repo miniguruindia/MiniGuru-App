@@ -19,6 +19,7 @@ import 'package:miniguru/screens/editProfileScreen.dart';
 import 'package:miniguru/widgets/contactVerificationCard.dart';
 import 'package:miniguru/screens/about.dart';
 import 'package:miniguru/screens/navScreen/consultancy.dart';
+import 'package:miniguru/widgets/schoolJoinWidgets.dart';
 
 class Profile extends StatefulWidget {
   const Profile({super.key});
@@ -454,6 +455,7 @@ class _ProfileState extends State<Profile>
                         _buildNotifPreview(),
                         const SizedBox(height: 18),
                         _buildAboutCard(),
+                        if (_user?.isMentor != true) const SchoolJoinCard(),
                         const SizedBox(height: 18),
                         _label('🏅 Badges'),
                         const SizedBox(height: 10),

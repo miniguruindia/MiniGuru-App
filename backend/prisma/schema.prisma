@@ -911,3 +911,19 @@ model ListShare {
 
   @@map("list_shares")
 }
+
+// A child asks to join a school / T-LAB account (Oct 2026); the school approves
+// or declines. Approval creates the usual ChildProfile link (see
+// schoolJoinRoutes.ts). No personal contact details are stored here.
+model SchoolJoinRequest {
+  id          String    @id @default(auto()) @map("_id") @db.ObjectId
+  childUserId String    @db.ObjectId
+  schoolId    String    @db.ObjectId
+  status      String    @default("PENDING") // PENDING | APPROVED | DECLINED | CANCELLED
+  createdAt   DateTime  @default(now())
+  decidedAt   DateTime?
+
+  @@index([schoolId, status])
+  @@index([childUserId, status])
+  @@map("school_join_requests")
+}
