@@ -524,6 +524,9 @@ router.post('/children/bulk', authenticateToken, async (req: any, res: Response)
     for (const row of children) {
       const { childName, parentName, parentPhone, grade } = row;
       if (!childName?.trim()) continue;
+      // Age column from the sheet (Oct 2026: it used to be ignored and everyone saved as 10).
+      const ageNum = Math.floor(Number(row.age));
+      const childAge = Number.isFinite(ageNum) && ageNum >= 3 && ageNum <= 25 ? ageNum : 10;
 
       const firstName     = childName.trim().split(' ')[0].toLowerCase();
       // Sept 2026: shortened from firstname+parentinitial.schoolcode.citycode
@@ -549,7 +552,7 @@ router.post('/children/bulk', authenticateToken, async (req: any, res: Response)
       const linkedUser = await createUserWithFreeId(idBase, (email: string) => ({
         email, passwordHash,
         name: childName.trim(),
-        age: 10,
+        age: childAge,
         phoneNumber: `child_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
         role: 'USER', score: 100, isMentor: false,
       }));
@@ -559,7 +562,7 @@ router.post('/children/bulk', authenticateToken, async (req: any, res: Response)
         data: {
           guardianId: userId,
           name: childName.trim(),
-          age: 10,
+          age: childAge,
           grade: grade ?? null,
           pinHash,
           linkedUserId: linkedUser.id,

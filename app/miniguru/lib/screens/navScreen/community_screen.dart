@@ -1910,9 +1910,37 @@ class _SectionHeader extends StatelessWidget {
   }
 }
 
-class _JoinCTA extends StatelessWidget {
+/// "Join free" box — shown only to guests. Logged-in children and schools no
+/// longer see it (Oct 2026).
+class _JoinCTA extends StatefulWidget {
   final String title, subtitle;
   const _JoinCTA({required this.title, required this.subtitle});
+  @override
+  State<_JoinCTA> createState() => _JoinCTAState();
+}
+
+class _JoinCTAState extends State<_JoinCTA> {
+  bool? _loggedIn;
+  @override
+  void initState() {
+    super.initState();
+    MiniguruApi().getUserData().then((u) {
+      if (mounted) setState(() => _loggedIn = u != null);
+    }).catchError((_) {
+      if (mounted) setState(() => _loggedIn = false);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_loggedIn != false) return const SizedBox.shrink();
+    return _JoinCTAView(title: widget.title, subtitle: widget.subtitle);
+  }
+}
+
+class _JoinCTAView extends StatelessWidget {
+  final String title, subtitle;
+  const _JoinCTAView({required this.title, required this.subtitle});
 
   @override
   Widget build(BuildContext context) {

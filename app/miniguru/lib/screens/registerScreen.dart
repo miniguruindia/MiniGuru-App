@@ -661,10 +661,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
             // Guardian email — OTP goes here
             _field(
               ctrl: _guardianEmailCtrl,
-              label: 'Guardian Email (for verification)',
+              label: 'Guardian Email',
               icon: Icons.email_outlined,
               keyboardType: TextInputType.emailAddress,
-              helperText: 'A verification code will be sent here',
+              helperText: 'Used for password reset and notices. You can verify it later from Profile.',
               validator: (v) {
                 if (v == null || v.trim().isEmpty) return 'Guardian email is required';
                 if (!v.contains('@')) return 'Enter a valid email address';

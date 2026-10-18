@@ -51,6 +51,8 @@ function ProjectsTab() {
   }, [page])
 
   const handleDeleteProject = async (projectId: string) => {
+    const p = projects.find(x => x.id === projectId)
+    if (!window.confirm(`Delete the project${p?.title ? ` "${p.title}"` : ''}? This removes it from MiniGuru for good. If its video is already on YouTube, that video is NOT removed from YouTube.`)) return
     try {
       const res = await fetch(`${API_BASE}/admin/project/${projectId}`, { method: 'DELETE', headers: await authHeader() })
       if (!res.ok) throw new Error(`Delete failed (${res.status})`)

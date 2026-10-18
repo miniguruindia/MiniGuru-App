@@ -53,6 +53,7 @@ class _StudentRow {
         'childName':   '${firstName.text.trim()} ${lastName.text.trim()}'.trim(),
         'parentPhone': parentPhone.text.trim().isEmpty ? null : parentPhone.text.trim(),
         'grade':       grade.text.trim().isEmpty ? null : grade.text.trim(),
+        'age':         int.tryParse(age.text.trim()),
       };
 }
 
