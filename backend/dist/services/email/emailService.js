@@ -38,7 +38,7 @@ const DEFAULT_FROM = { email: process.env.FROM_EMAIL || 'connect@miniguru.in', n
 // Fixed to stay on the verified miniguru.in domain while still being a
 // separate, lower-stakes address from connect@ (reserved for OTP/reset).
 exports.OFFICIAL_FROM = { email: 'updates@miniguru.in', name: 'MiniGuru' };
-async function sendEmail({ to, subject, html, fromOverride, }) {
+async function sendEmailRaw({ to, subject, html, fromOverride, }) {
     const from = fromOverride || DEFAULT_FROM;
     // Stop 5 short of Resend's real 100/day free-tier cap so a burst landing
     // at the same moment this check runs can never push the account over the
@@ -65,6 +65,19 @@ async function sendEmail({ to, subject, html, fromOverride, }) {
     }
     await mail_1.default.send({ to, from, subject, html });
     await (0, costTracking_1.recordEmailSent)();
+}
+// Logs every attempt (sent / failed / blocked by the daily limit) for the admin Email log.
+async function sendEmail(args) {
+    const { logEmail } = require('../../utils/emailLog');
+    try {
+        await sendEmailRaw(args);
+        await logEmail(args.to, args.subject, 'sent');
+    }
+    catch (err) {
+        const msg = String(err?.message || err);
+        await logEmail(args.to, args.subject, msg.startsWith('EMAIL_QUOTA_EXCEEDED') ? 'blocked' : 'failed', msg);
+        throw err;
+    }
 }
 async function sendPasswordResetEmail(to, resetToken) {
     const resetUrl = `${process.env.FRONTEND_URL}/reset-password?token=${resetToken}`;

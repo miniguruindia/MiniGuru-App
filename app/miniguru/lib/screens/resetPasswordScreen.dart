@@ -12,6 +12,9 @@ import 'package:miniguru/widgets/mgIcons.dart';
 
 class ResetPasswordScreen extends StatefulWidget {
   static const String id = '/reset-password';
+  // Set once the password is changed, so main.dart stops treating the (still
+  // present) reset link in the browser address as a reason to show this screen.
+  static bool completed = false;
   final String token;
   const ResetPasswordScreen({super.key, required this.token});
 
@@ -40,6 +43,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
           await _api.resetPassword(widget.token, _passwordController.text.trim());
       final body = jsonDecode(response.body);
       if (response.statusCode == 200) {
+        ResetPasswordScreen.completed = true;
         setState(() => _done = true);
       } else {
         setState(() => _error =

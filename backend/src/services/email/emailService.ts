@@ -33,7 +33,7 @@ const DEFAULT_FROM = { email: process.env.FROM_EMAIL || 'connect@miniguru.in', n
 // separate, lower-stakes address from connect@ (reserved for OTP/reset).
 export const OFFICIAL_FROM = { email: 'updates@miniguru.in', name: 'MiniGuru' };
 
-export async function sendEmail({
+async function sendEmailRaw({
   to,
   subject,
   html,
@@ -75,6 +75,19 @@ export async function sendEmail({
 
   await sgMail.send({ to, from, subject, html });
   await recordEmailSent();
+}
+
+// Logs every attempt (sent / failed / blocked by the daily limit) for the admin Email log.
+export async function sendEmail(args: any) {
+  const { logEmail } = require('../../utils/emailLog');
+  try {
+    await sendEmailRaw(args);
+    await logEmail(args.to, args.subject, 'sent');
+  } catch (err: any) {
+    const msg = String(err?.message || err);
+    await logEmail(args.to, args.subject, msg.startsWith('EMAIL_QUOTA_EXCEEDED') ? 'blocked' : 'failed', msg);
+    throw err;
+  }
 }
 
 export async function sendPasswordResetEmail(to: string, resetToken: string) {

@@ -32,7 +32,7 @@ if (!process.env.SENDGRID_API_KEY && !resendClient) {
     console.log('⚠️  emailService.ts: neither RESEND_API_KEY nor SENDGRID_API_KEY is set — sendEmail() will fail until one is configured');
 }
 sgMail.setApiKey(process.env.SENDGRID_API_KEY || '');
-async function sendEmail({ to, subject, html, cc, }) {
+async function sendEmailRaw({ to, subject, html, cc, }) {
     const fromEmail = process.env.FROM_EMAIL || 'connect@miniguru.in';
     const quota = await checkEmailQuota();
     if (!quota.allowed) {
@@ -70,4 +70,17 @@ async function sendEmail({ to, subject, html, cc, }) {
         html,
     });
     await recordEmailSent();
+}
+// Logs every attempt (sent / failed / blocked by the daily limit) for the admin Email log.
+async function sendEmail(args) {
+    const { logEmail } = require('../utils/emailLog');
+    try {
+        await sendEmailRaw(args);
+        await logEmail(args.to, args.subject, 'sent');
+    }
+    catch (err) {
+        const msg = String(err?.message || err);
+        await logEmail(args.to, args.subject, msg.startsWith('EMAIL_QUOTA_EXCEEDED') ? 'blocked' : 'failed', msg);
+        throw err;
+    }
 }

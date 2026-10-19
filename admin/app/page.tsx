@@ -64,14 +64,6 @@ export default function DashboardPage() {
   const [pendingGoinTopUps,  setPendingGoinTopUps]  = useState(0)
   const [pendingAiMatches,   setPendingAiMatches]   = useState(0)
 
-  // ── Tentative Amazon earnings from emailed materials lists ─────────────
-  const [amzEst, setAmzEst] = useState<{
-    commissionPct: number
-    today: { lists: number; amazonListValue: number; estimatedEarnings: number }
-    last30Days: { lists: number; amazonListValue: number; estimatedEarnings: number }
-    allTime: { lists: number; amazonListValue: number; estimatedEarnings: number }
-  } | null>(null)
-
   // ── Cost & quotas summary (from the Cost page's own endpoint) ──────────
   const [costInfo, setCostInfo] = useState<{ nearLimit: number; emailLine: string } | null>(null)
 
@@ -113,12 +105,6 @@ export default function DashboardPage() {
         setMaterialCount(list.length)
         setAsinCount(list.filter((m: any) => m.amazonASIN).length)
       }
-
-      // Tentative Amazon earnings — optional; the dashboard works without it.
-      try {
-        const er = await fetch(`${API_BASE}/admin/amazon-estimate`, { headers, credentials: 'include' })
-        if (er.ok) setAmzEst(await er.json())
-      } catch { /* ignore */ }
 
       // Attention counts — fetched independently and in parallel so a
       // single slow/broken endpoint doesn't block or break the rest.
@@ -316,23 +302,6 @@ export default function DashboardPage() {
               {materialCount - asinCount} materials still need ASINs
             </p>
           </div>
-          {amzEst && (
-            <div className="mt-4 p-3 rounded-lg border border-orange-200 bg-orange-50">
-              <p className="text-sm font-semibold text-orange-800">
-                Tentative earnings from materials lists sent to parents ({amzEst.commissionPct}% of the Amazon part)
-              </p>
-              <div className="grid grid-cols-3 gap-3 mt-2 text-center">
-                {([['Today', amzEst.today], ['Last 30 days', amzEst.last30Days], ['All time', amzEst.allTime]] as const).map(([label, b]) => (
-                  <div key={label}>
-                    <p className="text-lg font-bold text-gray-900">₹{b.estimatedEarnings.toLocaleString('en-IN')}</p>
-                    <p className="text-xs text-gray-500">{label}</p>
-                    <p className="text-[11px] text-gray-400">{b.lists} lists · ₹{b.amazonListValue.toLocaleString('en-IN')}</p>
-                  </div>
-                ))}
-              </div>
-              <p className="text-[11px] text-gray-400 mt-2">Estimate only — real earnings are in Amazon Associates.</p>
-            </div>
-          )}
           {asinCount === 0 && (
             <div className="mt-3 p-3 bg-amber-50 rounded-lg border border-amber-200">
               <p className="text-xs text-amber-700 font-medium">

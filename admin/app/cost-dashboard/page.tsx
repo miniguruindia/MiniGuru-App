@@ -96,6 +96,7 @@ export default function CostDashboardPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [amz, setAmz] = useState<AmzEstimate | null>(null)
+  const [emailLog, setEmailLog] = useState<{ sentToday: number; rows: { id: string; toEmail: string; subject: string; status: string; error?: string | null; createdAt: string }[] } | null>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -111,6 +112,10 @@ export default function CostDashboardPage() {
       try {
         const er = await fetch(`${API_BASE}/admin/amazon-estimate`, { headers: { Authorization: `Bearer ${token}` } })
         if (er.ok) setAmz(await er.json())
+      } catch { /* optional */ }
+      try {
+        const lr = await fetch(`${API_BASE}/admin/email-log?limit=100`, { headers: { Authorization: `Bearer ${token}` } })
+        if (lr.ok) setEmailLog(await lr.json())
       } catch { /* optional */ }
     } catch (e: any) {
       setError(e?.message || 'Could not load cost dashboard')
@@ -244,12 +249,48 @@ export default function CostDashboardPage() {
                   {([['Today', amz.today], ['Last 30 days', amz.last30Days], ['All time', amz.allTime]] as const).map(([label, b]) => (
                     <div key={label}>
                       <p className="text-xs text-gray-500">{label}</p>
-                      <p className="text-xl font-bold">₹{b.amazonListValue.toLocaleString('en-IN')}</p>
-                      <p className="text-xs text-gray-500">{b.lists} lists · tentative earning ₹{b.estimatedEarnings.toLocaleString('en-IN')}</p>
+                      <p className="text-xl font-bold text-orange-600">₹{b.estimatedEarnings.toLocaleString('en-IN')}</p>
+                      <p className="text-xs text-gray-500">tentative earning · {b.lists} lists · ₹{b.amazonListValue.toLocaleString('en-IN')} on Amazon</p>
                     </div>
                   ))}
                 </div>
                 <p className="text-xs text-gray-400 mt-3 italic">{amz.note}</p>
+              </Card>
+            )}
+
+            {emailLog && (
+              <Card className="p-5 mt-4">
+                <div className="flex items-center gap-2 mb-1">
+                  <Mail className="w-4 h-4 text-gray-500" />
+                  <h3 className="font-semibold text-sm">Emails sent (latest 100) — {emailLog.sentToday} sent today</h3>
+                </div>
+                <p className="text-xs text-gray-400 mb-3">Every email MiniGuru sends: password resets, verification codes, materials lists, notices. Message text is not stored.</p>
+                <div className="overflow-x-auto max-h-96 overflow-y-auto">
+                  <table className="w-full text-xs">
+                    <thead className="bg-gray-50 sticky top-0">
+                      <tr>
+                        <th className="text-left px-2 py-2 font-medium text-gray-500">When (IST)</th>
+                        <th className="text-left px-2 py-2 font-medium text-gray-500">To</th>
+                        <th className="text-left px-2 py-2 font-medium text-gray-500">Subject</th>
+                        <th className="text-left px-2 py-2 font-medium text-gray-500">Result</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100">
+                      {emailLog.rows.length === 0 ? (
+                        <tr><td colSpan={4} className="text-center py-6 text-gray-400">No emails recorded yet — new sends will appear here.</td></tr>
+                      ) : emailLog.rows.map(r => (
+                        <tr key={r.id}>
+                          <td className="px-2 py-1.5 whitespace-nowrap text-gray-500">{new Date(r.createdAt).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</td>
+                          <td className="px-2 py-1.5 font-mono">{r.toEmail}</td>
+                          <td className="px-2 py-1.5">{r.subject}</td>
+                          <td className="px-2 py-1.5">
+                            <span className={`px-2 py-0.5 rounded-full font-bold ${r.status === 'sent' ? 'bg-green-100 text-green-700' : r.status === 'blocked' ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-700'}`} title={r.error || ''}>{r.status}</span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </Card>
             )}
 

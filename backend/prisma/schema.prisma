@@ -944,3 +944,18 @@ model AccountMergeLog {
   @@index([keepUserId])
   @@map("account_merge_logs")
 }
+
+// Every email MiniGuru sends or tries to send (Oct 2026) so the admin can see
+// who was emailed and why, and watch the daily limit. The message body is NOT
+// stored, only recipient, subject and result.
+model EmailLog {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  toEmail   String
+  subject   String
+  status    String   // "sent" | "failed" | "blocked" (daily limit reached)
+  error     String?
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+  @@map("email_logs")
+}

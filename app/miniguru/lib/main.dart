@@ -43,7 +43,8 @@ class MyApp extends StatelessWidget {
         // is actually present, otherwise falls through unchanged below.
         final browserUri = Uri.base;
         final resetToken = browserUri.queryParameters['token'];
-        if (resetToken != null &&
+        if (!ResetPasswordScreen.completed &&
+            resetToken != null &&
             resetToken.isNotEmpty &&
             ((settings.name?.contains('reset-password') ?? false) ||
                 browserUri.path.contains('reset-password'))) {

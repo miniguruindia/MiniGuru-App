@@ -31,7 +31,7 @@ function accountTypeOf(user: User): { key: AccountFilter; label: string; badgeCl
   if (user.mentorType === 'SCHOOL') return { key: 'schools', label: '🏫 School', badgeClass: 'bg-indigo-100 text-indigo-700' }
   if (user.mentorType === 'TLAB') return { key: 'tlabs', label: '🔬 T-LAB', badgeClass: 'bg-emerald-100 text-emerald-700' }
   if (user.isMentor) return { key: 'parents', label: '👨‍👩‍👧 Parent', badgeClass: 'bg-purple-100 text-purple-700' }
-  return { key: 'parents', label: '👤 Individual', badgeClass: 'bg-green-100 text-green-700' }
+  return { key: 'parents', label: '👤 Individual (self-registered)', badgeClass: 'bg-green-100 text-green-700' }
 }
 
 function DirectoryTab() {
@@ -64,6 +64,31 @@ function DirectoryTab() {
   useEffect(() => { fetchUsers() }, [])
 
   const handleRetry = () => { setRetrying(true); fetchUsers() }
+
+  // Change a wrong account type (individual / parent / school / T-LAB)
+  const handleChangeType = async (user: User, newType: string) => {
+    if (!newType) return
+    let institutionName = ''
+    if (newType === 'school' || newType === 'tlab') {
+      const entered = window.prompt(`Name of the ${newType === 'school' ? 'school' : 'T-LAB'} for ${user.name}:`, user.guardianInfo?.institutionName || '')
+      if (!entered || !entered.trim()) return
+      institutionName = entered.trim()
+    }
+    if (!confirm(`Change ${user.name} to "${newType}"? Goins and projects stay as they are.`)) return
+    try {
+      const token = await authToken()
+      const res = await fetch(`${API_BASE}/admin/users/${user.id}/account-type`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ type: newType, institutionName }),
+      })
+      const body = await res.json().catch(() => ({}))
+      if (!res.ok) { alert(body.message || `Could not change (${res.status})`); return }
+      await fetchUsers()
+    } catch (e: any) {
+      alert(e?.message || 'Could not change the account type')
+    }
+  }
 
   const handleDeleteUser = async (userId: string) => {
     if (!confirm('Delete this user? This cannot be undone.')) return
@@ -136,7 +161,7 @@ function DirectoryTab() {
   const chips: { key: AccountFilter; label: string }[] = [
     { key: 'all', label: `All (${counts.all})` },
     { key: 'children', label: `🧒 Children (${counts.children})` },
-    { key: 'parents', label: `👨‍👩‍👧 Parents (${counts.parents})` },
+    { key: 'parents', label: `👨‍👩‍👧 Parents / Individuals (${counts.parents})` },
     { key: 'schools', label: `🏫 Schools (${counts.schools})` },
     { key: 'tlabs', label: `🔬 T-LABs (${counts.tlabs})` },
   ]
@@ -215,6 +240,16 @@ function DirectoryTab() {
                         <Button variant="outline" size="sm" asChild>
                           <Link href={`/users/${user.id}`}>View</Link>
                         </Button>
+                        {!user.phoneNumber?.startsWith('child_') && user.role === 'USER' && (
+                          <select defaultValue="" onChange={e => { handleChangeType(user, e.target.value); e.target.value = '' }}
+                            className="px-2 py-1 border border-gray-200 rounded-md text-xs bg-white" title="Change account type">
+                            <option value="">Change type…</option>
+                            <option value="individual">Individual</option>
+                            <option value="parent">Parent</option>
+                            <option value="school">School</option>
+                            <option value="tlab">T-LAB</option>
+                          </select>
+                        )}
                         <Button variant="destructive" size="sm" onClick={() => handleDeleteUser(user.id)}>Delete</Button>
                       </div>
                     </td>

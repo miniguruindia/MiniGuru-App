@@ -21,6 +21,23 @@ router.get('/cost-dashboard', async (_req, res) => {
         res.status(500).json({ error: 'Could not load cost dashboard', detail: err?.message });
     }
 });
+// GET /admin/email-log?limit=100 — latest emails sent (or refused) with today's count
+router.get('/email-log', async (req, res) => {
+    try {
+        const limit = Math.min(Math.max(parseInt(String(req.query.limit || '100'), 10) || 100, 1), 300);
+        const db = prismaClient_1.default;
+        const rows = await db.emailLog.findMany({ orderBy: { createdAt: 'desc' }, take: limit });
+        const ist = new Date(Date.now() + 5.5 * 3600 * 1000);
+        ist.setUTCHours(0, 0, 0, 0);
+        const startOfIstDay = new Date(ist.getTime() - 5.5 * 3600 * 1000);
+        const sentToday = await db.emailLog.count({ where: { status: 'sent', createdAt: { gte: startOfIstDay } } });
+        return res.json({ sentToday, rows });
+    }
+    catch (e) {
+        console.error('email-log error:', e);
+        return res.status(500).json({ error: 'Could not load the email log' });
+    }
+});
 // GET /admin/amazon-estimate — tentative Amazon earnings from materials lists
 // emailed by children/schools. Estimate only: the real figure is in Amazon
 // Associates. Commission % can be changed with AMAZON_EST_COMMISSION_PCT

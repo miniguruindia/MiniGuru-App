@@ -32,7 +32,7 @@ if (!process.env.SENDGRID_API_KEY && !resendClient) {
 }
 sgMail.setApiKey(process.env.SENDGRID_API_KEY || '');
 
-export async function sendEmail({
+async function sendEmailRaw({
   to,
   subject,
   html,
@@ -86,3 +86,17 @@ export async function sendEmail({
   });
   await recordEmailSent();
 }
+
+// Logs every attempt (sent / failed / blocked by the daily limit) for the admin Email log.
+export async function sendEmail(args: any) {
+  const { logEmail } = require('../utils/emailLog');
+  try {
+    await sendEmailRaw(args);
+    await logEmail(args.to, args.subject, 'sent');
+  } catch (err: any) {
+    const msg = String(err?.message || err);
+    await logEmail(args.to, args.subject, msg.startsWith('EMAIL_QUOTA_EXCEEDED') ? 'blocked' : 'failed', msg);
+    throw err;
+  }
+}
+
