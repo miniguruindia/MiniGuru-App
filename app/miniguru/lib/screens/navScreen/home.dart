@@ -573,15 +573,15 @@ class _HomeState extends State<Home> {
         _buildSearchBar(),
         const SizedBox(height: 12),
         _buildCategories(),
-        const SizedBox(height: 16),
+        const SizedBox(height: 10),
         _buildContinueWatching(),
-        const SizedBox(height: 24),
+        const SizedBox(height: 14),
         _buildForYou(),
-        const SizedBox(height: 24),
+        const SizedBox(height: 14),
         _buildTrendingNow(),
-        const SizedBox(height: 24),
+        const SizedBox(height: 14),
         _buildMoreIdeasFromOutside(),
-        const SizedBox(height: 24),
+        const SizedBox(height: 14),
       ]),
     );
   }
@@ -801,7 +801,7 @@ class _HomeState extends State<Home> {
     // overflowing cards that don't have materials attached.
     return _buildHorizontalSection(
         'Continue Watching', _filteredVideos.take(10).toList(),
-        fullList: _filteredVideos, height: 222, cardWidth: 280);
+        fullList: _filteredVideos, height: 178, cardWidth: 220);
   }
 
   Widget _buildForYou() {
@@ -845,9 +845,9 @@ class _HomeState extends State<Home> {
             padding: const EdgeInsets.all(16),
             gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
               crossAxisCount: 2,
-              crossAxisSpacing: 12,
-              mainAxisSpacing: 12,
-              mainAxisExtent: 210,
+              crossAxisSpacing: 8,
+              mainAxisSpacing: 8,
+              mainAxisExtent: 200,
             ),
             itemCount: videos.length,
             itemBuilder: (_, i) {
@@ -915,15 +915,15 @@ class _HomeState extends State<Home> {
     return SliverList(
       delegate: SliverChildListDelegate([
         _buildSearchBar(),
-        const SizedBox(height: 24),
+        const SizedBox(height: 14),
         _buildCategories(),
-        const SizedBox(height: 24),
+        const SizedBox(height: 14),
         _buildFeatured(),
-        const SizedBox(height: 24),
+        const SizedBox(height: 14),
         _buildAllProjects(),
-        const SizedBox(height: 24),
+        const SizedBox(height: 14),
         _buildMoreIdeasFromOutside(),
-        const SizedBox(height: 24),
+        const SizedBox(height: 14),
       ]),
     );
   }
@@ -1232,7 +1232,7 @@ class _HomeState extends State<Home> {
           return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: _featuredTile(featured, height: 200),
+              child: _featuredTile(featured, height: 160),
             ),
             if (featuredMaterials.isNotEmpty)
               _buildMaterialsStrip(featuredMaterials, videoId: featuredId),
@@ -1348,7 +1348,7 @@ class _HomeState extends State<Home> {
                 .take(crossAxisCount)
                 .toList();
             return Padding(
-              padding: const EdgeInsets.only(bottom: 12),
+              padding: const EdgeInsets.only(bottom: 8),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: rowVideos.map((v) {
@@ -1358,7 +1358,7 @@ class _HomeState extends State<Home> {
                   }
                   return Expanded(
                     child: Padding(
-                      padding: const EdgeInsets.only(right: 12),
+                      padding: const EdgeInsets.only(right: 8),
                       child: _buildProjectCard(v),
                     ),
                   );
@@ -1606,7 +1606,7 @@ class _HomeState extends State<Home> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             SizedBox(
-              height: 180,
+              height: 136,
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(16),
                 child: Stack(
