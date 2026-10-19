@@ -1534,24 +1534,51 @@ class _HomeState extends State<Home> {
   }
 
   /// Build Amazon cart URL for all materials in a project that have ASINs
-  String _buildAmazonCartUrl(List<Map<String, dynamic>> materials) {
+  /// Amazon takes 10 lines per cart link, so a longer list becomes several links.
+  List<String> _buildAmazonCartUrls(List<Map<String, dynamic>> materials) {
     final amazonItems = materials
         .where((m) => m['amazonASIN'] != null && m['amazonASIN'].toString().isNotEmpty)
         .toList();
-    if (amazonItems.isEmpty) return '';
-
-    final params = <String>[];
-    for (int i = 0; i < amazonItems.length && i < 10; i++) {
-      final asin = amazonItems[i]['amazonASIN'].toString();
-      final qty = (amazonItems[i]['quantity'] as int? ?? 1).clamp(1, 10);
-      params.add('ASIN.${i + 1}=$asin&Quantity.${i + 1}=$qty');
+    final urls = <String>[];
+    for (int s = 0; s < amazonItems.length; s += 10) {
+      final chunk = amazonItems.skip(s).take(10).toList();
+      final params = <String>[];
+      for (int i = 0; i < chunk.length; i++) {
+        final asin = chunk[i]['amazonASIN'].toString();
+        final qty = (chunk[i]['quantity'] as int? ?? 1).clamp(1, 10);
+        params.add('ASIN.${i + 1}=$asin&Quantity.${i + 1}=$qty');
+      }
+      urls.add('https://www.amazon.in/gp/aws/cart/add.html?${params.join('&')}&AssociateTag=miniguru04-21');
     }
-    return 'https://www.amazon.in/gp/aws/cart/add.html?${params.join('&')}&AssociateTag=miniguru04-21';
+    return urls;
   }
 
   void _openAmazonCart(List<Map<String, dynamic>> materials) {
-    final url = _buildAmazonCartUrl(materials);
-    if (url.isNotEmpty) _launchUrl(url);
+    final urls = _buildAmazonCartUrls(materials);
+    if (urls.isEmpty) return;
+    if (urls.length == 1) {
+      _launchUrl(urls.first);
+      return;
+    }
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Buy on Amazon'),
+        content: Column(mainAxisSize: MainAxisSize.min, children: [
+          const Text('Amazon takes 10 items per cart, so your list is in parts. Open each part and add it to your cart.'),
+          const SizedBox(height: 12),
+          for (int p = 0; p < urls.length; p++)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: ElevatedButton(
+                onPressed: () => _launchUrl(urls[p]),
+                child: Text('Part ${p + 1} of ${urls.length}'),
+              ),
+            ),
+        ]),
+        actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Close'))],
+      ),
+    );
   }
 
   Future<void> _launchUrl(String url) async {

@@ -567,16 +567,26 @@ class _ShopState extends State<Shop>
     setState(() { if (newQty <= 0) _kit.remove(id); else _kit[id]!['qty'] = newQty; });
   }
 
-  String _buildCartUrl() {
+  // Amazon takes 10 lines per cart link, so a longer kit becomes several links (part 1, part 2 ...)
+  List<String> _buildCartUrls() {
     final items = _kit.values
         .where((m) => (m['amazonASIN']?.toString() ?? '').isNotEmpty)
         .toList();
-    if (items.isEmpty) return '';
-    final params = <String>[];
-    for (int i = 0; i < items.length && i < 10; i++) {
-      params.add('ASIN.${i+1}=${items[i]['amazonASIN']}&Quantity.${i+1}=${(items[i]['qty'] as int).clamp(1,10)}');
+    final urls = <String>[];
+    for (int s = 0; s < items.length; s += 10) {
+      final chunk = items.skip(s).take(10).toList();
+      final params = <String>[];
+      for (int i = 0; i < chunk.length; i++) {
+        params.add('ASIN.${i+1}=${chunk[i]['amazonASIN']}&Quantity.${i+1}=${(chunk[i]['qty'] as int).clamp(1,10)}');
+      }
+      urls.add('https://www.amazon.in/gp/aws/cart/add.html?${params.join("&")}&AssociateTag=miniguru04-21');
     }
-    return 'https://www.amazon.in/gp/aws/cart/add.html?${params.join("&")}&AssociateTag=miniguru04-21';
+    return urls;
+  }
+
+  String _buildCartUrl() {
+    final urls = _buildCartUrls();
+    return urls.isEmpty ? '' : urls.first;
   }
 
   Future<void> _launchUrl(String url) async {
@@ -1083,7 +1093,8 @@ class _ShopState extends State<Shop>
 
     final withAmazon    = _kit.entries.where((e) => (e.value['amazonASIN']?.toString() ?? '').isNotEmpty).toList();
     final withoutAmazon = _kit.entries.where((e) => (e.value['amazonASIN']?.toString() ?? '').isEmpty).toList();
-    final cartUrl = _buildCartUrl();
+    final cartUrls = _buildCartUrls();
+    final cartUrl = cartUrls.isEmpty ? '' : cartUrls.first;
     double total  = 0;
     for (final e in _kit.entries) {
       total += ((e.value['priceEstimate'] as num?)?.toDouble() ?? 0) * (e.value['qty'] as int);
@@ -1128,15 +1139,21 @@ class _ShopState extends State<Shop>
       const SizedBox(height: 10),
 
       if (cartUrl.isNotEmpty) ...[
-        ElevatedButton.icon(
-          onPressed: () => _launchUrl(cartUrl),
-          icon: const Text('🛍️', style: TextStyle(fontSize: 16)),
-          label: Text('Buy All on Amazon  (cart pre-loaded)',
-              style: GoogleFonts.nunito(fontWeight: FontWeight.w800, fontSize: 14)),
-          style: ElevatedButton.styleFrom(backgroundColor: _orange, foregroundColor: Colors.white,
-            minimumSize: const Size(double.infinity, 50),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))),
-        ),
+        for (int p = 0; p < cartUrls.length; p++) ...[
+          if (p > 0) const SizedBox(height: 8),
+          ElevatedButton.icon(
+            onPressed: () => _launchUrl(cartUrls[p]),
+            icon: const Text('🛍️', style: TextStyle(fontSize: 16)),
+            label: Text(
+                cartUrls.length == 1
+                    ? 'Buy All on Amazon  (cart pre-loaded)'
+                    : 'Buy on Amazon - part ${p + 1} of ${cartUrls.length}',
+                style: GoogleFonts.nunito(fontWeight: FontWeight.w800, fontSize: 14)),
+            style: ElevatedButton.styleFrom(backgroundColor: _orange, foregroundColor: Colors.white,
+              minimumSize: const Size(double.infinity, 50),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))),
+          ),
+        ],
         const SizedBox(height: 6),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),

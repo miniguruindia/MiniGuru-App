@@ -40,16 +40,18 @@ router.post('/send-to-parent', async (req, res) => {
             return res.status(400).json({ error: 'parentEmail and items are required' });
         }
         const amazonItems = items.filter((i) => i.amazonASIN);
-        let amazonCartUrl = null;
-        if (amazonItems.length > 0) {
-            const base = 'https://www.amazon.in/gp/aws/cart/add.html';
+        // Amazon allows 10 lines per cart link, so longer lists are split into parts of 10
+        const cartParts = [];
+        for (let s = 0; s < amazonItems.length; s += 10) {
             const params = new URLSearchParams({ AssociateTag: AMAZON_TAG });
-            amazonItems.forEach((item, i) => {
+            amazonItems.slice(s, s + 10).forEach((item, i) => {
                 params.append(`ASIN.${i + 1}`, item.amazonASIN);
                 params.append(`Quantity.${i + 1}`, String(item.qty));
             });
-            amazonCartUrl = `${base}?${params.toString()}`;
+            cartParts.push(`https://www.amazon.in/gp/aws/cart/add.html?${params.toString()}`);
         }
+        const amazonCartUrl = cartParts.length > 0 ? cartParts[0] : null;
+        const cartButtonsHtml = cartParts.map((u, idx) => '<a href="' + u + '" style="display:inline-block;margin:6px;background:#FF9900;color:#fff;text-decoration:none;padding:14px 32px;border-radius:50px;font-weight:700;font-size:16px">&#128717; Buy on Amazon' + (cartParts.length > 1 ? ' — part ' + (idx + 1) + ' of ' + cartParts.length : '') + '</a>').join('');
         const totalEst = items.reduce((s, i) => s + (i.priceEstimate || 0) * i.qty, 0);
         const rows = items.map((item) => `<tr>
       <td style="padding:8px 12px;border-bottom:1px solid #eee"><strong>${item.name}</strong></td>
@@ -70,7 +72,7 @@ router.post('/send-to-parent', async (req, res) => {
 ${rows}
 ${totalEst > 0 ? '<tr style="background:#f5f7ff"><td colspan="2" style="padding:10px 12px;font-weight:700">Total</td><td style="padding:10px 12px;font-weight:700;color:#5B6EF5;text-align:right">&#8377;' + totalEst + '</td><td></td></tr>' : ''}
 </table>
-${amazonCartUrl ? '<div style="text-align:center;margin:28px 0"><a href="' + amazonCartUrl + '" style="background:#FF9900;color:#fff;text-decoration:none;padding:14px 32px;border-radius:50px;font-weight:700;font-size:16px">&#128717; Buy on Amazon</a><p style="color:#aaa;font-size:12px;margin:10px 0 0">Cart pre-filled. Pay via UPI, card or COD.</p></div>' : ''}
+${cartButtonsHtml ? '<div style="text-align:center;margin:28px 0">' + cartButtonsHtml + '<p style="color:#aaa;font-size:12px;margin:10px 0 0">Cart pre-filled. Pay via UPI, card or COD.</p></div>' : ''}
 <div style="background:#f0f4ff;border-radius:10px;padding:16px 20px">
 <p style="margin:0;color:#5B6EF5;font-weight:700">&#9989; What happens next?</p>
 <p style="margin:8px 0 0;color:#444">Once they get the materials, they build, film, and upload to MiniGuru. On approval they earn Goins!</p></div></div>
