@@ -31,7 +31,7 @@ function accountTypeOf(user: User): { key: AccountFilter; label: string; badgeCl
   if (user.mentorType === 'SCHOOL') return { key: 'schools', label: '🏫 School', badgeClass: 'bg-indigo-100 text-indigo-700' }
   if (user.mentorType === 'TLAB') return { key: 'tlabs', label: '🔬 T-LAB', badgeClass: 'bg-emerald-100 text-emerald-700' }
   if (user.isMentor) return { key: 'parents', label: '👨‍👩‍👧 Parent', badgeClass: 'bg-purple-100 text-purple-700' }
-  return { key: 'parents', label: '👤 Individual (self-registered)', badgeClass: 'bg-green-100 text-green-700' }
+  return { key: 'parents', label: '🧒 Individual learner (own account)', badgeClass: 'bg-green-100 text-green-700' }
 }
 
 function DirectoryTab() {
@@ -161,7 +161,7 @@ function DirectoryTab() {
   const chips: { key: AccountFilter; label: string }[] = [
     { key: 'all', label: `All (${counts.all})` },
     { key: 'children', label: `🧒 Children (${counts.children})` },
-    { key: 'parents', label: `👨‍👩‍👧 Parents / Individuals (${counts.parents})` },
+    { key: 'parents', label: `👨‍👩‍👧 Parents & individual learners (${counts.parents})` },
     { key: 'schools', label: `🏫 Schools (${counts.schools})` },
     { key: 'tlabs', label: `🔬 T-LABs (${counts.tlabs})` },
   ]

@@ -1112,6 +1112,14 @@ class _ProfileState extends State<Profile>
       ],
       const SizedBox(height: 8),
       Wrap(spacing: 6, runSpacing: 4, alignment: WrapAlignment.center, children: [
+        // Which kind of account this is (learner = a child's own account)
+        pill(_user?.mentorType == 'SCHOOL'
+            ? '🏫 School account'
+            : _user?.mentorType == 'TLAB'
+                ? '🔬 T-LAB account'
+                : _user?.isMentor == true
+                    ? '👨‍👩‍👧 Parent account'
+                    : '🧒 Learner account'),
         if (_user?.age != null) pill('Age ${_user!.age}'),
         if (grade.isNotEmpty) pill(grade),
         if (city.isNotEmpty) pill(city),

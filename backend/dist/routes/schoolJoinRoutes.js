@@ -61,8 +61,12 @@ router.get('/school-lookup', async (req, res) => {
 router.post('/request', async (req, res) => {
     try {
         const me = await loadMe(req);
-        if (!me || me.role !== 'USER' || me.isMentor)
-            return res.status(403).json({ message: 'Only learner accounts can ask to join a school' });
+        if (!me)
+            return res.status(403).json({ message: 'Please log in again.' });
+        if (me.role !== 'USER')
+            return res.status(403).json({ message: 'This is an Admin account. Only a child\'s own (learner) account can ask to join a school - log in with a child account to test.' });
+        if (me.isMentor)
+            return res.status(403).json({ message: 'This is a Parent / School account. Only a child\'s own (learner) account can ask to join a school. If this child registered as a Parent by mistake, ask MiniGuru to change the account type.' });
         const loginId = normaliseLoginId(req.body?.loginId);
         const school = loginId ? await findSchool(loginId) : null;
         if (!school)
