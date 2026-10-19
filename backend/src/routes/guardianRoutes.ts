@@ -293,6 +293,25 @@ router.get('/children/projects', authenticateToken, async (req: Request, res: Re
 });
 
 // ─── GET /mentor/children/:childId ───────────────────────────────────────────
+// NOTE: this must stay ABOVE '/children/:childId', otherwise Express treats the word
+// 'lookup' as a child id and the request fails with an internal server error.
+// GET /mentor/children/lookup?loginId=...  -> shows only the first name part to confirm
+router.get('/children/lookup', authenticateToken, async (req: Request, res: Response) => {
+  try {
+    const mentorId = (req as any).user?.id;
+    const mentor = await prisma.user.findUnique({ where: { id: mentorId } });
+    if (!mentor || !mentor.isMentor) return res.status(403).json({ message: 'Only school/parent accounts can add children' });
+    const loginId = normaliseLoginId(req.query.loginId);
+    if (!loginId) return res.status(400).json({ message: 'Enter the child\'s login ID' });
+    const r = await findAddableChild(loginId, mentorId);
+    if ('error' in r) return res.status(404).json({ message: r.error });
+    return res.json({ name: r.user.name, age: r.user.age, loginId });
+  } catch (err: any) {
+    console.error('lookup child error:', err);
+    return res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
 router.get('/children/:childId', authenticateToken, async (req: Request, res: Response) => {
   try {
     const userId = (req as any).user?.id;
@@ -431,23 +450,6 @@ async function findAddableChild(loginId: string, mentorId: string) {
   }
   return { user };
 }
-
-// GET /mentor/children/lookup?loginId=...  -> shows only the first name part to confirm
-router.get('/children/lookup', authenticateToken, async (req: Request, res: Response) => {
-  try {
-    const mentorId = (req as any).user?.id;
-    const mentor = await prisma.user.findUnique({ where: { id: mentorId } });
-    if (!mentor || !mentor.isMentor) return res.status(403).json({ message: 'Only school/parent accounts can add children' });
-    const loginId = normaliseLoginId(req.query.loginId);
-    if (!loginId) return res.status(400).json({ message: 'Enter the child\'s login ID' });
-    const r = await findAddableChild(loginId, mentorId);
-    if ('error' in r) return res.status(404).json({ message: r.error });
-    return res.json({ name: r.user.name, age: r.user.age, loginId });
-  } catch (err: any) {
-    console.error('lookup child error:', err);
-    return res.status(500).json({ message: 'Internal server error' });
-  }
-});
 
 // POST /mentor/children/add-existing  { loginId, grade? }
 router.post('/children/add-existing', authenticateToken, async (req: Request, res: Response) => {
