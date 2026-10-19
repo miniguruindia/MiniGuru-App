@@ -1699,6 +1699,8 @@ class _ResourcesTab extends StatelessWidget {
             )),
         const SizedBox(height: 4),
         const _PatentInfoCard(),
+        const SizedBox(height: 12),
+        const _EventsInfoCard(),
         const SizedBox(height: 8),
         const _JoinCTA(
           title: 'Want exclusive resources?',
@@ -1780,6 +1782,117 @@ class _PatentInfoCard extends StatelessWidget {
                   ),
                 ]),
               ),
+            )),
+      ]),
+    );
+  }
+}
+
+/// "Competitions and events to explore" — plain information plus links to the
+/// official sources (checked Oct 2026). MiniGuru is not connected to any of them,
+/// and dates change every year, so the card tells children to check the official site.
+class _EventsInfoCard extends StatelessWidget {
+  const _EventsInfoCard();
+
+  // name, who can take part, how it works, official link
+  static const _events = <List<String>>[
+    [
+      'INSPIRE Awards - MANAK (DST, Government of India)',
+      'School students in Classes VI to XII.',
+      'Your school nominates original ideas on the official online portal (each school can nominate up to five a year). Winners go on to district, state and national exhibitions and get mentoring. Ask your teacher when nominations open.',
+      'https://www.inspireawards-dst.gov.in/',
+    ],
+    [
+      "National Children's Science Congress",
+      'Junior group 10 to 14 years, senior group 14 to 17 years.',
+      'Teams of two students with a guide teacher do a project on the yearly theme (2026: "Science and Innovation for Sustainability") and register online through their district.',
+      'https://n-csc.in/',
+    ],
+    [
+      'Atal Innovation Mission (Atal Tinkering Labs, Tinkerpreneur, School Innovation Marathon)',
+      'School students; most programmes run through Atal Tinkering Labs in schools.',
+      'The official site lists the current innovation marathons and school programmes and when they open. Ask your teacher whether your school has a tinkering lab.',
+      'https://aim.gov.in/',
+    ],
+    [
+      'World Robot Olympiad India',
+      'Age groups from 8 to 12 up to 14 to 19, depending on the category.',
+      'Teams build and program robots for missions or invent a robot-based solution. Registration and championship dates are on the official site.',
+      'https://www.wroindia.org/',
+    ],
+    [
+      'FIRST LEGO League',
+      'Explore ages 6 to 10; Challenge ages 9 to 16 (ages vary by country).',
+      'Teams design, build and code LEGO robots and solve a yearly challenge. Teams are usually formed through a school or club.',
+      'https://www.firstinspires.org/programs/fll/',
+    ],
+    [
+      'Technovation Girls',
+      'Girls, non-binary and gender non-conforming youth aged 8 to 18. Free to take part.',
+      'Teams build an app or technology solution to a problem in their community. The season runs from August to May.',
+      'https://technovationchallenge.org/',
+    ],
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFFE8F0FE),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFC6DAFC)),
+      ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text('🏆 Competitions and events to explore',
+            style: GoogleFonts.nunito(
+                fontSize: 15, fontWeight: FontWeight.w900, color: const Color(0xFF1A1A2E))),
+        const SizedBox(height: 6),
+        Text(
+            'Places where young makers can show their work. Dates and rules change every year, '
+            'so always check the official site and talk to a parent or teacher before you sign up. '
+            'MiniGuru is not connected to these events.',
+            style: GoogleFonts.nunito(
+                fontSize: 12, height: 1.45, color: const Color(0xFF4B4B6B))),
+        const SizedBox(height: 10),
+        ..._events.map((e) => Container(
+              margin: const EdgeInsets.only(bottom: 8),
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(e[0],
+                    style: GoogleFonts.nunito(
+                        fontSize: 13, fontWeight: FontWeight.w900, color: const Color(0xFF1A1A2E))),
+                const SizedBox(height: 4),
+                Text('Who: ${e[1]}',
+                    style: GoogleFonts.nunito(
+                        fontSize: 12, fontWeight: FontWeight.w700, color: const Color(0xFF1E8E3E))),
+                const SizedBox(height: 3),
+                Text(e[2],
+                    style: GoogleFonts.nunito(
+                        fontSize: 12, height: 1.45, color: const Color(0xFF4B4B6B))),
+                InkWell(
+                  onTap: () => launchUrl(Uri.parse(e[3]), mode: LaunchMode.externalApplication),
+                  child: Padding(
+                    padding: const EdgeInsets.only(top: 6),
+                    child: Row(children: [
+                      const Icon(Icons.open_in_new_rounded, size: 14, color: Color(0xFF4285F4)),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text('Official site',
+                            style: GoogleFonts.nunito(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w800,
+                                color: const Color(0xFF4285F4),
+                                decoration: TextDecoration.underline)),
+                      ),
+                    ]),
+                  ),
+                ),
+              ]),
             )),
       ]),
     );
