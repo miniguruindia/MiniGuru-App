@@ -15,6 +15,7 @@ import 'package:miniguru/screens/mentor/submitHappeningScreen.dart';
 import 'package:miniguru/screens/mentor/submitChallengeScreen.dart';
 import 'package:miniguru/screens/about.dart';
 import 'package:miniguru/screens/navScreen/community_screen.dart';
+import 'package:miniguru/widgets/schoolJoinWidgets.dart';
 
 class MentorProfileTab extends StatefulWidget {
   const MentorProfileTab({super.key});
@@ -82,14 +83,17 @@ class _MentorProfileTabState extends State<MentorProfileTab> {
         color: pastelBlueText,
         child: SingleChildScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
-          child: Column(
-            children: [
-              _buildHeader(),
-              const SizedBox(height: 20),
+          child: Builder(builder: (context) {
+            // On a laptop / desktop window the page is split into two columns
+            // (account on the left, actions on the right) so it is not one long strip.
+            final wide = MediaQuery.of(context).size.width >= 900;
+            final left = <Widget>[
               _buildTypeChip(),
               const SizedBox(height: 20),
               _buildWalletCard(),
               const SizedBox(height: 16),
+              // Children asking to join this school / family wait here for approval.
+              SchoolJoinBanner(onChanged: _loadData),
               ContactVerificationCard(
                 email: _mentor?.email,
                 guardianEmail: _mentor?.guardianEmail,
@@ -99,10 +103,33 @@ class _MentorProfileTabState extends State<MentorProfileTab> {
                 onChanged: _loadData,
               ),
               const SizedBox(height: 16),
-              _buildActions(),
-              const SizedBox(height: 40),
-            ],
-          ),
+            ];
+            return Column(
+              children: [
+                _buildHeader(),
+                const SizedBox(height: 20),
+                if (wide)
+                  Center(
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 1100),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(child: Column(children: left)),
+                          const SizedBox(width: 12),
+                          Expanded(child: _buildActions()),
+                        ],
+                      ),
+                    ),
+                  )
+                else ...[
+                  ...left,
+                  _buildActions(),
+                ],
+                const SizedBox(height: 40),
+              ],
+            );
+          }),
         ),
       ),
     );

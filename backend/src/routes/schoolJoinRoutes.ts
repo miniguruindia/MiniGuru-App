@@ -79,7 +79,7 @@ router.post('/request', async (req: Request, res: Response) => {
         userId: school.id,
         type: 'school_join_request',
         emoji: '🏫',
-        message: `${me.name} wants to join your school. Open your learner list to approve or decline.`,
+        message: `${me.name} wants to join your school. Open My Account to approve or decline.`,
       });
     } catch (e) { /* best effort */ }
     return res.status(201).json({ message: 'Request sent', id: reqRow.id, schoolName: schoolLabel(school) });

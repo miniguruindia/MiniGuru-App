@@ -86,7 +86,7 @@ router.post('/request', async (req, res) => {
                 userId: school.id,
                 type: 'school_join_request',
                 emoji: '🏫',
-                message: `${me.name} wants to join your school. Open your learner list to approve or decline.`,
+                message: `${me.name} wants to join your school. Open My Account to approve or decline.`,
             });
         }
         catch (e) { /* best effort */ }

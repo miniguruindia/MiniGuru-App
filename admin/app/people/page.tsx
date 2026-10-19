@@ -23,7 +23,7 @@ async function authToken() {
 // ═══════════════════════════════════════════════════════════════════════════
 // TAB 1 — DIRECTORY  (Users, with account-type + city + school filters)
 // ═══════════════════════════════════════════════════════════════════════════
-type AccountFilter = 'all' | 'children' | 'parents' | 'schools' | 'tlabs'
+type AccountFilter = 'all' | 'children' | 'individuals' | 'parents' | 'schools' | 'tlabs'
 
 function accountTypeOf(user: User): { key: AccountFilter; label: string; badgeClass: string } {
   const isChild = user.phoneNumber?.startsWith('child_')
@@ -31,7 +31,7 @@ function accountTypeOf(user: User): { key: AccountFilter; label: string; badgeCl
   if (user.mentorType === 'SCHOOL') return { key: 'schools', label: '🏫 School', badgeClass: 'bg-indigo-100 text-indigo-700' }
   if (user.mentorType === 'TLAB') return { key: 'tlabs', label: '🔬 T-LAB', badgeClass: 'bg-emerald-100 text-emerald-700' }
   if (user.isMentor) return { key: 'parents', label: '👨‍👩‍👧 Parent', badgeClass: 'bg-purple-100 text-purple-700' }
-  return { key: 'parents', label: '🧒 Individual learner (own account)', badgeClass: 'bg-green-100 text-green-700' }
+  return { key: 'individuals', label: '🧒 Individual learner (own account)', badgeClass: 'bg-green-100 text-green-700' }
 }
 
 function DirectoryTab() {
@@ -124,7 +124,7 @@ function DirectoryTab() {
   }, [users, accountFilter, cityFilter, search])
 
   const counts = useMemo(() => {
-    const c: Record<AccountFilter, number> = { all: users.length, children: 0, parents: 0, schools: 0, tlabs: 0 }
+    const c: Record<AccountFilter, number> = { all: users.length, children: 0, individuals: 0, parents: 0, schools: 0, tlabs: 0 }
     users.forEach(u => { c[accountTypeOf(u).key]++ })
     return c
   }, [users])
@@ -161,7 +161,8 @@ function DirectoryTab() {
   const chips: { key: AccountFilter; label: string }[] = [
     { key: 'all', label: `All (${counts.all})` },
     { key: 'children', label: `🧒 Children (${counts.children})` },
-    { key: 'parents', label: `👨‍👩‍👧 Parents & individual learners (${counts.parents})` },
+    { key: 'individuals', label: `🧒 Individual learners (${counts.individuals})` },
+    { key: 'parents', label: `👨‍👩‍👧 Parents (${counts.parents})` },
     { key: 'schools', label: `🏫 Schools (${counts.schools})` },
     { key: 'tlabs', label: `🔬 T-LABs (${counts.tlabs})` },
   ]

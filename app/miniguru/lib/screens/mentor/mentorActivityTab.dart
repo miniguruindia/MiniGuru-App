@@ -33,6 +33,7 @@ class _MentorActivityTabState extends State<MentorActivityTab> {
   bool _isLoading = true;
   String? _selectedChildId; // null = all children
   int _pendingTopUpCount = 0;
+  String _search = ''; // search by project name or learner name
 
   // Merged in from the old separate "Learners" tab (MentorChildrenTab).
   final List<List<Color>> _learnerGradients = const [
@@ -72,7 +73,43 @@ class _MentorActivityTabState extends State<MentorActivityTab> {
     }
   }
 
+  // Applies the learner chip, then the search box (project name, category or learner name).
   List<Project> _filteredProjects() {
+    final base = _childFilteredProjects();
+    final q = _search.trim().toLowerCase();
+    if (q.isEmpty) return base;
+    final nameByUser = <String, String>{
+      for (final c in _children)
+        if (c.linkedUserId != null) c.linkedUserId!: c.name.toLowerCase(),
+    };
+    return base.where((p) =>
+        p.title.toLowerCase().contains(q) ||
+        p.author.toLowerCase().contains(q) ||
+        p.category.toLowerCase().contains(q) ||
+        (nameByUser[p.userId] ?? '').contains(q)).toList();
+  }
+
+  Widget _buildSearchBox() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+      child: TextField(
+        onChanged: (v) => setState(() => _search = v),
+        decoration: InputDecoration(
+          hintText: 'Search a project or learner name...',
+          prefixIcon: const Icon(Icons.search, size: 20),
+          isDense: true,
+          filled: true,
+          fillColor: Colors.white,
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(14),
+            borderSide: BorderSide(color: Colors.grey.shade300),
+          ),
+        ),
+      ),
+    );
+  }
+
+  List<Project> _childFilteredProjects() {
     if (_selectedChildId == null) return _projects;
     final child = _children.firstWhere(
       (c) => c.id == _selectedChildId,
@@ -612,6 +649,7 @@ class _MentorActivityTabState extends State<MentorActivityTab> {
   @override
   Widget build(BuildContext context) {
     final filtered = _filteredProjects();
+    final wide = MediaQuery.of(context).size.width >= 900;
 
     return Scaffold(
       backgroundColor: backgroundWhite,
@@ -662,6 +700,75 @@ class _MentorActivityTabState extends State<MentorActivityTab> {
                 ),
               ),
 
+              // ── LAPTOP / DESKTOP: two columns. Learners + batch snapshot on the
+              // left, search + filter + projects on the right. ──────────────────
+              if (wide && _isLoading)
+                const SliverToBoxAdapter(
+                  child: Center(
+                      child: Padding(
+                    padding: EdgeInsets.only(top: 40),
+                    child: CircularProgressIndicator(color: pastelBlueText),
+                  )),
+                ),
+              if (wide && !_isLoading)
+                SliverToBoxAdapter(
+                  child: Center(
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 1200),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            flex: 4,
+                            child: Column(children: [
+                              _buildLearnersSection(),
+                              if (_children.isNotEmpty) _buildBatchSnapshot(),
+                            ]),
+                          ),
+                          Expanded(
+                            flex: 6,
+                            child: Padding(
+                              padding: const EdgeInsets.only(top: 12),
+                              child: Column(children: [
+                                if (_children.isNotEmpty)
+                                  SizedBox(
+                                    height: 52,
+                                    child: ListView(
+                                      scrollDirection: Axis.horizontal,
+                                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                      children: [
+                                        _filterChip('All', null),
+                                        ..._children.map((c) => _filterChip(c.name, c.id)),
+                                      ],
+                                    ),
+                                  ),
+                                _buildSearchBox(),
+                                if (filtered.isEmpty)
+                                  Padding(
+                                    padding: const EdgeInsets.only(top: 40),
+                                    child: Text(
+                                        _search.trim().isEmpty
+                                            ? 'No projects yet.\nProjects created by your children will appear here'
+                                            : 'No project or learner matches "$_search"',
+                                        textAlign: TextAlign.center,
+                                        style: GoogleFonts.nunito(fontSize: 14, color: Colors.grey[500])),
+                                  )
+                                else
+                                  Padding(
+                                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                                    child: Column(children: filtered.map(_buildProjectCard).toList()),
+                                  ),
+                              ]),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+
+              // ── PHONE / NARROW: the original single column, plus the search box ──
+              if (!wide) ...[
               // My Learners — merged in from the old separate "Learners" tab
               // (MentorChildrenTab), which used to be its own bottom-nav tab.
               // Shown as a compact horizontal strip here (rather than the old
@@ -693,6 +800,7 @@ class _MentorActivityTabState extends State<MentorActivityTab> {
                   ),
                 ),
 
+              SliverToBoxAdapter(child: _buildSearchBox()),
               const SliverToBoxAdapter(child: SizedBox(height: 8)),
 
               // Loading
@@ -743,6 +851,8 @@ class _MentorActivityTabState extends State<MentorActivityTab> {
                     ),
                   ),
                 ),
+
+              ],
 
               const SliverToBoxAdapter(child: SizedBox(height: 100)),
             ],
