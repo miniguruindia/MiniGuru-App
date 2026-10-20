@@ -40,9 +40,8 @@ export const EMAIL_MONTHLY_LIMIT = 3000;
 // com/youtube/v3/determine_quota_cost, confirmed live) has TWO independent
 // buckets, not one:
 //   1. videos.insert (upload) — its OWN separate daily bucket, cost 1 per
-//      call. Default allocation is 100/day; MiniGuru requested an increase
-//      (200/day) — update YOUTUBE_UPLOAD_DAILY_LIMIT below once Google
-//      confirms the actual granted number.
+//      call. Default allocation is 100/day; YouTube CONFIRMED the increase to
+//      200/day by email on 19 Oct 2026, valid for 6 months (to about 19 Apr 2027).
 //   2. Everything else (videos.update, videos.delete, videos.rate,
 //      commentThreads.insert, videos.list, etc.) — a SHARED 10,000/day
 //      pool, unchanged from before.
@@ -63,7 +62,7 @@ export const YOUTUBE_UNIT_COSTS = {
 } as const;
 
 const YOUTUBE_UPLOAD_QUOTA_KEY = 'youtube_upload_quota_estimate';
-export const YOUTUBE_UPLOAD_DAILY_LIMIT = 100; // Google's default for videos.insert's own bucket — raise this once a confirmed higher grant is in hand
+export const YOUTUBE_UPLOAD_DAILY_LIMIT = 200; // Granted by YouTube on 19 Oct 2026 (video.insert 100 -> 200/day) for 6 months, i.e. until about 19 Apr 2027; they may ask for a compliance audit or a re-application, so renew the request before then
 
 // ── Gemini AI review — read-only here, aiVideoReviewService.ts owns writes
 const GEMINI_QUOTA_KEY = 'ai_review_quota';
