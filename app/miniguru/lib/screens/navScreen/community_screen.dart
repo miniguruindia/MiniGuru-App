@@ -2197,6 +2197,9 @@ class _Resource {
 class EventsPage extends StatelessWidget {
   const EventsPage({super.key});
 
+  /// Shareable address: miniguru.in/community/resources
+  static const routeName = '/community/resources';
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -2205,6 +2208,14 @@ class EventsPage extends StatelessWidget {
         backgroundColor: Colors.white,
         elevation: 0,
         iconTheme: const IconThemeData(color: Color(0xFF1A1A2E)),
+        actions: [
+          if (!Navigator.canPop(context))
+            TextButton(
+              onPressed: () => Navigator.pushReplacementNamed(context, '/'),
+              child: Text('Open MiniGuru',
+                  style: GoogleFonts.nunito(fontWeight: FontWeight.w900, color: const Color(0xFF0A6CFF))),
+            ),
+        ],
         title: Text('Resources and events',
             style: GoogleFonts.nunito(
                 fontWeight: FontWeight.w900, fontSize: 18, color: const Color(0xFF1A1A2E))),

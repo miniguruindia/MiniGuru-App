@@ -464,7 +464,7 @@ class _HomeState extends State<Home> {
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
               onPressed: () {
                 Navigator.pop(ctx);
-                Navigator.push(context, MaterialPageRoute(builder: (_) => const EventsPage()));
+                Navigator.pushNamed(context, EventsPage.routeName);
               },
               child: Text('Read more', style: GoogleFonts.nunito(fontWeight: FontWeight.w900, fontSize: 14)),
             ),

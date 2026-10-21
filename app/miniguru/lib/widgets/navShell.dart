@@ -113,27 +113,30 @@ class _Rail extends StatelessWidget {
                   unselectedLabelTextStyle: GoogleFonts.nunito(
                       fontSize: 10, fontWeight: FontWeight.w600, color: Colors.grey.shade600),
                   trailing: Padding(
-                    padding: const EdgeInsets.only(top: 6),
+                    padding: const EdgeInsets.only(top: 10),
                     child: InkWell(
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(14),
                       onTap: () => NavShell.navigatorKey.currentState
-                          ?.push(MaterialPageRoute(builder: (_) => const EventsPage())),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 6),
+                          ?.pushNamed(EventsPage.routeName),
+                      child: Container(
+                        width: 72,
+                        padding: const EdgeInsets.symmetric(vertical: 8),
+                        decoration: BoxDecoration(
+                          color: GColors.yellow,
+                          borderRadius: BorderRadius.circular(14),
+                          boxShadow: [
+                            BoxShadow(
+                                color: GColors.yellow.withOpacity(0.45),
+                                blurRadius: 8,
+                                offset: const Offset(0, 2)),
+                          ],
+                        ),
                         child: Column(mainAxisSize: MainAxisSize.min, children: [
-                          Container(
-                            width: 42,
-                            height: 26,
-                            decoration: BoxDecoration(
-                                color: GColors.yellow.withOpacity(0.18),
-                                borderRadius: BorderRadius.circular(13)),
-                            alignment: Alignment.center,
-                            child: const Text('🏆', style: TextStyle(fontSize: 16)),
-                          ),
-                          const SizedBox(height: 3),
+                          const Text('🏆', style: TextStyle(fontSize: 22)),
+                          const SizedBox(height: 2),
                           Text('Events',
                               style: GoogleFonts.nunito(
-                                  fontSize: 10, fontWeight: FontWeight.w700, color: Colors.grey.shade700)),
+                                  fontSize: 11, fontWeight: FontWeight.w900, color: const Color(0xFF1A1A2E))),
                         ]),
                       ),
                     ),
