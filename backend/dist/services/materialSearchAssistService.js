@@ -38,7 +38,7 @@ function getClient() {
  * concise Amazon-India search phrase. Falls back to the original name on
  * any failure — never throws, never blocks the PA API search that follows.
  */
-async function refineSearchQuery(materialName, description, imageLocalPath) {
+async function refineSearchQuery(materialName, description, imageLocalPath, avoidTitles) {
     const fallback = materialName.trim();
     const ai = getClient();
     if (!ai || !fallback)
@@ -48,7 +48,7 @@ async function refineSearchQuery(materialName, description, imageLocalPath) {
 
 Material name: "${materialName}"
 ${description ? `Description: "${description}"` : ''}
-
+${avoidTitles && avoidTitles.length ? `The admin rejected these products as wrong matches, so choose words that avoid them:\n${avoidTitles.map((t) => `- ${t}`).join('\n')}\n` : ''}
 Search phrase:`;
         const parts = [prompt];
         if (imageLocalPath && fs_1.default.existsSync(imageLocalPath)) {

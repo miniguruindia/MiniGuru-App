@@ -73,6 +73,21 @@ function FindOnAmazonModal({ material: m, apiBase, onClose, onPicked }: {
   const [error, setError]       = React.useState<string | null>(null)
   const [results, setResults]   = React.useState<AmazonCandidate[]>([])
   const [searchedFor, setSearchedFor] = React.useState('')
+  const [hidden, setHidden]     = React.useState(0)
+
+  async function discard(r: AmazonCandidate) {
+    setResults(prev => prev.filter(x => x.asin !== r.asin))
+    try {
+      const token = await authToken()
+      await fetch(`${apiBase}/materials/admin/${m.id}/find-discard`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ asin: r.asin, title: r.title }),
+      })
+    } catch {
+      /* the row is already gone from the list; saving the discard is best effort */
+    }
+  }
 
   React.useEffect(() => {
     (async () => {
@@ -87,6 +102,7 @@ function FindOnAmazonModal({ material: m, apiBase, onClose, onPicked }: {
         setConfigured(!!data.configured)
         setResults(data.results || [])
         setSearchedFor(data.searchedFor || m.name)
+        setHidden(data.hiddenCount || 0)
         if (data.error) setError(data.error)
       } catch (e: any) {
         setError(e.message || 'Search failed')
@@ -98,7 +114,7 @@ function FindOnAmazonModal({ material: m, apiBase, onClose, onPicked }: {
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-xl shadow-xl w-full max-w-lg max-h-[80vh] flex flex-col">
+      <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[85vh] flex flex-col">
         <div className="flex items-center justify-between p-4 border-b">
           <div>
             <h3 className="font-semibold text-gray-900">🔍 Find on Amazon</h3>
@@ -131,13 +147,16 @@ function FindOnAmazonModal({ material: m, apiBase, onClose, onPicked }: {
           )}
           {!loading && results.length > 0 && (
             <div className="space-y-2">
+              <p className="text-xs text-gray-500 mb-1">
+                Cheapest first. Tap the product name to open it on Amazon in a new tab and check the details.
+                Use <b>Link this</b> to pick it, or <b>Discard</b> if it is clearly wrong (the search will avoid it next time).
+              </p>
               {searchedFor && searchedFor.toLowerCase() !== m.name.toLowerCase() && (
                 <p className="text-xs text-gray-400 mb-2">Searched as: &ldquo;{searchedFor}&rdquo;</p>
               )}
-              {results.map(r => (
-                <button
+              {results.map((r, idx) => (
+                <div
                   key={r.asin}
-                  onClick={() => onPicked(r.asin, r.priceRupees, r.imageUrl, r.extractedUnit, r.title ?? null)}
                   className="w-full flex items-center gap-3 p-2 border border-gray-200 rounded-lg hover:border-orange-400 hover:bg-orange-50 text-left transition-colors"
                 >
                   <div className="w-14 h-14 flex-shrink-0 bg-white border rounded flex items-center justify-center overflow-hidden">
@@ -146,17 +165,46 @@ function FindOnAmazonModal({ material: m, apiBase, onClose, onPicked }: {
                       : <Package size={20} className="text-gray-300" />}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm text-gray-900 line-clamp-2">{r.title}</p>
+                    <a
+                      href={r.detailPageUrl || `https://www.amazon.in/dp/${r.asin}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-sm text-blue-700 underline line-clamp-2"
+                    >
+                      {r.title}
+                    </a>
                     <p className="text-xs text-gray-500 font-mono">{r.asin}</p>
                     {r.extractedUnit && (
                       <p className="text-xs text-indigo-600">📦 {r.extractedUnit}</p>
                     )}
+                    <div className="flex gap-2 mt-1">
+                      <button
+                        onClick={() => onPicked(r.asin, r.priceRupees, r.imageUrl, r.extractedUnit, r.title ?? null)}
+                        className="px-2 py-0.5 bg-orange-500 text-white rounded text-xs hover:bg-orange-600"
+                      >
+                        Link this
+                      </button>
+                      <button
+                        onClick={() => discard(r)}
+                        className="px-2 py-0.5 border border-red-300 text-red-600 rounded text-xs hover:bg-red-50"
+                      >
+                        Discard
+                      </button>
+                    </div>
                   </div>
-                  <div className="text-sm font-semibold text-orange-600 whitespace-nowrap">
-                    {r.priceRupees != null ? `₹${r.priceRupees}` : '—'}
+                  <div className="text-right whitespace-nowrap">
+                    <div className="text-sm font-semibold text-orange-600">
+                      {r.priceRupees != null ? `₹${r.priceRupees}` : '—'}
+                    </div>
+                    {idx === 0 && r.priceRupees != null && (
+                      <div className="text-[10px] font-bold text-green-700 bg-green-100 rounded px-1 mt-1">Lowest price</div>
+                    )}
                   </div>
-                </button>
+                </div>
               ))}
+              {hidden > 0 && (
+                <p className="text-xs text-gray-400">{hidden} earlier discarded product{hidden === 1 ? ' is' : 's are'} hidden.</p>
+              )}
             </div>
           )}
         </div>

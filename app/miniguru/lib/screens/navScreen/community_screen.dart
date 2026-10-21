@@ -1700,7 +1700,7 @@ class _ResourcesTab extends StatelessWidget {
         const SizedBox(height: 4),
         const _PatentInfoCard(),
         const SizedBox(height: 12),
-        const _EventsInfoCard(),
+        const EventsInfoCard(),
         const SizedBox(height: 8),
         const _JoinCTA(
           title: 'Want exclusive resources?',
@@ -1791,8 +1791,8 @@ class _PatentInfoCard extends StatelessWidget {
 /// "Competitions and events to explore" — plain information plus links to the
 /// official sources (checked Oct 2026). MiniGuru is not connected to any of them,
 /// and dates change every year, so the card tells children to check the official site.
-class _EventsInfoCard extends StatelessWidget {
-  const _EventsInfoCard();
+class EventsInfoCard extends StatelessWidget {
+  const EventsInfoCard();
 
   // name, who can take part, how it works, official link
   static const _events = <List<String>>[
@@ -1825,6 +1825,18 @@ class _EventsInfoCard extends StatelessWidget {
       'Explore ages 6 to 10; Challenge ages 9 to 16 (ages vary by country).',
       'Teams design, build and code LEGO robots and solve a yearly challenge. Teams are usually formed through a school or club.',
       'https://www.firstinspires.org/programs/fll/',
+    ],
+    [
+      'PM Rashtriya Bal Puraskar (Government of India)',
+      'Children under 18. Science and Technology is one of the award categories.',
+      'Children are nominated for outstanding achievements. In 2026 nominations ran from 1 April to 31 July, so ask a parent or your school to nominate you in the next round.',
+      'https://awards.gov.in/',
+    ],
+    [
+      'Design for Change: I CAN Earthshot Challenge and I CAN School Challenge',
+      'Earthshot Challenge for ages 9 to 17 (launched 1 July 2026). The School Challenge is for school teams.',
+      'Children spot a problem around them and take action to fix it. The School Challenge has run for 16 editions and nominated teams can win cash grants. Dates of the next school challenge are not announced yet.',
+      'https://www.dfcworld.org/',
     ],
     [
       'Technovation Girls',
@@ -2178,4 +2190,35 @@ class _Resource {
     required this.tag, required this.tagColor, required this.type,
     required this.url,
   });
+}
+
+/// Full page with the events card, opened from the Home banner.
+class EventsPage extends StatelessWidget {
+  const EventsPage({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.white,
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        elevation: 0,
+        iconTheme: const IconThemeData(color: Color(0xFF1A1A2E)),
+        title: Text('Competitions and events',
+            style: GoogleFonts.nunito(
+                fontWeight: FontWeight.w900, fontSize: 18, color: const Color(0xFF1A1A2E))),
+      ),
+      body: SafeArea(
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 760),
+            child: const SingleChildScrollView(
+              padding: EdgeInsets.all(16),
+              child: EventsInfoCard(),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }

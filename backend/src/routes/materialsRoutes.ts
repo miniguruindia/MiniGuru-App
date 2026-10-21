@@ -870,25 +870,87 @@ router.post('/admin/bulk', authenticateToken, requireAdmin, async (req: Request,
 // Gemini (best-effort, optional) refines the search phrase first; PA API
 // then does the actual product search. Never auto-links anything — always
 // returns candidates for an admin to pick from by hand.
+const FIND_DISCARD_KEY = 'amazon_find_discards';
+type FindDiscard = { asin: string; title: string };
+
+async function readFindDiscards(materialId: string): Promise<FindDiscard[]> {
+  try {
+    const row = await prisma.siteContent.findUnique({ where: { key: FIND_DISCARD_KEY } });
+    const all: any = (row?.value as any) || {};
+    return Array.isArray(all[materialId]) ? all[materialId] : [];
+  } catch {
+    return [];
+  }
+}
+
 router.post('/admin/:id/find-on-amazon', authenticateToken, requireAdmin, async (req: any, res: any) => {
   try {
     const material = await prisma.material.findUnique({ where: { id: req.params.id } });
     if (!material) return res.status(404).json({ error: 'Material not found' });
 
     const rawQuery: string = (req.body?.query && String(req.body.query).trim()) || material.name;
+    // Products the admin already threw away for this material: hidden from the
+    // list and their titles are passed to Gemini so the next search avoids them.
+    const discarded = await readFindDiscards(req.params.id);
+    const discardedAsins = new Set(discarded.map((d) => d.asin));
     let searchQuery = rawQuery;
     try {
-      searchQuery = await refineSearchQuery(rawQuery, material.description || undefined);
+      searchQuery = await refineSearchQuery(
+        rawQuery,
+        material.description || undefined,
+        undefined,
+        discarded.slice(-8).map((d) => d.title)
+      );
     } catch {
-      // refineSearchQuery already never throws, but stay defensive here too
       searchQuery = rawQuery;
     }
 
-    const result = await searchAmazonProducts(searchQuery, 5);
-    res.json({ ...result, searchedFor: searchQuery, rawQuery });
+    const result = await searchAmazonProducts(searchQuery, 10);
+    const visible = (result.results || []).filter((r: any) => !discardedAsins.has(r.asin));
+    // Cheapest first; items without a price go last.
+    visible.sort((a: any, b: any) => {
+      const pa = typeof a.priceRupees === 'number' ? a.priceRupees : Infinity;
+      const pb = typeof b.priceRupees === 'number' ? b.priceRupees : Infinity;
+      return pa - pb;
+    });
+    const results = visible.map((r: any) => ({
+      ...r,
+      detailPageUrl: r.detailPageUrl || buildAffiliateUrl(r.asin),
+    }));
+    res.json({
+      ...result,
+      results,
+      searchedFor: searchQuery,
+      rawQuery,
+      hiddenCount: (result.results || []).length - visible.length,
+    });
   } catch (err) {
     console.error('[materials] POST /admin/:id/find-on-amazon error:', err);
     res.status(500).json({ configured: true, results: [], error: 'Search failed' });
+  }
+});
+
+// ── POST /admin/:id/find-discard — remember a clearly wrong match ──────────
+// Body: { asin, title }. Stored per material in site_content so the same
+// product is not shown again and Gemini avoids similar titles next time.
+router.post('/admin/:id/find-discard', authenticateToken, requireAdmin, async (req: any, res: any) => {
+  try {
+    const { asin, title } = req.body || {};
+    if (!asin || typeof asin !== 'string') return res.status(400).json({ error: 'asin is required' });
+    const row = await prisma.siteContent.findUnique({ where: { key: FIND_DISCARD_KEY } });
+    const all: any = { ...((row?.value as any) || {}) };
+    const list: FindDiscard[] = Array.isArray(all[req.params.id]) ? all[req.params.id] : [];
+    if (!list.some((d) => d.asin === asin)) list.push({ asin, title: String(title || '').slice(0, 160) });
+    all[req.params.id] = list.slice(-30);
+    await prisma.siteContent.upsert({
+      where: { key: FIND_DISCARD_KEY },
+      update: { value: all },
+      create: { key: FIND_DISCARD_KEY, value: all },
+    });
+    res.json({ ok: true, discarded: all[req.params.id].length });
+  } catch (err) {
+    console.error('[materials] POST /admin/:id/find-discard error:', err);
+    res.status(500).json({ error: 'Could not save the discard' });
   }
 });
 

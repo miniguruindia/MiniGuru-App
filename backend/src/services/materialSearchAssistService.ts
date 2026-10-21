@@ -36,7 +36,8 @@ function getClient(): GoogleGenAI | null {
 export async function refineSearchQuery(
   materialName: string,
   description?: string | null,
-  imageLocalPath?: string | null
+  imageLocalPath?: string | null,
+  avoidTitles?: string[]
 ): Promise<string> {
   const fallback = materialName.trim();
   const ai = getClient();
@@ -47,7 +48,7 @@ export async function refineSearchQuery(
 
 Material name: "${materialName}"
 ${description ? `Description: "${description}"` : ''}
-
+${avoidTitles && avoidTitles.length ? `The admin rejected these products as wrong matches, so choose words that avoid them:\n${avoidTitles.map((t) => `- ${t}`).join('\n')}\n` : ''}
 Search phrase:`;
 
     const parts: any[] = [prompt];

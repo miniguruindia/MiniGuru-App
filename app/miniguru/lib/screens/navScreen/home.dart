@@ -10,6 +10,7 @@ import 'package:miniguru/screens/registerScreen.dart';
 import 'package:miniguru/services/youtube_service.dart';
 import 'package:miniguru/screens/unifiedVideoPlayer.dart';
 import 'package:miniguru/screens/navScreen/profile.dart';
+import 'package:miniguru/screens/navScreen/community_screen.dart' show EventsPage;
 import 'package:miniguru/screens/notificationsScreen.dart';
 import 'package:miniguru/widgets/mgIcons.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -398,12 +399,49 @@ class _HomeState extends State<Home> {
           child: CustomScrollView(
             slivers: [
               _buildAppBar(),
+              SliverToBoxAdapter(child: _buildEventsBanner()),
               if (_isAuthenticated && user != null)
                 _buildAuthenticatedContent()
               else
                 _buildGuestContent(),
             ],
           ),
+        ),
+      ),
+    );
+  }
+
+  // Highlighted link to the competitions / events page (shown on every Home).
+  Widget _buildEventsBanner() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(14),
+        onTap: () => Navigator.push(
+            context, MaterialPageRoute(builder: (_) => const EventsPage())),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          decoration: BoxDecoration(
+            color: GColors.yellowLight,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: GColors.yellow, width: 1.5),
+          ),
+          child: Row(children: [
+            const Text('🏆', style: TextStyle(fontSize: 26)),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text('Competitions and events for young makers',
+                    style: GoogleFonts.nunito(
+                        fontWeight: FontWeight.w900, fontSize: 14, color: GColors.yellowDark)),
+                const SizedBox(height: 2),
+                Text('PM Bal Puraskar, Earthshot Challenge, INSPIRE Awards and more',
+                    style: GoogleFonts.nunito(
+                        fontWeight: FontWeight.w700, fontSize: 12, color: const Color(0xFF4B4B6B))),
+              ]),
+            ),
+            const Icon(Icons.chevron_right_rounded, color: GColors.yellowDark),
+          ]),
         ),
       ),
     );
