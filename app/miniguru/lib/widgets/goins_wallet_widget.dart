@@ -6,10 +6,10 @@ import 'package:miniguru/models/GoinTransaction.dart';
 import 'package:miniguru/repository/GoinsRepository.dart';
 
 // ── Colours ──────────────────────────────────────────────────
-const _blue  = Color(0xFF4285F4);
-const _green = Color(0xFF34A853);
-const _amber = Color(0xFFF9AB00);
-const _red   = Color(0xFFEA4335);
+const _blue  = Color(0xFF0A6CFF);
+const _green = Color(0xFF12B24A);
+const _amber = Color(0xFFFFB800);
+const _red   = Color(0xFFFF3B30);
 const _card  = Color(0xFF1E293B);
 
 // ─────────────────────────────────────────────────────────────
@@ -169,7 +169,7 @@ class _GoinsWalletCardState extends State<GoinsWalletCard> {
                     'Goine Wallet',
                     style: GoogleFonts.nunito(color: Colors.white70,
                         fontSize: 13,
-                        fontWeight: FontWeight.w500),
+                        fontWeight: FontWeight.w600),
                   ),
                 ]),
                 GestureDetector(
@@ -260,7 +260,7 @@ class _GoinsWalletCardState extends State<GoinsWalletCard> {
                     _showHistory ? 'Hide History' : 'View History',
                     style: GoogleFonts.nunito(color: _blue,
                       fontSize: 12,
-                      fontWeight: FontWeight.w600,
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
                   const SizedBox(width: 4),
@@ -347,7 +347,7 @@ class _GoinsWalletCardState extends State<GoinsWalletCard> {
                 Text(txn.type.label,
                     style: GoogleFonts.nunito(color: Colors.white,
                         fontSize: 12,
-                        fontWeight: FontWeight.w500)),
+                        fontWeight: FontWeight.w600)),
                 Text(
                   txn.description.isNotEmpty
                       ? txn.description
@@ -497,7 +497,7 @@ class _GoinsAwardDialog extends StatelessWidget {
                 decoration: BoxDecoration(
                   gradient: const LinearGradient(colors: [
                     Color(0xFF1E3A8A),
-                    Color(0xFF4285F4)
+                    Color(0xFF0A6CFF)
                   ]),
                   borderRadius: BorderRadius.circular(12),
                 ),
@@ -509,7 +509,7 @@ class _GoinsAwardDialog extends StatelessWidget {
                       const SizedBox(width: 8),
                       Text('Awesome! Keep Building 🚀',
                           style: GoogleFonts.nunito(color: Colors.white,
-                              fontWeight: FontWeight.w600,
+                              fontWeight: FontWeight.w700,
                               fontSize: 14)),
                     ],
                   ),

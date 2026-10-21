@@ -71,27 +71,27 @@ class _UnifiedVideoPlayerState extends State<UnifiedVideoPlayer> {
     'aesthetic': {
       'icon': Icons.palette_outlined,
       'label': 'Aesthetic',
-      'color': Color(0xFFEA4335),
+      'color': Color(0xFFFF3B30),
     },
     'functional': {
       'icon': Icons.settings_outlined,
       'label': 'Works Well',
-      'color': Color(0xFF4285F4),
+      'color': Color(0xFF0A6CFF),
     },
     'sturdy': {
       'icon': Icons.construction_outlined,
       'label': 'Well-Built',
-      'color': Color(0xFF669DF6),
+      'color': Color(0xFF4C94FF),
     },
     'creative': {
       'icon': Icons.lightbulb_outline,
       'label': 'Creative',
-      'color': Color(0xFFF9AB00),
+      'color': Color(0xFFFFB800),
     },
     'educational': {
       'icon': Icons.school_outlined,
       'label': 'Educational',
-      'color': Color(0xFF34A853),
+      'color': Color(0xFF12B24A),
     },
   };
 
@@ -467,7 +467,7 @@ class _UnifiedVideoPlayerState extends State<UnifiedVideoPlayer> {
               style: GoogleFonts.nunito(
                 color: Colors.white,
                 fontSize: 14,
-                fontWeight: FontWeight.w600,
+                fontWeight: FontWeight.w700,
               ),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
@@ -681,7 +681,7 @@ class _UnifiedVideoPlayerState extends State<UnifiedVideoPlayer> {
                   if (amazonUrl != null && amazonUrl.isNotEmpty)
                     GestureDetector(
                       onTap: () => launchUrl(Uri.parse(amazonUrl), mode: LaunchMode.externalApplication),
-                      child: const Icon(Icons.open_in_new_rounded, size: 14, color: Color(0xFFF9AB00)),
+                      child: const Icon(Icons.open_in_new_rounded, size: 14, color: Color(0xFFFFB800)),
                     ),
                 ],
               ),
@@ -694,8 +694,8 @@ class _UnifiedVideoPlayerState extends State<UnifiedVideoPlayer> {
             label: Text('Send this kit to a parent',
                 style: GoogleFonts.nunito(fontSize: 12, fontWeight: FontWeight.w700)),
             style: OutlinedButton.styleFrom(
-              foregroundColor: const Color(0xFF4285F4),
-              side: const BorderSide(color: Color(0xFF4285F4)),
+              foregroundColor: const Color(0xFF0A6CFF),
+              side: const BorderSide(color: Color(0xFF0A6CFF)),
               minimumSize: const Size(double.infinity, 40),
             ),
           ),
@@ -767,7 +767,7 @@ class _UnifiedVideoPlayerState extends State<UnifiedVideoPlayer> {
                     }
                   },
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF4285F4),
+                    backgroundColor: const Color(0xFF0A6CFF),
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                   ),
@@ -829,7 +829,7 @@ class _UnifiedVideoPlayerState extends State<UnifiedVideoPlayer> {
                                           fontSize: 13,
                                           color: widget.ownerId.isEmpty
                                               ? Colors.black54
-                                              : const Color(0xFF4285F4),
+                                              : const Color(0xFF0A6CFF),
                                           decoration: widget.ownerId.isEmpty
                                               ? null
                                               : TextDecoration.underline),

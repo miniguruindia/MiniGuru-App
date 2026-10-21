@@ -1,3 +1,4 @@
+import 'package:miniguru/widgets/mgIcons.dart';
 import 'dart:convert';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
@@ -156,7 +157,7 @@ class _LoginScreenState extends State<LoginScreen> {
               const SizedBox(width: 8),
               Text('Reset Password',
                   style: GoogleFonts.poppins(
-                      fontSize: 20, fontWeight: FontWeight.w600)),
+                      fontSize: 20, fontWeight: FontWeight.w700)),
             ],
           ),
           content: Form(
@@ -178,7 +179,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     labelStyle:
                         GoogleFonts.poppins(color: Colors.grey[600]),
                     prefixIcon:
-                        Icon(Icons.email_outlined, color: Colors.grey[600]),
+                        Icon(Icons.email_outlined, color: GColors.red),
                     border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12)),
                     focusedBorder: OutlineInputBorder(
@@ -279,7 +280,7 @@ class _LoginScreenState extends State<LoginScreen> {
             const SizedBox(width: 8),
             Text('Password Reset',
                 style: GoogleFonts.poppins(
-                    fontSize: 20, fontWeight: FontWeight.w600)),
+                    fontSize: 20, fontWeight: FontWeight.w700)),
           ],
         ),
         content: Column(
@@ -288,7 +289,7 @@ class _LoginScreenState extends State<LoginScreen> {
           children: [
             Text('Your password has been reset!',
                 style: GoogleFonts.poppins(
-                    fontSize: 14, fontWeight: FontWeight.w500)),
+                    fontSize: 14, fontWeight: FontWeight.w600)),
             const SizedBox(height: 16),
             Container(
               padding: const EdgeInsets.all(16),
@@ -306,7 +307,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   const SizedBox(height: 4),
                   Text(email,
                       style: GoogleFonts.poppins(
-                          fontSize: 14, fontWeight: FontWeight.w600)),
+                          fontSize: 14, fontWeight: FontWeight.w700)),
                   const SizedBox(height: 12),
                   Text('Temporary Password:',
                       style: GoogleFonts.poppins(
@@ -368,7 +369,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       style: GoogleFonts.poppins(
                           fontSize: 12,
                           color: Colors.orange.shade900,
-                          fontWeight: FontWeight.w500),
+                          fontWeight: FontWeight.w600),
                     ),
                   ),
                 ],
@@ -389,7 +390,7 @@ class _LoginScreenState extends State<LoginScreen> {
             icon: const Icon(Icons.login, color: Colors.white),
             label: Text('Login Now',
                 style: GoogleFonts.poppins(
-                    color: Colors.white, fontWeight: FontWeight.w600)),
+                    color: Colors.white, fontWeight: FontWeight.w700)),
             style: ElevatedButton.styleFrom(
               backgroundColor: pastelBlueText,
               padding: const EdgeInsets.symmetric(
@@ -473,7 +474,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   style: GoogleFonts.nunito(
                     fontWeight: FontWeight.w900,
                     fontSize: 32,
-                    color: const Color(0xFF1E8E3E),
+                    color: const Color(0xFF0E9A3F),
                   ),
                 ),
                 Text('Welcome Back!',
@@ -539,7 +540,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           style: GoogleFonts.poppins(
                               fontSize: 13,
                               color: pastelBlueText,
-                              fontWeight: FontWeight.w500)),
+                              fontWeight: FontWeight.w600)),
                     ),
                   ),
                   const SizedBox(height: 16),
@@ -565,7 +566,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           : Text('Login',
                               style: GoogleFonts.poppins(
                                   fontSize: 16,
-                                  fontWeight: FontWeight.w600)),
+                                  fontWeight: FontWeight.w700)),
                     ),
                   ),
                   const SizedBox(height: 24),
@@ -581,7 +582,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           style: GoogleFonts.poppins(
                               fontSize: 14,
                               color: pastelBlueText,
-                              fontWeight: FontWeight.w600),
+                              fontWeight: FontWeight.w700),
                           recognizer: TapGestureRecognizer()
                             ..onTap = () => Navigator.pushNamed(
                                 context, RegisterScreen.id),
@@ -622,7 +623,7 @@ class _LoginScreenState extends State<LoginScreen> {
       decoration: InputDecoration(
         labelText: label,
         labelStyle: GoogleFonts.poppins(color: Colors.grey[600]),
-        prefixIcon: Icon(icon, color: Colors.grey[600]),
+        prefixIcon: Icon(icon, color: mgFieldIconColor(icon)),
         suffixIcon: suffixIcon,
         border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),

@@ -10,8 +10,8 @@ class SubmitHappeningScreen extends StatefulWidget {
 }
 
 class _SubmitHappeningScreenState extends State<SubmitHappeningScreen> {
-  static const _primary = Color(0xFF4285F4);
-  static const _bg = Color(0xFFF1F6FE);
+  static const _primary = Color(0xFF0A6CFF);
+  static const _bg = Color(0xFFEAF2FF);
 
   final _formKey = GlobalKey<FormState>();
   final _titleCtrl = TextEditingController();

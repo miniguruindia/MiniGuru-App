@@ -9,16 +9,16 @@ import 'package:miniguru/repository/GoinsRepository.dart';
 import 'package:miniguru/network/MiniguruApi.dart';
 
 // ─── Light theme colours ──────────────────────────────────────────────────────
-const _blue     = Color(0xFF4285F4);
-const _blueSoft = Color(0xFFE8F0FE);
-const _green    = Color(0xFF34A853);
-const _amber    = Color(0xFFF9AB00);
-const _red      = Color(0xFFEA4335);
+const _blue     = Color(0xFF0A6CFF);
+const _blueSoft = Color(0xFFCFE3FF);
+const _green    = Color(0xFF12B24A);
+const _amber    = Color(0xFFFFB800);
+const _red      = Color(0xFFFF3B30);
 const _ink      = Color(0xFF1A1A2E);
 const _muted    = Color(0xFF8888AA);
-const _bg       = Color(0xFFF1F6FE);
+const _bg       = Color(0xFFEAF2FF);
 const _card     = Color(0xFFFFFFFF);
-const _border   = Color(0xFFE8F0FE);
+const _border   = Color(0xFFCFE3FF);
 
 // ─── Public entry-point ───────────────────────────────────────────────────────
 Future<List<PickedMaterial>?> showMaterialPicker({
@@ -209,7 +209,7 @@ class _MaterialPickerSheetState extends State<MaterialPickerSheet> {
           Checkbox(value: ticked, activeColor: _blue, onChanged: (v) => toggle(v == true)),
           ClipRRect(
             borderRadius: BorderRadius.circular(8),
-            child: Container(width: 44, height: 44, color: const Color(0xFFF1F6FE),
+            child: Container(width: 44, height: 44, color: const Color(0xFFEAF2FF),
               child: hasImage
                   ? Image.network(o.imageUrl!, fit: BoxFit.contain,
                       errorBuilder: (_, __, ___) => const Center(child: Text('📦', style: TextStyle(fontSize: 22))))
@@ -221,7 +221,7 @@ class _MaterialPickerSheetState extends State<MaterialPickerSheet> {
               Text(o.name, maxLines: 2, overflow: TextOverflow.ellipsis,
                   style: GoogleFonts.nunito(fontSize: 13, fontWeight: FontWeight.w800, color: _ink)),
               Text('🪙 ${o.goinsPerUnit} Goins /${o.unit}',
-                  style: GoogleFonts.nunito(fontSize: 11, fontWeight: FontWeight.w700, color: const Color(0xFFB06F00))),
+                  style: GoogleFonts.nunito(fontSize: 11, fontWeight: FontWeight.w700, color: const Color(0xFF8F5A00))),
             ]),
           ),
           if (ticked)
@@ -330,7 +330,7 @@ class _MaterialPickerSheetState extends State<MaterialPickerSheet> {
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
-        color: const Color(0xFFE8F0FE),
+        color: const Color(0xFFCFE3FF),
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
           color: _blue.withOpacity(0.2),
@@ -490,7 +490,7 @@ class _MaterialPickerSheetState extends State<MaterialPickerSheet> {
                 Text(
                   'That\'s okay — keep going. You\'ll go into debt for it, paid back as you earn more Goins.',
                   style: GoogleFonts.nunito(
-                      color: _muted, fontSize: 10, fontWeight: FontWeight.w600),
+                      color: _muted, fontSize: 10, fontWeight: FontWeight.w700),
                 ),
               ],
             ),
@@ -562,7 +562,7 @@ class _MaterialPickerSheetState extends State<MaterialPickerSheet> {
                 style: GoogleFonts.nunito(
                   color: active ? Colors.white : _muted,
                   fontSize: 12,
-                  fontWeight: active ? FontWeight.w700 : FontWeight.w500,
+                  fontWeight: active ? FontWeight.w700 : FontWeight.w600,
                 ),
               ),
             ),
@@ -611,7 +611,7 @@ class _MaterialPickerSheetState extends State<MaterialPickerSheet> {
     return AnimatedContainer(
       duration: const Duration(milliseconds: 200),
       decoration: BoxDecoration(
-        color: selected ? const Color(0xFFE8F0FE) : _card,
+        color: selected ? const Color(0xFFCFE3FF) : _card,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
           color: selected ? _blue : _border,
@@ -636,7 +636,7 @@ class _MaterialPickerSheetState extends State<MaterialPickerSheet> {
             child: Container(
               height: 100,
               width: double.infinity,
-              color: const Color(0xFFF1F6FE),
+              color: const Color(0xFFEAF2FF),
               child: hasImage
                   ? Image.network(
                       mat.imageUrl!,
@@ -676,7 +676,7 @@ class _MaterialPickerSheetState extends State<MaterialPickerSheet> {
                 // Unit
                 Text('🪙 ${mat.goinsPerUnit} Goins /${mat.unit}',
                     style: GoogleFonts.nunito(
-                        color: const Color(0xFFB06F00), fontSize: 10, fontWeight: FontWeight.w700),
+                        color: const Color(0xFF8F5A00), fontSize: 10, fontWeight: FontWeight.w700),
                     maxLines: 1, overflow: TextOverflow.ellipsis),
 
                 const SizedBox(height: 6),
@@ -772,7 +772,7 @@ class _MaterialPickerSheetState extends State<MaterialPickerSheet> {
                       ? 'No materials selected'
                       : '$count material${count > 1 ? 's' : ''} selected',
                   style: GoogleFonts.nunito(
-                      color: _muted, fontSize: 12, fontWeight: FontWeight.w600),
+                      color: _muted, fontSize: 12, fontWeight: FontWeight.w700),
                 ),
                 if (_totalGoins > 0)
                   Text(

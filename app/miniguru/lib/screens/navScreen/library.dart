@@ -268,7 +268,7 @@ class _LibraryState extends State<Library> with AutomaticKeepAliveClientMixin {
                           fontSize: 11,
                           color: isSelected ? fontColor : Colors.black54,
                           fontWeight:
-                              isSelected ? FontWeight.w600 : FontWeight.normal,
+                              isSelected ? FontWeight.w700 : FontWeight.normal,
                         ),
                       ),
                     ],
@@ -435,7 +435,7 @@ class _LibraryState extends State<Library> with AutomaticKeepAliveClientMixin {
                               project.category,
                               style: bodyTextStyle.copyWith(
                                 fontSize: 11,
-                                fontWeight: FontWeight.w600,
+                                fontWeight: FontWeight.w700,
                               ),
                             ),
                           ),

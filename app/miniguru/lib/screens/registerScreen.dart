@@ -1,3 +1,4 @@
+import 'package:miniguru/widgets/mgIcons.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/gestures.dart';
@@ -165,7 +166,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     width: double.infinity,
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFE8F0FE),
+                      color: const Color(0xFFCFE3FF),
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: SelectableText(loginEmail,
@@ -397,7 +398,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         const SizedBox(height: 8),
         Text('MiniGuru',
             style: GoogleFonts.nunito(
-                fontWeight: FontWeight.w900, fontSize: 32, color: const Color(0xFF1E8E3E))),
+                fontWeight: FontWeight.w900, fontSize: 32, color: const Color(0xFF0E9A3F))),
         Text('Create Account',
             style: GoogleFonts.nunito(
                 fontSize: 26, fontWeight: FontWeight.w900, color: Colors.black87)),
@@ -410,7 +411,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
           emoji: '🧒',
           title: 'Child / Individual',
           subtitle: 'I am a student aged 8–14\nregistering for myself',
-          gradient: const LinearGradient(colors: [Color(0xFF4285F4), Color(0xFF8AB4F8)]),
+          gradient: const LinearGradient(colors: [Color(0xFF0A6CFF), Color(0xFF7DB2FF)]),
         ),
         const SizedBox(height: 16),
         _typeCard(
@@ -418,7 +419,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
           emoji: '👨‍👩‍👧',
           title: 'Parent / Guardian',
           subtitle: 'I am registering my child\nor children',
-          gradient: const LinearGradient(colors: [Color(0xFFF9AB00), Color(0xFFFDD663)]),
+          gradient: const LinearGradient(colors: [Color(0xFFFFB800), Color(0xFFFFD84D)]),
         ),
         const SizedBox(height: 16),
         _typeCard(
@@ -426,7 +427,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
           emoji: '🏫',
           title: 'School / T-LAB',
           subtitle: 'I am registering students\nfrom a school or makerspace',
-          gradient: const LinearGradient(colors: [Color(0xFF34A853), Color(0xFF81C995)]),
+          gradient: const LinearGradient(colors: [Color(0xFF12B24A), Color(0xFF5FD58A)]),
         ),
         const SizedBox(height: 32),
         SizedBox(
@@ -596,7 +597,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFE8F0FE),
+                  color: const Color(0xFFCFE3FF),
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(color: pastelBlueText.withOpacity(0.3)),
                 ),
@@ -882,7 +883,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
           decoration: BoxDecoration(
-            color: const Color(0xFFE8F0FE),
+            color: const Color(0xFFCFE3FF),
             borderRadius: BorderRadius.circular(10),
           ),
           child: Row(
@@ -946,7 +947,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
             decoration: BoxDecoration(
-              color: const Color(0xFFFCE8E6),
+              color: const Color(0xFFFFD3CF),
               borderRadius: BorderRadius.circular(10),
             ),
             child: Row(
@@ -996,16 +997,16 @@ class _RegisterScreenState extends State<RegisterScreen> {
         Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: const Color(0xFFE6F4EA),
+            color: const Color(0xFFC8F2D4),
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: const Color(0xFF1E8E3E).withOpacity(0.2)),
+            border: Border.all(color: const Color(0xFF0E9A3F).withOpacity(0.2)),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text('📌 Save these login details!',
                   style: GoogleFonts.nunito(
-                      fontWeight: FontWeight.w900, fontSize: 14, color: const Color(0xFF1E8E3E))),
+                      fontWeight: FontWeight.w900, fontSize: 14, color: const Color(0xFF0E9A3F))),
               const SizedBox(height: 8),
               Text('Login ID: $_miniguruId',
                   style: GoogleFonts.nunito(fontWeight: FontWeight.w700, fontSize: 13)),
@@ -1034,13 +1035,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
       obscureText: obscureText,
       keyboardType: keyboardType,
       validator: validator,
-      style: GoogleFonts.nunito(fontSize: 14, fontWeight: FontWeight.w600),
+      style: GoogleFonts.nunito(fontSize: 14, fontWeight: FontWeight.w700),
       decoration: InputDecoration(
         labelText: label,
         helperText: helperText,
         helperStyle: GoogleFonts.nunito(fontSize: 11, color: Colors.grey[500]),
         labelStyle: GoogleFonts.nunito(color: Colors.grey[600], fontSize: 13),
-        prefixIcon: Icon(icon, color: Colors.grey[600], size: 20),
+        prefixIcon: Icon(icon, color: mgFieldIconColor(icon), size: 20),
         suffixIcon: suffixIcon,
         border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),

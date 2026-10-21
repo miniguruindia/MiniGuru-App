@@ -168,7 +168,7 @@ class _ProjectScreenState extends State<ProjectScreen>
           _loadDrafts();
         },
         icon: const Icon(Icons.add),
-        label: Text('New Project', style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
+        label: Text('New Project', style: GoogleFonts.poppins(fontWeight: FontWeight.w700)),
         backgroundColor: pastelBlueText,
       ) : null,
       appBar: AppBar(
@@ -224,14 +224,14 @@ class _ProjectScreenState extends State<ProjectScreen>
               padding: const EdgeInsets.symmetric(vertical: 14),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
             child: Text('Login to Continue',
-              style: GoogleFonts.poppins(fontSize: 15, fontWeight: FontWeight.w600, color: Colors.white)),
+              style: GoogleFonts.poppins(fontSize: 15, fontWeight: FontWeight.w700, color: Colors.white)),
           )),
           const SizedBox(height: 16),
           Row(mainAxisAlignment: MainAxisAlignment.center, children: [
             Text("Don't have an account? ", style: GoogleFonts.poppins(fontSize: 13, color: Colors.black54)),
             GestureDetector(
               onTap: () => Navigator.pushNamed(context, LoginScreen.id),
-              child: Text('Sign Up Free', style: GoogleFonts.poppins(fontSize: 13, color: pastelBlueText, fontWeight: FontWeight.w600)),
+              child: Text('Sign Up Free', style: GoogleFonts.poppins(fontSize: 13, color: pastelBlueText, fontWeight: FontWeight.w700)),
             ),
           ]),
         ]),
@@ -266,7 +266,7 @@ class _ProjectScreenState extends State<ProjectScreen>
           borderRadius: BorderRadius.circular(20)),
         child: Text(label, style: GoogleFonts.poppins(
           color: selected ? Colors.white : Colors.black87,
-          fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
+          fontWeight: selected ? FontWeight.w700 : FontWeight.normal,
           fontSize: 13)),
       ),
     );
@@ -396,7 +396,7 @@ class _ProjectScreenState extends State<ProjectScreen>
     return Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
       Icon(icon, size: 64, color: Colors.grey[300]),
       const SizedBox(height: 16),
-      Text(title,   style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.grey[600])),
+      Text(title,   style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.w700, color: Colors.grey[600])),
       const SizedBox(height: 6),
       Text(subtitle, style: GoogleFonts.poppins(fontSize: 13, color: Colors.grey[400])),
     ]));
@@ -449,7 +449,7 @@ class _ProjectCard extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20)),
-                child: Text(project.category, style: GoogleFonts.poppins(fontSize: 11, fontWeight: FontWeight.w600)),
+                child: Text(project.category, style: GoogleFonts.poppins(fontSize: 11, fontWeight: FontWeight.w700)),
               ),
               const Spacer(),
               Text(project.author, style: GoogleFonts.poppins(fontSize: 11, color: Colors.black45)),
@@ -501,7 +501,7 @@ class _DraftCard extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                   decoration: BoxDecoration(color: pastelYellow, borderRadius: BorderRadius.circular(12)),
-                  child: Text(draft.category, style: GoogleFonts.poppins(fontSize: 10, fontWeight: FontWeight.w600)),
+                  child: Text(draft.category, style: GoogleFonts.poppins(fontSize: 10, fontWeight: FontWeight.w700)),
                 ),
                 const SizedBox(width: 8),
                 // Materials count

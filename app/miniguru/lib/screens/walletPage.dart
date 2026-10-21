@@ -86,7 +86,7 @@ class _WalletPageState extends State<WalletPage> {
         style: bodyTextStyle.copyWith(
           color: color,
           fontSize: 12,
-          fontWeight: FontWeight.w600,
+          fontWeight: FontWeight.w700,
         ),
       ),
     );
@@ -260,7 +260,7 @@ class _WalletPageState extends State<WalletPage> {
                             monthYear,
                             style: bodyTextStyle.copyWith(
                               fontSize: 14,
-                              fontWeight: FontWeight.w600,
+                              fontWeight: FontWeight.w700,
                               color: Colors.grey[700],
                             ),
                           ),

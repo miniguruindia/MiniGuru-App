@@ -10,22 +10,22 @@ class GColors {
   GColors._();
 
   // Google blue / green / yellow / red.
-  static const blue = Color(0xFF4285F4);
-  static const green = Color(0xFF34A853);
-  static const yellow = Color(0xFFF9AB00); // readable on white
-  static const red = Color(0xFFEA4335);
+  static const blue = Color(0xFF0A6CFF);
+  static const green = Color(0xFF12B24A);
+  static const yellow = Color(0xFFFFB800); // readable on white
+  static const red = Color(0xFFFF3B30);
 
   // Soft tints for box backgrounds.
-  static const blueLight = Color(0xFFE8F0FE);
-  static const greenLight = Color(0xFFE6F4EA);
-  static const yellowLight = Color(0xFFFEF7E0);
-  static const redLight = Color(0xFFFCE8E6);
+  static const blueLight = Color(0xFFCFE3FF);
+  static const greenLight = Color(0xFFC8F2D4);
+  static const yellowLight = Color(0xFFFFEFA8);
+  static const redLight = Color(0xFFFFD3CF);
 
   // Dark shades for text that sits on the tints.
-  static const blueDark = Color(0xFF1A5BC4);
-  static const greenDark = Color(0xFF1E7E34);
-  static const yellowDark = Color(0xFFB06F00);
-  static const redDark = Color(0xFFB3261E);
+  static const blueDark = Color(0xFF0A4FD6);
+  static const greenDark = Color(0xFF0A7A32);
+  static const yellowDark = Color(0xFF8F5A00);
+  static const redDark = Color(0xFFA3150C);
 }
 
 /// Colourful icon for the bottom bar (phone) and the left strip (laptop).
@@ -52,7 +52,7 @@ class NavIcon extends StatelessWidget {
         borderRadius: BorderRadius.circular(13),
       ),
       alignment: Alignment.center,
-      child: Icon(icon, size: 22, color: selected ? color : color.withOpacity(0.72)),
+      child: Icon(icon, size: 22, color: selected ? color : color.withOpacity(0.92)),
     );
   }
 }
@@ -74,4 +74,14 @@ class IconBadge extends StatelessWidget {
       child: Icon(icon, size: size * 0.52, color: color),
     );
   }
+}
+
+/// Colour for the little icon inside login / register form fields.
+Color mgFieldIconColor(IconData icon) {
+  if (icon == Icons.email_outlined) return GColors.red;
+  if (icon == Icons.lock_outline || icon == Icons.phone_outlined) return GColors.green;
+  if (icon == Icons.cake_outlined || icon == Icons.badge_outlined) return GColors.yellowDark;
+  if (icon == Icons.location_city_outlined || icon == Icons.map_outlined) return GColors.red;
+  if (icon == Icons.supervisor_account_outlined || icon == Icons.business_outlined) return GColors.green;
+  return GColors.blue;
 }

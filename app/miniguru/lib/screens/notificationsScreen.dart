@@ -79,7 +79,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [Color(0xFF4285F4), Color(0xFF1A73E8)],
+          colors: [Color(0xFF0A6CFF), Color(0xFF0A5CE0)],
         ),
         borderRadius: BorderRadius.vertical(bottom: Radius.circular(24)),
       ),
@@ -88,7 +88,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           icon: const Icon(Icons.arrow_back_rounded, color: Colors.white),
           onPressed: () => Navigator.of(context).maybePop(),
         ),
-        const Icon(Icons.notifications_rounded, color: Color(0xFFF9AB00), size: 26),
+        const Icon(Icons.notifications_rounded, color: Color(0xFFFFB800), size: 26),
         const SizedBox(width: 8),
         Expanded(
           child: Text('Notifications',
@@ -135,7 +135,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
             const SizedBox(height: 3),
             Text(_ago(m['createdAt']),
                 style: GoogleFonts.nunito(
-                    fontSize: 12, fontWeight: FontWeight.w600, color: Colors.black45)),
+                    fontSize: 12, fontWeight: FontWeight.w700, color: Colors.black45)),
           ]),
         ),
       ]),

@@ -61,7 +61,7 @@ class _DeliveryAddressPageState extends State<DeliveryAddressPage> {
                     'Where should we deliver your order?',
                     style: headingTextStyle.copyWith(
                       fontSize: 20,
-                      fontWeight: FontWeight.w600,
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
                   const SizedBox(height: 24),

@@ -82,7 +82,7 @@ class _GoinsTopUpRequestsScreenState extends State<GoinsTopUpRequestsScreen> {
                   padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
                   decoration: const BoxDecoration(
                     gradient: LinearGradient(
-                      colors: [Color(0xFF4285F4), Color(0xFF8AB4F8)],
+                      colors: [Color(0xFF0A6CFF), Color(0xFF7DB2FF)],
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
                     ),
@@ -246,14 +246,14 @@ class _GoinsTopUpRequestsScreenState extends State<GoinsTopUpRequestsScreen> {
                 padding:
                     const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFFFF3CC),
+                  color: const Color(0xFFFFE98A),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Text('+$amount Goins',
                     style: GoogleFonts.nunito(
                         fontSize: 14,
                         fontWeight: FontWeight.w900,
-                        color: const Color(0xFFF9AB00))),
+                        color: const Color(0xFFFFB800))),
               ),
             ],
           ),
@@ -278,8 +278,8 @@ class _GoinsTopUpRequestsScreenState extends State<GoinsTopUpRequestsScreen> {
                   child: ElevatedButton.icon(
                     onPressed: isActing ? null : () => _decide(id, true),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFFE6F4EA),
-                      foregroundColor: const Color(0xFF34A853),
+                      backgroundColor: const Color(0xFFC8F2D4),
+                      foregroundColor: const Color(0xFF12B24A),
                       elevation: 0,
                       shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12)),
@@ -289,7 +289,7 @@ class _GoinsTopUpRequestsScreenState extends State<GoinsTopUpRequestsScreen> {
                             width: 16,
                             height: 16,
                             child: CircularProgressIndicator(
-                                strokeWidth: 2, color: Color(0xFF34A853)),
+                                strokeWidth: 2, color: Color(0xFF12B24A)),
                           )
                         : const Icon(Icons.check, size: 18),
                     label: Text('Approve',
@@ -304,8 +304,8 @@ class _GoinsTopUpRequestsScreenState extends State<GoinsTopUpRequestsScreen> {
                   child: ElevatedButton.icon(
                     onPressed: isActing ? null : () => _decide(id, false),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFFFCE8E6),
-                      foregroundColor: const Color(0xFFEA4335),
+                      backgroundColor: const Color(0xFFFFD3CF),
+                      foregroundColor: const Color(0xFFFF3B30),
                       elevation: 0,
                       shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12)),

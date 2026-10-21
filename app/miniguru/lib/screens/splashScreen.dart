@@ -121,7 +121,7 @@ class _SplashScreenState extends State<SplashScreen>
             end: Alignment.bottomRight,
             colors: [
               Color(0xFF667eea),
-              Color(0xFF669DF6),
+              Color(0xFF4C94FF),
               pastelBlue,
             ],
           ),
@@ -235,7 +235,7 @@ class _SplashScreenState extends State<SplashScreen>
                           style: GoogleFonts.poppins(
                             fontSize: 16,
                             color: Colors.white.withOpacity(0.9),
-                            fontWeight: FontWeight.w500,
+                            fontWeight: FontWeight.w600,
                             letterSpacing: 0.5,
                           ),
                         ),
@@ -263,7 +263,7 @@ class _SplashScreenState extends State<SplashScreen>
                             style: GoogleFonts.poppins(
                               fontSize: 14,
                               color: Colors.white.withOpacity(0.8),
-                              fontWeight: FontWeight.w500,
+                              fontWeight: FontWeight.w600,
                             ),
                           ),
                         ),

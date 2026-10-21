@@ -8,22 +8,22 @@ import 'package:miniguru/network/MiniguruApi.dart';
 
 // ─── COLOURS ────────────────────────────────────────────────────────────────
 class _AC {
-  static const deepGreen  = Color(0xFF1E8E3E);
-  static const paleGreen  = Color(0xFFE6F4EA);
+  static const deepGreen  = Color(0xFF0E9A3F);
+  static const paleGreen  = Color(0xFFC8F2D4);
   static const white      = Colors.white;
   static const ink        = Color(0xFF1A1A2E);
   static const muted      = Color(0xFF6B7280);
-  static const accent     = Color(0xFF4285F4);
-  static const amber      = Color(0xFFF9AB00);
-  static const chipBg     = Color(0xFFE6F4EA);
-  static const chipText   = Color(0xFF1E8E3E);
+  static const accent     = Color(0xFF0A6CFF);
+  static const amber      = Color(0xFFFFB800);
+  static const chipBg     = Color(0xFFC8F2D4);
+  static const chipText   = Color(0xFF0E9A3F);
 }
 
 // ─── TYPE HELPERS ───────────────────────────────────────────────────────────
 TextStyle _h(double size, Color color, {FontWeight w = FontWeight.w900}) =>
     GoogleFonts.nunito(fontSize: size, fontWeight: w, color: color);
 
-TextStyle _b(double size, Color color, {FontWeight w = FontWeight.w500}) =>
+TextStyle _b(double size, Color color, {FontWeight w = FontWeight.w600}) =>
     GoogleFonts.nunito(fontSize: size, fontWeight: w, color: color, height: 1.65);
 
 // ─── HELPERS ────────────────────────────────────────────────────────────────
@@ -83,7 +83,7 @@ class _AboutScreenState extends State<AboutScreen> {
         : null;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF1F6FE),
+      backgroundColor: const Color(0xFFEAF2FF),
       body: SafeArea(
         child: SingleChildScrollView(
           child: Column(
@@ -273,7 +273,7 @@ class _HeroText extends StatelessWidget {
               fontSize: 13,
               fontStyle: FontStyle.italic,
               color: _AC.white.withOpacity(0.7),
-              fontWeight: FontWeight.w600),
+              fontWeight: FontWeight.w700),
         ),
         const SizedBox(height: 22),
         Wrap(spacing: 10, runSpacing: 10, children: [
@@ -409,7 +409,7 @@ class _FounderHorizontal extends StatelessWidget {
             errorBuilder: (_, __, ___) => Container(
                 width: 220, height: 280, color: _AC.chipBg,
                 child: const Icon(Icons.person, size: 80,
-                    color: Color(0xFF1E8E3E)))),
+                    color: Color(0xFF0E9A3F)))),
       ),
       Expanded(
           child: Padding(
@@ -436,7 +436,7 @@ class _FounderVertical extends StatelessWidget {
                 height: 240, color: _AC.chipBg,
                 child: const Center(
                     child: Icon(Icons.person, size: 80,
-                        color: Color(0xFF1E8E3E))))),
+                        color: Color(0xFF0E9A3F))))),
       ),
       Padding(
           padding: const EdgeInsets.all(24),
@@ -453,7 +453,7 @@ class _FounderContent extends StatelessWidget {
       Text('Pramod Maithil', style: _h(22, _AC.deepGreen)),
       const SizedBox(height: 4),
       Text('Founder, MiniGuru & T-LAB',
-          style: _b(14, _AC.muted, w: FontWeight.w600)),
+          style: _b(14, _AC.muted, w: FontWeight.w700)),
       const SizedBox(height: 14),
       Text(
         'Educator by heart and entrepreneur by spirit — on a mission to reshape '
@@ -529,7 +529,7 @@ class _NaturalLearningSection extends StatelessWidget {
           Text(
             'Our pedagogical foundation — developed over 20 years of observation',
             style: _b(isMobile ? 13 : 15, _AC.white.withOpacity(0.7),
-                w: FontWeight.w600),
+                w: FontWeight.w700),
           ),
           const SizedBox(height: 36),
 
@@ -678,7 +678,7 @@ class _NLMSymbol extends StatelessWidget {
                 fontSize: 13,
                 fontStyle: FontStyle.italic,
                 color: Colors.white.withOpacity(0.8),
-                fontWeight: FontWeight.w500,
+                fontWeight: FontWeight.w600,
                 height: 1.6),
           ),
         ),
@@ -699,7 +699,7 @@ class _PlatformFeaturesSection extends StatelessWidget {
     final isMobile = w < 700;
 
     return Container(
-      color: const Color(0xFFF1F6FE),
+      color: const Color(0xFFEAF2FF),
       padding: EdgeInsets.symmetric(
           horizontal: isMobile ? 24 : 64,
           vertical: isMobile ? 48 : 72),
@@ -745,7 +745,7 @@ class _PlatformFeaturesSection extends StatelessWidget {
                   const SizedBox(height: 16),
                   _FeatureCard(
                     icon: Icons.shopping_bag_outlined,
-                    iconColor: const Color(0xFF1A73E8),
+                    iconColor: const Color(0xFF0A5CE0),
                     title: 'Materials for Your Projects',
                     body: 'The MiniGuru shop carries curated tinkering materials — '
                         'electronics components, craft supplies, and making tools — at '
@@ -792,7 +792,7 @@ class _PlatformFeaturesSection extends StatelessWidget {
                         const SizedBox(height: 20),
                         _FeatureCard(
                           icon: Icons.shopping_bag_outlined,
-                          iconColor: const Color(0xFF1A73E8),
+                          iconColor: const Color(0xFF0A5CE0),
                           title: 'Materials for Your Projects',
                           body: 'The MiniGuru shop carries curated tinkering materials — '
                               'electronics components, craft supplies, and making tools — at '
@@ -1055,7 +1055,7 @@ class _TLabNetworkSection extends StatelessWidget {
     ];
 
     return Container(
-      color: const Color(0xFFF1F6FE),
+      color: const Color(0xFFEAF2FF),
       padding: EdgeInsets.symmetric(
           horizontal: isMobile ? 24 : 64,
           vertical: isMobile ? 48 : 72),
@@ -1199,7 +1199,7 @@ class _AwardsSection extends StatelessWidget {
                       fontSize: isMobile ? 15 : 18,
                       fontStyle: FontStyle.italic,
                       color: _AC.ink,
-                      fontWeight: FontWeight.w600,
+                      fontWeight: FontWeight.w700,
                       height: 1.6),
                 ),
                 const SizedBox(height: 10),
@@ -1332,7 +1332,7 @@ class _CItem extends StatelessWidget {
         children: [
           Icon(icon, color: Colors.white70, size: 20),
           const SizedBox(width: 8),
-          Text(label, style: _b(14, Colors.white, w: FontWeight.w600)),
+          Text(label, style: _b(14, Colors.white, w: FontWeight.w700)),
         ],
       );
 }
@@ -1481,7 +1481,7 @@ class _FooterSection extends StatelessWidget {
               builder: (_) => LegalScreen(initialTab: legalTab))),
       child: Text(text,
           style:
-              _b(13, Colors.white.withOpacity(0.7), w: FontWeight.w600)),
+              _b(13, Colors.white.withOpacity(0.7), w: FontWeight.w700)),
     );
   }
 }

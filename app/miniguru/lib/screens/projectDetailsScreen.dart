@@ -332,7 +332,7 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
               'Comments Section',
               style: headingTextStyle.copyWith(
                 fontSize: 18,
-                fontWeight: FontWeight.w600,
+                fontWeight: FontWeight.w700,
               ),
             ),
             const SizedBox(height: 8),
@@ -361,7 +361,7 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
                       Text(
                         comment['commentedBy']['name'],
                         style: bodyTextStyle.copyWith(
-                          fontWeight: FontWeight.w600,
+                          fontWeight: FontWeight.w700,
                         ),
                       ),
                       const SizedBox(height: 4),
@@ -400,7 +400,7 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
               'Your Comment',
               style: headingTextStyle.copyWith(
                 fontSize: 18,
-                fontWeight: FontWeight.w600,
+                fontWeight: FontWeight.w700,
               ),
             ),
             const SizedBox(height: 16),
@@ -436,7 +436,7 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
             'Add Your Comments',
             style: headingTextStyle.copyWith(
               fontSize: 18,
-              fontWeight: FontWeight.w600,
+              fontWeight: FontWeight.w700,
             ),
           ),
           const SizedBox(height: 16),
@@ -637,7 +637,7 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
                           Expanded(
                             child: Text(status.label,
                                 style: bodyTextStyle.copyWith(
-                                    color: status.color, fontWeight: FontWeight.w600)),
+                                    color: status.color, fontWeight: FontWeight.w700)),
                           ),
                           if (_isRealOwner)
                             OutlinedButton.icon(
@@ -772,7 +772,7 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
               "Materials Used",
               style: headingTextStyle.copyWith(
                 fontSize: 18,
-                fontWeight: FontWeight.w600,
+                fontWeight: FontWeight.w700,
               ),
             ),
             const SizedBox(height: 8.0),

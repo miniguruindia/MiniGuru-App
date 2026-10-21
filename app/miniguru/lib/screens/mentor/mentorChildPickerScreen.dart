@@ -112,9 +112,9 @@ class _MentorChildPickerScreenState extends State<MentorChildPickerScreen> {
             leading: Container(
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: const Color(0xFFF9AB00).withOpacity(0.12),
+                color: const Color(0xFFFFB800).withOpacity(0.12),
                 borderRadius: BorderRadius.circular(12)),
-              child: const Icon(Icons.link, color: Color(0xFFF9AB00))),
+              child: const Icon(Icons.link, color: Color(0xFFFFB800))),
             title: Text('Add Existing Child',
                 style: GoogleFonts.nunito(fontWeight: FontWeight.w800)),
             subtitle: Text('Child already registered on their own — add by login ID',
@@ -187,7 +187,7 @@ class _MentorChildPickerScreenState extends State<MentorChildPickerScreen> {
                 const SizedBox(height: 12),
                 Container(
                   padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(color: const Color(0xFFE6F4EA), borderRadius: BorderRadius.circular(12)),
+                  decoration: BoxDecoration(color: const Color(0xFFC8F2D4), borderRadius: BorderRadius.circular(12)),
                   child: Text('Found: ${found!['name']} (age ${found!['age']})\nAdd this child to your school?',
                       style: GoogleFonts.nunito(fontWeight: FontWeight.w800)),
                 ),
@@ -199,7 +199,7 @@ class _MentorChildPickerScreenState extends State<MentorChildPickerScreen> {
               ],
               if (error != null) ...[
                 const SizedBox(height: 12),
-                Text(error!, style: GoogleFonts.nunito(color: const Color(0xFFEA4335), fontWeight: FontWeight.w700)),
+                Text(error!, style: GoogleFonts.nunito(color: const Color(0xFFFF3B30), fontWeight: FontWeight.w700)),
               ],
             ]),
           ),
@@ -228,7 +228,7 @@ class _MentorChildPickerScreenState extends State<MentorChildPickerScreen> {
         actions: [
           TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Cancel')),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFEA4335), foregroundColor: Colors.white),
+            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFFF3B30), foregroundColor: Colors.white),
             onPressed: () => Navigator.pop(c, true),
             child: const Text('Remove')),
         ],
@@ -273,11 +273,11 @@ class _MentorChildPickerScreenState extends State<MentorChildPickerScreen> {
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: const [
-                          Icon(Icons.supervisor_account, size: 18, color: Color(0xFF4285F4)),
+                          Icon(Icons.supervisor_account, size: 18, color: Color(0xFF0A6CFF)),
                           SizedBox(width: 6),
                           Text('My Account',
                               style: TextStyle(
-                                  fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF4285F4))),
+                                  fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF0A6CFF))),
                         ],
                       ),
                     ),
@@ -333,7 +333,7 @@ class _MentorChildPickerScreenState extends State<MentorChildPickerScreen> {
       padding: const EdgeInsets.fromLTRB(24, 24, 24, 20),
       decoration: const BoxDecoration(
         gradient: LinearGradient(
-          colors: [Color(0xFF4285F4), Color(0xFF8AB4F8)],
+          colors: [Color(0xFF0A6CFF), Color(0xFF7DB2FF)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -403,11 +403,11 @@ class _MentorChildPickerScreenState extends State<MentorChildPickerScreen> {
 
   Widget _buildChildCard(ChildProfile child) {
     final colors = [
-      [const Color(0xFF4285F4), const Color(0xFF8AB4F8)],
-      [const Color(0xFFF9AB00), const Color(0xFFFDD663)],
-      [const Color(0xFF34A853), const Color(0xFF81C995)],
-      [const Color(0xFFE74C3C), const Color(0xFFEA4335)],
-      [const Color(0xFF669DF6), const Color(0xFFAECBFA)],
+      [const Color(0xFF0A6CFF), const Color(0xFF7DB2FF)],
+      [const Color(0xFFFFB800), const Color(0xFFFFD84D)],
+      [const Color(0xFF12B24A), const Color(0xFF5FD58A)],
+      [const Color(0xFFE74C3C), const Color(0xFFFF3B30)],
+      [const Color(0xFF4C94FF), const Color(0xFFA9CBFF)],
     ];
     final idx = _children.indexOf(child) % colors.length;
     final gradient = LinearGradient(colors: colors[idx]);
@@ -479,7 +479,7 @@ class _MentorChildPickerScreenState extends State<MentorChildPickerScreen> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
               decoration: BoxDecoration(
-                color: const Color(0xFFFEF7E0),
+                color: const Color(0xFFFFEFA8),
                 borderRadius: BorderRadius.circular(20),
               ),
               child: Row(
@@ -491,7 +491,7 @@ class _MentorChildPickerScreenState extends State<MentorChildPickerScreen> {
                       style: GoogleFonts.nunito(
                           fontSize: 13,
                           fontWeight: FontWeight.w800,
-                          color: const Color(0xFFF9AB00))),
+                          color: const Color(0xFFFFB800))),
                 ],
               ),
             ),
@@ -535,7 +535,7 @@ class _MentorChildPickerScreenState extends State<MentorChildPickerScreen> {
               width: 72,
               height: 72,
               decoration: BoxDecoration(
-                color: const Color(0xFFE8F0FE),
+                color: const Color(0xFFCFE3FF),
                 shape: BoxShape.circle,
                 border: Border.all(
                     color: pastelBlueText.withOpacity(0.3), width: 2),

@@ -161,7 +161,7 @@ class _HomeScreenState extends State<HomeScreen> {
       return PreferredSize(
         preferredSize: const Size.fromHeight(36),
         child: Container(
-          color: const Color(0xFF4285F4),
+          color: const Color(0xFF0A6CFF),
           alignment: Alignment.center,
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -208,11 +208,11 @@ class _HomeScreenState extends State<HomeScreen> {
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: const [
-                        Icon(Icons.supervisor_account, size: 18, color: Color(0xFF4285F4)),
+                        Icon(Icons.supervisor_account, size: 18, color: Color(0xFF0A6CFF)),
                         SizedBox(width: 6),
                         Text('My Account',
                             style: TextStyle(
-                                fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF4285F4))),
+                                fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF0A6CFF))),
                       ],
                     ),
                   ),
@@ -292,7 +292,7 @@ class _HomeScreenState extends State<HomeScreen> {
       return const Scaffold(
         backgroundColor: Colors.white,
         body: Center(
-          child: CircularProgressIndicator(color: Color(0xFF4285F4)),
+          child: CircularProgressIndicator(color: Color(0xFF0A6CFF)),
         ),
       );
     }
@@ -361,12 +361,12 @@ class _HomeScreenState extends State<HomeScreen> {
                 currentIndex: _currentIndex,
                 onTap: _onNavBarTap,
                 type: BottomNavigationBarType.fixed,
-                selectedItemColor: const Color(0xFF4285F4),
+                selectedItemColor: const Color(0xFF0A6CFF),
                 unselectedItemColor: Colors.grey.shade500,
                 selectedLabelStyle: GoogleFonts.nunito(
                     fontSize: 11, fontWeight: FontWeight.w700),
                 unselectedLabelStyle:
-                    GoogleFonts.nunito(fontSize: 10, fontWeight: FontWeight.w500),
+                    GoogleFonts.nunito(fontSize: 10, fontWeight: FontWeight.w600),
                 backgroundColor: Colors.white,
                 elevation: 0,
                 items: items,

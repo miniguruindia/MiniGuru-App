@@ -37,11 +37,11 @@ class _MentorActivityTabState extends State<MentorActivityTab> {
 
   // Merged in from the old separate "Learners" tab (MentorChildrenTab).
   final List<List<Color>> _learnerGradients = const [
-    [Color(0xFF4285F4), Color(0xFF8AB4F8)],
-    [Color(0xFFF9AB00), Color(0xFFFDD663)],
-    [Color(0xFF34A853), Color(0xFF81C995)],
-    [Color(0xFFE74C3C), Color(0xFFEA4335)],
-    [Color(0xFF669DF6), Color(0xFFAECBFA)],
+    [Color(0xFF0A6CFF), Color(0xFF7DB2FF)],
+    [Color(0xFFFFB800), Color(0xFFFFD84D)],
+    [Color(0xFF12B24A), Color(0xFF5FD58A)],
+    [Color(0xFFE74C3C), Color(0xFFFF3B30)],
+    [Color(0xFF4C94FF), Color(0xFFA9CBFF)],
   ];
 
   @override
@@ -478,7 +478,7 @@ class _MentorActivityTabState extends State<MentorActivityTab> {
                 const SizedBox(height: 12),
                 Container(
                   padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(color: const Color(0xFFE6F4EA), borderRadius: BorderRadius.circular(12)),
+                  decoration: BoxDecoration(color: const Color(0xFFC8F2D4), borderRadius: BorderRadius.circular(12)),
                   child: Text('Found: ${found!['name']} (age ${found!['age']})\nAdd this child to your school?',
                       style: GoogleFonts.nunito(fontWeight: FontWeight.w800)),
                 ),
@@ -490,7 +490,7 @@ class _MentorActivityTabState extends State<MentorActivityTab> {
               ],
               if (error != null) ...[
                 const SizedBox(height: 12),
-                Text(error!, style: GoogleFonts.nunito(color: const Color(0xFFEA4335), fontWeight: FontWeight.w700)),
+                Text(error!, style: GoogleFonts.nunito(color: const Color(0xFFFF3B30), fontWeight: FontWeight.w700)),
               ],
             ]),
           ),
@@ -628,7 +628,7 @@ class _MentorActivityTabState extends State<MentorActivityTab> {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFFEF7E0),
+                    color: const Color(0xFFFFEFA8),
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Row(
@@ -640,7 +640,7 @@ class _MentorActivityTabState extends State<MentorActivityTab> {
                           style: GoogleFonts.nunito(
                               fontSize: 11,
                               fontWeight: FontWeight.w800,
-                              color: const Color(0xFFF9AB00))),
+                              color: const Color(0xFFFFB800))),
                     ],
                   ),
                 ),
@@ -730,9 +730,9 @@ class _MentorActivityTabState extends State<MentorActivityTab> {
             leading: Container(
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                  color: const Color(0xFFF9AB00).withOpacity(0.12),
+                  color: const Color(0xFFFFB800).withOpacity(0.12),
                   borderRadius: BorderRadius.circular(12)),
-              child: const Icon(Icons.link, color: Color(0xFFF9AB00)),
+              child: const Icon(Icons.link, color: Color(0xFFFFB800)),
             ),
             title: Text('Add Existing Child',
                 style: GoogleFonts.nunito(fontWeight: FontWeight.w800)),
@@ -768,7 +768,7 @@ class _MentorActivityTabState extends State<MentorActivityTab> {
                   padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
                   decoration: const BoxDecoration(
                     gradient: LinearGradient(
-                      colors: [Color(0xFF4285F4), Color(0xFF8AB4F8)],
+                      colors: [Color(0xFF0A6CFF), Color(0xFF7DB2FF)],
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
                     ),
@@ -1017,12 +1017,12 @@ class _MentorActivityTabState extends State<MentorActivityTab> {
                 final child = entry.value;
                 final barFraction = child.score <= 0 ? 0.0 : child.score / maxScore;
                 final barColor = rank == 0
-                    ? const Color(0xFFF9AB00)
+                    ? const Color(0xFFFFB800)
                     : rank == 1
                         ? const Color(0xFF9CA3AF)
                         : rank == 2
-                            ? const Color(0xFFB06F00)
-                            : const Color(0xFF4285F4);
+                            ? const Color(0xFF8F5A00)
+                            : const Color(0xFF0A6CFF);
                 return Padding(
                   padding: const EdgeInsets.symmetric(vertical: 2.5),
                   child: Row(
@@ -1099,7 +1099,7 @@ class _MentorActivityTabState extends State<MentorActivityTab> {
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFEA4335),
+                  color: const Color(0xFFFF3B30),
                   borderRadius: BorderRadius.circular(10),
                   border: Border.all(color: Colors.white, width: 1.5),
                 ),
@@ -1147,7 +1147,7 @@ class _MentorActivityTabState extends State<MentorActivityTab> {
         MaterialPageRoute(
             builder: (_) => ProjectDetailsScreen(
               project: project,
-              backgroundColor: const Color(0xFF4285F4),
+              backgroundColor: const Color(0xFF0A6CFF),
               user: _user!,
             )),
       ),

@@ -6,10 +6,10 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:miniguru/network/MiniguruApi.dart';
 
-const _blue = Color(0xFF4285F4);
-const _green = Color(0xFF34A853);
-const _red = Color(0xFFEA4335);
-const _yellow = Color(0xFFF9AB00);
+const _blue = Color(0xFF0A6CFF);
+const _green = Color(0xFF12B24A);
+const _red = Color(0xFFFF3B30);
+const _yellow = Color(0xFFFFB800);
 
 class SchoolJoinCard extends StatefulWidget {
   const SchoolJoinCard({super.key});
@@ -94,7 +94,7 @@ class _SchoolJoinCardState extends State<SchoolJoinCard> {
                 const SizedBox(height: 12),
                 Container(
                   padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(color: const Color(0xFFE6F4EA), borderRadius: BorderRadius.circular(12)),
+                  decoration: BoxDecoration(color: const Color(0xFFC8F2D4), borderRadius: BorderRadius.circular(12)),
                   child: Text('Found: $schoolName\nSend a request to join?',
                       style: GoogleFonts.nunito(fontWeight: FontWeight.w800)),
                 ),
@@ -265,7 +265,7 @@ class _SchoolJoinBannerState extends State<SchoolJoinBanner> {
         child: Container(
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
-            color: const Color(0xFFFEF7E0),
+            color: const Color(0xFFFFEFA8),
             borderRadius: BorderRadius.circular(14),
             border: Border.all(color: _yellow.withOpacity(0.5)),
           ),

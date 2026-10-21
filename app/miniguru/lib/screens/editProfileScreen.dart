@@ -34,8 +34,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     'Mathematics', 'Music', 'Nature', 'Cooking', 'Sports',
     'Reading', 'Photography', 'Environment', 'Space', 'Machines',
   ];
-  static const _primary = Color(0xFF4285F4);
-  static const _bg      = Color(0xFFF1F6FE);
+  static const _primary = Color(0xFF0A6CFF);
+  static const _bg      = Color(0xFFEAF2FF);
 
   @override
   void initState() {
@@ -97,7 +97,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           content: Text(ok ? 'Profile updated! ✅' : 'Update failed',
               style: GoogleFonts.nunito(color: Colors.white)),
-          backgroundColor: ok ? const Color(0xFF34A853) : const Color(0xFFEA4335),
+          backgroundColor: ok ? const Color(0xFF12B24A) : const Color(0xFFFF3B30),
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
         ));
@@ -106,7 +106,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     } catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text('Error: $e', style: GoogleFonts.nunito(color: Colors.white)),
-        backgroundColor: const Color(0xFFEA4335),
+        backgroundColor: const Color(0xFFFF3B30),
         behavior: SnackBarBehavior.floating,
       ));
     } finally {
@@ -207,19 +207,19 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFFEF7E0),
+                    color: const Color(0xFFFFEFA8),
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(color: const Color(0xFFFFE082)),
                   ),
                   child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                     Row(children: [
                       const Icon(Icons.shield_outlined,
-                          color: Color(0xFFF9AB00), size: 16),
+                          color: Color(0xFFFFB800), size: 16),
                       const SizedBox(width: 6),
                       Text('Recovery Email (Important!)',
                           style: GoogleFonts.nunito(
                               fontWeight: FontWeight.w900,
-                              color: const Color(0xFFB06F00),
+                              color: const Color(0xFF8F5A00),
                               fontSize: 13)),
                     ]),
                     const SizedBox(height: 4),
@@ -260,7 +260,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                           color: sel ? _primary : Colors.white,
                           borderRadius: BorderRadius.circular(20),
                           border: Border.all(
-                              color: sel ? _primary : const Color(0xFFE8F0FE),
+                              color: sel ? _primary : const Color(0xFFCFE3FF),
                               width: sel ? 2 : 1),
                           boxShadow: sel ? [BoxShadow(
                               color: _primary.withOpacity(0.2),
@@ -313,7 +313,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFE8F0FE)),
+        border: Border.all(color: const Color(0xFFCFE3FF)),
         boxShadow: [BoxShadow(
             color: Colors.black.withOpacity(0.03),
             blurRadius: 8, offset: const Offset(0, 2))],
@@ -321,7 +321,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       child: TextField(
         controller: ctrl, maxLines: maxLines,
         keyboardType: keyboardType, inputFormatters: formatters,
-        style: GoogleFonts.nunito(fontSize: 14, fontWeight: FontWeight.w600),
+        style: GoogleFonts.nunito(fontSize: 14, fontWeight: FontWeight.w700),
         decoration: InputDecoration(
           labelText: label, hintText: hint,
           hintStyle: GoogleFonts.nunito(color: Colors.grey[400], fontSize: 13),

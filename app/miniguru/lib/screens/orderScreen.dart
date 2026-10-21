@@ -83,7 +83,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
         title: Text(
           "Orders",
           style: headingTextStyle.copyWith(
-              fontSize: 24, fontWeight: FontWeight.w600, color: Colors.black),
+              fontSize: 24, fontWeight: FontWeight.w700, color: Colors.black),
         ),
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -227,7 +227,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
                                             "Total: ₹${order.totalAmount.toStringAsFixed(2)}",
                                             style: headingTextStyle.copyWith(
                                                 fontSize: 15,
-                                                fontWeight: FontWeight.w600),
+                                                fontWeight: FontWeight.w700),
                                           ),
                                           Row(
                                             children: [

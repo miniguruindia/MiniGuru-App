@@ -63,7 +63,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
         );
     return InputDecoration(
       labelText: label,
-      labelStyle: GoogleFonts.nunito(color: Colors.grey[700], fontWeight: FontWeight.w600),
+      labelStyle: GoogleFonts.nunito(color: Colors.grey[700], fontWeight: FontWeight.w700),
       prefixIcon: const Icon(Icons.lock_rounded, color: GColors.yellow),
       suffixIcon: IconButton(
         icon: Icon(obscure ? Icons.visibility_off_rounded : Icons.visibility_rounded,

@@ -30,8 +30,8 @@ class _LegalScreenState extends State<LegalScreen>
   String _cookie      = '';
   List<Map<String, dynamic>> _faqs = [];
 
-  static const _accent = Color(0xFF4285F4);
-  static const _bg     = Color(0xFFF1F6FE);
+  static const _accent = Color(0xFF0A6CFF);
+  static const _bg     = Color(0xFFEAF2FF);
 
   static const _tabs = [
     {'label': 'Privacy',  'icon': Icons.lock_outline},
@@ -320,9 +320,9 @@ connect@miniguru.in
               child: TabBarView(
                 controller: _tabController,
                 children: [
-                  _buildMarkdownTab(_privacy, Icons.lock_outline, const Color(0xFF4285F4)),
-                  _buildMarkdownTab(_terms,   Icons.description_outlined, const Color(0xFF34A853)),
-                  _buildMarkdownTab(_cookie,  Icons.cookie_outlined, const Color(0xFFF9AB00)),
+                  _buildMarkdownTab(_privacy, Icons.lock_outline, const Color(0xFF0A6CFF)),
+                  _buildMarkdownTab(_terms,   Icons.description_outlined, const Color(0xFF12B24A)),
+                  _buildMarkdownTab(_cookie,  Icons.cookie_outlined, const Color(0xFFFFB800)),
                   _buildFaqTab(),
                 ],
               ),
@@ -448,7 +448,7 @@ connect@miniguru.in
           padding: const EdgeInsets.all(18),
           decoration: BoxDecoration(
             gradient: const LinearGradient(
-              colors: [Color(0xFF4285F4), Color(0xFF669DF6)],
+              colors: [Color(0xFF0A6CFF), Color(0xFF4C94FF)],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
@@ -511,9 +511,9 @@ connect@miniguru.in
         Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: const Color(0xFFE6F4EA),
+            color: const Color(0xFFC8F2D4),
             borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: const Color(0xFF34A853).withOpacity(0.3)),
+            border: Border.all(color: const Color(0xFF12B24A).withOpacity(0.3)),
           ),
           child: Row(children: [
             const Text('💡', style: TextStyle(fontSize: 24)),
@@ -595,7 +595,7 @@ class _FaqTileState extends State<_FaqTile>
   late AnimationController _ctrl;
   late Animation<double> _rotate;
 
-  static const _accent = Color(0xFF4285F4);
+  static const _accent = Color(0xFF0A6CFF);
 
   @override
   void initState() {
@@ -619,7 +619,7 @@ class _FaqTileState extends State<_FaqTile>
         color: Colors.white,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
-          color: _open ? _accent.withOpacity(0.4) : const Color(0xFFE8F0FE),
+          color: _open ? _accent.withOpacity(0.4) : const Color(0xFFCFE3FF),
           width: _open ? 1.5 : 1,
         ),
         boxShadow: _open

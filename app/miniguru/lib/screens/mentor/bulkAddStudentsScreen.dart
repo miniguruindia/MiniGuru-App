@@ -12,14 +12,14 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:miniguru/network/MiniguruApi.dart';
 
 // ── Colours ───────────────────────────────────────────────────────────────────
-const _blue      = Color(0xFF4285F4);
-const _blueSoft  = Color(0xFFE8F0FE);
-const _green     = Color(0xFF34A853);
-const _amber     = Color(0xFFF9AB00);
-const _red       = Color(0xFFEA4335);
-const _bg        = Color(0xFFF1F6FE);
+const _blue      = Color(0xFF0A6CFF);
+const _blueSoft  = Color(0xFFCFE3FF);
+const _green     = Color(0xFF12B24A);
+const _amber     = Color(0xFFFFB800);
+const _red       = Color(0xFFFF3B30);
+const _bg        = Color(0xFFEAF2FF);
 const _card      = Color(0xFFFFFFFF);
-const _border    = Color(0xFFE8F0FE);
+const _border    = Color(0xFFCFE3FF);
 const _ink       = Color(0xFF1A1A2E);
 const _muted     = Color(0xFF8888AA);
 
@@ -392,7 +392,7 @@ class _BulkAddStudentsScreenState extends State<BulkAddStudentsScreen>
       children: [
         // Column headers
         Container(
-          color: const Color(0xFFF1F6FE),
+          color: const Color(0xFFEAF2FF),
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           child: Row(children: [
             _headerCell('First Name', flex: 3),
@@ -526,7 +526,7 @@ class _BulkAddStudentsScreenState extends State<BulkAddStudentsScreen>
         Container(
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
-            color: const Color(0xFFFEF7E0),
+            color: const Color(0xFFFFEFA8),
             borderRadius: BorderRadius.circular(12),
             border: Border.all(color: const Color(0xFFFFE082)),
           ),
@@ -793,7 +793,7 @@ class _BulkAddStudentsScreenState extends State<BulkAddStudentsScreen>
                 // Table header
                 Container(
                   decoration: const BoxDecoration(
-                    color: Color(0xFFF1F6FE),
+                    color: Color(0xFFEAF2FF),
                     borderRadius:
                         BorderRadius.vertical(top: Radius.circular(11)),
                   ),
@@ -879,7 +879,7 @@ class _BulkAddStudentsScreenState extends State<BulkAddStudentsScreen>
           style: GoogleFonts.nunito(
             fontSize: 11,
             color: color ?? _ink,
-            fontWeight: bold ? FontWeight.w800 : FontWeight.w500,
+            fontWeight: bold ? FontWeight.w800 : FontWeight.w600,
             fontFeatures: mono ? [const FontFeature.tabularFigures()] : null,
           ),
           overflow: TextOverflow.ellipsis,

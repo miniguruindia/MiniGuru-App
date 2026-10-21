@@ -25,10 +25,10 @@ class _CartScreenState extends State<CartScreen> {
   double _walletBalance = 0.0;
   bool _loading = true;
 
-  static const _accent    = Color(0xFF4285F4);
-  static const _bg        = Color(0xFFF1F6FE);
-  static const _gold      = Color(0xFFF9AB00);
-  static const _goldLight = Color(0xFFFFF3CC);
+  static const _accent    = Color(0xFF0A6CFF);
+  static const _bg        = Color(0xFFEAF2FF);
+  static const _gold      = Color(0xFFFFB800);
+  static const _goldLight = Color(0xFFFFE98A);
 
   @override
   void initState() {
@@ -157,7 +157,7 @@ class _CartScreenState extends State<CartScreen> {
                     style: GoogleFonts.nunito(
                         fontSize: 13,
                         fontWeight: FontWeight.w700,
-                        color: const Color(0xFFB06F00)),
+                        color: const Color(0xFF8F5A00)),
                   ),
                 ),
               ]),
@@ -224,19 +224,19 @@ class _CartScreenState extends State<CartScreen> {
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
         color: _hasSufficientBalance
-            ? const Color(0xFFE6F4EA)
+            ? const Color(0xFFC8F2D4)
             : _goldLight,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
           color: _hasSufficientBalance
-              ? const Color(0xFF34A853).withOpacity(0.4)
+              ? const Color(0xFF12B24A).withOpacity(0.4)
               : _gold.withOpacity(0.4),
         ),
       ),
       child: Row(children: [
         Icon(
           Icons.account_balance_wallet_outlined,
-          color: _hasSufficientBalance ? const Color(0xFF34A853) : _gold,
+          color: _hasSufficientBalance ? const Color(0xFF12B24A) : _gold,
           size: 22,
         ),
         const SizedBox(width: 10),
@@ -253,19 +253,19 @@ class _CartScreenState extends State<CartScreen> {
                     fontWeight: FontWeight.w900,
                     color: _hasSufficientBalance
                         ? const Color(0xFF065F46)
-                        : const Color(0xFFB06F00))),
+                        : const Color(0xFF8F5A00))),
           ]),
         ),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
           decoration: BoxDecoration(
             color: _hasSufficientBalance
-                ? const Color(0xFFE6F4EA)
+                ? const Color(0xFFC8F2D4)
                 : _goldLight,
             borderRadius: BorderRadius.circular(20),
             border: Border.all(
               color: _hasSufficientBalance
-                  ? const Color(0xFF34A853).withOpacity(0.5)
+                  ? const Color(0xFF12B24A).withOpacity(0.5)
                   : _gold.withOpacity(0.5),
             ),
           ),
@@ -275,7 +275,7 @@ class _CartScreenState extends State<CartScreen> {
                 fontSize: 11,
                 fontWeight: FontWeight.w800,
                 color: _hasSufficientBalance
-                    ? const Color(0xFF34A853)
+                    ? const Color(0xFF12B24A)
                     : _gold),
           ),
         ),
@@ -318,7 +318,7 @@ class _CartScreenState extends State<CartScreen> {
                   fit: BoxFit.cover,
                   errorBuilder: (_, __, ___) => Container(
                     width: 72, height: 72,
-                    color: const Color(0xFFE8F0FE),
+                    color: const Color(0xFFCFE3FF),
                     child: const Icon(Icons.image_outlined, color: _accent),
                   ),
                 ),
@@ -420,15 +420,15 @@ class _CartScreenState extends State<CartScreen> {
                 style: GoogleFonts.nunito(
                     fontSize: 13,
                     color: const Color(0xFF6B6B8A),
-                    fontWeight: FontWeight.w600)),
+                    fontWeight: FontWeight.w700)),
             Text('₹${_totalBill.toStringAsFixed(2)}',
                 style: GoogleFonts.nunito(
                     fontSize: 13,
                     color: const Color(0xFF6B6B8A),
-                    fontWeight: FontWeight.w600)),
+                    fontWeight: FontWeight.w700)),
           ]),
           const SizedBox(height: 8),
-          const Divider(color: Color(0xFFE8F0FE)),
+          const Divider(color: Color(0xFFCFE3FF)),
           const SizedBox(height: 8),
           Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
             Text('Total',
@@ -462,7 +462,7 @@ class _CartScreenState extends State<CartScreen> {
                     style: GoogleFonts.nunito(
                         fontSize: 12,
                         fontWeight: FontWeight.w700,
-                        color: const Color(0xFFB06F00)),
+                        color: const Color(0xFF8F5A00)),
                   ),
                 ),
               ]),

@@ -26,8 +26,8 @@ class _GetStartedScreenState extends State<GetStartedScreen>
   final List<_OnboardSlide> _slides = [
     // ── SLIDE 1 — For Children ───────────────────────────────────────────
     _OnboardSlide(
-      bgColor: const Color(0xFFFEF7E0),
-      accentColor: const Color(0xFF4285F4),
+      bgColor: const Color(0xFFFFEFA8),
+      accentColor: const Color(0xFF0A6CFF),
       title: 'Welcome to\nMiniGuru',
       subtitle:
           'Where children make real things,\nshare real projects, and learn\nfrom each other.',
@@ -42,8 +42,8 @@ class _GetStartedScreenState extends State<GetStartedScreen>
 
     // ── SLIDE 2 — Community ──────────────────────────────────────────────
     _OnboardSlide(
-      bgColor: const Color(0xFFFEF7E0),
-      accentColor: const Color(0xFFF9AB00),
+      bgColor: const Color(0xFFFFEFA8),
+      accentColor: const Color(0xFFFFB800),
       title: 'See What Children\nAre Building',
       subtitle:
           'Hands-on projects — volcanoes, circuits,\nfans, boats, solar cookers —\nmade from scratch.',
@@ -59,8 +59,8 @@ class _GetStartedScreenState extends State<GetStartedScreen>
 
     // ── SLIDE 3 — Make & Earn ────────────────────────────────────────────
     _OnboardSlide(
-      bgColor: const Color(0xFFFEF7E0),
-      accentColor: const Color(0xFF34A853),
+      bgColor: const Color(0xFFFFEFA8),
+      accentColor: const Color(0xFF12B24A),
       title: 'Make It. Document It.\nShare It.',
       subtitle:
           'Plan your project, record your making,\nshare with peers — including what went wrong.\nEarn back value in Goins for completing the journey.',
@@ -77,8 +77,8 @@ class _GetStartedScreenState extends State<GetStartedScreen>
 
     // ── SLIDE 4 — For Parents & Schools ─────────────────────────────────
     _OnboardSlide(
-      bgColor: const Color(0xFFFEF7E0),
-      accentColor: const Color(0xFF4285F4),
+      bgColor: const Color(0xFFFFEFA8),
+      accentColor: const Color(0xFF0A6CFF),
       title: 'Start a T-LAB —\nAt Home or in\nYour School',
       subtitle:
           '10 years. 32+ schools. 10,000+ children.\nWe know how to build a space\nwhere children thrive.',
@@ -126,7 +126,7 @@ class _GetStartedScreenState extends State<GetStartedScreen>
     final slide = _slides[_currentPage];
 
     return Scaffold(
-      backgroundColor: const Color(0xFFFEF7E0),
+      backgroundColor: const Color(0xFFFFEFA8),
       body: SafeArea(
         child: Column(
           children: [
@@ -140,7 +140,7 @@ class _GetStartedScreenState extends State<GetStartedScreen>
                   style: GoogleFonts.poppins(
                     fontSize: 14,
                     color: Colors.black38,
-                    fontWeight: FontWeight.w500,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
               ),
@@ -227,7 +227,7 @@ class _GetStartedScreenState extends State<GetStartedScreen>
                 style: GoogleFonts.poppins(
                   fontSize: 13,
                   color: slide.accentColor,
-                  fontWeight: FontWeight.w600,
+                  fontWeight: FontWeight.w700,
                 ),
               ),
             ),
@@ -345,7 +345,7 @@ class _GetStartedScreenState extends State<GetStartedScreen>
                 style: GoogleFonts.poppins(
                   fontSize: 14,
                   color: Colors.black38,
-                  fontWeight: FontWeight.w500,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
             ),
@@ -393,7 +393,7 @@ class _GetStartedScreenState extends State<GetStartedScreen>
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
-      backgroundColor: const Color(0xFFFEF7E0),
+      backgroundColor: const Color(0xFFFFEFA8),
       builder: (context) => Padding(
         padding: const EdgeInsets.all(24),
         child: Column(
@@ -429,7 +429,7 @@ class _GetStartedScreenState extends State<GetStartedScreen>
                   Navigator.pushNamed(context, RegisterScreen.id);
                 },
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF4285F4),
+                  backgroundColor: const Color(0xFF0A6CFF),
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12)),
@@ -453,7 +453,7 @@ class _GetStartedScreenState extends State<GetStartedScreen>
                 style: OutlinedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   side: const BorderSide(
-                      color: Color(0xFF4285F4), width: 2),
+                      color: Color(0xFF0A6CFF), width: 2),
                   shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12)),
                 ),
@@ -461,7 +461,7 @@ class _GetStartedScreenState extends State<GetStartedScreen>
                     style: GoogleFonts.poppins(
                         fontSize: 15,
                         fontWeight: FontWeight.bold,
-                        color: const Color(0xFF4285F4))),
+                        color: const Color(0xFF0A6CFF))),
               ),
             ),
             const SizedBox(height: 12),
@@ -524,7 +524,7 @@ class _DescriptorChip extends StatelessWidget {
         style: GoogleFonts.poppins(
           fontSize: 12,
           color: color,
-          fontWeight: FontWeight.w600,
+          fontWeight: FontWeight.w700,
         ),
       ),
     );
@@ -538,7 +538,7 @@ class _StatsBar extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
       decoration: BoxDecoration(
-        color: const Color(0xFF4285F4).withOpacity(0.07),
+        color: const Color(0xFF0A6CFF).withOpacity(0.07),
         borderRadius: BorderRadius.circular(16),
       ),
       child: Row(
@@ -571,7 +571,7 @@ class _StatItem extends StatelessWidget {
             style: GoogleFonts.poppins(
               fontSize: 16,
               fontWeight: FontWeight.bold,
-              color: const Color(0xFF4285F4),
+              color: const Color(0xFF0A6CFF),
             )),
         Text(label,
             style: GoogleFonts.poppins(
@@ -612,7 +612,7 @@ class _MakerHandsIllustration extends StatelessWidget {
             width: 220,
             height: 220,
             decoration: BoxDecoration(
-              color: const Color(0xFF4285F4).withOpacity(0.08),
+              color: const Color(0xFF0A6CFF).withOpacity(0.08),
               shape: BoxShape.circle,
             ),
           ),
@@ -621,7 +621,7 @@ class _MakerHandsIllustration extends StatelessWidget {
             width: 200,
             height: 160,
             decoration: BoxDecoration(
-              color: const Color(0xFFFEF7E0),
+              color: const Color(0xFFFFEFA8),
               borderRadius: BorderRadius.circular(24),
               boxShadow: [
                 BoxShadow(
@@ -685,25 +685,25 @@ class _ProjectCollageIllustration extends StatelessWidget {
             Positioned(
               top: 0,
               left: 0,
-              child: _ProjectCard('⚡', 'Circuit', const Color(0xFF4285F4)),
+              child: _ProjectCard('⚡', 'Circuit', const Color(0xFF0A6CFF)),
             ),
             // Top-right card
             Positioned(
               top: 0,
               right: 0,
-              child: _ProjectCard('🌋', 'Volcano', const Color(0xFFEA4335)),
+              child: _ProjectCard('🌋', 'Volcano', const Color(0xFFFF3B30)),
             ),
             // Bottom-left card
             Positioned(
               bottom: 0,
               left: 0,
-              child: _ProjectCard('🌀', 'Fan', const Color(0xFF34A853)),
+              child: _ProjectCard('🌀', 'Fan', const Color(0xFF12B24A)),
             ),
             // Bottom-right card
             Positioned(
               bottom: 0,
               right: 0,
-              child: _ProjectCard('⛵', 'Boat', const Color(0xFFF9AB00)),
+              child: _ProjectCard('⛵', 'Boat', const Color(0xFFFFB800)),
             ),
             // Centre connector
             Center(
@@ -747,7 +747,7 @@ class _MakingIllustration extends StatelessWidget {
             width: 200,
             height: 200,
             decoration: BoxDecoration(
-              color: const Color(0xFF34A853).withOpacity(0.08),
+              color: const Color(0xFF12B24A).withOpacity(0.08),
               shape: BoxShape.circle,
             ),
           ),
@@ -756,7 +756,7 @@ class _MakingIllustration extends StatelessWidget {
             width: 175,
             height: 150,
             decoration: BoxDecoration(
-              color: const Color(0xFFE6F4EA),
+              color: const Color(0xFFC8F2D4),
               borderRadius: BorderRadius.circular(22),
             ),
             child: Column(
@@ -769,7 +769,7 @@ class _MakingIllustration extends StatelessWidget {
                   style: GoogleFonts.poppins(
                     fontSize: 12,
                     fontWeight: FontWeight.bold,
-                    color: const Color(0xFF34A853),
+                    color: const Color(0xFF12B24A),
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -778,7 +778,7 @@ class _MakingIllustration extends StatelessWidget {
                   padding: const EdgeInsets.symmetric(
                       horizontal: 12, vertical: 5),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFF9AB00).withOpacity(0.15),
+                    color: const Color(0xFFFFB800).withOpacity(0.15),
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Row(
@@ -792,7 +792,7 @@ class _MakingIllustration extends StatelessWidget {
                         style: GoogleFonts.poppins(
                           fontSize: 12,
                           fontWeight: FontWeight.bold,
-                          color: const Color(0xFFF9AB00),
+                          color: const Color(0xFFFFB800),
                         ),
                       ),
                     ],
@@ -850,13 +850,13 @@ class _MakingIllustration extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   const Icon(Icons.videocam,
-                      size: 14, color: Color(0xFF34A853)),
+                      size: 14, color: Color(0xFF12B24A)),
                   const SizedBox(width: 4),
                   Text('Shared!',
                       style: GoogleFonts.poppins(
                           fontSize: 11,
                           fontWeight: FontWeight.bold,
-                          color: const Color(0xFF34A853))),
+                          color: const Color(0xFF12B24A))),
                 ],
               ),
             ),
@@ -882,7 +882,7 @@ class _TLabIllustration extends StatelessWidget {
             width: 210,
             height: 200,
             decoration: BoxDecoration(
-              color: const Color(0xFF4285F4).withOpacity(0.07),
+              color: const Color(0xFF0A6CFF).withOpacity(0.07),
               borderRadius: BorderRadius.circular(28),
             ),
           ),
@@ -891,7 +891,7 @@ class _TLabIllustration extends StatelessWidget {
             width: 185,
             height: 155,
             decoration: BoxDecoration(
-              color: const Color(0xFFE8F0FE),
+              color: const Color(0xFFCFE3FF),
               borderRadius: BorderRadius.circular(22),
             ),
             child: Column(
@@ -914,7 +914,7 @@ class _TLabIllustration extends StatelessWidget {
                   style: GoogleFonts.poppins(
                     fontSize: 12,
                     fontWeight: FontWeight.bold,
-                    color: const Color(0xFF4285F4),
+                    color: const Color(0xFF0A6CFF),
                   ),
                 ),
                 const SizedBox(height: 6),
@@ -935,13 +935,13 @@ class _TLabIllustration extends StatelessWidget {
           Positioned(
             top: 8,
             right: 12,
-            child: _FloatingBadge('🏫', const Color(0xFF4285F4)),
+            child: _FloatingBadge('🏫', const Color(0xFF0A6CFF)),
           ),
           // Home badge
           Positioned(
             bottom: 10,
             left: 12,
-            child: _FloatingBadge('🏠', const Color(0xFFF9AB00)),
+            child: _FloatingBadge('🏠', const Color(0xFFFFB800)),
           ),
         ],
       ),
@@ -968,7 +968,7 @@ class _MaterialChip extends StatelessWidget {
           style: GoogleFonts.poppins(
               fontSize: 10,
               color: color,
-              fontWeight: FontWeight.w600)),
+              fontWeight: FontWeight.w700)),
     );
   }
 }
@@ -1018,7 +1018,7 @@ class _ProjectCard extends StatelessWidget {
           Text(label,
               style: GoogleFonts.poppins(
                   fontSize: 11,
-                  fontWeight: FontWeight.w600,
+                  fontWeight: FontWeight.w700,
                   color: color)),
         ],
       ),
