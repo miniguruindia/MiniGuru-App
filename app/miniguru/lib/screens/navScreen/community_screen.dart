@@ -1863,7 +1863,8 @@ class EventsInfoCard extends StatelessWidget {
         Text(
             'Places where young makers can show their work. Dates and rules change every year, '
             'so always check the official site and talk to a parent or teacher before you sign up. '
-            'MiniGuru is not connected to these events.',
+            'These are outside events picked because they may be useful for a young maker. '
+            'MiniGuru has no direct involvement with any of them.',
             style: GoogleFonts.nunito(
                 fontSize: 12, height: 1.45, color: const Color(0xFF4B4B6B))),
         const SizedBox(height: 10),
@@ -2192,7 +2193,7 @@ class _Resource {
   });
 }
 
-/// Full page with the events card, opened from the Home banner.
+/// Resources and events page, opened from the Home trophy button / left strip.
 class EventsPage extends StatelessWidget {
   const EventsPage({super.key});
 
@@ -2204,7 +2205,7 @@ class EventsPage extends StatelessWidget {
         backgroundColor: Colors.white,
         elevation: 0,
         iconTheme: const IconThemeData(color: Color(0xFF1A1A2E)),
-        title: Text('Competitions and events',
+        title: Text('Resources and events',
             style: GoogleFonts.nunito(
                 fontWeight: FontWeight.w900, fontSize: 18, color: const Color(0xFF1A1A2E))),
       ),
@@ -2212,9 +2213,29 @@ class EventsPage extends StatelessWidget {
         child: Center(
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 760),
-            child: const SingleChildScrollView(
-              padding: EdgeInsets.all(16),
-              child: EventsInfoCard(),
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(16),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFFEFA8),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: const Color(0xFFFFB800)),
+                  ),
+                  child: Text(
+                      'Outside events and resources, picked because they may be useful for you. '
+                      'MiniGuru has no direct involvement with any of them. Check the official '
+                      'sites for current dates and rules, and talk to a parent or teacher first.',
+                      style: GoogleFonts.nunito(
+                          fontSize: 13, fontWeight: FontWeight.w800, height: 1.45,
+                          color: const Color(0xFF4B4B6B))),
+                ),
+                const SizedBox(height: 12),
+                const _PatentInfoCard(),
+                const SizedBox(height: 12),
+                const EventsInfoCard(),
+              ]),
             ),
           ),
         ),

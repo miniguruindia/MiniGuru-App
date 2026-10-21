@@ -394,55 +394,82 @@ class _HomeState extends State<Home> {
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
-        child: RefreshIndicator(
-          onRefresh: _refreshAll,
-          child: CustomScrollView(
-            slivers: [
-              _buildAppBar(),
-              SliverToBoxAdapter(child: _buildEventsBanner()),
-              if (_isAuthenticated && user != null)
-                _buildAuthenticatedContent()
-              else
-                _buildGuestContent(),
-            ],
+        child: Stack(children: [
+          RefreshIndicator(
+            onRefresh: _refreshAll,
+            child: CustomScrollView(
+              slivers: [
+                _buildAppBar(),
+                if (_isAuthenticated && user != null)
+                  _buildAuthenticatedContent()
+                else
+                  _buildGuestContent(),
+              ],
+            ),
+          ),
+          if (MediaQuery.of(context).size.width < 1000) _buildEventsFab(),
+        ]),
+      ),
+    );
+  }
+
+  // Small floating trophy button (phones). Tap opens a short note with
+  // "Read more", which goes to the Resources and events page. On wide screens
+  // the same link lives in the left strip, so this button is hidden there.
+  Widget _buildEventsFab() {
+    return Positioned(
+      right: 12,
+      bottom: 14,
+      child: Material(
+        color: GColors.yellow,
+        shape: const CircleBorder(),
+        elevation: 4,
+        child: InkWell(
+          customBorder: const CircleBorder(),
+          onTap: _showEventsNote,
+          child: const SizedBox(
+            width: 46,
+            height: 46,
+            child: Center(child: Text('🏆', style: TextStyle(fontSize: 22))),
           ),
         ),
       ),
     );
   }
 
-  // Highlighted link to the competitions / events page (shown on every Home).
-  Widget _buildEventsBanner() {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(14),
-        onTap: () => Navigator.push(
-            context, MaterialPageRoute(builder: (_) => const EventsPage())),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-          decoration: BoxDecoration(
-            color: GColors.yellowLight,
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: GColors.yellow, width: 1.5),
-          ),
-          child: Row(children: [
-            const Text('🏆', style: TextStyle(fontSize: 26)),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text('Competitions and events for young makers',
-                    style: GoogleFonts.nunito(
-                        fontWeight: FontWeight.w900, fontSize: 14, color: GColors.yellowDark)),
-                const SizedBox(height: 2),
-                Text('PM Bal Puraskar, Earthshot Challenge, INSPIRE Awards and more',
-                    style: GoogleFonts.nunito(
-                        fontWeight: FontWeight.w700, fontSize: 12, color: const Color(0xFF4B4B6B))),
-              ]),
+  void _showEventsNote() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(18))),
+      builder: (ctx) => Padding(
+        padding: const EdgeInsets.fromLTRB(20, 18, 20, 22),
+        child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text('🏆 Competitions and events',
+              style: GoogleFonts.nunito(fontWeight: FontWeight.w900, fontSize: 17, color: const Color(0xFF1A1A2E))),
+          const SizedBox(height: 8),
+          Text(
+              'Outside competitions and guides that may be useful for you, like PM Rashtriya Bal Puraskar, '
+              'the Earthshot Challenge and patent basics. MiniGuru is not involved in any of them.',
+              style: GoogleFonts.nunito(fontSize: 13, height: 1.45, color: const Color(0xFF4B4B6B))),
+          const SizedBox(height: 14),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                  backgroundColor: GColors.blue,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+              onPressed: () {
+                Navigator.pop(ctx);
+                Navigator.push(context, MaterialPageRoute(builder: (_) => const EventsPage()));
+              },
+              child: Text('Read more', style: GoogleFonts.nunito(fontWeight: FontWeight.w900, fontSize: 14)),
             ),
-            const Icon(Icons.chevron_right_rounded, color: GColors.yellowDark),
-          ]),
-        ),
+          ),
+        ]),
       ),
     );
   }
