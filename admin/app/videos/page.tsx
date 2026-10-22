@@ -150,6 +150,7 @@ const MOCK_PROJECTS: PendingProject[] = [
 
 function ApprovalsTab() {
   const [projects, setProjects]         = useState<PendingProject[]>([])
+  const [pendingTotal, setPendingTotal] = useState<number | null>(null)
   const [loading, setLoading]           = useState(true)
   const [error, setError]               = useState('')
   const [processingId, setProcessingId] = useState<string | null>(null)
@@ -167,10 +168,11 @@ function ApprovalsTab() {
   const load = async () => {
     setLoading(true); setError('')
     try {
-      const res = await fetch(`${API_BASE}/admin/projects/pending`, { headers: await authHeader() })
+      const res = await fetch(`${API_BASE}/admin/projects/pending?limit=50`, { headers: await authHeader() })
       if (!res.ok) throw new Error(`${res.status} ${res.statusText}`)
       const data = await res.json()
       setProjects(Array.isArray(data) ? data : data.projects ?? [])
+      setPendingTotal(Array.isArray(data) ? null : (data.pagination?.total ?? null))
       setError('')
     } catch (e: any) {
       const msg = e?.message || String(e)
@@ -290,7 +292,10 @@ function ApprovalsTab() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card className="p-4 border-0 shadow-sm">
           <p className="text-xs text-gray-400 uppercase font-semibold">Pending Review</p>
-          <p className="text-3xl font-bold text-yellow-600 mt-1">{projects.length}</p>
+          <p className="text-3xl font-bold text-yellow-600 mt-1">{pendingTotal ?? projects.length}</p>
+          {pendingTotal !== null && pendingTotal > projects.length && (
+            <p className="text-xs text-gray-500 mt-1">Showing the oldest {projects.length}. Approve or reject some, then refresh to see the rest.</p>
+          )}
         </Card>
         <Card className="p-4 border-0 shadow-sm">
           <p className="text-xs text-gray-400 uppercase font-semibold">Have Video</p>

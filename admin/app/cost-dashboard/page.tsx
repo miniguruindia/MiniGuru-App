@@ -156,7 +156,7 @@ export default function CostDashboardPage() {
                 limit={data.email.dailyLimit}
                 unit="today"
                 blocked={data.email.currentlyBlocked}
-                subtitle={`Sending auto-stops at ${data.email.cutoffAt}/day, resumes automatically at midnight. Monthly cap: ${data.email.monthlyLimit}.`}
+                subtitle={`Sending auto-stops at ${data.email.cutoffAt}/day, resumes automatically at 5:30 am IST (the counters reset at midnight UTC). Monthly cap: ${data.email.monthlyLimit}.`}
               />
               <QuotaCard
                 icon={Sparkles}
