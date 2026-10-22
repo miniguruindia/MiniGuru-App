@@ -90,13 +90,19 @@ const trackVideoView = async (req, res) => {
                 userId,
             },
         });
-        // +1 Goin to viewer for watching (once per video per day)
-        await prisma.user.update({
-            where: { id: userId },
-            data: { score: { increment: 1 } },
-        }).catch(() => { });
-        // Ladder ledger (best-effort, never throws)
-        (0, goinsLedger_1.recordGoinsEvents)([{ userId, amount: 1, source: 'VIEW', reason: 'Watched a video' }]).catch(() => { });
+        // +1 Goin to viewer for watching (once per video per day), up to
+        // DAILY_VIEW_GOINS_CAP view Goins per child per IST day. Past the cap
+        // the view is still counted but pays nothing.
+        const viewGoinsToday = await (0, goinsLedger_1.goinsEarnedToday)(userId, ['VIEW']);
+        const goinsCapped = viewGoinsToday >= goinsLedger_1.DAILY_VIEW_GOINS_CAP;
+        if (!goinsCapped) {
+            await prisma.user.update({
+                where: { id: userId },
+                data: { score: { increment: 1 } },
+            }).catch(() => { });
+            // Ladder ledger (best-effort, never throws)
+            await (0, goinsLedger_1.recordGoinsEvents)([{ userId, amount: 1, source: 'VIEW', reason: 'Watched a video' }]).catch(() => { });
+        }
         // Daily Quest — same real, 75%-watched event drives quest progress too,
         // not a separate counting system. Fire-and-forget: never blocks or
         // fails the view response itself.
@@ -110,6 +116,7 @@ const trackVideoView = async (req, res) => {
             success: true,
             totalViews,
             alreadyCounted: false,
+            goinsCapped,
         });
     }
     catch (error) {
@@ -390,13 +397,26 @@ async function awardCommentGoinsToMaker(videoId, commenterId) {
         return;
     const shareEach = Math.floor(COMMENT_GOINS_TO_MAKER / recipientIds.length);
     const remainder = COMMENT_GOINS_TO_MAKER - shareEach * recipientIds.length;
-    await prisma.$transaction(recipientIds.map((id, idx) => prisma.user.update({
-        where: { id },
-        data: { score: { increment: idx === 0 ? shareEach + remainder : shareEach } },
+    // Each maker can receive at most DAILY_COMMENT_GOINS_CAP comment Goins per
+    // IST day; the share is clamped to whatever room is left.
+    const awards = [];
+    for (let idx = 0; idx < recipientIds.length; idx++) {
+        const id = recipientIds[idx];
+        const want = idx === 0 ? shareEach + remainder : shareEach;
+        const room = goinsLedger_1.DAILY_COMMENT_GOINS_CAP - (await (0, goinsLedger_1.goinsEarnedToday)(id, ['COMMENT_RECEIVED']));
+        const amount = Math.min(want, Math.max(0, room));
+        if (amount > 0)
+            awards.push({ id, amount });
+    }
+    if (awards.length === 0)
+        return;
+    await prisma.$transaction(awards.map((a) => prisma.user.update({
+        where: { id: a.id },
+        data: { score: { increment: a.amount } },
     })));
-    await (0, goinsLedger_1.recordGoinsEvents)(recipientIds.map((rid, idx) => ({
-        userId: rid,
-        amount: idx === 0 ? shareEach + remainder : shareEach,
+    await (0, goinsLedger_1.recordGoinsEvents)(awards.map((a) => ({
+        userId: a.id,
+        amount: a.amount,
         source: 'COMMENT_RECEIVED',
         projectId: project.id,
         reason: 'Comment on your project',
@@ -452,11 +472,15 @@ const postVideoComment = async (req, res) => {
         });
         // +1 Goin to commenter for engaging with community (capped by the
         // MAX_COMMENTS_PER_VIDEO check above — max 2 Goins per video this way).
-        await prisma.user.update({
-            where: { id: userId },
-            data: { score: { increment: 1 } },
-        }).catch(() => { }); // non-blocking — don't fail comment if Goins fail
-        (0, goinsLedger_1.recordGoinsEvents)([{ userId, amount: 1, source: 'COMMENT_GIVEN', reason: 'Commented on a video' }]).catch(() => { });
+        // Daily cap: DAILY_COMMENT_GOINS_CAP comment Goins per child per IST day.
+        const givenToday = await (0, goinsLedger_1.goinsEarnedToday)(userId, ['COMMENT_GIVEN']);
+        if (givenToday < goinsLedger_1.DAILY_COMMENT_GOINS_CAP) {
+            await prisma.user.update({
+                where: { id: userId },
+                data: { score: { increment: 1 } },
+            }).catch(() => { }); // non-blocking — don't fail comment if Goins fail
+            await (0, goinsLedger_1.recordGoinsEvents)([{ userId, amount: 1, source: 'COMMENT_GIVEN', reason: 'Commented on a video' }]).catch(() => { });
+        }
         // The video's maker(s) earn Goins too now — previously only the
         // commenter did, the maker got nothing from being commented on.
         await awardCommentGoinsToMaker(videoId, userId).catch((e) => logger_1.default.warn({ e }, '⚠️ Could not award comment Goins to video maker'));

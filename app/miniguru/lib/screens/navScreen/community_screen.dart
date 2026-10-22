@@ -1697,21 +1697,6 @@ class _ResourcesTab extends StatelessWidget {
                   color: const Color(0xFF35355A))),
         ),
         const SizedBox(height: 16),
-        if (resources.isEmpty)
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(18),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: const Color(0xFFCFE3FF)),
-            ),
-            child: Text(
-                'New guides and handbooks are on the way — patent how-tos, '
-                'competition dates and more. Check back soon! 📚',
-                style: GoogleFonts.nunito(
-                    fontSize: 13, color: const Color(0xFF4F4F78), height: 1.5)),
-          ),
         ...resources.map((r) => Padding(
               padding: const EdgeInsets.only(bottom: 10),
               child: _ResourceCard(r: r),
@@ -1762,9 +1747,9 @@ class _PatentInfoCard extends StatelessWidget {
       margin: const EdgeInsets.only(top: 6),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFFFFEFA8),
+        color: const Color(0xFFC8F2D4),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFFDE68A)),
+        border: Border.all(color: const Color(0xFF12B24A), width: 1.5),
       ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Text('💡 Patents for young inventors',
@@ -1782,7 +1767,7 @@ class _PatentInfoCard extends StatelessWidget {
         const SizedBox(height: 4),
         Text('Learn more from the official sources',
             style: GoogleFonts.nunito(
-                fontSize: 12, fontWeight: FontWeight.w800, color: const Color(0xFF8F5A00))),
+                fontSize: 12, fontWeight: FontWeight.w800, color: const Color(0xFF06702C))),
         const SizedBox(height: 4),
         ..._links.map((l) => InkWell(
               onTap: () => launchUrl(Uri.parse(l[1]), mode: LaunchMode.externalApplication),

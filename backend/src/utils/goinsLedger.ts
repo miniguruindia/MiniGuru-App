@@ -113,3 +113,31 @@ export function periodRange(period: Period, offset: number): { start: Date; end:
   }
   return { start: new Date(startIst - IST_MS), end: new Date(endIst - IST_MS), label };
 }
+
+
+// ── Daily caps on engagement Goins (anti-farming) ───────────────────────────
+// Views and comments are the only Goins a child can earn in bulk without a
+// project, so each has a per-day ceiling (IST day). Approvals, ratings, quests
+// and top-ups are never capped. Fail-open: if the ledger cannot be read the
+// Goin is still paid (a missing ledger must never block a child).
+export const DAILY_VIEW_GOINS_CAP = 20;
+export const DAILY_COMMENT_GOINS_CAP = 10;
+
+export function istDayStart(): Date {
+  const ist = new Date(Date.now() + IST_MS);
+  return new Date(Date.UTC(ist.getUTCFullYear(), ist.getUTCMonth(), ist.getUTCDate()) - IST_MS);
+}
+
+/** Goins this user earned today (IST) from the given ledger sources. */
+export async function goinsEarnedToday(userId: string, sources: LedgerSource[]): Promise<number> {
+  try {
+    const rows = await db.goinsEvent.findMany({
+      where: { userId, source: { in: sources }, createdAt: { gte: istDayStart() } },
+      select: { amount: true },
+    });
+    return rows.reduce((t: number, r: { amount: number }) => t + (r.amount || 0), 0);
+  } catch (e) {
+    console.warn('[goinsLedger] daily total failed (non-fatal):', (e as Error).message);
+    return 0;
+  }
+}

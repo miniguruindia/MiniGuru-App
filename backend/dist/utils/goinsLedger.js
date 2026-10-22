@@ -6,9 +6,12 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.DAILY_COMMENT_GOINS_CAP = exports.DAILY_VIEW_GOINS_CAP = void 0;
 exports.guardianIdsFor = guardianIdsFor;
 exports.recordGoinsEvents = recordGoinsEvents;
 exports.periodRange = periodRange;
+exports.istDayStart = istDayStart;
+exports.goinsEarnedToday = goinsEarnedToday;
 const prismaClient_1 = __importDefault(require("./prismaClient"));
 // The ledger model is accessed loosely on purpose so this file compiles even
 // before `prisma generate` has been re-run on a machine.
@@ -98,4 +101,29 @@ function periodRange(period, offset) {
         label = String(new Date(startIst).getUTCFullYear());
     }
     return { start: new Date(startIst - IST_MS), end: new Date(endIst - IST_MS), label };
+}
+// ── Daily caps on engagement Goins (anti-farming) ───────────────────────────
+// Views and comments are the only Goins a child can earn in bulk without a
+// project, so each has a per-day ceiling (IST day). Approvals, ratings, quests
+// and top-ups are never capped. Fail-open: if the ledger cannot be read the
+// Goin is still paid (a missing ledger must never block a child).
+exports.DAILY_VIEW_GOINS_CAP = 20;
+exports.DAILY_COMMENT_GOINS_CAP = 10;
+function istDayStart() {
+    const ist = new Date(Date.now() + IST_MS);
+    return new Date(Date.UTC(ist.getUTCFullYear(), ist.getUTCMonth(), ist.getUTCDate()) - IST_MS);
+}
+/** Goins this user earned today (IST) from the given ledger sources. */
+async function goinsEarnedToday(userId, sources) {
+    try {
+        const rows = await db.goinsEvent.findMany({
+            where: { userId, source: { in: sources }, createdAt: { gte: istDayStart() } },
+            select: { amount: true },
+        });
+        return rows.reduce((t, r) => t + (r.amount || 0), 0);
+    }
+    catch (e) {
+        console.warn('[goinsLedger] daily total failed (non-fatal):', e.message);
+        return 0;
+    }
 }
