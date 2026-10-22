@@ -49,6 +49,24 @@ const EMPTY_MAT = {
 // Units an admin can pick. Includes the pack-style units used by the
 // bulk-added catalog (pack/set/kit/bottle/…) — previously missing, which
 // made those materials' unit look like "piece" in the dropdown.
+// ── "Goins needs review" — same pack rule as backend/src/utils/goinsPricing.ts ──
+function packQtyClear(unitRaw?: string | null): boolean {
+  const u = (unitRaw || 'piece').trim().toLowerCase()
+  if (u === '' || u === 'piece' || u === 'pc' || u === 'unit' || u === 'each') return true
+  return [/\bpack of (\d+)\b/, /\bset of (\d+)\b/, /\b(\d+)\s*(?:pcs|pieces|pc)\b/, /\b(\d+)\s*count\b/].some(re => re.test(u))
+}
+// Why the automatic Goins rule cannot price this item (null = nothing to review).
+function goinsReviewReason(m: any): string | null {
+  if (!m.isActive || m.goinsLocked === true) return null
+  if (!packQtyClear(m.unit)) return `Unit "${m.unit}" is unclear`
+  if (!(typeof m.priceEstimate === 'number' && m.priceEstimate > 0)) return 'No price yet'
+  return null
+}
+function suggestedGoins(m: any): number | null {
+  if (!(typeof m.priceEstimate === 'number' && m.priceEstimate > 0)) return null
+  return Math.min(300, Math.max(5, Math.round(m.priceEstimate * 0.1)))
+}
+
 const UNIT_OPTIONS = ['piece','pack','set','kit','bottle','tube','can','spool','gram','ml','cm','sheet','meter','pair','roll']
 
 
@@ -1283,6 +1301,7 @@ function MaterialsPageInner() {
   const [materials, setMaterials] = useState<Material[]>([])
   const [filtered, setFiltered]   = useState<Material[]>([])
   const [catFilter, setCatFilter] = useState('All')
+  const [reviewOnly, setReviewOnly] = useState(false)
   const [loading, setLoading]     = useState(true)
   const [search, setSearch]       = useState('')
   const [error, setError]         = useState('')
@@ -1331,9 +1350,29 @@ function MaterialsPageInner() {
     setFiltered(materials.filter(m => {
       const matchSearch = m.name.toLowerCase().includes(q) || (m.aliases || []).some(a => a.includes(q))
       const matchCat    = catFilter === 'All' || m.category === catFilter || (m.categories || []).includes(catFilter)
-      return matchSearch && matchCat
+      const matchReview = !reviewOnly || goinsReviewReason(m) !== null
+      return matchSearch && matchCat && matchReview
     }))
-  }, [search, materials, catFilter])
+  }, [search, materials, catFilter, reviewOnly])
+
+  const reviewCount = materials.filter(m => goinsReviewReason(m) !== null).length
+
+  // Mark a Goins value as checked (locks it so the nightly job leaves it alone).
+  const confirmGoins = async (m: Material, goins: number) => {
+    try {
+      const token = await authToken()
+      const res = await fetch(`${API_BASE}/materials/admin/${m.id}`, {
+        method: 'PUT',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ goinsPrice: goins, goinsLocked: true }),
+      })
+      if (!res.ok) throw new Error('Save failed')
+      flash(`"${m.name}" set to ${goins} Goins and marked as checked`)
+      load()
+    } catch (e: any) {
+      flash(e.message || 'Could not save', true)
+    }
+  }
 
   const allCats = ['All', ...Array.from(new Set(materials.flatMap(m => [m.category, ...(m.categories || [])]))).filter(Boolean).sort()]
   const asinCount = materials.filter(m => m.amazonASIN).length
@@ -1678,8 +1717,22 @@ function MaterialsPageInner() {
                   </button>
                 ))}
               </div>
+              <button onClick={() => setReviewOnly(v => !v)}
+                title="Items whose Goins the automatic rule could not set (unclear unit or no price)"
+                className={`text-xs px-3 py-1 rounded-full border font-semibold transition-colors ${
+                  reviewOnly ? 'bg-amber-500 text-white border-amber-500' : 'border-amber-300 text-amber-700 hover:bg-amber-50'
+                }`}>
+                Goins needs review ({reviewCount})
+              </button>
               <span className="text-xs text-gray-400 ml-auto">{filtered.length} items</span>
             </div>
+            {reviewOnly && (
+              <p className="text-xs text-gray-500">
+                These items have an unclear unit (like ml, g or kg) or no price, so their Goins were set by hand.
+                Use <b>Keep</b> if the current value is fine, or <b>Use ≈ nG</b> to take the suggestion (price ÷ 10, between 5 and 300).
+                Either button marks the item as checked and it leaves this list. For a different value, press Edit.
+              </p>
+            )}
 
             <Card className="border-0 shadow-md overflow-hidden">
               <div className="overflow-x-auto">
@@ -1713,6 +1766,21 @@ function MaterialsPageInner() {
                             )}
                           </p>
                           <p className="text-xs text-gray-400">{m.unit}</p>
+                          {reviewOnly && goinsReviewReason(m) && (
+                            <div className="mt-1 flex flex-wrap items-center gap-1">
+                              <span className="text-[11px] text-amber-700">{goinsReviewReason(m)}</span>
+                              <button onClick={() => confirmGoins(m, m.goinsPrice)}
+                                className="px-2 py-0.5 border border-green-300 text-green-700 rounded text-[11px] hover:bg-green-50">
+                                Keep {m.goinsPrice}G
+                              </button>
+                              {suggestedGoins(m) !== null && suggestedGoins(m) !== m.goinsPrice && (
+                                <button onClick={() => confirmGoins(m, suggestedGoins(m) as number)}
+                                  className="px-2 py-0.5 border border-amber-300 text-amber-700 rounded text-[11px] hover:bg-amber-50">
+                                  Use ≈ {suggestedGoins(m)}G
+                                </button>
+                              )}
+                            </div>
+                          )}
                         </td>
                         <td className="px-4 py-3 hidden md:table-cell">
                           <div className="flex flex-wrap gap-1">
