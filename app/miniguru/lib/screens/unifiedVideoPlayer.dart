@@ -938,7 +938,7 @@ class _UnifiedVideoPlayerState extends State<UnifiedVideoPlayer> {
                                           borderRadius:
                                               BorderRadius.circular(20),
                                           borderSide: const BorderSide(
-                                              color: Color(0xFFE5E7EB)),
+                                              color: Color(0xFFC9D3E6)),
                                         ),
                                         contentPadding:
                                             const EdgeInsets.symmetric(

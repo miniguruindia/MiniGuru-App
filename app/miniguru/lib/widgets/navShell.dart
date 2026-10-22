@@ -72,7 +72,7 @@ class NavShellFrame extends StatelessWidget {
                     decoration: BoxDecoration(
                       color: show ? Colors.white : null,
                       border: show
-                          ? const Border.symmetric(vertical: BorderSide(color: Color(0xFFE3E6F7)))
+                          ? const Border.symmetric(vertical: BorderSide(color: Color(0xFFC9D0F0)))
                           : null,
                     ),
                     child: child,

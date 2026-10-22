@@ -17,11 +17,11 @@ const _blueSoft  = Color(0xFFCFE3FF);
 const _green     = Color(0xFF12B24A);
 const _amber     = Color(0xFFFFB800);
 const _red       = Color(0xFFFF3B30);
-const _bg        = Color(0xFFEAF2FF);
+const _bg        = Color(0xFFE3EEFF);
 const _card      = Color(0xFFFFFFFF);
 const _border    = Color(0xFFCFE3FF);
 const _ink       = Color(0xFF1A1A2E);
-const _muted     = Color(0xFF8888AA);
+const _muted     = Color(0xFF5F5F88);
 
 // ── Data model ────────────────────────────────────────────────────────────────
 class _StudentRow {
@@ -392,7 +392,7 @@ class _BulkAddStudentsScreenState extends State<BulkAddStudentsScreen>
       children: [
         // Column headers
         Container(
-          color: const Color(0xFFEAF2FF),
+          color: const Color(0xFFE3EEFF),
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           child: Row(children: [
             _headerCell('First Name', flex: 3),
@@ -793,7 +793,7 @@ class _BulkAddStudentsScreenState extends State<BulkAddStudentsScreen>
                 // Table header
                 Container(
                   decoration: const BoxDecoration(
-                    color: Color(0xFFEAF2FF),
+                    color: Color(0xFFE3EEFF),
                     borderRadius:
                         BorderRadius.vertical(top: Radius.circular(11)),
                   ),

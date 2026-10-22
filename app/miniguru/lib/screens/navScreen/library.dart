@@ -322,12 +322,12 @@ class _LibraryState extends State<Library> with AutomaticKeepAliveClientMixin {
               const SizedBox(height: 16),
               Text(
                 'No projects found',
-                style: headingTextStyle.copyWith(color: Colors.grey[600]),
+                style: headingTextStyle.copyWith(color: Colors.grey[700]),
               ),
               const SizedBox(height: 8),
               Text(
                 'Try adjusting your filters',
-                style: bodyTextStyle.copyWith(color: Colors.grey[500]),
+                style: bodyTextStyle.copyWith(color: Colors.grey[700]),
               ),
             ],
           ),

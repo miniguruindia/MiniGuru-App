@@ -89,7 +89,7 @@ class _CommunityScreenState extends State<CommunityScreen>
         return const Color(0xFFFF3B30);
       case 'PAST':
       case 'PAST HIGHLIGHT':
-        return const Color(0xFF6B6B8A);
+        return const Color(0xFF4F4F78);
       default:
         return const Color(0xFFFFD60A);
     }
@@ -273,7 +273,7 @@ class _CommunityScreenState extends State<CommunityScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFEAF2FF),
+      backgroundColor: const Color(0xFFE3EEFF),
       body: NestedScrollView(
         headerSliverBuilder: (_, __) => [_buildHeader()],
         body: TabBarView(
@@ -531,7 +531,7 @@ class _HappeningCard extends StatelessWidget {
                       ? '🏫 ${h.schoolName} · 📍 ${h.city}'
                       : '📍 ${h.city}',
                   style: GoogleFonts.nunito(
-                      fontSize: 11, color: const Color(0xFF6B6B8A))),
+                      fontSize: 11, color: const Color(0xFF4F4F78))),
             ]),
           ),
           Container(
@@ -551,11 +551,11 @@ class _HappeningCard extends StatelessWidget {
         const SizedBox(height: 10),
         Text(h.update,
             style: GoogleFonts.nunito(
-                fontSize: 13, color: const Color(0xFF3D3D5C), height: 1.5)),
+                fontSize: 13, color: const Color(0xFF2E2E52), height: 1.5)),
         const SizedBox(height: 8),
         Text(h.date,
             style: GoogleFonts.nunito(
-                fontSize: 11, color: const Color(0xFFAAAAAC))),
+                fontSize: 11, color: const Color(0xFF7C7CA3))),
       ]),
     );
   }
@@ -643,7 +643,7 @@ class _ChallengesTabState extends State<_ChallengesTab> {
           const SizedBox(width: 8),
           _filterChip('Upcoming', 1, const Color(0xFF0A6CFF)),
           const SizedBox(width: 8),
-          _filterChip('Past', 2, const Color(0xFF6B6B8A)),
+          _filterChip('Past', 2, const Color(0xFF4F4F78)),
         ]),
         const SizedBox(height: 16),
         if (_filtered.isEmpty)
@@ -652,7 +652,7 @@ class _ChallengesTabState extends State<_ChallengesTab> {
               padding: const EdgeInsets.all(40),
               child: Text('No challenges here yet!',
                   style: GoogleFonts.nunito(
-                      color: const Color(0xFFAAAAAC), fontSize: 14)),
+                      color: const Color(0xFF7C7CA3), fontSize: 14)),
             ),
           )
         else
@@ -679,7 +679,7 @@ class _ChallengesTabState extends State<_ChallengesTab> {
         child: Text(label,
             style: GoogleFonts.nunito(
                 fontSize: 12, fontWeight: FontWeight.w700,
-                color: active ? Colors.white : const Color(0xFF6B6B8A))),
+                color: active ? Colors.white : const Color(0xFF4F4F78))),
       ),
     );
   }
@@ -728,7 +728,7 @@ class _ChallengeCard extends StatelessWidget {
     final statusColor = [
       const Color(0xFF12B24A),
       const Color(0xFF0A6CFF),
-      const Color(0xFF6B6B8A),
+      const Color(0xFF4F4F78),
     ][c.status];
 
     return Container(
@@ -779,7 +779,7 @@ class _ChallengeCard extends StatelessWidget {
             const SizedBox(height: 8),
             Text(c.desc,
                 style: GoogleFonts.nunito(
-                    fontSize: 13, color: const Color(0xFF3D3D5C), height: 1.5)),
+                    fontSize: 13, color: const Color(0xFF2E2E52), height: 1.5)),
             const SizedBox(height: 12),
             Row(children: [
               _pill('🪙 ${c.reward}G reward',
@@ -1047,7 +1047,7 @@ class _LadderTabState extends State<_LadderTab> {
               style: GoogleFonts.nunito(
                   fontSize: 13,
                   fontWeight: FontWeight.w800,
-                  color: const Color(0xFF6B6B8A))),
+                  color: const Color(0xFF4F4F78))),
         ),
         Text((e['badge'] ?? '🌱').toString(), style: const TextStyle(fontSize: 16)),
         const SizedBox(width: 10),
@@ -1189,7 +1189,7 @@ class _LadderTabState extends State<_LadderTab> {
             'All the Goins earned in this period — projects, ratings, watching, '
             'comments and daily quests. Project categories count project Goins only. '
             'Each period starts fresh, so everyone gets a new chance to top it!',
-            style: GoogleFonts.nunito(fontSize: 11, color: const Color(0xFF8888AA))),
+            style: GoogleFonts.nunito(fontSize: 11, color: const Color(0xFF5F5F88))),
         const SizedBox(height: 12),
         if (_boardLoading)
           const Center(
@@ -1202,7 +1202,7 @@ class _LadderTabState extends State<_LadderTab> {
           Center(
             child: Column(children: [
               Text("Couldn't load the board right now.",
-                  style: GoogleFonts.nunito(fontSize: 12, color: const Color(0xFF8888AA))),
+                  style: GoogleFonts.nunito(fontSize: 12, color: const Color(0xFF5F5F88))),
               TextButton(onPressed: _loadPeriodBoard, child: const Text('Try again')),
             ]),
           )
@@ -1210,26 +1210,26 @@ class _LadderTabState extends State<_LadderTab> {
           Container(
             padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
-              color: const Color(0xFFEAF2FF),
+              color: const Color(0xFFE3EEFF),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Text(
                 'Your school board appears once you are logged in with an account '
                 'linked to a school or T-LAB.',
-                style: GoogleFonts.nunito(fontSize: 12, color: const Color(0xFF6B6B8A))),
+                style: GoogleFonts.nunito(fontSize: 12, color: const Color(0xFF4F4F78))),
           )
         else if (entries.isEmpty)
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: const Color(0xFFEAF2FF),
+              color: const Color(0xFFE3EEFF),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Text(
                 _offset == 0
                     ? 'No Goins earned here yet — finish a project and be the first on the board! 🚀'
                     : 'No Goins were earned in this period.',
-                style: GoogleFonts.nunito(fontSize: 12, color: const Color(0xFF6B6B8A))),
+                style: GoogleFonts.nunito(fontSize: 12, color: const Color(0xFF4F4F78))),
           )
         else ...[
           if (myRank != null && myAmount != null)
@@ -1279,7 +1279,7 @@ class _LadderTabState extends State<_LadderTab> {
                       style: GoogleFonts.nunito(
                           fontSize: 12,
                           fontWeight: FontWeight.w800,
-                          color: const Color(0xFF6B6B8A))),
+                          color: const Color(0xFF4F4F78))),
                   const SizedBox(height: 4),
                   Wrap(spacing: 14, runSpacing: 2, children: [
                     for (final t in (w['top'] is List ? w['top'] as List : const []))
@@ -1422,7 +1422,7 @@ class _LadderTabState extends State<_LadderTab> {
                 color: const Color(0xFF1A1A2E))),
         const SizedBox(height: 4),
         Text('Complete projects to earn Goins and level up!',
-            style: GoogleFonts.nunito(fontSize: 11, color: const Color(0xFF8888AA))),
+            style: GoogleFonts.nunito(fontSize: 11, color: const Color(0xFF5F5F88))),
         const SizedBox(height: 10),
         ..._levels.map((l) => Padding(
           padding: const EdgeInsets.only(bottom: 8),
@@ -1437,7 +1437,7 @@ class _LadderTabState extends State<_LadderTab> {
                 color: const Color(0xFF1A1A2E))),
         const SizedBox(height: 4),
         Text('Earn badges by completing special achievements',
-            style: GoogleFonts.nunito(fontSize: 11, color: const Color(0xFF8888AA))),
+            style: GoogleFonts.nunito(fontSize: 11, color: const Color(0xFF5F5F88))),
         const SizedBox(height: 10),
         GridView.count(
           crossAxisCount: 3,
@@ -1546,12 +1546,12 @@ class _LevelRow extends StatelessWidget {
               const SizedBox(width: 8),
               Text(l.range,
                   style: GoogleFonts.nunito(
-                      fontSize: 11, color: const Color(0xFF6B6B8A),
+                      fontSize: 11, color: const Color(0xFF4F4F78),
                       fontWeight: FontWeight.w700)),
             ]),
             Text(l.desc,
                 style: GoogleFonts.nunito(
-                    fontSize: 11, color: const Color(0xFFAAAAAC))),
+                    fontSize: 11, color: const Color(0xFF7C7CA3))),
           ]),
         ),
       ]),
@@ -1586,7 +1586,7 @@ class _BadgeCard extends StatelessWidget {
           Text(b.desc,
               textAlign: TextAlign.center,
               style: GoogleFonts.nunito(
-                  fontSize: 9, color: const Color(0xFF6B6B8A), height: 1.3),
+                  fontSize: 9, color: const Color(0xFF4F4F78), height: 1.3),
               maxLines: 2,
               overflow: TextOverflow.ellipsis),
         ],
@@ -1628,7 +1628,7 @@ class _LeaderRow extends StatelessWidget {
             child: Text('${leader.rank}',
                 style: GoogleFonts.nunito(
                     fontSize: 13, fontWeight: FontWeight.w800,
-                    color: leader.rank <= 3 ? rankColor : const Color(0xFF6B6B8A))),
+                    color: leader.rank <= 3 ? rankColor : const Color(0xFF4F4F78))),
           ),
         ),
         const SizedBox(width: 12),
@@ -1642,7 +1642,7 @@ class _LeaderRow extends StatelessWidget {
                     color: const Color(0xFF1A1A2E))),
             Text('📍 ${leader.city}',
                 style: GoogleFonts.nunito(
-                    fontSize: 11, color: const Color(0xFF6B6B8A))),
+                    fontSize: 11, color: const Color(0xFF4F4F78))),
           ]),
         ),
         Container(
@@ -1694,7 +1694,7 @@ class _ResourcesTab extends StatelessWidget {
               'Check the official sites for current dates and rules, and talk to a parent or teacher first.',
               style: GoogleFonts.nunito(
                   fontSize: 12, fontWeight: FontWeight.w800, height: 1.45,
-                  color: const Color(0xFF4B4B6B))),
+                  color: const Color(0xFF35355A))),
         ),
         const SizedBox(height: 16),
         if (resources.isEmpty)
@@ -1710,7 +1710,7 @@ class _ResourcesTab extends StatelessWidget {
                 'New guides and handbooks are on the way — patent how-tos, '
                 'competition dates and more. Check back soon! 📚',
                 style: GoogleFonts.nunito(
-                    fontSize: 13, color: const Color(0xFF6B6B8A), height: 1.5)),
+                    fontSize: 13, color: const Color(0xFF4F4F78), height: 1.5)),
           ),
         ...resources.map((r) => Padding(
               padding: const EdgeInsets.only(bottom: 10),
@@ -1751,7 +1751,7 @@ class _PatentInfoCard extends StatelessWidget {
           Expanded(
             child: Text(text,
                 style: GoogleFonts.nunito(
-                    fontSize: 12, height: 1.45, color: const Color(0xFF4B4B6B))),
+                    fontSize: 12, height: 1.45, color: const Color(0xFF35355A))),
           ),
         ]),
       );
@@ -1885,7 +1885,7 @@ class EventsInfoCard extends StatelessWidget {
             'These are outside events picked because they may be useful for a young maker. '
             'MiniGuru has no direct involvement with any of them.',
             style: GoogleFonts.nunito(
-                fontSize: 12, height: 1.45, color: const Color(0xFF4B4B6B))),
+                fontSize: 12, height: 1.45, color: const Color(0xFF35355A))),
         const SizedBox(height: 10),
         ..._events.map((e) => Container(
               margin: const EdgeInsets.only(bottom: 8),
@@ -1905,7 +1905,7 @@ class EventsInfoCard extends StatelessWidget {
                 const SizedBox(height: 3),
                 Text(e[2],
                     style: GoogleFonts.nunito(
-                        fontSize: 12, height: 1.45, color: const Color(0xFF4B4B6B))),
+                        fontSize: 12, height: 1.45, color: const Color(0xFF35355A))),
                 InkWell(
                   onTap: () => launchUrl(Uri.parse(e[3]), mode: LaunchMode.externalApplication),
                   child: Padding(
@@ -1980,13 +1980,13 @@ class _ResourceCard extends StatelessWidget {
                 child: Text(r.type,
                     style: GoogleFonts.nunito(
                         fontSize: 9, fontWeight: FontWeight.w700,
-                        color: const Color(0xFF6B6B8A))),
+                        color: const Color(0xFF4F4F78))),
               ),
             ]),
             const SizedBox(height: 3),
             Text(r.desc,
                 style: GoogleFonts.nunito(
-                    fontSize: 11, color: const Color(0xFF6B6B8A), height: 1.4),
+                    fontSize: 11, color: const Color(0xFF4F4F78), height: 1.4),
                 maxLines: 2, overflow: TextOverflow.ellipsis),
             const SizedBox(height: 6),
             Container(
@@ -2016,7 +2016,7 @@ class _ResourceCard extends StatelessWidget {
           child: Container(
             width: 36, height: 36,
             decoration: BoxDecoration(
-              color: const Color(0xFFEAF2FF),
+              color: const Color(0xFFE3EEFF),
               borderRadius: BorderRadius.circular(10),
             ),
             child: const Icon(Icons.download_rounded,
@@ -2049,7 +2049,7 @@ class _SectionHeader extends StatelessWidget {
                 color: const Color(0xFF1A1A2E))),
         Text(subtitle,
             style: GoogleFonts.nunito(
-                fontSize: 12, color: const Color(0xFF6B6B8A))),
+                fontSize: 12, color: const Color(0xFF4F4F78))),
       ]),
     ]);
   }

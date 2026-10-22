@@ -14,12 +14,12 @@ import 'package:miniguru/network/MiniguruApi.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-const Color _bg     = Color(0xFFEAF2FF);
+const Color _bg     = Color(0xFFE3EEFF);
 const Color _ink    = Color(0xFF1A1A2E);
 const Color _accent = Color(0xFF0A6CFF);
 const Color _amber  = Color(0xFFFFB800);
 const Color _card   = Color(0xFFFFFFFF);
-const Color _muted  = Color(0xFF8888AA);
+const Color _muted  = Color(0xFF5F5F88);
 const Color _green  = Color(0xFF0E9A3F);
 const Color _orange = Color(0xFFFF9900);
 
@@ -738,7 +738,7 @@ class _ShopState extends State<Shop>
                     hintText: 'parent@example.com',
                     hintStyle: GoogleFonts.nunito(color: _muted, fontSize: 14),
                     prefixIcon: const Icon(Icons.email_outlined, color: _muted, size: 20),
-                    filled: true, fillColor: const Color(0xFFEAF2FF),
+                    filled: true, fillColor: const Color(0xFFE3EEFF),
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
                     errorText: err,
                   ),
@@ -1254,7 +1254,7 @@ class _MaterialTile extends StatelessWidget {
 
   static const _accent = Color(0xFF0A6CFF);
   static const _ink    = Color(0xFF1A1A2E);
-  static const _muted  = Color(0xFF8888AA);
+  static const _muted  = Color(0xFF5F5F88);
   static const _orange = Color(0xFFFF9900);
   static const _green  = Color(0xFF0E9A3F);
 
@@ -1279,7 +1279,7 @@ class _MaterialTile extends StatelessWidget {
       onTap: hasAmazon ? () => launchUrl(Uri.parse(amazonUrl), mode: LaunchMode.externalApplication) : null,
       child: Container(
       decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE3E6F7)),
+        border: Border.all(color: const Color(0xFFC9D0F0)),
         boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.07), blurRadius: 8, offset: const Offset(0, 2))]),
       child: Column(children: [
         // Image 130px

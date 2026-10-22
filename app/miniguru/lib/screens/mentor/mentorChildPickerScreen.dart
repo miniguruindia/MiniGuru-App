@@ -396,7 +396,7 @@ class _MentorChildPickerScreenState extends State<MentorChildPickerScreen> {
           style: GoogleFonts.nunito(
               fontSize: 12,
               fontWeight: FontWeight.w800,
-              color: Colors.grey[500],
+              color: Colors.grey[700],
               letterSpacing: 1.2)),
     );
   }
@@ -473,7 +473,7 @@ class _MentorChildPickerScreenState extends State<MentorChildPickerScreen> {
               const SizedBox(height: 2),
               Text('Grade ${child.grade}',
                   style: GoogleFonts.nunito(
-                      fontSize: 12, color: Colors.grey[500])),
+                      fontSize: 12, color: Colors.grey[700])),
             ],
             const SizedBox(height: 8),
             Container(
@@ -502,7 +502,7 @@ class _MentorChildPickerScreenState extends State<MentorChildPickerScreen> {
          top: 2, right: 2,
          child: PopupMenuButton<String>(
            tooltip: 'More',
-           icon: Icon(Icons.more_vert, size: 20, color: Colors.grey[500]),
+           icon: Icon(Icons.more_vert, size: 20, color: Colors.grey[700]),
            onSelected: (v) { if (v == 'remove') _confirmRemoveChild(child); },
            itemBuilder: (_) => const [
              PopupMenuItem(value: 'remove', child: Text('Remove from my school (child left)')),
@@ -569,7 +569,7 @@ class _MentorChildPickerScreenState extends State<MentorChildPickerScreen> {
                   fontSize: 18, fontWeight: FontWeight.w900, color: Colors.black87)),
           const SizedBox(height: 8),
           Text('Add your first child to get started',
-              style: GoogleFonts.nunito(fontSize: 14, color: Colors.grey[500])),
+              style: GoogleFonts.nunito(fontSize: 14, color: Colors.grey[700])),
           const SizedBox(height: 24),
           ElevatedButton.icon(
             onPressed: _showAddOptions,

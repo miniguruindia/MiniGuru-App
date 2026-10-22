@@ -362,7 +362,7 @@ class _ConsultancyPageState extends State<ConsultancyPage> {
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: const Color(0xFFE5E7EB)),
+              border: Border.all(color: const Color(0xFFC9D3E6)),
             ),
             child: Row(children: [
               const Icon(Icons.description_outlined, color: Color(0xFF0E9A3F)),
@@ -473,7 +473,7 @@ class _ConsultancyPageState extends State<ConsultancyPage> {
                           decoration: BoxDecoration(
                             color: const Color(0xFFF3F4F6),
                             borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: const Color(0xFFE5E7EB)),
+                            border: Border.all(color: const Color(0xFFC9D3E6)),
                           ),
                           child: Image.network(
                             m['url'].toString(),
@@ -505,7 +505,7 @@ class _ConsultancyPageState extends State<ConsultancyPage> {
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: const Color(0xFFE5E7EB)),
+            border: Border.all(color: const Color(0xFFC9D3E6)),
           ),
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             if ((n['heading'] ?? '').toString().trim().isNotEmpty)
@@ -736,7 +736,7 @@ class _ConsultancyPageState extends State<ConsultancyPage> {
       margin: const EdgeInsets.fromLTRB(16, 18, 16, 0),
       padding: const EdgeInsets.all(4),
       decoration: BoxDecoration(
-        color: const Color(0xFFE5E7EB),
+        color: const Color(0xFFC9D3E6),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Row(
@@ -1831,7 +1831,7 @@ class _ConsultancyPageState extends State<ConsultancyPage> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFE5E7EB)),
+        border: Border.all(color: const Color(0xFFC9D3E6)),
       ),
       child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Container(
@@ -1872,7 +1872,7 @@ class _ConsultancyPageState extends State<ConsultancyPage> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFE5E7EB)),
+        border: Border.all(color: const Color(0xFFC9D3E6)),
       ),
       child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Container(
@@ -1905,7 +1905,7 @@ class _ConsultancyPageState extends State<ConsultancyPage> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFE5E7EB)),
+        border: Border.all(color: const Color(0xFFC9D3E6)),
       ),
       child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Container(
@@ -2025,7 +2025,7 @@ class _ConsultancyPageState extends State<ConsultancyPage> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFE5E7EB)),
+        border: Border.all(color: const Color(0xFFC9D3E6)),
       ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Text(name,
@@ -2082,7 +2082,7 @@ class _ConsultancyPageState extends State<ConsultancyPage> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFE5E7EB)),
+        border: Border.all(color: const Color(0xFFC9D3E6)),
       ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -2148,7 +2148,7 @@ class _ConsultancyPageState extends State<ConsultancyPage> {
       decoration: BoxDecoration(
         color: bg,
         borderRadius: BorderRadius.circular(14),
-        border: highlight ? null : Border.all(color: const Color(0xFFE5E7EB)),
+        border: highlight ? null : Border.all(color: const Color(0xFFC9D3E6)),
         boxShadow: highlight
             ? [BoxShadow(
                 color: const Color(0xFF0A4FD6).withOpacity(0.25),
@@ -2228,7 +2228,7 @@ class _ConsultancyPageState extends State<ConsultancyPage> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: const Color(0xFFE5E7EB)),
+        border: Border.all(color: const Color(0xFFC9D3E6)),
       ),
       child: Column(children: [
         GestureDetector(
@@ -2265,7 +2265,7 @@ class _ConsultancyPageState extends State<ConsultancyPage> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: const Color(0xFFE5E7EB)),
+        border: Border.all(color: const Color(0xFFC9D3E6)),
       ),
       child: Column(children: [
         GestureDetector(
@@ -2614,7 +2614,7 @@ class _KitChecklistCardState extends State<_KitChecklistCard> {
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: const Color(0xFFE5E7EB)),
+              border: Border.all(color: const Color(0xFFC9D3E6)),
             ),
             child: img.isNotEmpty
                 ? Image.network(img,

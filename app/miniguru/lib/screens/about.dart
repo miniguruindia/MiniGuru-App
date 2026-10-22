@@ -83,7 +83,7 @@ class _AboutScreenState extends State<AboutScreen> {
         : null;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFEAF2FF),
+      backgroundColor: const Color(0xFFE3EEFF),
       body: SafeArea(
         child: SingleChildScrollView(
           child: Column(
@@ -699,7 +699,7 @@ class _PlatformFeaturesSection extends StatelessWidget {
     final isMobile = w < 700;
 
     return Container(
-      color: const Color(0xFFEAF2FF),
+      color: const Color(0xFFE3EEFF),
       padding: EdgeInsets.symmetric(
           horizontal: isMobile ? 24 : 64,
           vertical: isMobile ? 48 : 72),
@@ -1055,7 +1055,7 @@ class _TLabNetworkSection extends StatelessWidget {
     ];
 
     return Container(
-      color: const Color(0xFFEAF2FF),
+      color: const Color(0xFFE3EEFF),
       padding: EdgeInsets.symmetric(
           horizontal: isMobile ? 24 : 64,
           vertical: isMobile ? 48 : 72),

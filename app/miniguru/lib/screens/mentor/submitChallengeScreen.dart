@@ -11,7 +11,7 @@ class SubmitChallengeScreen extends StatefulWidget {
 
 class _SubmitChallengeScreenState extends State<SubmitChallengeScreen> {
   static const _primary = Color(0xFF0A6CFF);
-  static const _bg = Color(0xFFEAF2FF);
+  static const _bg = Color(0xFFE3EEFF);
 
   final _formKey = GlobalKey<FormState>();
   final _titleCtrl = TextEditingController();
@@ -149,7 +149,7 @@ class _SubmitChallengeScreenState extends State<SubmitChallengeScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(title, style: GoogleFonts.nunito(fontWeight: FontWeight.w800, fontSize: 14)),
-                  Text(subtitle, style: GoogleFonts.nunito(fontSize: 12, color: Colors.grey[500])),
+                  Text(subtitle, style: GoogleFonts.nunito(fontSize: 12, color: Colors.grey[700])),
                 ],
               ),
             ),
@@ -182,7 +182,7 @@ class _SubmitChallengeScreenState extends State<SubmitChallengeScreen> {
             Text(
               'Set a challenge for children to build. An admin will review it '
               'before it appears on the Community page.',
-              style: GoogleFonts.nunito(fontSize: 13, color: Colors.grey[600]),
+              style: GoogleFonts.nunito(fontSize: 13, color: Colors.grey[700]),
             ),
             const SizedBox(height: 20),
             TextFormField(

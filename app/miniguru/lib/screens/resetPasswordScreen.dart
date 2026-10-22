@@ -143,7 +143,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
           const SizedBox(height: 8),
           Text('Choose a new password for your MiniGuru account.',
               textAlign: TextAlign.center,
-              style: GoogleFonts.nunito(fontSize: 14, color: Colors.grey[600])),
+              style: GoogleFonts.nunito(fontSize: 14, color: Colors.grey[700])),
           const SizedBox(height: 26),
           if (_error != null) ...[
             Container(
@@ -210,7 +210,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
         const SizedBox(height: 8),
         Text('You can now log in with your new password.',
             textAlign: TextAlign.center,
-            style: GoogleFonts.nunito(fontSize: 14, color: Colors.grey[600])),
+            style: GoogleFonts.nunito(fontSize: 14, color: Colors.grey[700])),
         const SizedBox(height: 26),
         _bigButton(
           'Go to Login',

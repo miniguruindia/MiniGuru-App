@@ -168,7 +168,7 @@ class _MentorActivityTabState extends State<MentorActivityTab> {
               const SizedBox(height: 6),
               Text('Select which learner(s) this video belongs to',
                   style: GoogleFonts.nunito(
-                      fontSize: 13, color: Colors.grey[500])),
+                      fontSize: 13, color: Colors.grey[700])),
               const SizedBox(height: 16),
               TextField(
                 onChanged: (q) => setSheet(() => searchQuery = q),
@@ -260,7 +260,7 @@ class _MentorActivityTabState extends State<MentorActivityTab> {
                                         Text('Grade ${child.grade}',
                                             style: GoogleFonts.nunito(
                                                 fontSize: 12,
-                                                color: Colors.grey[500])),
+                                                color: Colors.grey[700])),
                                     ],
                                   ),
                                   const Spacer(),
@@ -378,7 +378,7 @@ class _MentorActivityTabState extends State<MentorActivityTab> {
             if (drafts.isNotEmpty) const Divider(),
             if (drafts.isNotEmpty)
               Text('Or continue an existing draft on this device:',
-                  style: GoogleFonts.nunito(fontSize: 12, color: Colors.grey[500])),
+                  style: GoogleFonts.nunito(fontSize: 12, color: Colors.grey[700])),
             ...drafts.map((d) => ListTile(
                   leading: const Icon(Icons.description_outlined),
                   title: Text(d.title),
@@ -533,7 +533,7 @@ class _MentorActivityTabState extends State<MentorActivityTab> {
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 16),
               child: Text('No learners yet — tap "Add Learner" to get started',
-                  style: GoogleFonts.nunito(fontSize: 13, color: Colors.grey[500])),
+                  style: GoogleFonts.nunito(fontSize: 13, color: Colors.grey[700])),
             )
           else
             SizedBox(
@@ -622,7 +622,7 @@ class _MentorActivityTabState extends State<MentorActivityTab> {
                 if (child.grade != null) ...[
                   const SizedBox(height: 2),
                   Text('Grade ${child.grade}',
-                      style: GoogleFonts.nunito(fontSize: 11, color: Colors.grey[500])),
+                      style: GoogleFonts.nunito(fontSize: 11, color: Colors.grey[700])),
                 ],
                 const SizedBox(height: 6),
                 Container(
@@ -854,7 +854,7 @@ class _MentorActivityTabState extends State<MentorActivityTab> {
                                             ? 'No projects yet.\nProjects created by your children will appear here'
                                             : 'No project or learner matches "$_search"',
                                         textAlign: TextAlign.center,
-                                        style: GoogleFonts.nunito(fontSize: 14, color: Colors.grey[500])),
+                                        style: GoogleFonts.nunito(fontSize: 14, color: Colors.grey[700])),
                                   )
                                 else
                                   Padding(
@@ -936,7 +936,7 @@ class _MentorActivityTabState extends State<MentorActivityTab> {
                               textAlign: TextAlign.center,
                               style: GoogleFonts.nunito(
                                   fontSize: 14,
-                                  color: Colors.grey[500])),
+                                  color: Colors.grey[700])),
                         ],
                       ),
                     ),
@@ -1007,7 +1007,7 @@ class _MentorActivityTabState extends State<MentorActivityTab> {
               const Divider(height: 1),
               const SizedBox(height: 10),
               Text('Top ${top15.length} by Goins',
-                  style: GoogleFonts.nunito(fontSize: 12, fontWeight: FontWeight.w800, color: Colors.grey[600])),
+                  style: GoogleFonts.nunito(fontSize: 12, fontWeight: FontWeight.w800, color: Colors.grey[700])),
               const SizedBox(height: 8),
               // Compact horizontal bar chart — replaces a tall, detailed
               // list. Each row is a fixed 22px, so even 15 learners fit in
@@ -1068,7 +1068,7 @@ class _MentorActivityTabState extends State<MentorActivityTab> {
         Text(emoji, style: const TextStyle(fontSize: 20)),
         const SizedBox(height: 4),
         Text(value, style: GoogleFonts.nunito(fontSize: 18, fontWeight: FontWeight.w900, color: Colors.black87)),
-        Text(label, style: GoogleFonts.nunito(fontSize: 11, color: Colors.grey[500])),
+        Text(label, style: GoogleFonts.nunito(fontSize: 11, color: Colors.grey[700])),
       ],
     );
   }
@@ -1135,7 +1135,7 @@ class _MentorActivityTabState extends State<MentorActivityTab> {
             style: GoogleFonts.nunito(
                 fontSize: 13,
                 fontWeight: FontWeight.w700,
-                color: selected ? Colors.white : Colors.grey[600])),
+                color: selected ? Colors.white : Colors.grey[700])),
       ),
     );
   }

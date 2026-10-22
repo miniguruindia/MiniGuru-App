@@ -68,7 +68,7 @@ class _AddChildScreenState extends State<AddChildScreen> {
               ]),
               content: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Text('Share these login credentials with your child:',
-                  style: GoogleFonts.nunito(fontSize: 14, color: Colors.grey[600])),
+                  style: GoogleFonts.nunito(fontSize: 14, color: Colors.grey[700])),
                 const SizedBox(height: 16),
                 Container(
                   padding: const EdgeInsets.all(12),
@@ -94,7 +94,7 @@ class _AddChildScreenState extends State<AddChildScreen> {
                 ),
                 const SizedBox(height: 12),
                 Text('Child logs in at miniguru.in with their MiniGuru ID + Password. They can change the password after first login.',
-                  style: GoogleFonts.nunito(fontSize: 12, color: Colors.grey[500])),
+                  style: GoogleFonts.nunito(fontSize: 12, color: Colors.grey[700])),
               ]),
               actions: [
                 TextButton.icon(
@@ -255,7 +255,7 @@ class _AddChildScreenState extends State<AddChildScreen> {
                 const SizedBox(height: 6),
                 Text(
                   'The child will use this PIN to switch to their account',
-                  style: GoogleFonts.nunito(fontSize: 13, color: Colors.grey[500]),
+                  style: GoogleFonts.nunito(fontSize: 13, color: Colors.grey[700]),
                 ),
                 const SizedBox(height: 12),
 
@@ -268,7 +268,7 @@ class _AddChildScreenState extends State<AddChildScreen> {
                   suffixIcon: IconButton(
                     icon: Icon(
                         _obscurePin ? Icons.visibility_off : Icons.visibility,
-                        color: Colors.grey[500],
+                        color: Colors.grey[700],
                         size: 20),
                     onPressed: () =>
                         setState(() => _obscurePin = !_obscurePin),
@@ -292,7 +292,7 @@ class _AddChildScreenState extends State<AddChildScreen> {
                   suffixIcon: IconButton(
                     icon: Icon(
                         _obscureConfirm ? Icons.visibility_off : Icons.visibility,
-                        color: Colors.grey[500],
+                        color: Colors.grey[700],
                         size: 20),
                     onPressed: () =>
                         setState(() => _obscureConfirm = !_obscureConfirm),
@@ -342,7 +342,7 @@ class _AddChildScreenState extends State<AddChildScreen> {
         style: GoogleFonts.nunito(
             fontSize: 13,
             fontWeight: FontWeight.w800,
-            color: Colors.grey[500],
+            color: Colors.grey[700],
             letterSpacing: 1.1));
   }
 
@@ -363,8 +363,8 @@ class _AddChildScreenState extends State<AddChildScreen> {
       style: GoogleFonts.nunito(fontSize: 14, fontWeight: FontWeight.w700),
       decoration: InputDecoration(
         labelText: label,
-        labelStyle: GoogleFonts.nunito(color: Colors.grey[600], fontSize: 13),
-        prefixIcon: Icon(icon, color: Colors.grey[600], size: 20),
+        labelStyle: GoogleFonts.nunito(color: Colors.grey[700], fontSize: 13),
+        prefixIcon: Icon(icon, color: Colors.grey[700], size: 20),
         suffixIcon: suffixIcon,
         border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),

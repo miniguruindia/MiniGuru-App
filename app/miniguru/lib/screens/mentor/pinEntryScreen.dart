@@ -125,7 +125,7 @@ class _PinEntryScreenState extends State<PinEntryScreen>
               const SizedBox(height: 6),
               Text('Enter PIN to continue',
                   style: GoogleFonts.nunito(
-                      fontSize: 14, color: Colors.grey[500])),
+                      fontSize: 14, color: Colors.grey[700])),
               const SizedBox(height: 40),
 
               // PIN dots with shake animation

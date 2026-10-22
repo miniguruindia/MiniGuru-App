@@ -173,7 +173,7 @@ class _DeliveryAddressPageState extends State<DeliveryAddressPage> {
       style: bodyTextStyle,
       decoration: InputDecoration(
         labelText: label,
-        labelStyle: bodyTextStyle.copyWith(color: Colors.grey[600]),
+        labelStyle: bodyTextStyle.copyWith(color: Colors.grey[700]),
         prefixIcon: Icon(prefixIcon, color: buttonBlack),
         filled: true,
         fillColor: pastelBlue.withOpacity(0.1),

@@ -47,9 +47,9 @@ class MGColors {
   MGColors._();
 
   // ── Backgrounds
-  static const bg         = Color(0xFFEAF2FF);   // soft lavender-white
+  static const bg         = Color(0xFFDDEBFF);   // soft lavender-white
   static const bgCard     = Color(0xFFFFFFFF);   // pure white cards
-  static const bgCardAlt  = Color(0xFFEAF2FF);   // slightly tinted surface
+  static const bgCardAlt  = Color(0xFFE6F0FF);   // slightly tinted surface
 
   // ── Brand
   static const primary      = Color(0xFF0A6CFF);   // indigo-blue (kids, trustworthy)
@@ -71,35 +71,35 @@ class MGColors {
 
   // ── Pastel category palette
   static const List<Color> categoryPalette = [
-    Color(0xFF0A6CFF),   // indigo
-    Color(0xFFFF3B30),   // coral
-    Color(0xFF12B24A),   // mint
-    Color(0xFFFFB800),   // gold
-    Color(0xFF0984E3),   // sky
-    Color(0xFFFFB800),   // orange
-    Color(0xFFFFB800),   // deep orange
+    Color(0xFF0A6CFF),   // blue
+    Color(0xFFFF3D8B),   // pink
+    Color(0xFF12B24A),   // green
+    Color(0xFFFF8A00),   // orange
+    Color(0xFF8A3FFC),   // purple
+    Color(0xFF00B8A9),   // teal
+    Color(0xFFFF3B30),   // red
   ];
 
   static const List<Color> categoryPaletteLight = [
     Color(0xFFCFE3FF),
-    Color(0xFFFFD3CF),
+    Color(0xFFFFD0E4),
     Color(0xFFC8F2D4),
-    Color(0xFFFFE98A),
-    Color(0xFFD6EEFF),
-    Color(0xFFFFEFA8),
-    Color(0xFFFFEFA8),
+    Color(0xFFFFE0B8),
+    Color(0xFFE6D4FF),
+    Color(0xFFBFF3EE),
+    Color(0xFFFFD3CF),
   ];
 
   // ── Text
   static const textPrimary   = Color(0xFF1A1A2E);   // near-black with blue tint
-  static const textBody      = Color(0xFF3D3D5C);   // readable body
-  static const textSecondary = Color(0xFF6B6B8A);   // muted labels
-  static const textMuted     = Color(0xFFAAAAAC);   // placeholders
+  static const textBody      = Color(0xFF2E2E52);   // readable body
+  static const textSecondary = Color(0xFF4A4A72);   // muted labels
+  static const textMuted     = Color(0xFF7C7CA3);   // placeholders
 
   // ── Borders & dividers
-  static const border      = Color(0xFFCFE3FF);
-  static const borderMid   = Color(0xFFD0D4F0);
-  static const divider     = Color(0xFFCFE3FF);
+  static const border      = Color(0xFF9CC2FF);
+  static const borderMid   = Color(0xFFB4BCEC);
+  static const divider     = Color(0xFFB5D3FF);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -173,7 +173,7 @@ class MGGradients {
   static const primaryBg = LinearGradient(
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
-    colors: [Color(0xFFCFE3FF), Color(0xFFEAF2FF)],
+    colors: [Color(0xFFB5D3FF), Color(0xFFDDEBFF)],
   );
 
   static const heroCard = LinearGradient(
@@ -316,14 +316,14 @@ class AppTheme {
       bottomNavigationBarTheme: BottomNavigationBarThemeData(
         backgroundColor: MGColors.bgCard,
         selectedItemColor: MGColors.primary,
-        unselectedItemColor: MGColors.textMuted,
-        elevation: 0,
+        unselectedItemColor: MGColors.textSecondary,
+        elevation: 8,
         type: BottomNavigationBarType.fixed,
         selectedLabelStyle: GoogleFonts.nunito(
-          fontSize: 11, fontWeight: FontWeight.w700,
+          fontSize: 11, fontWeight: FontWeight.w900,
         ),
         unselectedLabelStyle: GoogleFonts.nunito(
-          fontSize: 11, fontWeight: FontWeight.w600,
+          fontSize: 11, fontWeight: FontWeight.w800,
         ),
       ),
 
@@ -333,7 +333,7 @@ class AppTheme {
         elevation: 0,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(MGRadius.lg),
-          side: const BorderSide(color: MGColors.border, width: 1),
+          side: const BorderSide(color: MGColors.border, width: 1.5),
         ),
         margin: EdgeInsets.zero,
         shadowColor: MGColors.primary.withOpacity(0.08),
@@ -344,15 +344,15 @@ class AppTheme {
         style: ElevatedButton.styleFrom(
           backgroundColor: MGColors.primary,
           foregroundColor: Colors.white,
-          elevation: 0,
+          elevation: 4,
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(MGRadius.pill),
           ),
           textStyle: GoogleFonts.nunito(
-            fontSize: 15, fontWeight: FontWeight.w700,
+            fontSize: 15, fontWeight: FontWeight.w900,
           ),
-          shadowColor: MGColors.primary.withOpacity(0.3),
+          shadowColor: MGColors.primary.withOpacity(0.5),
         ),
       ),
 
@@ -478,7 +478,7 @@ class AppTheme {
 
       // Icon
       iconTheme: const IconThemeData(
-        color: MGColors.textSecondary, size: 22,
+        color: MGColors.primary, size: 24,
       ),
       primaryIconTheme: const IconThemeData(
         color: MGColors.primary, size: 22,

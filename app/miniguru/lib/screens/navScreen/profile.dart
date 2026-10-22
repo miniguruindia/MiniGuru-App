@@ -430,7 +430,7 @@ class _ProfileState extends State<Profile>
   Widget build(BuildContext context) {
     super.build(context);
     return Scaffold(
-      backgroundColor: const Color(0xFFEAF2FF),
+      backgroundColor: const Color(0xFFE3EEFF),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator(
               color: Color(0xFF0A6CFF)))
@@ -688,10 +688,10 @@ class _ProfileState extends State<Profile>
 
     // Badge colours by category
     final catColors = {
-      'projects': [const Color(0xFF0A6CFF), const Color(0xFFEAF2FF)],
+      'projects': [const Color(0xFF0A6CFF), const Color(0xFFE3EEFF)],
       'goins':    [const Color(0xFFFFB800), const Color(0xFFFFEFA8)],
       'learning': [const Color(0xFF12B24A), const Color(0xFFC8F2D4)],
-      'social':   [const Color(0xFFFF3B30), const Color(0xFFFFF1F2)],
+      'social':   [const Color(0xFFFF3B30), const Color(0xFFFFE3E6)],
     };
 
     // Sort: earned first
@@ -1012,11 +1012,11 @@ class _ProfileState extends State<Profile>
     ];
 
     final stats = [
-      _StatDef('Videos\nWatched',    '🎬', const Color(0xFF7DB2FF), const Color(0xFFEAF2FF)),
+      _StatDef('Videos\nWatched',    '🎬', const Color(0xFF7DB2FF), const Color(0xFFE3EEFF)),
       _StatDef('Ongoing\nProjects',  '🔧', const Color(0xFF0A6CFF), const Color(0xFFCFE3FF)),
       _StatDef('Completed\nBuilds',  '✅', const Color(0xFF12B24A), const Color(0xFFC8F2D4)),
       _StatDef('Likes\nReceived',    '⭐', const Color(0xFFFFB800), const Color(0xFFFFEFA8)),
-      _StatDef('Comments\nReceived', '💬', const Color(0xFFFF3B30), const Color(0xFFFFF1F2)),
+      _StatDef('Comments\nReceived', '💬', const Color(0xFFFF3B30), const Color(0xFFFFE3E6)),
       _StatDef('Total\nProjects',    '🏗️', const Color(0xFF4C94FF), const Color(0xFFCFE3FF)),
     ];
 

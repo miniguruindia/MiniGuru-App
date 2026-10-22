@@ -35,7 +35,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     'Reading', 'Photography', 'Environment', 'Space', 'Machines',
   ];
   static const _primary = Color(0xFF0A6CFF);
-  static const _bg      = Color(0xFFEAF2FF);
+  static const _bg      = Color(0xFFE3EEFF);
 
   @override
   void initState() {
@@ -169,7 +169,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 Text(
                     'Other MiniGuru makers can see your tagline, interests and these answers when they tap your name. '
                     'They never see your school, city, age or contact details.',
-                    style: GoogleFonts.nunito(fontSize: 11, color: Colors.grey[600])),
+                    style: GoogleFonts.nunito(fontSize: 11, color: Colors.grey[700])),
                 const SizedBox(height: 12),
                 Row(children: [
                   Expanded(child: _field(_ageCtrl, 'Age',
@@ -192,7 +192,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 _section('👨‍👩‍👧 Parent / Guardian'),
                 const SizedBox(height: 4),
                 Text('This info is visible to your teacher.',
-                    style: GoogleFonts.nunito(fontSize: 12, color: Colors.grey[500])),
+                    style: GoogleFonts.nunito(fontSize: 12, color: Colors.grey[700])),
                 const SizedBox(height: 12),
                 _field(_parentNameCtrl, 'Parent Name',
                     Icons.people_outline, hint: 'e.g. Suresh Sharma'),
@@ -243,7 +243,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 _section('🌟 My Interests'),
                 const SizedBox(height: 4),
                 Text('Tap to select what you love:',
-                    style: GoogleFonts.nunito(fontSize: 12, color: Colors.grey[500])),
+                    style: GoogleFonts.nunito(fontSize: 12, color: Colors.grey[700])),
                 const SizedBox(height: 12),
                 Wrap(
                   spacing: 8, runSpacing: 8,

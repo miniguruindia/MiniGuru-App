@@ -31,7 +31,7 @@ class _LegalScreenState extends State<LegalScreen>
   List<Map<String, dynamic>> _faqs = [];
 
   static const _accent = Color(0xFF0A6CFF);
-  static const _bg     = Color(0xFFEAF2FF);
+  static const _bg     = Color(0xFFE3EEFF);
 
   static const _tabs = [
     {'label': 'Privacy',  'icon': Icons.lock_outline},
@@ -305,7 +305,7 @@ connect@miniguru.in
               fontSize: 12, fontWeight: FontWeight.w800),
           unselectedLabelStyle: GoogleFonts.nunito(fontSize: 12),
           labelColor: _accent,
-          unselectedLabelColor: const Color(0xFF6B6B8A),
+          unselectedLabelColor: const Color(0xFF4F4F78),
           indicatorColor: _accent,
           indicatorWeight: 3,
           tabs: _tabs.map((t) => Tab(
@@ -405,7 +405,7 @@ connect@miniguru.in
                   child: Text(_cleanBold(line.substring(2)),
                       style: GoogleFonts.nunito(
                           fontSize: 13,
-                          color: const Color(0xFF444466),
+                          color: const Color(0xFF2E2E52),
                           height: 1.5)),
                 ),
               ],
@@ -429,7 +429,7 @@ connect@miniguru.in
           child: Text(_cleanBold(line),
               style: GoogleFonts.nunito(
                   fontSize: 13,
-                  color: const Color(0xFF444466),
+                  color: const Color(0xFF2E2E52),
                   height: 1.6)),
         );
       },
@@ -666,7 +666,7 @@ class _FaqTileState extends State<_FaqTile>
                   turns: _rotate,
                   child: Icon(
                     Icons.keyboard_arrow_down_rounded,
-                    color: _open ? _accent : const Color(0xFF6B6B8A),
+                    color: _open ? _accent : const Color(0xFF4F4F78),
                     size: 20,
                   ),
                 ),
@@ -679,7 +679,7 @@ class _FaqTileState extends State<_FaqTile>
               child: Text(widget.answer,
                   style: GoogleFonts.nunito(
                       fontSize: 13,
-                      color: const Color(0xFF444466),
+                      color: const Color(0xFF2E2E52),
                       height: 1.6)),
             ),
         ],

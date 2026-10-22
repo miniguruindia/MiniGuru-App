@@ -396,7 +396,7 @@ class _ProjectScreenState extends State<ProjectScreen>
     return Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
       Icon(icon, size: 64, color: Colors.grey[300]),
       const SizedBox(height: 16),
-      Text(title,   style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.w700, color: Colors.grey[600])),
+      Text(title,   style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.w700, color: Colors.grey[700])),
       const SizedBox(height: 6),
       Text(subtitle, style: GoogleFonts.poppins(fontSize: 13, color: Colors.grey[400])),
     ]));

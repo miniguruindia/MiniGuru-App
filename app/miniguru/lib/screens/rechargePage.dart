@@ -218,7 +218,7 @@ class _RechargePageState extends State<RechargePage> {
             ),
             const SizedBox(height: 24),
             Text("Or Enter Custom Amount",
-                style: bodyTextStyle.copyWith(fontSize: 16, color: Colors.grey[600])),
+                style: bodyTextStyle.copyWith(fontSize: 16, color: Colors.grey[700])),
             const SizedBox(height: 12),
             Container(
               decoration: BoxDecoration(
@@ -252,7 +252,7 @@ class _RechargePageState extends State<RechargePage> {
             const SizedBox(height: 16),
             Text(
               "Test card: 4111 1111 1111 1111 | Any future date | CVV: 123 | OTP: 1234",
-              style: bodyTextStyle.copyWith(fontSize: 12, color: Colors.grey[500]),
+              style: bodyTextStyle.copyWith(fontSize: 12, color: Colors.grey[700]),
             ),
             const SizedBox(height: 32),
             SizedBox(

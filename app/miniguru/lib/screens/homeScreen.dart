@@ -256,20 +256,20 @@ class _HomeScreenState extends State<HomeScreen> {
 
   List<BottomNavigationBarItem> _navItems() {
     return [
-      _tab(Icons.home_outlined, Icons.home_rounded, GColors.blue, 'Home'),
+      _tab(Icons.home_rounded, Icons.home_rounded, GColors.blue, 'Home'),
       // Mentors/parents/schools see the same Consultancy tab a guest sees
       // here — "Learners" moved into Children's Activity.
       _tab(
-        (_isMentorView || !_isAuthenticated) ? Icons.support_agent_outlined : Icons.groups_outlined,
-        (_isMentorView || !_isAuthenticated) ? Icons.support_agent : Icons.groups_rounded,
+        (_isMentorView || !_isAuthenticated) ? Icons.support_agent_rounded : Icons.diversity_3_rounded,
+        (_isMentorView || !_isAuthenticated) ? Icons.support_agent_rounded : Icons.diversity_3_rounded,
         GColors.green,
         _isMentorView ? 'Consult' : _isAuthenticated ? 'Community' : 'Consult',
       ),
-      _tab(Icons.shopping_bag_outlined, Icons.shopping_bag_rounded, GColors.yellow, 'Shop'),
+      _tab(Icons.shopping_basket_rounded, Icons.shopping_basket_rounded, GColors.orange, 'Shop'),
       _tab(
-        _isAuthenticated ? Icons.rocket_launch_outlined : Icons.groups_outlined,
-        _isAuthenticated ? Icons.rocket_launch_rounded : Icons.groups_rounded,
-        GColors.red,
+        _isAuthenticated ? Icons.rocket_launch_rounded : Icons.diversity_3_rounded,
+        _isAuthenticated ? Icons.rocket_launch_rounded : Icons.diversity_3_rounded,
+        GColors.pink,
         _isMentorView
             ? "Children's Activity"
             : _isAuthenticated ? 'Projects' : 'Community',
@@ -278,9 +278,9 @@ class _HomeScreenState extends State<HomeScreen> {
           ? BottomNavigationBarItem(
               icon: _logoIcon(0.65), activeIcon: _logoIcon(1.0), label: 'About')
           : _tab(
-              _isMentorView ? Icons.supervisor_account_outlined : Icons.person_outline_rounded,
-              _isMentorView ? Icons.supervisor_account : Icons.person_rounded,
-              GColors.blue,
+              _isMentorView ? Icons.supervisor_account_rounded : Icons.face_rounded,
+              _isMentorView ? Icons.supervisor_account_rounded : Icons.face_rounded,
+              GColors.purple,
               _isMentorView ? 'My Account' : 'Profile',
             ),
     ];
@@ -333,7 +333,7 @@ class _HomeScreenState extends State<HomeScreen> {
             decoration: const BoxDecoration(
               color: Colors.white,
               border: Border.symmetric(
-                  vertical: BorderSide(color: Color(0xFFE3E6F7))),
+                  vertical: BorderSide(color: Color(0xFFC9D0F0))),
             ),
             child: inner,
           ),

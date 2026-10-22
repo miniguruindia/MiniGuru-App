@@ -168,7 +168,7 @@ class _LoginScreenState extends State<LoginScreen> {
               children: [
                 Text('Enter your email or MiniGuru ID to reset your password.',
                     style: GoogleFonts.poppins(
-                        fontSize: 13, color: Colors.grey[600])),
+                        fontSize: 13, color: Colors.grey[700])),
                 const SizedBox(height: 20),
                 TextFormField(
                   controller: resetEmailController,
@@ -177,7 +177,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   decoration: InputDecoration(
                     labelText: 'Email or MiniGuru ID',
                     labelStyle:
-                        GoogleFonts.poppins(color: Colors.grey[600]),
+                        GoogleFonts.poppins(color: Colors.grey[700]),
                     prefixIcon:
                         Icon(Icons.email_outlined, color: GColors.red),
                     border: OutlineInputBorder(
@@ -204,7 +204,7 @@ class _LoginScreenState extends State<LoginScreen> {
               onPressed:
                   isSending ? null : () => Navigator.of(dialogContext).pop(),
               child: Text('Cancel',
-                  style: GoogleFonts.poppins(color: Colors.grey[600])),
+                  style: GoogleFonts.poppins(color: Colors.grey[700])),
             ),
             ElevatedButton(
               onPressed: isSending
@@ -303,7 +303,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 children: [
                   Text('Email:',
                       style: GoogleFonts.poppins(
-                          fontSize: 12, color: Colors.grey[600])),
+                          fontSize: 12, color: Colors.grey[700])),
                   const SizedBox(height: 4),
                   Text(email,
                       style: GoogleFonts.poppins(
@@ -311,7 +311,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   const SizedBox(height: 12),
                   Text('Temporary Password:',
                       style: GoogleFonts.poppins(
-                          fontSize: 12, color: Colors.grey[600])),
+                          fontSize: 12, color: Colors.grey[700])),
                   const SizedBox(height: 8),
                   Row(
                     children: [
@@ -485,7 +485,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   const SizedBox(height: 8),
                   Text('Login to continue your journey',
                       style: GoogleFonts.poppins(
-                          fontSize: 14, color: Colors.grey[600])),
+                          fontSize: 14, color: Colors.grey[700])),
                   const SizedBox(height: 40),
 
                   _buildTextField(
@@ -518,7 +518,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           _obscurePassword
                               ? Icons.visibility_off
                               : Icons.visibility,
-                          color: Colors.grey[600]),
+                          color: Colors.grey[700]),
                       onPressed: () => setState(
                           () => _obscurePassword = !_obscurePassword),
                     ),
@@ -575,7 +575,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     text: TextSpan(
                       text: "Don't have an account? ",
                       style: GoogleFonts.poppins(
-                          fontSize: 14, color: Colors.grey[600]),
+                          fontSize: 14, color: Colors.grey[700]),
                       children: [
                         TextSpan(
                           text: 'Sign Up',
@@ -622,7 +622,7 @@ class _LoginScreenState extends State<LoginScreen> {
       style: GoogleFonts.poppins(fontSize: 14),
       decoration: InputDecoration(
         labelText: label,
-        labelStyle: GoogleFonts.poppins(color: Colors.grey[600]),
+        labelStyle: GoogleFonts.poppins(color: Colors.grey[700]),
         prefixIcon: Icon(icon, color: mgFieldIconColor(icon)),
         suffixIcon: suffixIcon,
         border: OutlineInputBorder(

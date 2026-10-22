@@ -26,6 +26,17 @@ class GColors {
   static const greenDark = Color(0xFF0A7A32);
   static const yellowDark = Color(0xFF8F5A00);
   static const redDark = Color(0xFFA3150C);
+
+  // Extra bright colours (Oct 2026) so the app feels playful to boys and girls
+  // aged 8 to 14: purple, pink, orange and teal.
+  static const orange = Color(0xFFFF8A00);
+  static const purple = Color(0xFF8A3FFC);
+  static const pink = Color(0xFFFF3D8B);
+  static const teal = Color(0xFF00B8A9);
+  static const orangeLight = Color(0xFFFFE0B8);
+  static const purpleLight = Color(0xFFE6D4FF);
+  static const pinkLight = Color(0xFFFFD0E4);
+  static const tealLight = Color(0xFFBFF3EE);
 }
 
 /// Colourful icon for the bottom bar (phone) and the left strip (laptop).
@@ -44,15 +55,20 @@ class NavIcon extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Selected: solid bright pill with a white icon and a soft glow.
+    // Not selected: the icon in its own colour on a light tint of that colour.
     return Container(
-      width: 42,
-      height: 26,
+      width: 48,
+      height: 30,
       decoration: BoxDecoration(
-        color: selected ? color.withOpacity(0.16) : Colors.transparent,
-        borderRadius: BorderRadius.circular(13),
+        color: selected ? color : color.withOpacity(0.16),
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: selected
+            ? [BoxShadow(color: color.withOpacity(0.45), blurRadius: 8, offset: const Offset(0, 2))]
+            : null,
       ),
       alignment: Alignment.center,
-      child: Icon(icon, size: 22, color: selected ? color : color.withOpacity(0.92)),
+      child: Icon(icon, size: 22, color: selected ? Colors.white : color),
     );
   }
 }
@@ -69,7 +85,7 @@ class IconBadge extends StatelessWidget {
     return Container(
       width: size,
       height: size,
-      decoration: BoxDecoration(color: color.withOpacity(0.15), shape: BoxShape.circle),
+      decoration: BoxDecoration(color: color.withOpacity(0.24), shape: BoxShape.circle),
       alignment: Alignment.center,
       child: Icon(icon, size: size * 0.52, color: color),
     );

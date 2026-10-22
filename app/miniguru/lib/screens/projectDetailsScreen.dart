@@ -338,7 +338,7 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
             const SizedBox(height: 8),
             Text(
               'As the author, you can view comments here.',
-              style: bodyTextStyle.copyWith(color: Colors.grey[600]),
+              style: bodyTextStyle.copyWith(color: Colors.grey[700]),
             ),
             const SizedBox(height: 16),
             ListView.separated(
@@ -867,7 +867,7 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
       ),
       child: Row(
         children: [
-          Icon(icon, color: Colors.grey[600], size: 24.0),
+          Icon(icon, color: Colors.grey[700], size: 24.0),
           const SizedBox(width: 8.0),
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -875,7 +875,7 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
               Text(
                 label,
                 style: bodyTextStyle.copyWith(
-                    fontSize: 12, color: Colors.grey[600]),
+                    fontSize: 12, color: Colors.grey[700]),
               ),
               const SizedBox(height: 4.0),
               Text(

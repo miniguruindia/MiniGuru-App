@@ -266,7 +266,7 @@ class _VideoRatingWidgetState extends State<VideoRatingWidget> {
                 '${_data!.totalRaters} rating${_data!.totalRaters != 1 ? 's' : ''}',
                 style: GoogleFonts.nunito(
                   fontSize: 12,
-                  color: const Color(0xFF8888AA),
+                  color: const Color(0xFF5F5F88),
                 ),
               ),
           ]),
@@ -353,7 +353,7 @@ class _VideoRatingWidgetState extends State<VideoRatingWidget> {
                                 fontSize: 10,
                                 color: isSelected
                                     ? Colors.white.withOpacity(0.8)
-                                    : const Color(0xFF8888AA),
+                                    : const Color(0xFF5F5F88),
                               ),
                             ),
                         ],
@@ -373,7 +373,7 @@ class _VideoRatingWidgetState extends State<VideoRatingWidget> {
               '(+ possible 2× if you\'re from a different school)',
               style: GoogleFonts.nunito(
                 fontSize: 11,
-                color: const Color(0xFF8888AA),
+                color: const Color(0xFF5F5F88),
               ),
             ),
           ],

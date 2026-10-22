@@ -9,7 +9,7 @@ import 'package:miniguru/secrets.dart';
 const _ink    = Color(0xFF1A1A2E);
 const _accent = Color(0xFF0A6CFF);
 const _cream  = Color(0xFFFFFBF2);
-const _muted  = Color(0xFF6B6B8A);
+const _muted  = Color(0xFF4F4F78);
 
 class ProductDetailsPage extends StatefulWidget {
   final Product product;

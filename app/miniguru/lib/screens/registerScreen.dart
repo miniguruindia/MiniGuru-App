@@ -176,7 +176,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   const SizedBox(height: 12),
                   Text(
                     'Save this — you will log in with this ID, not your email.',
-                    style: GoogleFonts.nunito(fontSize: 12, color: Colors.grey[600]),
+                    style: GoogleFonts.nunito(fontSize: 12, color: Colors.grey[700]),
                   ),
                 ],
               ),
@@ -404,7 +404,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 fontSize: 26, fontWeight: FontWeight.w900, color: Colors.black87)),
         const SizedBox(height: 8),
         Text('Who is joining MiniGuru?',
-            style: GoogleFonts.nunito(fontSize: 15, color: Colors.grey[600])),
+            style: GoogleFonts.nunito(fontSize: 15, color: Colors.grey[700])),
         const SizedBox(height: 36),
         _typeCard(
           type: _AccountType.child,
@@ -450,7 +450,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         RichText(
           text: TextSpan(
             text: 'Already have an account? ',
-            style: GoogleFonts.nunito(fontSize: 14, color: Colors.grey[600]),
+            style: GoogleFonts.nunito(fontSize: 14, color: Colors.grey[700]),
             children: [
               TextSpan(
                 text: 'Login',
@@ -513,7 +513,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   const SizedBox(height: 4),
                   Text(subtitle,
                       style: GoogleFonts.nunito(
-                          fontSize: 12, color: Colors.grey[600], height: 1.4)),
+                          fontSize: 12, color: Colors.grey[700], height: 1.4)),
                 ],
               ),
             ),
@@ -560,7 +560,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 ),
                 const SizedBox(height: 6),
                 Text('Fill in your details below',
-                    style: GoogleFonts.nunito(fontSize: 14, color: Colors.grey[600])),
+                    style: GoogleFonts.nunito(fontSize: 14, color: Colors.grey[700])),
               ],
             ),
           ),
@@ -611,7 +611,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         children: [
                           Text('MiniGuru Login ID',
                               style: GoogleFonts.nunito(
-                                  fontSize: 11, color: Colors.grey[600], fontWeight: FontWeight.w700)),
+                                  fontSize: 11, color: Colors.grey[700], fontWeight: FontWeight.w700)),
                           _checkingId
                               ? const SizedBox(
                                   height: 14,
@@ -627,7 +627,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                       color: pastelBlueText),
                                 ),
                           Text('Child will use this ID to log in',
-                              style: GoogleFonts.nunito(fontSize: 10, color: Colors.grey[500])),
+                              style: GoogleFonts.nunito(fontSize: 10, color: Colors.grey[700])),
                         ],
                       ),
                     ),
@@ -742,7 +742,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
             obscureText: _obscurePassword,
             suffixIcon: IconButton(
               icon: Icon(_obscurePassword ? Icons.visibility_off : Icons.visibility,
-                  color: Colors.grey[600]),
+                  color: Colors.grey[700]),
               onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
             ),
             validator: (v) {
@@ -759,7 +759,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
             obscureText: _obscurePassword,
             suffixIcon: IconButton(
               icon: Icon(_obscurePassword ? Icons.visibility_off : Icons.visibility,
-                  color: Colors.grey[600]),
+                  color: Colors.grey[700]),
               onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
             ),
             validator: (v) {
@@ -844,7 +844,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
             child: RichText(
               text: TextSpan(
                 text: 'Already have an account? ',
-                style: GoogleFonts.nunito(fontSize: 14, color: Colors.grey[600]),
+                style: GoogleFonts.nunito(fontSize: 14, color: Colors.grey[700]),
                 children: [
                   TextSpan(
                     text: 'Login',
@@ -873,7 +873,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 fontSize: 24, fontWeight: FontWeight.w900, color: Colors.black87)),
         const SizedBox(height: 8),
         Text('Enter the 6-digit code sent to',
-            style: GoogleFonts.nunito(fontSize: 14, color: Colors.grey[600])),
+            style: GoogleFonts.nunito(fontSize: 14, color: Colors.grey[700])),
         Text(_guardianEmailCtrl.text,
             style: GoogleFonts.nunito(
                 fontSize: 14, fontWeight: FontWeight.w900, color: pastelBlueText)),
@@ -1011,7 +1011,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
               Text('Login ID: $_miniguruId',
                   style: GoogleFonts.nunito(fontWeight: FontWeight.w700, fontSize: 13)),
               Text('Password: (the one you just set)',
-                  style: GoogleFonts.nunito(fontSize: 12, color: Colors.grey[600])),
+                  style: GoogleFonts.nunito(fontSize: 12, color: Colors.grey[700])),
             ],
           ),
         ),
@@ -1039,8 +1039,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
       decoration: InputDecoration(
         labelText: label,
         helperText: helperText,
-        helperStyle: GoogleFonts.nunito(fontSize: 11, color: Colors.grey[500]),
-        labelStyle: GoogleFonts.nunito(color: Colors.grey[600], fontSize: 13),
+        helperStyle: GoogleFonts.nunito(fontSize: 11, color: Colors.grey[700]),
+        labelStyle: GoogleFonts.nunito(color: Colors.grey[700], fontSize: 13),
         prefixIcon: Icon(icon, color: mgFieldIconColor(icon), size: 20),
         suffixIcon: suffixIcon,
         border: OutlineInputBorder(

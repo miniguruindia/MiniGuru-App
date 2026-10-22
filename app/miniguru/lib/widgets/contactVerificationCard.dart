@@ -265,13 +265,13 @@ class _ContactVerificationCardState extends State<ContactVerificationCard> {
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: Row(
         children: [
-          Icon(icon, size: 20, color: const Color(0xFF8888AA)),
+          Icon(icon, size: 20, color: const Color(0xFF5F5F88)),
           const SizedBox(width: 10),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(label, style: GoogleFonts.nunito(fontWeight: FontWeight.w900, fontSize: 12, color: const Color(0xFF8888AA))),
+                Text(label, style: GoogleFonts.nunito(fontWeight: FontWeight.w900, fontSize: 12, color: const Color(0xFF5F5F88))),
                 Text(value, style: GoogleFonts.nunito(fontWeight: FontWeight.w900, fontSize: 14)),
               ],
             ),

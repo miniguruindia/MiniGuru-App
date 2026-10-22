@@ -195,7 +195,7 @@ class _WalletPageState extends State<WalletPage> {
             Text(
               DateFormat('hh:mm a').format(createdAt),
               style: bodyTextStyle.copyWith(
-                color: Colors.grey[600],
+                color: Colors.grey[700],
                 fontSize: 12,
               ),
             ),

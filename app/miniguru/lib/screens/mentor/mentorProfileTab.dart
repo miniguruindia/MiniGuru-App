@@ -504,7 +504,7 @@ class _MentorProfileTabState extends State<MentorProfileTab> {
                     style: GoogleFonts.nunito(
                         fontSize: 15, fontWeight: FontWeight.w800, color: Colors.black87)),
                 Text(subtitle,
-                    style: GoogleFonts.nunito(fontSize: 12, color: Colors.grey[500])),
+                    style: GoogleFonts.nunito(fontSize: 12, color: Colors.grey[700])),
               ],
             ),
             const Spacer(),

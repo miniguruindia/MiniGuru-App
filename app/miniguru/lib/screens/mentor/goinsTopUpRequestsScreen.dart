@@ -154,7 +154,7 @@ class _GoinsTopUpRequestsScreenState extends State<GoinsTopUpRequestsScreen> {
                               'All caught up! New requests\nwill show up here',
                               textAlign: TextAlign.center,
                               style: GoogleFonts.nunito(
-                                  fontSize: 14, color: Colors.grey[500])),
+                                  fontSize: 14, color: Colors.grey[700])),
                         ],
                       ),
                     ),
@@ -261,7 +261,7 @@ class _GoinsTopUpRequestsScreenState extends State<GoinsTopUpRequestsScreen> {
             const SizedBox(height: 10),
             Text('For: $projectContext',
                 style: GoogleFonts.nunito(
-                    fontSize: 13, color: Colors.grey[600])),
+                    fontSize: 13, color: Colors.grey[700])),
           ],
           if (reason != null && reason.isNotEmpty) ...[
             const SizedBox(height: 4),

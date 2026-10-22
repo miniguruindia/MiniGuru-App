@@ -11,7 +11,7 @@ class SubmitHappeningScreen extends StatefulWidget {
 
 class _SubmitHappeningScreenState extends State<SubmitHappeningScreen> {
   static const _primary = Color(0xFF0A6CFF);
-  static const _bg = Color(0xFFEAF2FF);
+  static const _bg = Color(0xFFE3EEFF);
 
   final _formKey = GlobalKey<FormState>();
   final _titleCtrl = TextEditingController();
@@ -140,7 +140,7 @@ class _SubmitHappeningScreenState extends State<SubmitHappeningScreen> {
               'Tell the community what\'s happening at your school or T-LAB — '
               'workshops, milestones, awards, or anything worth celebrating. '
               'An admin will review it before it goes live.',
-              style: GoogleFonts.nunito(fontSize: 13, color: Colors.grey[600]),
+              style: GoogleFonts.nunito(fontSize: 13, color: Colors.grey[700]),
             ),
             const SizedBox(height: 20),
             TextFormField(

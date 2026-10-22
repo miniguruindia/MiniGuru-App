@@ -63,7 +63,7 @@ class _MakerCardSheet extends StatelessWidget {
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Text(label.toUpperCase(),
             style: GoogleFonts.nunito(
-                fontSize: 10, letterSpacing: 0.8, fontWeight: FontWeight.w900, color: const Color(0xFF8888AA))),
+                fontSize: 10, letterSpacing: 0.8, fontWeight: FontWeight.w900, color: const Color(0xFF5F5F88))),
         const SizedBox(height: 2),
         Text(value,
             style: GoogleFonts.nunito(
@@ -124,7 +124,7 @@ class _MakerCardSheet extends StatelessWidget {
             if (interests.isNotEmpty) ...[
               Text('INTERESTS',
                   style: GoogleFonts.nunito(
-                      fontSize: 10, letterSpacing: 0.8, fontWeight: FontWeight.w900, color: const Color(0xFF8888AA))),
+                      fontSize: 10, letterSpacing: 0.8, fontWeight: FontWeight.w900, color: const Color(0xFF5F5F88))),
               const SizedBox(height: 6),
               Wrap(spacing: 6, runSpacing: 6, children: [
                 for (final i in interests)

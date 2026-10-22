@@ -148,8 +148,8 @@ class _HomeState extends State<Home> {
   // Rotating palette for real categories (ProjectCategory has no color
   // field of its own — this keeps chips visually distinct and stable).
   static const List<Color> _categoryPalette = [
-    Color(0xFF7DB2FF), Color(0xFFFFD84D), Color(0xFF5FD58A), Color(0xFFFF7A70),
-    Color(0xFF4C94FF), Color(0xFFFFD84D), Color(0xFF5BB974), Color(0xFFEE675C),
+    Color(0xFF0A6CFF), Color(0xFFFF8A00), Color(0xFF12B24A), Color(0xFFFF3D8B),
+    Color(0xFF8A3FFC), Color(0xFF00B8A9), Color(0xFFFFB800), Color(0xFFFF3B30),
   ];
 
   List<Map<String, dynamic>> _allVideos = [];
@@ -452,7 +452,7 @@ class _HomeState extends State<Home> {
           Text(
               'Outside competitions and guides that may be useful for you, like PM Rashtriya Bal Puraskar, '
               'the Earthshot Challenge and patent basics. MiniGuru is not involved in any of them.',
-              style: GoogleFonts.nunito(fontSize: 13, height: 1.45, color: const Color(0xFF4B4B6B))),
+              style: GoogleFonts.nunito(fontSize: 13, height: 1.45, color: const Color(0xFF35355A))),
           const SizedBox(height: 14),
           SizedBox(
             width: double.infinity,
@@ -732,10 +732,10 @@ class _HomeState extends State<Home> {
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [Color.alphaBlend(color.withOpacity(0.18), Colors.white), Colors.white],
+          colors: [Color.alphaBlend(color.withOpacity(0.34), Colors.white), Color.alphaBlend(color.withOpacity(0.12), Colors.white)],
         ),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: color.withOpacity(0.28)),
+        border: Border.all(color: color.withOpacity(0.7), width: 1.5),
       ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
         Row(children: [
@@ -1123,7 +1123,7 @@ class _HomeState extends State<Home> {
                         decoration: BoxDecoration(
                           color: isSelected
                               ? cat['color']
-                              : (cat['color'] as Color).withOpacity(0.25),
+                              : (cat['color'] as Color).withOpacity(0.38),
                           borderRadius: BorderRadius.circular(16),
                         ),
                         alignment: Alignment.center,
@@ -1541,7 +1541,7 @@ class _HomeState extends State<Home> {
                 border: Border.all(
                   color: hasAmazon
                       ? const Color(0xFFFF9900).withOpacity(0.5)
-                      : const Color(0xFFE5E7EB),
+                      : const Color(0xFFC9D3E6),
                   width: 1.5,
                 ),
               ),
@@ -1933,7 +1933,7 @@ class _HomeState extends State<Home> {
                         border: Border.all(
                           color: hasAmazon
                               ? const Color(0xFFFF9900).withOpacity(0.6)
-                              : const Color(0xFFE5E7EB),
+                              : const Color(0xFFC9D3E6),
                         ),
                       ),
                       child: ClipRRect(
@@ -1955,7 +1955,7 @@ class _HomeState extends State<Home> {
                   Container(
                     width: 22, height: 22,
                     decoration: BoxDecoration(
-                      color: const Color(0xFFE5E7EB),
+                      color: const Color(0xFFC9D3E6),
                       borderRadius: BorderRadius.circular(5),
                     ),
                     child: Center(
@@ -2164,7 +2164,7 @@ class _NoticeStripState extends State<_NoticeStrip> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFFE3E6F7)),
+        border: Border.all(color: const Color(0xFFC9D0F0)),
       ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
         Text('🔔 WHAT\'S NEW',

@@ -15,8 +15,8 @@ const _green    = Color(0xFF12B24A);
 const _amber    = Color(0xFFFFB800);
 const _red      = Color(0xFFFF3B30);
 const _ink      = Color(0xFF1A1A2E);
-const _muted    = Color(0xFF8888AA);
-const _bg       = Color(0xFFEAF2FF);
+const _muted    = Color(0xFF5F5F88);
+const _bg       = Color(0xFFE3EEFF);
 const _card     = Color(0xFFFFFFFF);
 const _border   = Color(0xFFCFE3FF);
 
@@ -209,7 +209,7 @@ class _MaterialPickerSheetState extends State<MaterialPickerSheet> {
           Checkbox(value: ticked, activeColor: _blue, onChanged: (v) => toggle(v == true)),
           ClipRRect(
             borderRadius: BorderRadius.circular(8),
-            child: Container(width: 44, height: 44, color: const Color(0xFFEAF2FF),
+            child: Container(width: 44, height: 44, color: const Color(0xFFE3EEFF),
               child: hasImage
                   ? Image.network(o.imageUrl!, fit: BoxFit.contain,
                       errorBuilder: (_, __, ___) => const Center(child: Text('📦', style: TextStyle(fontSize: 22))))
@@ -636,7 +636,7 @@ class _MaterialPickerSheetState extends State<MaterialPickerSheet> {
             child: Container(
               height: 100,
               width: double.infinity,
-              color: const Color(0xFFEAF2FF),
+              color: const Color(0xFFE3EEFF),
               child: hasImage
                   ? Image.network(
                       mat.imageUrl!,

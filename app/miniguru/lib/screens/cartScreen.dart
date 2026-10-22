@@ -26,7 +26,7 @@ class _CartScreenState extends State<CartScreen> {
   bool _loading = true;
 
   static const _accent    = Color(0xFF0A6CFF);
-  static const _bg        = Color(0xFFEAF2FF);
+  static const _bg        = Color(0xFFE3EEFF);
   static const _gold      = Color(0xFFFFB800);
   static const _goldLight = Color(0xFFFFE98A);
 
@@ -138,7 +138,7 @@ class _CartScreenState extends State<CartScreen> {
               textAlign: TextAlign.center,
               style: GoogleFonts.nunito(
                   fontSize: 14,
-                  color: const Color(0xFF6B6B8A),
+                  color: const Color(0xFF4F4F78),
                   height: 1.5),
             ),
             const SizedBox(height: 16),
@@ -246,7 +246,7 @@ class _CartScreenState extends State<CartScreen> {
                 style: GoogleFonts.nunito(
                     fontSize: 11,
                     fontWeight: FontWeight.w700,
-                    color: const Color(0xFF6B6B8A))),
+                    color: const Color(0xFF4F4F78))),
             Text('₹${_walletBalance.toStringAsFixed(2)}',
                 style: GoogleFonts.nunito(
                     fontSize: 17,
@@ -339,7 +339,7 @@ class _CartScreenState extends State<CartScreen> {
                     Text('₹${product.price} each',
                         style: GoogleFonts.nunito(
                             fontSize: 12,
-                            color: const Color(0xFF6B6B8A))),
+                            color: const Color(0xFF4F4F78))),
                     const SizedBox(height: 8),
                     Row(children: [
                       _qtyBtn(
@@ -419,12 +419,12 @@ class _CartScreenState extends State<CartScreen> {
             Text('$itemCount item${itemCount == 1 ? '' : 's'}',
                 style: GoogleFonts.nunito(
                     fontSize: 13,
-                    color: const Color(0xFF6B6B8A),
+                    color: const Color(0xFF4F4F78),
                     fontWeight: FontWeight.w700)),
             Text('₹${_totalBill.toStringAsFixed(2)}',
                 style: GoogleFonts.nunito(
                     fontSize: 13,
-                    color: const Color(0xFF6B6B8A),
+                    color: const Color(0xFF4F4F78),
                     fontWeight: FontWeight.w700)),
           ]),
           const SizedBox(height: 8),
@@ -530,7 +530,7 @@ class _CartScreenState extends State<CartScreen> {
           const SizedBox(height: 8),
           Text('Add some products to get started!',
               style: GoogleFonts.nunito(
-                  fontSize: 14, color: const Color(0xFF6B6B8A))),
+                  fontSize: 14, color: const Color(0xFF4F4F78))),
           const SizedBox(height: 28),
           ElevatedButton(
             onPressed: () => Navigator.pop(context),

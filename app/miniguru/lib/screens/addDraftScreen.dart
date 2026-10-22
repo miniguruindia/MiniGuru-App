@@ -31,11 +31,11 @@ const _green     = Color(0xFF12B24A);
 const _amber     = Color(0xFFFFB800);
 const _red       = Color(0xFFFF3B30);
 const _purple    = Color(0xFF4C94FF);
-const _bg        = Color(0xFFEAF2FF);   // was _bgDark 0xFF0F172A
+const _bg        = Color(0xFFE3EEFF);   // was _bgDark 0xFF0F172A
 const _card      = Color(0xFFFFFFFF);   // was 0xFF1E293B
 const _cardBorder= Color(0xFFCFE3FF);  // was _cardLight 0xFF334155
 const _ink       = Color(0xFF1A1A2E);
-const _muted     = Color(0xFF8888AA);
+const _muted     = Color(0xFF5F5F88);
 const _accent    = Color(0xFF0A6CFF);   // appbar — was _navy 0xFF1E3A8A
 
 class AddDraftScreen extends StatefulWidget {
@@ -774,7 +774,7 @@ class _AddDraftScreenState extends State<AddDraftScreen>
           hintStyle:  GoogleFonts.nunito(color: const Color(0xFFCCCCDD), fontSize: 13),
           prefixIcon: Icon(icon, color: _muted, size: 18),
           filled:     true,
-          fillColor:  const Color(0xFFEAF2FF),
+          fillColor:  const Color(0xFFE3EEFF),
           enabledBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
             borderSide:   const BorderSide(color: Color(0xFFCFE3FF)),
@@ -802,7 +802,7 @@ class _AddDraftScreenState extends State<AddDraftScreen>
           labelStyle: GoogleFonts.nunito(color: _muted, fontSize: 13),
           prefixIcon: const Icon(Icons.category_rounded, color: _muted, size: 18),
           filled:    true,
-          fillColor: const Color(0xFFEAF2FF),
+          fillColor: const Color(0xFFE3EEFF),
           enabledBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
             borderSide:   const BorderSide(color: Color(0xFFCFE3FF)),
@@ -838,7 +838,7 @@ class _AddDraftScreenState extends State<AddDraftScreen>
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
           decoration: BoxDecoration(
-            color:        const Color(0xFFEAF2FF),
+            color:        const Color(0xFFE3EEFF),
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
                 color: date != null ? _blue.withOpacity(0.5) : _cardBorder),
@@ -927,7 +927,7 @@ class _AddDraftScreenState extends State<AddDraftScreen>
         child: Container(
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
-            color:        const Color(0xFFEAF2FF),
+            color:        const Color(0xFFE3EEFF),
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
                 color: hasFile ? accent.withOpacity(0.5) : _cardBorder),
@@ -1194,7 +1194,7 @@ class _AddDraftScreenState extends State<AddDraftScreen>
                       label: Text(c['name']!,
                           style: GoogleFonts.nunito(
                               fontSize: 12, fontWeight: FontWeight.w700)),
-                      backgroundColor: const Color(0xFFEAF2FF),
+                      backgroundColor: const Color(0xFFE3EEFF),
                       deleteIcon: const Icon(Icons.close, size: 16),
                       onDeleted: () =>
                           setState(() => _collaborators.remove(c)),
@@ -1271,7 +1271,7 @@ class _AddDraftScreenState extends State<AddDraftScreen>
                     child: Row(children: [
                       CircleAvatar(
                         radius: 14,
-                        backgroundColor: const Color(0xFFEAF2FF),
+                        backgroundColor: const Color(0xFFE3EEFF),
                         child: Text(
                           name.isNotEmpty ? name[0].toUpperCase() : '?',
                           style: GoogleFonts.nunito(
@@ -1346,7 +1346,7 @@ class _AddDraftScreenState extends State<AddDraftScreen>
               width:   double.infinity,
               padding: const EdgeInsets.symmetric(vertical: 20),
               decoration: BoxDecoration(
-                color:        const Color(0xFFEAF2FF),
+                color:        const Color(0xFFE3EEFF),
                 borderRadius: BorderRadius.circular(12),
                 border:       Border.all(
                     color: _cardBorder, style: BorderStyle.solid),
@@ -1370,7 +1370,7 @@ class _AddDraftScreenState extends State<AddDraftScreen>
                   Container(
                     width:  36, height: 36,
                     decoration: BoxDecoration(
-                        color:        const Color(0xFFEAF2FF),
+                        color:        const Color(0xFFE3EEFF),
                         borderRadius: BorderRadius.circular(8)),
                     child: pm.item.imageUrl != null &&
                             pm.item.imageUrl!.isNotEmpty
@@ -1474,7 +1474,7 @@ class _AddDraftScreenState extends State<AddDraftScreen>
                     horizontal: 14, vertical: 10),
                 margin: const EdgeInsets.only(right: 8),
                 decoration: BoxDecoration(
-                  color:        const Color(0xFFEAF2FF),
+                  color:        const Color(0xFFE3EEFF),
                   borderRadius: BorderRadius.circular(12),
                   border:       Border.all(color: _cardBorder),
                 ),
@@ -1562,11 +1562,11 @@ class _ProjectKitSheet extends StatelessWidget {
   final List<PickedMaterial> pickedMaterials;
   const _ProjectKitSheet({required this.pickedMaterials});
 
-  static const _bg     = Color(0xFFEAF2FF);
+  static const _bg     = Color(0xFFE3EEFF);
   static const _accent = Color(0xFF0A6CFF);
   static const _amber  = Color(0xFFFFB800);
   static const _ink    = Color(0xFF1A1A2E);
-  static const _muted  = Color(0xFF8888AA);
+  static const _muted  = Color(0xFF5F5F88);
 
   @override
   Widget build(BuildContext context) {
@@ -1674,7 +1674,7 @@ class _KitItem extends StatelessWidget {
   static const _accent = Color(0xFF0A6CFF);
   static const _amber  = Color(0xFFFFB800);
   static const _ink    = Color(0xFF1A1A2E);
-  static const _muted  = Color(0xFF8888AA);
+  static const _muted  = Color(0xFF5F5F88);
 
   @override
   Widget build(BuildContext context) {
