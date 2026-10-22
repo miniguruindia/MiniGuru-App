@@ -9,15 +9,12 @@ import 'package:miniguru/screens/getStartedScreen.dart';
 import 'package:miniguru/screens/resetPasswordScreen.dart';
 import 'package:miniguru/screens/legalScreen.dart';
 import 'package:miniguru/widgets/navShell.dart';
-import 'package:miniguru/screens/navScreen/community_screen.dart' show EventsPage;
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   print('🚀 MiniGuru starting...');
   runApp(const MyApp());
 }
-
-bool _resourcesLinkUsed = false;
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
@@ -71,22 +68,7 @@ class MyApp extends StatelessWidget {
               builder: (_) => const LegalScreen(initialTab: 1));
         }
 
-        // miniguru.in/community/resources opens the Resources and events page
-        // once, when the site is first loaded from that address.
-        if (!_resourcesLinkUsed &&
-            browserUri.path.contains('/community/resources') &&
-            (settings.name == SplashScreen.id || settings.name == '/')) {
-          _resourcesLinkUsed = true;
-          return MaterialPageRoute(
-              settings: const RouteSettings(name: EventsPage.routeName),
-              builder: (_) => const EventsPage());
-        }
-
         switch (settings.name) {
-          case EventsPage.routeName:
-            return MaterialPageRoute(
-                settings: settings, builder: (_) => const EventsPage());
-
           case SplashScreen.id:
             return MaterialPageRoute(builder: (_) => const SplashScreen());
 

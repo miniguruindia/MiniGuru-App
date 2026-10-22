@@ -18,8 +18,11 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:miniguru/widgets/makerCard.dart';
 
 class CommunityScreen extends StatefulWidget {
-  const CommunityScreen({super.key});
+  const CommunityScreen({super.key, this.initialTab = 0});
   static const String id = 'CommunityScreen';
+
+  /// 0 Ladder, 1 Challenges, 2 T-LAB, 3 Resources.
+  final int initialTab;
 
   @override
   State<CommunityScreen> createState() => _CommunityScreenState();
@@ -28,7 +31,7 @@ class CommunityScreen extends StatefulWidget {
 class _CommunityScreenState extends State<CommunityScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
-  int _activeTab = 0;
+  late int _activeTab = widget.initialTab;
 
   // ── CMS state ────────────────────────────────────────────────────────────
   final _api = MiniguruApi();
@@ -51,7 +54,7 @@ class _CommunityScreenState extends State<CommunityScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 4, vsync: this)
+    _tabController = TabController(length: 4, vsync: this, initialIndex: widget.initialTab)
       ..addListener(() => setState(() => _activeTab = _tabController.index));
     _loadCms();
     _loadHappeningsAndChallenges();
@@ -1677,6 +1680,22 @@ class _ResourcesTab extends StatelessWidget {
           subtitle: 'Free downloads for makers, schools & mentors',
           emoji: '📦',
         ),
+        const SizedBox(height: 12),
+        Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: const Color(0xFFFFEFA8),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: const Color(0xFFFFB800)),
+          ),
+          child: Text(
+              'The patent information and events below come from outside sources, picked because '
+              'they may be useful for a young maker. MiniGuru has no direct involvement with any of them. '
+              'Check the official sites for current dates and rules, and talk to a parent or teacher first.',
+              style: GoogleFonts.nunito(
+                  fontSize: 12, fontWeight: FontWeight.w800, height: 1.45,
+                  color: const Color(0xFF4B4B6B))),
+        ),
         const SizedBox(height: 16),
         if (resources.isEmpty)
           Container(
@@ -2191,66 +2210,4 @@ class _Resource {
     required this.tag, required this.tagColor, required this.type,
     required this.url,
   });
-}
-
-/// Resources and events page, opened from the Home trophy button / left strip.
-class EventsPage extends StatelessWidget {
-  const EventsPage({super.key});
-
-  /// Shareable address: miniguru.in/community/resources
-  static const routeName = '/community/resources';
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        iconTheme: const IconThemeData(color: Color(0xFF1A1A2E)),
-        actions: [
-          if (!Navigator.canPop(context))
-            TextButton(
-              onPressed: () => Navigator.pushReplacementNamed(context, '/'),
-              child: Text('Open MiniGuru',
-                  style: GoogleFonts.nunito(fontWeight: FontWeight.w900, color: const Color(0xFF0A6CFF))),
-            ),
-        ],
-        title: Text('Resources and events',
-            style: GoogleFonts.nunito(
-                fontWeight: FontWeight.w900, fontSize: 18, color: const Color(0xFF1A1A2E))),
-      ),
-      body: SafeArea(
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 760),
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(16),
-              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Container(
-                  padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFFFEFA8),
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: const Color(0xFFFFB800)),
-                  ),
-                  child: Text(
-                      'Outside events and resources, picked because they may be useful for you. '
-                      'MiniGuru has no direct involvement with any of them. Check the official '
-                      'sites for current dates and rules, and talk to a parent or teacher first.',
-                      style: GoogleFonts.nunito(
-                          fontSize: 13, fontWeight: FontWeight.w800, height: 1.45,
-                          color: const Color(0xFF4B4B6B))),
-                ),
-                const SizedBox(height: 12),
-                const _PatentInfoCard(),
-                const SizedBox(height: 12),
-                const EventsInfoCard(),
-              ]),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
 }

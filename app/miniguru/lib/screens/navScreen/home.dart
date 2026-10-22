@@ -10,7 +10,7 @@ import 'package:miniguru/screens/registerScreen.dart';
 import 'package:miniguru/services/youtube_service.dart';
 import 'package:miniguru/screens/unifiedVideoPlayer.dart';
 import 'package:miniguru/screens/navScreen/profile.dart';
-import 'package:miniguru/screens/navScreen/community_screen.dart' show EventsPage;
+import 'package:miniguru/screens/navScreen/community_screen.dart' show CommunityScreen;
 import 'package:miniguru/screens/notificationsScreen.dart';
 import 'package:miniguru/widgets/mgIcons.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -464,7 +464,8 @@ class _HomeState extends State<Home> {
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
               onPressed: () {
                 Navigator.pop(ctx);
-                Navigator.pushNamed(context, EventsPage.routeName);
+                Navigator.push(context,
+                    MaterialPageRoute(builder: (_) => const CommunityScreen(initialTab: 3)));
               },
               child: Text('Read more', style: GoogleFonts.nunito(fontWeight: FontWeight.w900, fontSize: 14)),
             ),

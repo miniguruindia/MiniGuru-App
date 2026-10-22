@@ -11,7 +11,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:miniguru/widgets/mgIcons.dart';
-import 'package:miniguru/screens/navScreen/community_screen.dart' show EventsPage;
+import 'package:miniguru/screens/navScreen/community_screen.dart' show CommunityScreen;
 
 class NavShell {
   static final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
@@ -117,7 +117,8 @@ class _Rail extends StatelessWidget {
                     child: InkWell(
                       borderRadius: BorderRadius.circular(14),
                       onTap: () => NavShell.navigatorKey.currentState
-                          ?.pushNamed(EventsPage.routeName),
+                          ?.push(MaterialPageRoute(
+                              builder: (_) => const CommunityScreen(initialTab: 3))),
                       child: Container(
                         width: 72,
                         padding: const EdgeInsets.symmetric(vertical: 8),
