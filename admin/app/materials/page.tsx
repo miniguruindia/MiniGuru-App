@@ -78,6 +78,12 @@ interface AmazonCandidate {
   priceRupees: number | null
   detailPageUrl: string
   extractedUnit: string | null
+  seller?: string | null
+  rating?: number | null
+  reviewCount?: number | null
+  trusted?: boolean
+  isYourPick?: boolean
+  savings?: number
 }
 
 function FindOnAmazonModal({ material: m, apiBase, onClose, onPicked }: {
@@ -92,6 +98,34 @@ function FindOnAmazonModal({ material: m, apiBase, onClose, onPicked }: {
   const [results, setResults]   = React.useState<AmazonCandidate[]>([])
   const [searchedFor, setSearchedFor] = React.useState('')
   const [hidden, setHidden]     = React.useState(0)
+  const [linkText, setLinkText] = React.useState('')
+  const [comparing, setComparing] = React.useState(false)
+  const [compareMode, setCompareMode] = React.useState(false)
+
+  async function compareLink() {
+    if (!linkText.trim()) return
+    setComparing(true); setError(null)
+    try {
+      const token = await authToken()
+      const res = await fetch(`${apiBase}/materials/admin/${m.id}/find-by-link`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: linkText.trim() }),
+      })
+      const data = await res.json()
+      if (data.error && !(data.results || []).length) { setError(data.error) }
+      else {
+        setResults(data.results || [])
+        setSearchedFor(data.searchedFor || '')
+        setHidden(0)
+        setCompareMode(true)
+      }
+    } catch (e: any) {
+      setError(e.message || 'Comparison failed')
+    } finally {
+      setComparing(false)
+    }
+  }
 
   async function discard(r: AmazonCandidate) {
     setResults(prev => prev.filter(x => x.asin !== r.asin))
@@ -141,6 +175,26 @@ function FindOnAmazonModal({ material: m, apiBase, onClose, onPicked }: {
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X size={20} /></button>
         </div>
         <div className="flex-1 overflow-y-auto p-4">
+          <div className="mb-3 p-2 border border-dashed border-orange-300 rounded-lg bg-orange-50/40">
+            <p className="text-xs text-gray-600 mb-1">
+              Not the right product? Paste an Amazon link (or ASIN). MiniGuru checks it and looks for the same or similar product at a lower price from a trusted seller.
+            </p>
+            <div className="flex gap-2">
+              <input
+                value={linkText}
+                onChange={e => setLinkText(e.target.value)}
+                placeholder="https://www.amazon.in/dp/..."
+                className="flex-1 border rounded px-2 py-1 text-sm"
+              />
+              <button
+                onClick={compareLink}
+                disabled={comparing || !linkText.trim()}
+                className="px-3 py-1 bg-blue-600 text-white rounded text-sm disabled:opacity-50"
+              >
+                {comparing ? 'Checking…' : 'Compare'}
+              </button>
+            </div>
+          </div>
           {loading && (
             <div className="flex items-center justify-center py-10 text-gray-400">
               <Loader2 className="animate-spin mr-2" size={18} /> Searching Amazon…
@@ -166,7 +220,7 @@ function FindOnAmazonModal({ material: m, apiBase, onClose, onPicked }: {
           {!loading && results.length > 0 && (
             <div className="space-y-2">
               <p className="text-xs text-gray-500 mb-1">
-                Cheapest first. Tap the product name to open it on Amazon in a new tab and check the details.
+                {compareMode ? 'Your pick is first. Others are the same or similar products, cheapest first. ' : ''}Cheapest first. Tap the product name to open it on Amazon in a new tab and check the details.
                 Use <b>Link this</b> to pick it, or <b>Discard</b> if it is clearly wrong (the search will avoid it next time).
               </p>
               {searchedFor && searchedFor.toLowerCase() !== m.name.toLowerCase() && (
@@ -195,6 +249,13 @@ function FindOnAmazonModal({ material: m, apiBase, onClose, onPicked }: {
                     {r.extractedUnit && (
                       <p className="text-xs text-indigo-600">📦 {r.extractedUnit}</p>
                     )}
+                    {(r.seller || r.rating != null) && (
+                      <p className="text-xs text-gray-600">
+                        {r.seller ? `Sold by ${r.seller}` : ''}
+                        {r.trusted && <span className="ml-1 font-bold text-green-700">✓ Trusted seller</span>}
+                        {r.rating != null && <span className="ml-2">⭐ {r.rating}{r.reviewCount != null ? ` (${r.reviewCount})` : ''}</span>}
+                      </p>
+                    )}
                     <div className="flex gap-2 mt-1">
                       <button
                         onClick={() => onPicked(r.asin, r.priceRupees, r.imageUrl, r.extractedUnit, r.title ?? null)}
@@ -214,7 +275,13 @@ function FindOnAmazonModal({ material: m, apiBase, onClose, onPicked }: {
                     <div className="text-sm font-semibold text-orange-600">
                       {r.priceRupees != null ? `₹${r.priceRupees}` : '—'}
                     </div>
-                    {idx === 0 && r.priceRupees != null && (
+                    {r.isYourPick && (
+                      <div className="text-[10px] font-bold text-blue-700 bg-blue-100 rounded px-1 mt-1">Your pick</div>
+                    )}
+                    {(r.savings ?? 0) > 0 && (
+                      <div className="text-[10px] font-bold text-green-700 bg-green-100 rounded px-1 mt-1">₹{r.savings} cheaper</div>
+                    )}
+                    {!compareMode && idx === 0 && r.priceRupees != null && (
                       <div className="text-[10px] font-bold text-green-700 bg-green-100 rounded px-1 mt-1">Lowest price</div>
                     )}
                   </div>

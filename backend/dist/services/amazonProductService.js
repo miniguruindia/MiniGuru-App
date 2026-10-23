@@ -13,6 +13,8 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.searchAmazonProducts = searchAmazonProducts;
 exports.getAmazonItems = getAmazonItems;
+exports.getAmazonItemsWithSeller = getAmazonItemsWithSeller;
+exports.extractAsinFromUrl = extractAsinFromUrl;
 exports.buildAffiliateUrl = buildAffiliateUrl;
 const { ApiClient, DefaultApi, GetItemsRequestContent, SearchItemsRequestContent } = require('amazon-creator-api-sdk');
 const costTracking_1 = require("../utils/costTracking");
@@ -152,6 +154,64 @@ async function getAmazonItems(asins) {
         console.error('[amazonProductService] getItems failed:', message);
         return { configured: true, results: [], error: message };
     }
+}
+const SELLER_RESOURCES = [
+    ...RESOURCES,
+    'offersV2.listings.merchantInfo',
+    'customerReviews.count',
+    'customerReviews.starRating',
+];
+// Sellers that are Amazon itself or its long-standing fulfilment partners.
+const TRUSTED_SELLER = /amazon|appario|cloudtail/i;
+/**
+ * Same as getAmazonItems, plus seller name and customer rating. Asks Amazon
+ * for the extra fields; if Amazon rejects them, quietly falls back to the plain
+ * lookup so nothing that works today can break.
+ */
+async function getAmazonItemsWithSeller(asins) {
+    if (!isConfigured())
+        return { configured: false, results: [] };
+    const clean = asins.map((a) => a?.trim()).filter(Boolean);
+    if (clean.length === 0)
+        return { configured: true, results: [] };
+    try {
+        const api = getApi();
+        const request = new GetItemsRequestContent();
+        request.partnerTag = process.env.AMAZON_CREATORS_PARTNER_TAG;
+        request.itemIds = clean.slice(0, 10);
+        request.resources = SELLER_RESOURCES;
+        const response = await api.getItems(MARKETPLACE, request);
+        (0, costTracking_1.recordAmazonApiCall)().catch(() => { });
+        const items = response?.itemsResult?.items || [];
+        const results = [];
+        for (const item of items) {
+            const c = toCandidate(item);
+            if (!c)
+                continue;
+            const seller = item?.offersV2?.listings?.[0]?.merchantInfo?.name;
+            const rating = item?.customerReviews?.starRating?.value;
+            const count = item?.customerReviews?.count;
+            c.seller = typeof seller === 'string' ? seller : null;
+            c.rating = typeof rating === 'number' ? rating : null;
+            c.reviewCount = typeof count === 'number' ? count : null;
+            c.trusted = !!c.seller && TRUSTED_SELLER.test(c.seller);
+            results.push(c);
+        }
+        if (results.length > 0)
+            return { configured: true, results };
+    }
+    catch (err) {
+        console.warn('[amazonProductService] seller lookup failed, using plain lookup:', err?.message);
+    }
+    return getAmazonItems(clean);
+}
+/** Pulls an ASIN out of an Amazon link (dp/, gp/product/, or ?asin=). */
+function extractAsinFromUrl(raw) {
+    const s = String(raw || '').trim();
+    if (/^[A-Z0-9]{10}$/i.test(s))
+        return s.toUpperCase();
+    const m = s.match(/(?:\/dp\/|\/gp\/product\/|\/gp\/aw\/d\/|\/product\/|[?&]asin=)([A-Z0-9]{10})(?:[/?&#]|$)/i);
+    return m ? m[1].toUpperCase() : null;
 }
 /** Builds a standard affiliate product link for a given ASIN + tracking tag. */
 function buildAffiliateUrl(asin, tag) {

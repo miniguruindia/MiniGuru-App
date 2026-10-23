@@ -3,7 +3,7 @@ import multer from 'multer';
 import prisma from '../utils/prismaClient';
 import { authenticateToken } from '../middleware/authMiddleware';
 import { uploadMaterialImage, deleteMaterialImage } from '../services/firebaseStorageService';
-import { searchAmazonProducts, buildAffiliateUrl } from '../services/amazonProductService';
+import { searchAmazonProducts, buildAffiliateUrl, getAmazonItemsWithSeller, extractAsinFromUrl } from '../services/amazonProductService';
 import { refineSearchQuery } from '../services/materialSearchAssistService';
 import { aiFindMaterials, isAllowedImageMime } from '../services/shopAiSearchService';
 import { checkShopAiQuota, recordShopAiSearch } from '../utils/costTracking';
@@ -927,6 +927,62 @@ router.post('/admin/:id/find-on-amazon', authenticateToken, requireAdmin, async 
   } catch (err) {
     console.error('[materials] POST /admin/:id/find-on-amazon error:', err);
     res.status(500).json({ configured: true, results: [], error: 'Search failed' });
+  }
+});
+
+// ── POST /admin/:id/find-by-link — compare a pasted Amazon link ─────────────
+// Body: { url }. Looks up the pasted product, then searches for the same or
+// similar products and returns them cheapest first, with seller and rating,
+// so the admin can pick the best price from a trusted seller.
+router.post('/admin/:id/find-by-link', authenticateToken, requireAdmin, async (req: any, res: any) => {
+  try {
+    let raw = String(req.body?.url || '').trim();
+    if (!raw) return res.status(400).json({ error: 'Paste an Amazon link or ASIN' });
+    let asin = extractAsinFromUrl(raw);
+    // Short links (amzn.in / amzn.to) need one hop to reveal the real address.
+    if (!asin && /^https?:\/\/(amzn\.in|amzn\.to|a\.co)\//i.test(raw)) {
+      try {
+        const r = await fetch(raw, { method: 'GET', redirect: 'follow' });
+        asin = extractAsinFromUrl(r.url) || null;
+      } catch { /* fall through to the error below */ }
+    }
+    if (!asin) return res.status(400).json({ error: 'Could not find a product code (ASIN) in that link. Paste the full product page link.' });
+
+    const own = await getAmazonItemsWithSeller([asin]);
+    if (!own.configured) return res.json({ configured: false, results: [] });
+    const pasted: any = own.results[0];
+    if (!pasted) return res.json({ configured: true, results: [], error: own.error || 'Amazon did not return that product.' });
+
+    // Look for the same or similar products.
+    const discarded = await readFindDiscards(req.params.id);
+    const skip = new Set<string>([asin, ...discarded.map((d) => d.asin)]);
+    let query = pasted.title;
+    try { query = await refineSearchQuery(pasted.title, undefined, undefined, []); } catch { /* keep the title */ }
+    const found = await searchAmazonProducts(query, 10);
+    let alts: any[] = (found.results || []).filter((r: any) => !skip.has(r.asin));
+    alts.sort((a: any, b: any) => (a.priceRupees ?? Infinity) - (b.priceRupees ?? Infinity));
+    alts = alts.slice(0, 6);
+    // Add seller and rating to the shortlist in one extra lookup.
+    if (alts.length) {
+      const more = await getAmazonItemsWithSeller(alts.map((a: any) => a.asin));
+      const byAsin = new Map<string, any>((more.results || []).map((r: any) => [r.asin, r]));
+      alts = alts.map((a: any) => ({ ...a, ...(byAsin.get(a.asin) || {}) }));
+    }
+    const withUrl = (r: any) => ({ ...r, detailPageUrl: r.detailPageUrl || buildAffiliateUrl(r.asin) });
+    const results = [
+      { ...withUrl(pasted), isYourPick: true },
+      ...alts.map((a: any) => ({
+        ...withUrl(a),
+        savings:
+          typeof pasted.priceRupees === 'number' && typeof a.priceRupees === 'number' && a.priceRupees < pasted.priceRupees
+            ? Math.round(pasted.priceRupees - a.priceRupees)
+            : 0,
+      })),
+    ];
+    res.json({ configured: true, results, searchedFor: query, rawQuery: pasted.title, hiddenCount: 0 });
+  } catch (err) {
+    console.error('[materials] POST /admin/:id/find-by-link error:', err);
+    res.status(500).json({ configured: true, results: [], error: 'Comparison failed' });
   }
 });
 

@@ -918,6 +918,67 @@ router.post('/admin/:id/find-on-amazon', authMiddleware_1.authenticateToken, req
         res.status(500).json({ configured: true, results: [], error: 'Search failed' });
     }
 });
+// ── POST /admin/:id/find-by-link — compare a pasted Amazon link ─────────────
+// Body: { url }. Looks up the pasted product, then searches for the same or
+// similar products and returns them cheapest first, with seller and rating,
+// so the admin can pick the best price from a trusted seller.
+router.post('/admin/:id/find-by-link', authMiddleware_1.authenticateToken, requireAdmin, async (req, res) => {
+    try {
+        let raw = String(req.body?.url || '').trim();
+        if (!raw)
+            return res.status(400).json({ error: 'Paste an Amazon link or ASIN' });
+        let asin = (0, amazonProductService_1.extractAsinFromUrl)(raw);
+        // Short links (amzn.in / amzn.to) need one hop to reveal the real address.
+        if (!asin && /^https?:\/\/(amzn\.in|amzn\.to|a\.co)\//i.test(raw)) {
+            try {
+                const r = await fetch(raw, { method: 'GET', redirect: 'follow' });
+                asin = (0, amazonProductService_1.extractAsinFromUrl)(r.url) || null;
+            }
+            catch { /* fall through to the error below */ }
+        }
+        if (!asin)
+            return res.status(400).json({ error: 'Could not find a product code (ASIN) in that link. Paste the full product page link.' });
+        const own = await (0, amazonProductService_1.getAmazonItemsWithSeller)([asin]);
+        if (!own.configured)
+            return res.json({ configured: false, results: [] });
+        const pasted = own.results[0];
+        if (!pasted)
+            return res.json({ configured: true, results: [], error: own.error || 'Amazon did not return that product.' });
+        // Look for the same or similar products.
+        const discarded = await readFindDiscards(req.params.id);
+        const skip = new Set([asin, ...discarded.map((d) => d.asin)]);
+        let query = pasted.title;
+        try {
+            query = await (0, materialSearchAssistService_1.refineSearchQuery)(pasted.title, undefined, undefined, []);
+        }
+        catch { /* keep the title */ }
+        const found = await (0, amazonProductService_1.searchAmazonProducts)(query, 10);
+        let alts = (found.results || []).filter((r) => !skip.has(r.asin));
+        alts.sort((a, b) => (a.priceRupees ?? Infinity) - (b.priceRupees ?? Infinity));
+        alts = alts.slice(0, 6);
+        // Add seller and rating to the shortlist in one extra lookup.
+        if (alts.length) {
+            const more = await (0, amazonProductService_1.getAmazonItemsWithSeller)(alts.map((a) => a.asin));
+            const byAsin = new Map((more.results || []).map((r) => [r.asin, r]));
+            alts = alts.map((a) => ({ ...a, ...(byAsin.get(a.asin) || {}) }));
+        }
+        const withUrl = (r) => ({ ...r, detailPageUrl: r.detailPageUrl || (0, amazonProductService_1.buildAffiliateUrl)(r.asin) });
+        const results = [
+            { ...withUrl(pasted), isYourPick: true },
+            ...alts.map((a) => ({
+                ...withUrl(a),
+                savings: typeof pasted.priceRupees === 'number' && typeof a.priceRupees === 'number' && a.priceRupees < pasted.priceRupees
+                    ? Math.round(pasted.priceRupees - a.priceRupees)
+                    : 0,
+            })),
+        ];
+        res.json({ configured: true, results, searchedFor: query, rawQuery: pasted.title, hiddenCount: 0 });
+    }
+    catch (err) {
+        console.error('[materials] POST /admin/:id/find-by-link error:', err);
+        res.status(500).json({ configured: true, results: [], error: 'Comparison failed' });
+    }
+});
 // ── POST /admin/:id/find-discard — remember a clearly wrong match ──────────
 // Body: { asin, title }. Stored per material in site_content so the same
 // product is not shown again and Gemini avoids similar titles next time.
