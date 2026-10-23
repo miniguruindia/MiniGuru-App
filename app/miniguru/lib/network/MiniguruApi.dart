@@ -1433,6 +1433,20 @@ class MiniguruApi {
     return null;
   }
 
+  /// Goins earnings ledger for the logged-in child (newest first).
+  Future<Map<String, dynamic>?> getGoinsEvents({int page = 1}) async {
+    try {
+      final authToken = await _db!.getAuthToken();
+      if (authToken == null) return null;
+      final response = await http.get(
+        Uri.parse('$_baseUrl/goins/history?page=$page&limit=50'),
+        headers: _buildHeaders(authToken.accessToken),
+      );
+      if (response.statusCode == 200) return jsonDecode(response.body) as Map<String, dynamic>;
+    } catch (e) { print('getGoinsEvents: $e'); }
+    return null;
+  }
+
   Future<List<dynamic>?> getNotifications() async {
     try {
       final authToken = await _db!.getAuthToken();

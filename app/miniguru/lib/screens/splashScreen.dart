@@ -81,7 +81,7 @@ class _SplashScreenState extends State<SplashScreen>
         }
       } else {
         setState(() => _statusText = hasSeenOnboarding
-            ? 'Discover STEM projects!'
+            ? 'Discover STEAM Projects and more!'
             : 'Welcome to MiniGuru! 🚀');
       }
 

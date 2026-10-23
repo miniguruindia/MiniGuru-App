@@ -953,12 +953,23 @@ class _LadderTabState extends State<_LadderTab> {
       score >= 100000 ? '🏆' : score >= 10000 ? '🚀' :
       score >= 1000 ? '⚙️' : score >= 100 ? '🔧' : '🌱';
 
+  // Real badges (same list as Profile). Null = not loaded or not logged in.
+  List<dynamic>? _myBadges;
+
+  Future<void> _loadMyBadges() async {
+    try {
+      final b = await MiniguruApi().getBadges();
+      if (mounted) setState(() => _myBadges = b);
+    } catch (_) {}
+  }
+
   @override
   void initState() {
     super.initState();
     _fetchLeaderboard();
     _loadBoardCategories();
     _loadPeriodBoard();
+    _loadMyBadges();
   }
 
   Future<void> _loadBoardCategories() async {
@@ -1436,18 +1447,52 @@ class _LadderTabState extends State<_LadderTab> {
                 fontSize: 14, fontWeight: FontWeight.w800,
                 color: const Color(0xFF1A1A2E))),
         const SizedBox(height: 4),
-        Text('Earn badges by completing special achievements',
+        Text('Your real badges, the same as on your Profile',
             style: GoogleFonts.nunito(fontSize: 11, color: const Color(0xFF5F5F88))),
         const SizedBox(height: 10),
-        GridView.count(
-          crossAxisCount: 3,
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          crossAxisSpacing: 10,
-          mainAxisSpacing: 10,
-          childAspectRatio: 0.85,
-          children: _badges.map((b) => _BadgeCard(b: b)).toList(),
-        ),
+        if (_myBadges == null || _myBadges!.isEmpty)
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: const Color(0xFFCFE3FF))),
+            child: Text('Log in and build projects to collect badges!',
+                style: GoogleFonts.nunito(fontSize: 12, color: Colors.black54)),
+          )
+        else
+          Wrap(
+            spacing: 10, runSpacing: 10,
+            children: _myBadges!.map<Widget>((b) {
+              final earned = b['earned'] == true;
+              return Tooltip(
+                message: (b['desc'] ?? '').toString(),
+                child: Container(
+                  width: 92,
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: earned ? const Color(0xFFE3EEFF) : const Color(0xFFF9FAFB),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(
+                      color: earned ? const Color(0xFF0A6CFF).withOpacity(0.4) : const Color(0xFFCFE3FF),
+                      width: earned ? 2 : 1),
+                  ),
+                  child: Column(children: [
+                    Text((b['emoji'] ?? '🏅').toString(),
+                        style: TextStyle(fontSize: 26, color: earned ? null : Colors.grey.shade400)),
+                    const SizedBox(height: 4),
+                    Text((b['name'] ?? '').toString(),
+                        textAlign: TextAlign.center,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.nunito(
+                            fontSize: 10, fontWeight: FontWeight.w800,
+                            color: earned ? const Color(0xFF0A6CFF) : Colors.grey.shade500)),
+                  ]),
+                ),
+              );
+            }).toList(),
+          ),
         const SizedBox(height: 24),
         ],
         const SizedBox(height: 12),
@@ -1468,51 +1513,81 @@ class _PodiumCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = [
-      const Color(0xFFFFD700), // gold
-      const Color(0xFFC0C0C0), // silver
-      const Color(0xFFCD7F32), // bronze
-    ];
-    final medals = ['🥇', '🥈', '🥉'];
     final idx    = (leader.rank - 1).clamp(0, 2);
-    final color  = colors[idx];
+
+    final gradients = [
+      const [Color(0xFFFFE259), Color(0xFFFFB800), Color(0xFFFF9500)],
+      const [Color(0xFFE9EEF7), Color(0xFFAEB8CC), Color(0xFF8795B0)],
+      const [Color(0xFFFFC59A), Color(0xFFE8883C), Color(0xFFC2651C)],
+    ];
+    final tints  = [const Color(0xFFFFF3C2), const Color(0xFFEEF2FA), const Color(0xFFFFE4CE)];
+    final labels = ['Gold', 'Silver', 'Bronze'];
+    final first  = idx == 0;
+    final size   = first ? 66.0 : 54.0;
 
     return GestureDetector(
       onTap: leader.userId.isEmpty ? null : () => showMakerCard(context, leader.userId),
       child: Column(
       mainAxisAlignment: MainAxisAlignment.end,
       children: [
-        // Badge emoji
-        Text(leader.badge, style: const TextStyle(fontSize: 24)),
+        if (first) const Text('\u{1F451}', style: TextStyle(fontSize: 24)),
+        Container(
+          width: size, height: size,
+          decoration: BoxDecoration(
+            color: tints[idx],
+            shape: BoxShape.circle,
+            border: Border.all(color: Colors.white, width: 4),
+            boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.25), blurRadius: 8, offset: const Offset(0, 3))],
+          ),
+          child: Center(child: Text(leader.badge, style: TextStyle(fontSize: first ? 32 : 26))),
+        ),
         const SizedBox(height: 4),
-        // Name
         Text(
           leader.name.split(' ').first,
           style: GoogleFonts.nunito(
-              fontSize: 11, fontWeight: FontWeight.w800,
+              fontSize: 12, fontWeight: FontWeight.w800,
               color: const Color(0xFF1A1A2E)),
           textAlign: TextAlign.center,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
         ),
-        // Score
-        Text(
-          '${leader.score}G',
-          style: GoogleFonts.nunito(
-              fontSize: 10, fontWeight: FontWeight.w700,
-              color: const Color(0xFF8F5A00)),
-        ),
-        const SizedBox(height: 4),
-        // Podium block
+        const SizedBox(height: 3),
         Container(
-          height: podiumHeight,
+          padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 2),
           decoration: BoxDecoration(
-            color: color.withOpacity(0.2),
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(10)),
-            border: Border.all(color: color.withOpacity(0.5)),
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.18), blurRadius: 4, offset: const Offset(0, 1))],
           ),
-          child: Center(
-            child: Text(medals[idx], style: const TextStyle(fontSize: 28)),
+          child: Text(
+            '${leader.score} Goins',
+            style: GoogleFonts.nunito(
+                fontSize: 11, fontWeight: FontWeight.w800,
+                color: const Color(0xFF8F5A00)),
+          ),
+        ),
+        const SizedBox(height: 5),
+        Container(
+          height: podiumHeight + 4,
+          width: double.infinity,
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft, end: Alignment.bottomRight,
+              colors: gradients[idx]),
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(14)),
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.start,
+            children: [
+              const SizedBox(height: 6),
+              Text('${leader.rank}',
+                  style: GoogleFonts.nunito(
+                      fontSize: 32, fontWeight: FontWeight.w900, color: Colors.white,
+                      shadows: const [Shadow(color: Color(0x33000000), offset: Offset(0, 2))])),
+              Text(labels[idx],
+                  style: GoogleFonts.nunito(
+                      fontSize: 11, fontWeight: FontWeight.w800, color: Colors.white)),
+            ],
           ),
         ),
       ],

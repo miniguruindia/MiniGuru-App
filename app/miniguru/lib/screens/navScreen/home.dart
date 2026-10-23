@@ -6,6 +6,7 @@ import 'package:flutter/gestures.dart';
 import 'package:miniguru/models/User.dart';
 import 'package:miniguru/network/MiniguruApi.dart';
 import 'package:miniguru/screens/loginScreen.dart';
+import 'package:miniguru/screens/homeScreen.dart';
 import 'package:miniguru/screens/registerScreen.dart';
 import 'package:miniguru/services/youtube_service.dart';
 import 'package:miniguru/screens/unifiedVideoPlayer.dart';
@@ -381,6 +382,11 @@ class _HomeState extends State<Home> {
               style: GoogleFonts.nunito()),
           backgroundColor: Colors.green,
         ));
+        // Rebuild the whole shell so the bottom bar shows its logged-out labels.
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (_) => const HomeScreen()),
+          (route) => false,
+        );
       }
     } catch (e) {
       print('Logout error: $e');

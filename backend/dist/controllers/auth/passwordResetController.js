@@ -38,6 +38,14 @@ const requestPasswordReset = async (req, res) => {
             logger_1.default.info({ email }, '⚠️  Reset requested for non-existent email');
             return res.json({ message: 'If that email exists, we sent password reset instructions.' });
         }
+        // A child login ID (@miniguru.in) is not a real mailbox. With no guardian
+        // email saved, the reset mail would go nowhere, so say so plainly instead.
+        if (!user.guardianEmail && /@miniguru\.in$/i.test(user.email)) {
+            logger_1.default.info({ email }, 'Reset requested for a child with no guardian email');
+            return res.status(400).json({
+                error: 'No parent or teacher email is saved for this account. Please ask your teacher or parent to reset your password from their MiniGuru account, or write to connect@miniguru.in.',
+            });
+        }
         // JWT token — signed with user id + email, expires in 1 hour
         // Survives Cloud Run restarts (stateless)
         const resetToken = jsonwebtoken_1.default.sign({ userId: user.id, email: user.email, purpose: 'password-reset' }, JWT_SECRET, { expiresIn: '1h' });

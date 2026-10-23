@@ -69,7 +69,22 @@ router.get('/history', authenticateToken, resolveSubject, async (req: any, res) 
       transactions = [];
     }
 
-    return res.json({ transactions, balance: score });
+    // Goins EARNED, from the ledger (Oct 2026). Spending on materials is shown
+    // on each project page, not here.
+    let events: any[] = [];
+    try {
+      events = await (prisma as any).goinsEvent.findMany({
+        where:   { userId },
+        orderBy: { createdAt: 'desc' },
+        skip:    (page - 1) * limit,
+        take:    limit,
+        select:  { id: true, amount: true, source: true, reason: true, createdAt: true },
+      });
+    } catch {
+      events = [];
+    }
+
+    return res.json({ transactions, events, balance: score });
   } catch (error) {
     logger.error(`GET /goins/history error: ${(error as Error).message}`);
     return res.status(500).json({ message: 'Failed to fetch Goins history.' });

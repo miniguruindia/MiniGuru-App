@@ -68,7 +68,22 @@ router.get('/history', authMiddleware_1.authenticateToken, resolveSubject_1.reso
             // Table doesn't exist yet — return empty history (no crash)
             transactions = [];
         }
-        return res.json({ transactions, balance: score });
+        // Goins EARNED, from the ledger (Oct 2026). Spending on materials is shown
+        // on each project page, not here.
+        let events = [];
+        try {
+            events = await prismaClient_1.default.goinsEvent.findMany({
+                where: { userId },
+                orderBy: { createdAt: 'desc' },
+                skip: (page - 1) * limit,
+                take: limit,
+                select: { id: true, amount: true, source: true, reason: true, createdAt: true },
+            });
+        }
+        catch {
+            events = [];
+        }
+        return res.json({ transactions, events, balance: score });
     }
     catch (error) {
         logger_1.default.error(`GET /goins/history error: ${error.message}`);

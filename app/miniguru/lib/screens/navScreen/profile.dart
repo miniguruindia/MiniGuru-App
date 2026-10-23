@@ -1,6 +1,7 @@
 // lib/screens/navScreen/profile.dart
 // v4: badges below avatar · animated count-up · photo upload (base64/CSP-safe)
 
+import 'package:miniguru/screens/goinsHistoryScreen.dart';
 import 'dart:convert';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
@@ -478,6 +479,9 @@ class _ProfileState extends State<Profile>
                         const SizedBox(height: 10),
                         _tile(Icons.edit_outlined, 'Edit Profile', const Color(0xFF0A6CFF),
             () => Navigator.push(context, MaterialPageRoute(builder: (_) => const EditProfileScreen())).then((v) { if (v == true && mounted) _loadAll(); })),
+        const SizedBox(height: 8),
+        _tile(Icons.stars_rounded, 'My Goins', const Color(0xFFFFB800),
+            () => Navigator.push(context, MaterialPageRoute(builder: (_) => const GoinsHistoryScreen()))),
         const SizedBox(height: 8),
         _tile(Icons.lock_reset, 'Change Password',
                             const Color(0xFF0A6CFF), _changePassword),
