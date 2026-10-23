@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:miniguru/constants.dart';
 import 'package:miniguru/models/ChildProfile.dart';
@@ -240,6 +241,64 @@ class _MentorChildPickerScreenState extends State<MentorChildPickerScreen> {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
       content: Text(done ? '${child.name} removed from your list' : 'Could not remove. Please try again.')));
     if (done) _loadData();
+  }
+
+  Future<void> _confirmReset(ChildProfile child, String kind) async {
+    final isPw = kind == 'password';
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (c) => AlertDialog(
+        title: Text(isPw ? 'Reset ${child.name}\'s password?' : 'Reset ${child.name}\'s PIN?',
+            style: GoogleFonts.nunito(fontWeight: FontWeight.w900)),
+        content: Text(
+          isPw
+              ? 'A new password will be made. The old one stops working. It is shown only once, so write it down and give it to ${child.name}.'
+              : 'A new 4-digit PIN will be made for your view of ${child.name}. The old PIN stops working. It is shown only once.',
+          style: GoogleFonts.nunito()),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Cancel')),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF0A6CFF), foregroundColor: Colors.white),
+            onPressed: () => Navigator.pop(c, true),
+            child: const Text('Reset')),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    final r = await _api.resetChildSecret(child.id, kind);
+    if (!mounted) return;
+    if (r['error'] != null) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(r['error'].toString())));
+      return;
+    }
+    final value = (isPw ? r['password'] : r['pin']).toString();
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (c) => AlertDialog(
+        title: Text(isPw ? 'New password' : 'New PIN', style: GoogleFonts.nunito(fontWeight: FontWeight.w900)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (isPw && r['loginId'] != null) Text('Login ID: ${r['loginId']}', style: GoogleFonts.nunito(fontWeight: FontWeight.w700)),
+            const SizedBox(height: 8),
+            SelectableText(value, style: GoogleFonts.nunito(fontSize: 24, fontWeight: FontWeight.w900, color: const Color(0xFF12B24A))),
+            const SizedBox(height: 8),
+            Text('Write it down now. It will not be shown again.', style: GoogleFonts.nunito(color: Colors.grey[700])),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Clipboard.setData(ClipboardData(text: value)),
+            child: const Text('Copy')),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF12B24A), foregroundColor: Colors.white),
+            onPressed: () => Navigator.pop(c),
+            child: const Text('Done')),
+        ],
+      ),
+    );
   }
 
   @override
@@ -503,8 +562,14 @@ class _MentorChildPickerScreenState extends State<MentorChildPickerScreen> {
          child: PopupMenuButton<String>(
            tooltip: 'More',
            icon: Icon(Icons.more_vert, size: 20, color: Colors.grey[700]),
-           onSelected: (v) { if (v == 'remove') _confirmRemoveChild(child); },
+           onSelected: (v) {
+             if (v == 'remove') _confirmRemoveChild(child);
+             if (v == 'password') _confirmReset(child, 'password');
+             if (v == 'pin') _confirmReset(child, 'pin');
+           },
            itemBuilder: (_) => const [
+             PopupMenuItem(value: 'password', child: Text('Reset login password')),
+             PopupMenuItem(value: 'pin', child: Text('Reset view PIN')),
              PopupMenuItem(value: 'remove', child: Text('Remove from my school (child left)')),
            ],
          ),

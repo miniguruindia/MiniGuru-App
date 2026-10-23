@@ -422,6 +422,50 @@ router.delete('/children/:childId', authenticateToken, async (req: Request, res:
 });
 
 
+// ─── Reset a child's login password or view PIN (Oct 2026) ───────────────────
+// For a school/parent to fix "my child forgot it" without waiting for admin.
+// Only the account that owns the child (guardianId) may do this. The new
+// value is returned ONCE and never stored in plain text.
+router.post('/children/:childId/reset-password', authenticateToken, async (req: Request, res: Response) => {
+  try {
+    const userId = (req as any).user?.id;
+    const { childId } = req.params;
+    const child = await prisma.childProfile.findFirst({ where: { id: childId, guardianId: userId, isActive: true } });
+    if (!child) return res.status(404).json({ message: 'Child not found' });
+    if (!child.linkedUserId) return res.status(400).json({ message: 'This child has no login yet. Ask MiniGuru support to create one.' });
+    const user = await prisma.user.findUnique({ where: { id: child.linkedUserId }, select: { id: true, email: true } });
+    if (!user) return res.status(404).json({ message: 'Login account not found' });
+
+    const plainPassword = 'Edu@' + require('crypto').randomBytes(4).toString('hex');
+    const passwordHash = await bcrypt.hash(plainPassword, 10);
+    await prisma.user.update({ where: { id: user.id }, data: { passwordHash } });
+    logger.info(`Mentor ${userId} reset login password of child ${childId}`);
+    return res.json({ message: 'Password reset', loginId: user.email, password: plainPassword });
+  } catch (err: any) {
+    console.error('mentor reset child password error:', err);
+    return res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
+router.post('/children/:childId/reset-pin', authenticateToken, async (req: Request, res: Response) => {
+  try {
+    const userId = (req as any).user?.id;
+    const { childId } = req.params;
+    const child = await prisma.childProfile.findFirst({ where: { id: childId, guardianId: userId, isActive: true } });
+    if (!child) return res.status(404).json({ message: 'Child not found' });
+
+    const pin = String(Math.floor(1000 + Math.random() * 9000));
+    const pinHash = await bcrypt.hash(pin, 10);
+    await prisma.childProfile.update({ where: { id: childId }, data: { pinHash } });
+    logger.info(`Mentor ${userId} reset view PIN of child ${childId}`);
+    return res.json({ message: 'PIN reset', pin });
+  } catch (err: any) {
+    console.error('mentor reset child pin error:', err);
+    return res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
+
 // ─── Existing independent child -> this school (Oct 2026) ───────────────────
 // A child who registered on their own can be added to a school/parent account
 // by their login ID. Nothing is copied: the child keeps the SAME account, Goins

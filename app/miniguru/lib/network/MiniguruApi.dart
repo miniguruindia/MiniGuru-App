@@ -1632,6 +1632,23 @@ class MiniguruApi {
     return false;
   }
 
+  /// School/parent resets a child's login password or view PIN.
+  /// [kind] is 'password' or 'pin'. Returns the new value or null on failure.
+  Future<Map<String, dynamic>> resetChildSecret(String childId, String kind) async {
+    try {
+      final authToken = await _db!.getAuthToken();
+      if (authToken == null) return {'error': 'Please log in again.'};
+      final response = await http.post(
+        Uri.parse('$_baseUrl/mentor/children/$childId/reset-$kind'),
+        headers: _buildHeaders(authToken.accessToken),
+      );
+      final data = jsonDecode(response.body);
+      if (response.statusCode == 200) return data as Map<String, dynamic>;
+      return {'error': (data is Map && data['message'] != null) ? data['message'].toString() : 'Could not reset. Please try again.'};
+    } catch (e) { print('resetChildSecret: $e'); }
+    return {'error': 'Could not reach MiniGuru. Check your internet and try again.'};
+  }
+
   Future<bool> verifyChildPin(String childId, String pin) async {
     try {
       final authToken = await _db!.getAuthToken();
