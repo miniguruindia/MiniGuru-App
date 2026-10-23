@@ -3,7 +3,9 @@
 
 **Project:** MiniGuru Innovation Private Limited | Ujjain MP
 **App:** miniguru.in | **Backend:** miniguru-backend-130420985234.asia-south1.run.app | **Admin:** admin.miniguru.in
-**Last updated:** August 21, 2026
+**Last updated:** October 23, 2026
+
+This file holds NO passwords, keys or database addresses, only where each secret lives. A secret pasted into chat, a doc or the repo counts as exposed: tell Pramod. (Key rotation is on hold by Pramod's decision, 22 Oct 2026.)
 
 ---
 
@@ -13,7 +15,7 @@
 |---|---|---|
 | 1 | **Goins = user.score ONLY — NEVER wallet.balance** | wallet.balance = real Razorpay money. Mixing causes financial corruption |
 | 25 | ~~Goins = motivation tracker ONLY. Never deducted.~~ **SUPERSEDED Aug 2026 — see Rule 25b** | Materials now cost Goins again; negative balance (debt) allowed |
-| 25b | **Materials cost Goins at video upload. If it goes negative, planning/upload is never blocked — debt is repaid by earning more Goins. Approving a MATERIAL_OVERSPEND audit record never credits Goins** | Reversing this without the debt-not-credit distinction breaks the whole design — materials become free again |
+| 25b | **(See also Rules 56 to 58.) Materials cost Goins at video upload. If it goes negative, planning/upload is never blocked — debt is repaid by earning more Goins. Approving a MATERIAL_OVERSPEND audit record never credits Goins** | Reversing this without the debt-not-credit distinction breaks the whole design — materials become free again |
 | 26 | **Shop = Amazon affiliate (miniguru04-21) only. No own-store/Razorpay flows yet** | No own inventory until confirmed |
 | 19 | **Always --update-env-vars, NEVER --set-env-vars on Cloud Run** | --set-env-vars wipes ALL env vars including DATABASE_URL |
 | 23 | **Verify DATABASE_URL exists after any Cloud Run env operation** | Silent DB connection loss = all APIs return 500 |
@@ -22,43 +24,40 @@
 
 ---
 
-## 🟠 BACKEND DEPLOY — Every single time, no exceptions
+## 🟠 BACKEND DEPLOY: every single time, from Cloud Shell (Codespace is not used any more)
+
+Pramod deploys from a Claude-written patch script. One command per code block:
 
 ```bash
-# Step 1: In Codespace — compile TypeScript → dist/
-cd /workspaces/MiniGuru-App/backend
-npm run build
-cp src/services/youtubeUploadService.js dist/services/
-
-# Step 2: Force-add dist/ (may be gitignored)
-cd /workspaces/MiniGuru-App
-git add -f backend/dist/
-git add -A
-git commit -m "..."
-git push origin main
-
-# Step 3: In Cloud Shell — deploy
-cd ~/MiniGuru-App && git pull
-gcloud run deploy miniguru-backend --source backend --region asia-south1 --project miniguru-prod
+cd ~/MiniGuru-App && git pull origin main && python3 ~/patch_xxx.py
 ```
-
-**Why:** Cloud Run runs `dist/` JS — NOT `src/` TypeScript. If dist/ is not rebuilt and committed, ALL backend changes are silently ignored. (Rule 27)
-
-**After any AI-review or Firebase-Storage change:** also verify `GEMINI_API_KEY` / `FIREBASE_SERVICE_ACCOUNT_JSON` survive alongside `DATABASE_URL`:
 ```bash
-gcloud run services describe miniguru-backend --region asia-south1 \
-  --format="value(spec.template.spec.containers[0].env)" | tr ';' '\n' | grep -E "DATABASE|GEMINI|FIREBASE"
+cd backend && npm install && npx prisma@5.22.0 generate && npm run build && cp src/services/youtubeUploadService.js dist/services/ && cd ..
 ```
+```bash
+git add -A && git add -f backend/dist/ && git commit -m "hyphenated-short-message" -m "Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>" && git push origin main
+```
+```bash
+cd backend && gcloud run deploy miniguru-backend --source . --region asia-south1 --project miniguru-prod --allow-unauthenticated; cd ..
+```
+```bash
+gcloud run services describe miniguru-backend --region asia-south1 --project miniguru-prod --format="value(spec.template.spec.containers[0].env[].name)" | tr ';' '\n' | grep -cE "DATABASE_URL|JWT_SECRET|RESEND_API_KEY|GEMINI_API_KEY|YOUTUBE_CLIENT_SECRET"
+```
+(should print 5)
+```bash
+rm -f ~/patch_xxx.py
+```
+
+**Why:** Cloud Run runs `dist/` JS, NOT `src/` TypeScript. If dist/ is not rebuilt and committed, ALL backend changes are silently ignored (Rule 27).
+
+App-only or admin-only patch: skip the build, deploy and secrets lines (commit and push only).
 
 ---
 
-## 🟡 FLUTTER DEPLOY — Every time Flutter code changes
+## 🟡 FLUTTER AND ADMIN DEPLOY
 
-```bash
-cd /workspaces/MiniGuru-App/app/miniguru
-flutter build web --release --no-tree-shake-icons
-firebase deploy --only hosting
-```
+- **Flutter web** deploys itself: GitHub Action "Build & Deploy Flutter Web" runs when a push touches `app/miniguru/**` (or the workflow file) and publishes to Firebase Hosting. Flutter is locked at 3.27.4 (use `withOpacity`, not `withValues`). The Claude sandbox cannot compile Flutter, so ALWAYS check the Action run after a push. Manual fallback: `cd app/miniguru && flutter pub get && flutter build web --release --no-tree-shake-icons && firebase deploy --only hosting`.
+- **Admin** (Next.js) deploys itself on Vercel when `admin/**` changes on main.
 
 ---
 
@@ -87,7 +86,7 @@ firebase deploy --only hosting
 | 19 | Always --update-env-vars, NEVER --set-env-vars or --env-vars-file | Wipes ALL Cloud Run env vars including DATABASE_URL |
 | 20 | Firebase Storage for images — NEVER Google Drive for production image hosting | Google Drive rate-limits under load |
 | 21 | Never run node script.js directly from Codespace for MongoDB Atlas connection | SRV DNS resolution fails in Codespace |
-| 22 | Never use SMTP on Cloud Run — always use SendGrid or HTTP-based email API | Google Cloud blocks SMTP ports 25, 465, 587 |
+| 22 | Never use SMTP on Cloud Run. Email goes by the Resend HTTP API (active since Aug 2026; SendGrid is a dormant fallback) | Google Cloud blocks SMTP ports 25, 465, 587 |
 | 23 | Always --update-env-vars. Verify DATABASE_URL after any env op | DB connection silently lost |
 | 24 | YOUTUBE_TOKENS in Secret Manager only — never as env var | Double-slash `//` in token breaks gcloud parsing. Same applies to FIREBASE_SERVICE_ACCOUNT_JSON (Rule 40) |
 | 25 | ~~Goins = motivation tracker ONLY. Never deducted for anything~~ **SUPERSEDED Aug 2026** — see Rule 25b below | Was the June 2, 2026 architecture; formally reversed, not accidentally drifted |
@@ -122,6 +121,22 @@ firebase deploy --only hosting
 | 53 | A UI element (button, form, card) that renders correctly and looks "built" is not proof it's wired to anything real | Found multiple instances of fully-styled, well-coded UI with nothing real behind it — a Daily Quest card and a Rank badge were both frozen hardcoded text for every user, forever, until rebuilt from scratch. Periodically ask "does this element's data genuinely come from somewhere live" when auditing an existing screen |
 | 54 | A login ID ending in `@miniguru.in` cannot receive real email — the actual contact address is `guardianEmail` for a child account or `user.email` for a genuinely self-registered mentor account, and these two are NOT interchangeable | Confirmed at least one real bug from conflating them (mentor contact-email changes silently writing to the wrong field); flagged as a pattern worth checking anywhere "email" is displayed or written to |
 | 55 | MongoDB/Prisma validates ObjectId format eagerly on *every* branch of an `OR` filter, even branches meant to match on an unrelated field type like email | A value that isn't a well-formed ObjectId anywhere in an `OR` array crashes the whole query, not just that one branch — construct OR-filters defensively when one branch may receive a non-ObjectId string |
+| 56 | Goins ledger: every award or deduction writes a `GoinsEvent` row. Any new award site must be hooked into the ledger | Ladder period boards read the ledger; an unhooked award never shows on the Ladder |
+| 57 | Daily Goins caps, per IST day, counted from the ledger: view Goins 20, comment Goins given 10, comment Goins received by makers 10. Over-cap actions still post but pay nothing. One view Goin per user per video per day | Stops Goins farming. Do not remove the ledger counting |
+| 58 | Goins amounts: every new account starts with 100. Approval = 50 + 2x material cost + challenge bonus, split equally across owner and partners (owner takes the rounding). Automatic material price = pack price / pack size x 0.1, min 5, max 300, whole numbers; an admin-typed value locks the item (`goinsLocked`). Peer-rating bonus: same school 1x, else 2x | Core economy. Change only with Pramod's approval |
+| 59 | Never run `prisma db push` until live Atlas indexes and schema.prisma have been compared | Oct 2026: two unique rules in the schema never existed live; the second one failed on real data. Both were removed from the schema on 17 Oct 2026 |
+| 60 | Never dedupe `video_views` or add a unique index on it. Many rows per user per video are valid (one per day) | Would delete real data and break the daily Goin |
+| 61 | Express route order: ALL fixed paths (`/admin/*`, `/feed`, `/lookup`) before any `/:id` route. Oct 2026: `/mentor/children/lookup` was captured as an id and returned a 500 | Extends Rule 28 |
+| 62 | Create login IDs only via `backend/src/utils/uniqueLoginId.ts` (isLoginIdTaken, nextFreeLoginId, createUserWithFreeId). Logins are case-insensitive | Prevents duplicate IDs |
+| 63 | Buttons that create data must disable themselves while sending | A double tap created a duplicate account (two User and two ChildProfile rows 0.3 s apart) |
+| 64 | When a new field is added, check every whitelist or manual object builder (e.g. `getUserData()`, update and create handlers) | Whitelists silently drop new fields. Repeated bug class: challengeId, desiredPrivacyStatus, guardianEmail |
+| 65 | Admin merge-accounts has NO undo. Take a database-only backup first and test on dummy accounts | Data cannot be restored otherwise |
+| 66 | Account types: Child (self-registers by one tap, or added by parent/school), Parent (mentor: adds children, PIN vs child password, Add Existing Child by login ID), School/T-LAB (bulk add; admin-managed). An independent child can request to join a school (max 3 waiting; school approves). Removing a child soft-deactivates (keeps Goins and projects) | Reference for every account feature |
+| 67 | Patch scripts: Python, contain a git diff, assert each anchor matches exactly once, tested with `git apply --check` on a SECOND fresh clone. Delivered as a file (SendUserFile), never as a long paste | Avoids truncated or mismatched patches |
+| 68 | Verify claims against the real repo, not old logs | Several "built" items in old logs were never built |
+| 69 | Working style with Pramod: one thing at a time, short plain replies, commands last, each command in its own code block, HTML mock-up and approval before any layout change, no secrets in chat. The app is for children aged 8 to 14: bright, playful, simple words | Pramod is a non-coder working only in Cloud Shell |
+| 70 | Backups: the `backup` command in Cloud Shell writes an encrypted copy (code, database, settings, storage) into the Drive folder "MiniGuru Backups" (2 slots). Routine 1st and 15th. Passphrase typed at run time, kept on paper and with the trusted second person (Namita Maithil), never pasted in chat. Recovery steps: MINIGURU_RESTORE_PROMPT.md. Domain miniguru.in expires 30 April 2027 | Disaster recovery |
+| 71 | Infrastructure: YouTube = single channel, children never connect accounts; every video waits for an explicit admin click (AI never auto-publishes); upload limit 200/day, granted 19 Oct 2026 for six months (re-apply about March 2027). Amazon = Creators API; Cloud Scheduler job `miniguru-amazon-refresh` (switch to materials-daily every 4 h is pending). Cloudflare: planned Always Use HTTPS ON + Min TLS 1.2 (not done) | Operational reference |
 
 ---
 
@@ -136,10 +151,10 @@ firebase deploy --only hosting
 | Firebase project | miniguru-prod (130420985234) |
 | Firebase bucket | miniguru-prod.firebasestorage.app (NOT .appspot.com) |
 | MongoDB | cluster0.ykoud6h.mongodb.net / db: miniguru |
-| Codespace | bug-free-fiesta-69xwgg4jwj6r34gpv |
+| Codespace | bug-free-fiesta-69xwgg4jwj6r34gpv (unavailable until after 1 Nov 2026; Cloud Shell + GitHub Actions are used) |
 | Amazon tag | miniguru04-21 (ALWAYS this tag, hardcoded everywhere) |
 | Admin login | admin@miniguru.in / password kept in the founder's password manager (never in the repo) |
-| SendGrid | Free plan, 100/day, domain: miniguru.in |
+| Email (Resend) | Free plan, 100/day (app stops at 95), domain miniguru.in verified |
 | FROM_EMAIL | connect@miniguru.in |
 | Gemini project | gen-lang-client-0578136455 (free tier, no billing enabled) |
 | Cloud Run project | miniguru-prod |
@@ -157,14 +172,15 @@ Database                      → MongoDB Atlas (cluster0.ykoud6h)
 Material Images                → Firebase Storage (materials/ folder) — now
                                  also directly uploadable/deletable from
                                  admin via firebase-admin SDK (Rule 40)
-Email                         → SendGrid (not SMTP — Cloud Run blocks SMTP)
+Email                         → Resend HTTP API (SendGrid dormant fallback;
+                                 no SMTP, Cloud Run blocks it)
 Video                         → YouTube Data API v3
 YouTube tokens                → Google Secret Manager (not env var)
 AI video review               → Gemini 3.5 Flash (free tier), local file
                                  before YouTube upload, confidence >= 0.85
                                  to auto-publish, else human review queue
 Amazon affiliate              → miniguru04-21 (Associates account)
-Contact verification          → On-demand OTP via SendGrid (email only —
+Contact verification          → On-demand OTP via Resend (email only —
                                  no SMS provider yet), approval-gated changes
 ```
 
@@ -206,5 +222,5 @@ firebase deploy --only hosting
 
 ---
 
-*MINIGURU_RULES.md — Last updated August 21, 2026*
-*55 rules across 20+ development sessions*
+*MINIGURU_RULES.md — Last updated October 23, 2026*
+*71 rules across 30+ development sessions*
