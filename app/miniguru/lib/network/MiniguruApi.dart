@@ -101,14 +101,19 @@ class MiniguruApi {
   }
 
   /// Shop "Can't find it?": real Amazon products, cheapest first.
-  Future<http.Response> amazonFind(String query) async {
+  Future<http.Response> amazonFind(String query,
+      {List<String> excludeAsins = const [], List<String> excludeTitles = const []}) async {
     // Works for visitors too: send the login token only when there is one.
     dynamic authToken;
     try { authToken = await _getValidToken(); } catch (_) { authToken = null; }
     return await http.post(
       Uri.parse('$_baseUrl/materials/amazon-find'),
       headers: _buildHeaders(authToken?.accessToken as String?),
-      body: jsonEncode({'query': query}),
+      body: jsonEncode({
+        'query': query,
+        if (excludeAsins.isNotEmpty) 'excludeAsins': excludeAsins,
+        if (excludeTitles.isNotEmpty) 'excludeTitles': excludeTitles,
+      }),
     );
   }
 

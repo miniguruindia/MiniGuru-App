@@ -133,6 +133,11 @@ router.get('/', async (req, res) => {
             where,
             orderBy: [{ category: 'asc' }, { name: 'asc' }],
         });
+        // Recently price-checked on Amazon first (fresh and in demand), the rest
+        // after them in the old category / name order. Done here in code so older
+        // records with no check date can never break the query.
+        const checked = (m) => (m.amazonLastCheckedAt ? new Date(m.amazonLastCheckedAt).getTime() : 0);
+        materials.sort((a, b) => checked(b) - checked(a));
         res.json(materials.map(toFlutterShape));
     }
     catch (err) {
@@ -199,6 +204,8 @@ router.post('/ai-search', authMiddleware_1.authenticateToken, async (req, res) =
 // (fallbackUrl) is always returned so the child can still go on.
 const AMAZON_FIND_CACHE_KEY = 'amazon_find_cache';
 const AMAZON_FIND_TTL_MS = 6 * 60 * 60 * 1000;
+const LIMIT_NOTE_GUEST = '3 free searches a day without login. Log in for 10 a day.';
+const LIMIT_NOTE_USER = '10 searches a day when you are logged in.';
 function amazonSearchUrl(q) {
     const tag = process.env.AMAZON_CREATORS_PARTNER_TAG || 'miniguru04-21';
     return 'https://www.amazon.in/s?k=' + encodeURIComponent(q) + '&tag=' + encodeURIComponent(tag);
@@ -243,14 +250,22 @@ function packCount(unitText) {
 router.post('/amazon-find', authMiddleware_1.authenticateTokenOptional, async (req, res) => {
     const rawQuery = typeof req.body?.query === 'string' ? req.body.query.trim().slice(0, 120) : '';
     const fallbackUrl = amazonSearchUrl(rawQuery);
+    const userId = req.user?.userId;
+    const limitNote = userId ? LIMIT_NOTE_USER : LIMIT_NOTE_GUEST;
+    // Items the child discarded: skipped in the answer and passed to Gemini so
+    // the new search words steer away from them. Such a refresh skips the cache.
+    const exclAsins = new Set((Array.isArray(req.body?.excludeAsins) ? req.body.excludeAsins : [])
+        .filter((x) => typeof x === 'string' && /^[A-Z0-9]{10}$/.test(x)).slice(0, 40));
+    const exclTitles = (Array.isArray(req.body?.excludeTitles) ? req.body.excludeTitles : [])
+        .filter((x) => typeof x === 'string').map((x) => x.slice(0, 100)).slice(0, 10);
+    const refining = exclAsins.size > 0 || exclTitles.length > 0;
     try {
         if (rawQuery.length < 2)
             return res.status(400).json({ error: 'Type what you are looking for.' });
         const norm = rawQuery.toLowerCase().replace(/\s+/g, ' ');
-        const cached = await readFindCache(norm);
+        const cached = refining ? null : await readFindCache(norm);
         if (cached)
-            return res.json({ ...cached, fallbackUrl, cached: true });
-        const userId = req.user?.userId;
+            return res.json({ ...cached, fallbackUrl, limitNote, cached: true });
         let ipHash = '';
         let quota;
         if (userId) {
@@ -266,9 +281,10 @@ router.post('/amazon-find', authMiddleware_1.authenticateTokenOptional, async (r
                 error: quota.reason === 'site'
                     ? 'MiniGuru AI search is very busy today.'
                     : userId
-                        ? 'You have used all your MiniGuru AI searches for today.'
-                        : 'You have used the free searches for today. Log in for more.',
+                        ? 'You have used all 10 of your MiniGuru AI searches for today.'
+                        : 'You have used your 3 free searches for today. Log in to get 10 searches a day.',
                 fallbackUrl,
+                limitNote,
                 limitReached: true,
             });
         }
@@ -279,18 +295,18 @@ router.post('/amazon-find', authMiddleware_1.authenticateTokenOptional, async (r
         // Plain search first (no AI). Only if it finds very little do we ask Gemini for a better phrase.
         let found = await (0, amazonProductService_1.searchAmazonProducts)(rawQuery, 10);
         if (!found.configured) {
-            return res.json({ results: [], message: 'Amazon search is not available right now.', fallbackUrl });
+            return res.json({ results: [], message: 'Amazon search is not available right now.', fallbackUrl, limitNote });
         }
-        let list = (found.results || []).filter((r) => r.available !== false);
+        let list = (found.results || []).filter((r) => r.available !== false && !exclAsins.has(r.asin));
         let searchedFor = rawQuery;
-        if (list.length < 3) {
+        if (list.length < 3 || refining) {
             try {
-                const refined = await (0, materialSearchAssistService_1.refineSearchQuery)(rawQuery, undefined, undefined, []);
+                const refined = await (0, materialSearchAssistService_1.refineSearchQuery)(rawQuery, undefined, undefined, exclTitles);
                 if (refined && refined.toLowerCase() !== norm) {
                     const f2 = await (0, amazonProductService_1.searchAmazonProducts)(refined, 10);
                     const seen = new Set(list.map((r) => r.asin));
                     for (const r of (f2.results || []))
-                        if (r.available !== false && !seen.has(r.asin))
+                        if (r.available !== false && !seen.has(r.asin) && !exclAsins.has(r.asin))
                             list.push(r);
                     searchedFor = refined;
                 }
@@ -330,9 +346,9 @@ router.post('/amazon-find', authMiddleware_1.authenticateTokenOptional, async (r
             };
         });
         const payload = { results, cheapestAsin, bestTrustedAsin, bestPickAsin, searchedFor };
-        if (results.length)
+        if (results.length && !refining)
             await writeFindCache(norm, payload);
-        res.json({ ...payload, fallbackUrl, message: results.length ? undefined : 'No products found. Try other words.' });
+        res.json({ ...payload, fallbackUrl, limitNote, message: results.length ? undefined : 'No products found. Try other words.' });
     }
     catch (err) {
         console.error('[materials] POST /amazon-find error:', err);

@@ -424,6 +424,8 @@ class _ShopState extends State<Shop>
   bool _amzBusy = false;
   bool _alsoSuggest = true; // ticked by default; the child can untick it
   final Set<String> _suggestedAsins = {};
+  final List<Map<String, String>> _amzDiscards = []; // {asin, title} of this search
+  String _amzDiscardQ = '';
 
   Future<void> _showFallbackDialog(String msg, String? url) async {
     if (!mounted) return;
@@ -458,7 +460,9 @@ class _ShopState extends State<Shop>
       final body = jsonDecode(res.body);
       final fallback = body['fallbackUrl']?.toString();
       if (res.statusCode != 200) {
-        await _showFallbackDialog((body['error'] ?? 'Amazon search is not available right now.').toString(), fallback);
+        final note = body['limitNote']?.toString();
+        final msg = (body['error'] ?? 'Amazon search is not available right now.').toString();
+        await _showFallbackDialog(body['limitReached'] == true && note != null ? '$msg\n($note)' : msg, fallback);
         return;
       }
       final results = ((body['results'] as List?) ?? []).cast<dynamic>();
@@ -467,6 +471,7 @@ class _ShopState extends State<Shop>
         return;
       }
       if (!mounted) return;
+      if (_amzDiscardQ != q) { _amzDiscards.clear(); _amzDiscardQ = q; }
       _showAmazonResults(
         q,
         results.map((e) => Map<String, dynamic>.from(e as Map)).toList(),
@@ -474,6 +479,7 @@ class _ShopState extends State<Shop>
         body['bestTrustedAsin']?.toString(),
         body['bestPickAsin']?.toString(),
         fallback,
+        body['limitNote']?.toString(),
       );
     } catch (e) {
       _aiSnack('Amazon search is not available right now.');
@@ -506,7 +512,10 @@ class _ShopState extends State<Shop>
   }
 
   void _showAmazonResults(String q, List<Map<String, dynamic>> results, String? cheapest,
-      String? bestTrusted, String? bestPick, String? fallbackUrl) {
+      String? bestTrusted, String? bestPick, String? fallbackUrl, String? limitNote) {
+    final live = List<Map<String, dynamic>>.from(results);
+    var discardedNew = 0; // discards since the last refresh
+    var refreshing = false;
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -519,13 +528,25 @@ class _ShopState extends State<Shop>
             Container(width: 40, height: 4,
                 decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2))),
             const SizedBox(height: 12),
-            Align(alignment: Alignment.centerLeft,
-              child: Text('🔎 On Amazon: $q', maxLines: 1, overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.nunito(fontSize: 17, fontWeight: FontWeight.w900, color: _ink))),
+            Row(children: [
+              Expanded(
+                child: Text('🔎 On Amazon: $q', maxLines: 1, overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.nunito(fontSize: 17, fontWeight: FontWeight.w900, color: _ink))),
+              IconButton(
+                visualDensity: VisualDensity.compact,
+                tooltip: 'Close',
+                icon: const Icon(Icons.close_rounded),
+                onPressed: () => Navigator.pop(ctx),
+              ),
+            ]),
             const SizedBox(height: 2),
             Align(alignment: Alignment.centerLeft,
               child: Text('Cheapest first, not paid adverts. Prices are estimates. Ask a parent before buying. Tap a name to open it on Amazon.',
                   style: GoogleFonts.nunito(fontSize: 11, color: _muted))),
+            if (limitNote != null && limitNote.isNotEmpty)
+              Align(alignment: Alignment.centerLeft,
+                child: Text('ℹ️ $limitNote',
+                    style: GoogleFonts.nunito(fontSize: 11, fontWeight: FontWeight.w700, color: const Color(0xFF0A6CFF)))),
             CheckboxListTile(
               dense: true,
               contentPadding: EdgeInsets.zero,
@@ -537,7 +558,51 @@ class _ShopState extends State<Shop>
             ),
             Flexible(
               child: ListView(shrinkWrap: true, children: [
-                for (final r in results) _amazonRow(ctx, r, cheapest, bestTrusted, bestPick),
+                for (final r in live)
+                  _amazonRow(ctx, r, cheapest, bestTrusted, bestPick, onDiscard: () {
+                    _amzDiscards.add({'asin': (r['asin'] ?? '').toString(), 'title': (r['title'] ?? '').toString()});
+                    discardedNew++;
+                    setSt(() => live.remove(r));
+                  }),
+                if (discardedNew > 0 || live.isEmpty)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 6),
+                    child: ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(
+                          backgroundColor: _accent, foregroundColor: Colors.white),
+                      icon: refreshing
+                          ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                          : const Icon(Icons.refresh_rounded),
+                      label: Text('Find better matches', style: GoogleFonts.nunito(fontWeight: FontWeight.w900)),
+                      onPressed: refreshing ? null : () async {
+                        setSt(() => refreshing = true);
+                        try {
+                          final res = await MiniguruApi().amazonFind(q,
+                              excludeAsins: _amzDiscards.map((d) => d['asin']!).where((a) => a.isNotEmpty).toList(),
+                              excludeTitles: _amzDiscards.map((d) => d['title']!).where((t) => t.isNotEmpty).toList());
+                          final body = jsonDecode(res.body);
+                          if (res.statusCode != 200) {
+                            _aiSnack((body['error'] ?? 'Could not refresh right now.').toString());
+                          } else {
+                            final fresh = ((body['results'] as List?) ?? [])
+                                .map((e) => Map<String, dynamic>.from(e as Map)).toList();
+                            if (fresh.isEmpty) {
+                              _aiSnack('No other matches found. Try Open Amazon search below.');
+                            } else {
+                              cheapest = body['cheapestAsin']?.toString();
+                              bestTrusted = body['bestTrustedAsin']?.toString();
+                              bestPick = body['bestPickAsin']?.toString();
+                              live..clear()..addAll(fresh);
+                              discardedNew = 0;
+                            }
+                          }
+                        } catch (_) {
+                          _aiSnack('Could not refresh right now.');
+                        }
+                        setSt(() => refreshing = false);
+                      },
+                    ),
+                  ),
                 if (fallbackUrl != null && fallbackUrl.isNotEmpty)
                   TextButton(
                     onPressed: () => _launchUrl(fallbackUrl),
@@ -561,7 +626,8 @@ class _ShopState extends State<Shop>
         ),
       );
 
-  Widget _amazonRow(BuildContext sheetCtx, Map<String, dynamic> r, String? cheapest, String? bestTrusted, String? bestPick) {
+  Widget _amazonRow(BuildContext sheetCtx, Map<String, dynamic> r, String? cheapest, String? bestTrusted, String? bestPick,
+      {VoidCallback? onDiscard}) {
     final asin = (r['asin'] ?? '').toString();
     final imageUrl = r['imageUrl']?.toString() ?? '';
     final price = r['priceRupees'];
@@ -638,6 +704,7 @@ class _ShopState extends State<Shop>
             if (err == null) _maybeSuggest(r);
             _aiSnack(err ?? 'Saved! Find it under Saved items.');
           }),
+          if (onDiscard != null) _chipBtn('✕ Discard', const Color(0xFF8A94A6), onDiscard),
         ]),
       ]),
     );
