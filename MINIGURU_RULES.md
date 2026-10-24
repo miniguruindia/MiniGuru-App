@@ -3,7 +3,7 @@
 
 **Project:** MiniGuru Innovation Private Limited | Ujjain MP
 **App:** miniguru.in | **Backend:** miniguru-backend-130420985234.asia-south1.run.app | **Admin:** admin.miniguru.in
-**Last updated:** October 23, 2026
+**Last updated:** October 24, 2026
 
 This file holds NO passwords, keys or database addresses, only where each secret lives. A secret pasted into chat, a doc or the repo counts as exposed: tell Pramod. (Key rotation is on hold by Pramod's decision, 22 Oct 2026.)
 
@@ -137,6 +137,7 @@ App-only or admin-only patch: skip the build, deploy and secrets lines (commit a
 | 69 | Working style with Pramod: one thing at a time, short plain replies, commands last, each command in its own code block, HTML mock-up and approval before any layout change, no secrets in chat. The app is for children aged 8 to 14: bright, playful, simple words | Pramod is a non-coder working only in Cloud Shell |
 | 70 | Backups: the `backup` command in Cloud Shell writes an encrypted copy (code, database, settings, storage) into the Drive folder "MiniGuru Backups" (2 slots). Routine 1st and 15th. Passphrase typed at run time, kept on paper and with the trusted second person (Namita Maithil), never pasted in chat. Recovery steps: MINIGURU_RESTORE_PROMPT.md. Domain miniguru.in expires 30 April 2027 | Disaster recovery |
 | 71 | Infrastructure: YouTube = single channel, children never connect accounts; every video waits for an explicit admin click (AI never auto-publishes); upload limit 200/day, granted 19 Oct 2026 for six months (re-apply about March 2027). Amazon = Creators API; Cloud Scheduler job `miniguru-amazon-refresh` (switch to materials-daily every 4 h is pending). Cloudflare: planned Always Use HTTPS ON + Min TLS 1.2 (not done) | Operational reference |
+| 72 | **Cost controls: MiniGuru runs almost free on purpose (Google Cloud bill 1 to 23 Oct 2026: Rs 8.62, forecast about Rs 11 for the month).** (a) Artifact Registry repo `cloud-run-source-deploy` (asia-south1) keeps only the latest 3 images through a cleanup policy (set by Pramod, Oct 2026; before that: keep 5 and delete anything older than 7 days, which cut 5.5 GB to 0.87 GB, Aug 2026). Every `gcloud run deploy --source` adds an image, so never remove this policy. (b) Gemini lives in its own project (`gen-lang-client-0578136455`) with NO billing, so its cost is always Rs 0; never enable billing there. (c) Resend free plan: the app stops sending at 95 emails a day. (d) Videos upload straight to Firebase Storage by signed URL and are deleted after YouTube upload (Rule 43); images stay small. (e) Quota guards in `utils/costTracking.ts`: Shop AI search 10 a day per account and 150 a day for the site; Amazon search without login 3 a day per visitor; results cached 6 hours; phone SMS capped (provider not enabled); AI video review capped (150 MB files, 1450 a day). (f) Amazon Creators API, Cloud Scheduler (1 of 3 free jobs), GitHub Actions (public repo), Cloudflare Free and MongoDB Atlas free are all Rs 0. (g) Cloud Run is the only service that can grow: its free allowance covered Rs 44 of Rs 47 usage in Oct 2026. Before adding min-instances, always-on CPU, more memory or a faster scheduler, check the Cloud Run row in Billing reports first. (h) Read the monthly cost summary on the 1st; a jump above Rs 100 needs a look | A single forgotten setting (Artifact Registry growing for months) was 95 percent of the whole bill in Aug 2026 |
 
 ---
 
@@ -222,5 +223,5 @@ firebase deploy --only hosting
 
 ---
 
-*MINIGURU_RULES.md — Last updated October 23, 2026*
-*71 rules across 30+ development sessions*
+*MINIGURU_RULES.md — Last updated October 24, 2026*
+*72 rules across 30+ development sessions*
