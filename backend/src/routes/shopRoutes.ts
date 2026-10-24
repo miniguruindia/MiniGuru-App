@@ -1,7 +1,8 @@
 import { Router, Request, Response } from 'express';
 import { sendEmail, OFFICIAL_FROM } from '../services/email/emailService';
 import prisma from '../utils/prismaClient';
-import { authenticateTokenOptional } from '../middleware/authMiddleware';
+import { authenticateTokenOptional, authenticateToken } from '../middleware/authMiddleware';
+import { resolveSubject } from '../middleware/resolveSubject';
 
 const router = Router();
 
@@ -248,6 +249,18 @@ router.post('/suggest', authenticateTokenOptional, async (req: Request, res: Res
       if (!Number.isNaN(parsed) && parsed >= 0 && parsed <= 100000) goinsPrice = parsed;
     }
     const loggedInUser = (req as any).user;
+    // A product found on Amazon is suggested only once per person (visitors: once overall).
+    const asinMatch = String(suggestion).match(/\/dp\/([A-Z0-9]{10})/);
+    if (asinMatch) {
+      const dup = await (prisma as any).productSuggestion.findFirst({
+        where: {
+          suggestion: { contains: asinMatch[1] },
+          ...(loggedInUser?.id ? { userId: loggedInUser.id } : {}),
+        },
+        select: { id: true },
+      });
+      if (dup) return res.status(201).json({ success: true, message: 'Thanks for your suggestion!' });
+    }
     await (prisma as any).productSuggestion.create({
       data: {
         childName: loggedInUser?.name || childName?.trim() || null,
@@ -261,6 +274,58 @@ router.post('/suggest', authenticateTokenOptional, async (req: Request, res: Res
     return res.status(201).json({ success: true, message: 'Thanks for your suggestion!' });
   } catch (err: any) {
     return res.status(500).json({ error: 'Failed to save suggestion' });
+  }
+});
+
+// ── Saved items: Amazon products kept for later buying (Oct 2026) ───────────
+router.get('/saved', authenticateToken, resolveSubject, async (req: any, res: Response) => {
+  try {
+    const userId = req.user?.userId;
+    const items = await (prisma as any).savedItem.findMany({
+      where: { userId }, orderBy: { createdAt: 'desc' }, take: 50,
+    });
+    res.json({ items });
+  } catch (err) {
+    res.status(500).json({ error: 'Could not load saved items' });
+  }
+});
+
+router.post('/saved', authenticateToken, resolveSubject, async (req: any, res: Response) => {
+  try {
+    const userId = req.user?.userId;
+    const asin = String(req.body?.asin || '').trim().toUpperCase();
+    const title = String(req.body?.title || '').trim().slice(0, 200);
+    if (!/^[A-Z0-9]{10}$/.test(asin) || !title) return res.status(400).json({ error: 'asin and title are required' });
+    const db: any = prisma;
+    const existing = await db.savedItem.findFirst({ where: { userId, asin } });
+    if (existing) return res.json({ item: existing, already: true });
+    const count = await db.savedItem.count({ where: { userId } });
+    if (count >= 50) return res.status(400).json({ error: 'You have 50 saved items. Remove one first.' });
+    const price = Number(req.body?.priceRupees);
+    const item = await db.savedItem.create({
+      data: {
+        userId, asin, title,
+        imageUrl: req.body?.imageUrl ? String(req.body.imageUrl).slice(0, 500) : null,
+        priceRupees: Number.isFinite(price) && price >= 0 ? Math.round(price) : null,
+        seller: req.body?.seller ? String(req.body.seller).slice(0, 120) : null,
+      },
+    });
+    res.status(201).json({ item });
+  } catch (err) {
+    res.status(500).json({ error: 'Could not save this item' });
+  }
+});
+
+router.delete('/saved/:id', authenticateToken, resolveSubject, async (req: any, res: Response) => {
+  try {
+    const userId = req.user?.userId;
+    const db: any = prisma;
+    const row = await db.savedItem.findFirst({ where: { id: req.params.id, userId } });
+    if (!row) return res.status(404).json({ error: 'Not found' });
+    await db.savedItem.delete({ where: { id: row.id } });
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: 'Could not remove this item' });
   }
 });
 

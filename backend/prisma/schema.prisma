@@ -959,3 +959,19 @@ model EmailLog {
   @@index([createdAt])
   @@map("email_logs")
 }
+
+// An Amazon product a child or parent saved for later buying (Oct 2026).
+// Plain list, newest first, max 50 per person (checked in code).
+model SavedItem {
+  id         String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId     String   @db.ObjectId
+  asin       String
+  title      String
+  imageUrl   String?
+  priceRupees Int?
+  seller     String?
+  createdAt  DateTime @default(now())
+
+  @@index([userId])
+  @@map("saved_items")
+}

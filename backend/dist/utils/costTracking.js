@@ -32,6 +32,8 @@ exports.recordPhoneVerified = recordPhoneVerified;
 exports.checkShopAiQuota = checkShopAiQuota;
 exports.recordShopAiSearch = recordShopAiSearch;
 exports.getCostDashboardSnapshot = getCostDashboardSnapshot;
+exports.checkGuestAmazonFind = checkGuestAmazonFind;
+exports.recordGuestAmazonFind = recordGuestAmazonFind;
 const prismaClient_1 = __importDefault(require("./prismaClient"));
 const firebaseStorageService_1 = require("../services/firebaseStorageService");
 const phoneVerification_1 = require("../services/phoneVerification");
@@ -357,4 +359,42 @@ async function getCostDashboardSnapshot() {
             note: 'Cloud Run request volume and Artifact Registry storage cost are only visible via the GCP Billing console — not trackable from application code. Check Cloud Console → Billing → Reports periodically.',
         },
     };
+}
+// ── Amazon Find for visitors who are not logged in (Oct 2026) ─────────────
+// A small per-device/network daily allowance, plus the shared site-wide cap.
+const GUEST_AMAZON_FIND_KEY = 'amazon_find_guests';
+const GUEST_AMAZON_FIND_PER_DAY = 3;
+async function readGuestAmazonMap() {
+    try {
+        const row = await prismaClient_1.default.siteContent.findUnique({ where: { key: GUEST_AMAZON_FIND_KEY } });
+        const v = row?.value ?? null;
+        if (v && v.date === today() && v.ips)
+            return v;
+    }
+    catch { /* fall through to a fresh map */ }
+    return { date: today(), ips: {} };
+}
+async function checkGuestAmazonFind(ipHash) {
+    const site = await readDailyCounter(SHOP_AI_KEY);
+    if (site.count >= exports.SHOP_AI_DAILY_CAP)
+        return { allowed: false, reason: 'site' };
+    const g = await readGuestAmazonMap();
+    if ((g.ips[ipHash] || 0) >= GUEST_AMAZON_FIND_PER_DAY)
+        return { allowed: false, reason: 'guest' };
+    return { allowed: true };
+}
+async function recordGuestAmazonFind(ipHash) {
+    const site = await readDailyCounter(SHOP_AI_KEY);
+    site.count += 1;
+    await writeDailyCounter(SHOP_AI_KEY, site);
+    const g = await readGuestAmazonMap();
+    g.ips[ipHash] = (g.ips[ipHash] || 0) + 1;
+    try {
+        await prismaClient_1.default.siteContent.upsert({
+            where: { key: GUEST_AMAZON_FIND_KEY },
+            update: { value: g },
+            create: { key: GUEST_AMAZON_FIND_KEY, value: g },
+        });
+    }
+    catch { /* never block the search */ }
 }

@@ -417,6 +417,309 @@ class _ShopState extends State<Shop>
     );
   }
 
+  // ── Can't find it? Search Amazon with MiniGuru AI (Oct 2026) ───────────
+  // Real Amazon India products, cheapest first, with seller and rating.
+  // Works without logging in. Each result can go to My Kit, to a parent, or be
+  // saved for later. MiniGuru never sells; buying is on Amazon.
+  bool _amzBusy = false;
+  bool _alsoSuggest = true; // ticked by default; the child can untick it
+  final Set<String> _suggestedAsins = {};
+
+  Future<void> _showFallbackDialog(String msg, String? url) async {
+    if (!mounted) return;
+    await showDialog<void>(
+      context: context,
+      builder: (c) => AlertDialog(
+        title: Text('Search on Amazon', style: GoogleFonts.nunito(fontWeight: FontWeight.w900)),
+        content: Text('$msg\n\nYou can still look on Amazon yourself. Ask a parent before buying.',
+            style: GoogleFonts.nunito()),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(c), child: const Text('Close')),
+          if (url != null && url.isNotEmpty)
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFFF8A00), foregroundColor: Colors.white),
+              onPressed: () { Navigator.pop(c); _launchUrl(url); },
+              child: const Text('Open Amazon search')),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _openAmazonFind() async {
+    final q = _searchCtrl.text.trim();
+    if (q.length < 2) {
+      _aiSnack('Type what you are looking for in the search box first.');
+      return;
+    }
+    if (_amzBusy) return;
+    setState(() => _amzBusy = true);
+    try {
+      final res = await MiniguruApi().amazonFind(q);
+      final body = jsonDecode(res.body);
+      final fallback = body['fallbackUrl']?.toString();
+      if (res.statusCode != 200) {
+        await _showFallbackDialog((body['error'] ?? 'Amazon search is not available right now.').toString(), fallback);
+        return;
+      }
+      final results = ((body['results'] as List?) ?? []).cast<dynamic>();
+      if (results.isEmpty) {
+        await _showFallbackDialog((body['message'] ?? 'No products found.').toString(), fallback);
+        return;
+      }
+      if (!mounted) return;
+      _showAmazonResults(
+        q,
+        results.map((e) => Map<String, dynamic>.from(e as Map)).toList(),
+        body['cheapestAsin']?.toString(),
+        body['bestTrustedAsin']?.toString(),
+        body['bestPickAsin']?.toString(),
+        fallback,
+      );
+    } catch (e) {
+      _aiSnack('Amazon search is not available right now.');
+    } finally {
+      if (mounted) setState(() => _amzBusy = false);
+    }
+  }
+
+  Map<String, dynamic> _kitItemFromAmazon(Map<String, dynamic> r) => {
+        'id': 'amz_${r['asin']}',
+        'name': (r['title'] ?? '').toString(),
+        'amazonASIN': (r['asin'] ?? '').toString(),
+        'priceEstimate': r['priceRupees'],
+        'unit': 'piece',
+        'imageUrl': r['imageUrl'],
+        'goinsPrice': 0,
+      };
+
+  // Tells MiniGuru about an item the child acted on (once per item), unless unticked.
+  Future<void> _maybeSuggest(Map<String, dynamic> r) async {
+    final asin = (r['asin'] ?? '').toString();
+    if (!_alsoSuggest || asin.isEmpty || _suggestedAsins.contains(asin)) return;
+    _suggestedAsins.add(asin);
+    try {
+      await MiniguruApi().suggestMaterial(
+        suggestion: '${r['title']} (https://www.amazon.in/dp/$asin)',
+        projectContext: 'Found on Amazon${r['priceRupees'] != null ? ' at Rs ${r['priceRupees']}' : ''}',
+      );
+    } catch (_) {}
+  }
+
+  void _showAmazonResults(String q, List<Map<String, dynamic>> results, String? cheapest,
+      String? bestTrusted, String? bestPick, String? fallbackUrl) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (ctx) => StatefulBuilder(builder: (ctx2, setSt) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            Container(width: 40, height: 4,
+                decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2))),
+            const SizedBox(height: 12),
+            Align(alignment: Alignment.centerLeft,
+              child: Text('🔎 On Amazon: $q', maxLines: 1, overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.nunito(fontSize: 17, fontWeight: FontWeight.w900, color: _ink))),
+            const SizedBox(height: 2),
+            Align(alignment: Alignment.centerLeft,
+              child: Text('Cheapest first, not paid adverts. Prices are estimates. Ask a parent before buying. Tap a name to open it on Amazon.',
+                  style: GoogleFonts.nunito(fontSize: 11, color: _muted))),
+            CheckboxListTile(
+              dense: true,
+              contentPadding: EdgeInsets.zero,
+              controlAffinity: ListTileControlAffinity.leading,
+              value: _alsoSuggest,
+              onChanged: (v) => setSt(() => _alsoSuggest = v ?? true),
+              title: Text('Also tell MiniGuru about items I pick (helps add them to the shop)',
+                  style: GoogleFonts.nunito(fontSize: 11, fontWeight: FontWeight.w700, color: _ink)),
+            ),
+            Flexible(
+              child: ListView(shrinkWrap: true, children: [
+                for (final r in results) _amazonRow(ctx, r, cheapest, bestTrusted, bestPick),
+                if (fallbackUrl != null && fallbackUrl.isNotEmpty)
+                  TextButton(
+                    onPressed: () => _launchUrl(fallbackUrl),
+                    child: Text('Not what you wanted? Open Amazon search',
+                        style: GoogleFonts.nunito(fontWeight: FontWeight.w800, color: const Color(0xFFFF8A00))),
+                  ),
+              ]),
+            ),
+          ]),
+        ),
+      )),
+    );
+  }
+
+  Widget _chipBtn(String label, Color color, VoidCallback onTap) => GestureDetector(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+          decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(8)),
+          child: Text(label, style: GoogleFonts.nunito(fontSize: 11, fontWeight: FontWeight.w800, color: Colors.white)),
+        ),
+      );
+
+  Widget _amazonRow(BuildContext sheetCtx, Map<String, dynamic> r, String? cheapest, String? bestTrusted, String? bestPick) {
+    final asin = (r['asin'] ?? '').toString();
+    final imageUrl = r['imageUrl']?.toString() ?? '';
+    final price = r['priceRupees'];
+    final seller = r['seller']?.toString() ?? '';
+    final rating = r['rating'];
+    return Container(
+      margin: const EdgeInsets.symmetric(vertical: 6),
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFCFE3FF)),
+      ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: Container(width: 56, height: 56, color: Colors.white,
+              child: imageUrl.isNotEmpty
+                  ? Image.network(imageUrl, fit: BoxFit.contain,
+                      errorBuilder: (_, __, ___) => const Icon(Icons.inventory_2_outlined))
+                  : const Icon(Icons.inventory_2_outlined)),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              GestureDetector(
+                onTap: () => _launchUrl((r['url'] ?? 'https://www.amazon.in/dp/$asin').toString()),
+                child: Text((r['title'] ?? '').toString(), maxLines: 2, overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.nunito(fontSize: 13, fontWeight: FontWeight.w800,
+                        color: const Color(0xFF0A6CFF), decoration: TextDecoration.underline)),
+              ),
+              if (seller.isNotEmpty || rating != null)
+                Text('${seller.isNotEmpty ? 'Sold by $seller' : ''}${r['trusted'] == true ? '  ✓ Trusted' : ''}'
+                    '${rating != null ? '   ⭐ $rating' : ''}',
+                    maxLines: 1, overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.nunito(fontSize: 11, color: _muted)),
+              Wrap(spacing: 6, children: [
+                if (asin == bestPick)
+                  Text('★ Best pick', style: GoogleFonts.nunito(fontSize: 10, fontWeight: FontWeight.w900, color: const Color(0xFFFF8A00))),
+                if (asin == cheapest)
+                  Text('Lowest price', style: GoogleFonts.nunito(fontSize: 10, fontWeight: FontWeight.w900, color: const Color(0xFF12B24A))),
+                if (asin == bestTrusted)
+                  Text('Best from a trusted seller', style: GoogleFonts.nunito(fontSize: 10, fontWeight: FontWeight.w900, color: const Color(0xFF0A6CFF))),
+              ]),
+            ]),
+          ),
+          const SizedBox(width: 6),
+          Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
+            Text(price != null ? '₹$price' : '-',
+                style: GoogleFonts.nunito(fontSize: 16, fontWeight: FontWeight.w900, color: const Color(0xFFFF8A00))),
+            if (r['pricePerPiece'] != null)
+              Text('₹${r['pricePerPiece']} each', style: GoogleFonts.nunito(fontSize: 10, color: _muted)),
+          ]),
+        ]),
+        const SizedBox(height: 8),
+        Wrap(spacing: 6, runSpacing: 6, children: [
+          _chipBtn('+ Kit', _accent, () {
+            Navigator.pop(sheetCtx);
+            _maybeSuggest(r);
+            _addToKit(_kitItemFromAmazon(r));
+          }),
+          _chipBtn('To parent', const Color(0xFFFFB800), () {
+            Navigator.pop(sheetCtx);
+            _maybeSuggest(r);
+            _addToKit(_kitItemFromAmazon(r), silent: true);
+            _showSendSheet();
+          }),
+          _chipBtn('Save for later', const Color(0xFF12B24A), () async {
+            final err = await MiniguruApi().saveItem({
+              'asin': asin, 'title': r['title'], 'imageUrl': r['imageUrl'],
+              'priceRupees': r['priceRupees'], 'seller': r['seller'],
+            });
+            if (err == null) _maybeSuggest(r);
+            _aiSnack(err ?? 'Saved! Find it under Saved items.');
+          }),
+        ]),
+      ]),
+    );
+  }
+
+  Future<void> _openSavedItems() async {
+    List<dynamic> items = await MiniguruApi().getSavedItems();
+    if (!mounted) return;
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (ctx) => StatefulBuilder(builder: (ctx2, setSt) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            Container(width: 40, height: 4,
+                decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2))),
+            const SizedBox(height: 12),
+            Align(alignment: Alignment.centerLeft,
+              child: Text('⭐ Saved items', style: GoogleFonts.nunito(fontSize: 17, fontWeight: FontWeight.w900, color: _ink))),
+            const SizedBox(height: 8),
+            if (items.isEmpty)
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Text('Nothing saved yet. Use "Save for later" on an Amazon result.',
+                    style: GoogleFonts.nunito(color: _muted)),
+              )
+            else
+              Flexible(
+                child: ListView(shrinkWrap: true, children: [
+                  for (final raw in items)
+                    Builder(builder: (_) {
+                      final it = Map<String, dynamic>.from(raw as Map);
+                      final r = <String, dynamic>{
+                        'asin': it['asin'], 'title': it['title'], 'imageUrl': it['imageUrl'],
+                        'priceRupees': it['priceRupees'],
+                      };
+                      return Container(
+                        margin: const EdgeInsets.symmetric(vertical: 6),
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(color: const Color(0xFFCFE3FF))),
+                        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                          GestureDetector(
+                            onTap: () => _launchUrl('https://www.amazon.in/dp/${it['asin']}?tag=miniguru04-21'),
+                            child: Text('${it['title']}', maxLines: 2, overflow: TextOverflow.ellipsis,
+                                style: GoogleFonts.nunito(fontSize: 13, fontWeight: FontWeight.w800,
+                                    color: const Color(0xFF0A6CFF), decoration: TextDecoration.underline)),
+                          ),
+                          if (it['priceRupees'] != null)
+                            Text('Saved price: ₹${it['priceRupees']} (check Amazon for today\'s price)',
+                                style: GoogleFonts.nunito(fontSize: 11, color: _muted)),
+                          const SizedBox(height: 6),
+                          Wrap(spacing: 6, children: [
+                            _chipBtn('+ Kit', _accent, () {
+                              Navigator.pop(ctx);
+                              _addToKit(_kitItemFromAmazon(r));
+                            }),
+                            _chipBtn('To parent', const Color(0xFFFFB800), () {
+                              Navigator.pop(ctx);
+                              _addToKit(_kitItemFromAmazon(r), silent: true);
+                              _showSendSheet();
+                            }),
+                            _chipBtn('Remove', const Color(0xFFFF3B30), () async {
+                              final ok = await MiniguruApi().deleteSavedItem('${it['id']}');
+                              if (ok) setSt(() => items = items.where((x) => (x as Map)['id'] != it['id']).toList());
+                            }),
+                          ]),
+                        ]),
+                      );
+                    }),
+                ]),
+              ),
+          ]),
+        ),
+      )),
+    );
+  }
+
   // ── Variants (Oct 2026) ───────────────────────────────────────────────
   // An item with `variantOf` set is an option under a main item. The grid
   // shows ONE tile per group (the main item); a search hit on any option
@@ -914,8 +1217,23 @@ class _ShopState extends State<Shop>
         SliverToBoxAdapter(child: _buildSearchBar()),
         SliverToBoxAdapter(child: Padding(
           padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
-          child: Text('${_filtered.length} materials',
-              style: GoogleFonts.nunito(fontSize: 12, fontWeight: FontWeight.w700, color: _muted)),
+          child: Row(children: [
+            Expanded(
+              child: Text('${_filtered.length} materials',
+                  style: GoogleFonts.nunito(fontSize: 12, fontWeight: FontWeight.w700, color: _muted)),
+            ),
+            if (_search.isNotEmpty)
+              TextButton(
+                onPressed: _amzBusy ? null : _openAmazonFind,
+                child: Text(_amzBusy ? 'Searching…' : "Can't find it? Search Amazon",
+                    style: GoogleFonts.nunito(fontSize: 12, fontWeight: FontWeight.w800, color: const Color(0xFFFF8A00))),
+              ),
+            TextButton(
+              onPressed: _openSavedItems,
+              child: Text('⭐ Saved',
+                  style: GoogleFonts.nunito(fontSize: 12, fontWeight: FontWeight.w800, color: _accent)),
+            ),
+          ]),
         )),
         if (_filtered.isEmpty)
           SliverFillRemaining(child: Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
@@ -930,6 +1248,15 @@ class _ShopState extends State<Shop>
                 label: Text('Ask MiniGuru AI', style: GoogleFonts.nunito(fontWeight: FontWeight.w800)),
                 style: ElevatedButton.styleFrom(
                     backgroundColor: _accent, foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+              ),
+              const SizedBox(height: 8),
+              ElevatedButton.icon(
+                onPressed: _amzBusy ? null : _openAmazonFind,
+                icon: const Icon(Icons.search_rounded, size: 18),
+                label: Text('Search Amazon with MiniGuru AI', style: GoogleFonts.nunito(fontWeight: FontWeight.w800)),
+                style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFFFF8A00), foregroundColor: Colors.white,
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
               ),
             ],

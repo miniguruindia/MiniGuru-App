@@ -7,6 +7,7 @@ const express_1 = require("express");
 const emailService_1 = require("../services/email/emailService");
 const prismaClient_1 = __importDefault(require("../utils/prismaClient"));
 const authMiddleware_1 = require("../middleware/authMiddleware");
+const resolveSubject_1 = require("../middleware/resolveSubject");
 const router = (0, express_1.Router)();
 const AMAZON_TAG = 'miniguru04-21';
 const FROM_EMAIL = process.env.FROM_EMAIL || 'connect@miniguru.in';
@@ -223,6 +224,19 @@ router.post('/suggest', authMiddleware_1.authenticateTokenOptional, async (req, 
                 goinsPrice = parsed;
         }
         const loggedInUser = req.user;
+        // A product found on Amazon is suggested only once per person (visitors: once overall).
+        const asinMatch = String(suggestion).match(/\/dp\/([A-Z0-9]{10})/);
+        if (asinMatch) {
+            const dup = await prismaClient_1.default.productSuggestion.findFirst({
+                where: {
+                    suggestion: { contains: asinMatch[1] },
+                    ...(loggedInUser?.id ? { userId: loggedInUser.id } : {}),
+                },
+                select: { id: true },
+            });
+            if (dup)
+                return res.status(201).json({ success: true, message: 'Thanks for your suggestion!' });
+        }
         await prismaClient_1.default.productSuggestion.create({
             data: {
                 childName: loggedInUser?.name || childName?.trim() || null,
@@ -237,6 +251,62 @@ router.post('/suggest', authMiddleware_1.authenticateTokenOptional, async (req, 
     }
     catch (err) {
         return res.status(500).json({ error: 'Failed to save suggestion' });
+    }
+});
+// ── Saved items: Amazon products kept for later buying (Oct 2026) ───────────
+router.get('/saved', authMiddleware_1.authenticateToken, resolveSubject_1.resolveSubject, async (req, res) => {
+    try {
+        const userId = req.user?.userId;
+        const items = await prismaClient_1.default.savedItem.findMany({
+            where: { userId }, orderBy: { createdAt: 'desc' }, take: 50,
+        });
+        res.json({ items });
+    }
+    catch (err) {
+        res.status(500).json({ error: 'Could not load saved items' });
+    }
+});
+router.post('/saved', authMiddleware_1.authenticateToken, resolveSubject_1.resolveSubject, async (req, res) => {
+    try {
+        const userId = req.user?.userId;
+        const asin = String(req.body?.asin || '').trim().toUpperCase();
+        const title = String(req.body?.title || '').trim().slice(0, 200);
+        if (!/^[A-Z0-9]{10}$/.test(asin) || !title)
+            return res.status(400).json({ error: 'asin and title are required' });
+        const db = prismaClient_1.default;
+        const existing = await db.savedItem.findFirst({ where: { userId, asin } });
+        if (existing)
+            return res.json({ item: existing, already: true });
+        const count = await db.savedItem.count({ where: { userId } });
+        if (count >= 50)
+            return res.status(400).json({ error: 'You have 50 saved items. Remove one first.' });
+        const price = Number(req.body?.priceRupees);
+        const item = await db.savedItem.create({
+            data: {
+                userId, asin, title,
+                imageUrl: req.body?.imageUrl ? String(req.body.imageUrl).slice(0, 500) : null,
+                priceRupees: Number.isFinite(price) && price >= 0 ? Math.round(price) : null,
+                seller: req.body?.seller ? String(req.body.seller).slice(0, 120) : null,
+            },
+        });
+        res.status(201).json({ item });
+    }
+    catch (err) {
+        res.status(500).json({ error: 'Could not save this item' });
+    }
+});
+router.delete('/saved/:id', authMiddleware_1.authenticateToken, resolveSubject_1.resolveSubject, async (req, res) => {
+    try {
+        const userId = req.user?.userId;
+        const db = prismaClient_1.default;
+        const row = await db.savedItem.findFirst({ where: { id: req.params.id, userId } });
+        if (!row)
+            return res.status(404).json({ error: 'Not found' });
+        await db.savedItem.delete({ where: { id: row.id } });
+        res.json({ ok: true });
+    }
+    catch (err) {
+        res.status(500).json({ error: 'Could not remove this item' });
     }
 });
 exports.default = router;

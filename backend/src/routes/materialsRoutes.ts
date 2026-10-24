@@ -1,12 +1,12 @@
 import { Router, Request, Response } from 'express';
 import multer from 'multer';
 import prisma from '../utils/prismaClient';
-import { authenticateToken } from '../middleware/authMiddleware';
+import { authenticateToken, authenticateTokenOptional } from '../middleware/authMiddleware';
 import { uploadMaterialImage, deleteMaterialImage } from '../services/firebaseStorageService';
 import { searchAmazonProducts, buildAffiliateUrl, getAmazonItemsWithSeller, extractAsinFromUrl } from '../services/amazonProductService';
 import { refineSearchQuery } from '../services/materialSearchAssistService';
 import { aiFindMaterials, isAllowedImageMime } from '../services/shopAiSearchService';
-import { checkShopAiQuota, recordShopAiSearch } from '../utils/costTracking';
+import { checkShopAiQuota, recordShopAiSearch, checkGuestAmazonFind, recordGuestAmazonFind } from '../utils/costTracking';
 import { autoGoinsFor } from '../utils/goinsPricing';
 import {
   runAmazonSuggestionScan,
@@ -198,6 +198,148 @@ router.post('/ai-search', authenticateToken, async (req: any, res: Response) => 
   } catch (err) {
     console.error('[materials] POST /ai-search error:', err);
     res.status(500).json({ error: 'AI search is not available right now.' });
+  }
+});
+
+// POST /materials/amazon-find  body: { query }
+// "Can't find it?": real Amazon India products for the words, cheapest first,
+// with seller, rating and a "Best pick". Works for visitors too (small daily
+// allowance). Results are remembered for 6 hours so repeats cost nothing. When
+// the allowance or Amazon is not available, a plain tagged Amazon search link
+// (fallbackUrl) is always returned so the child can still go on.
+const AMAZON_FIND_CACHE_KEY = 'amazon_find_cache';
+const AMAZON_FIND_TTL_MS = 6 * 60 * 60 * 1000;
+
+function amazonSearchUrl(q: string): string {
+  const tag = process.env.AMAZON_CREATORS_PARTNER_TAG || 'miniguru04-21';
+  return 'https://www.amazon.in/s?k=' + encodeURIComponent(q) + '&tag=' + encodeURIComponent(tag);
+}
+
+async function readFindCache(norm: string): Promise<any | null> {
+  try {
+    const row = await prisma.siteContent.findUnique({ where: { key: AMAZON_FIND_CACHE_KEY } });
+    const hit = (row?.value as any)?.entries?.[norm];
+    if (hit && Date.now() - hit.at < AMAZON_FIND_TTL_MS) return hit.payload;
+  } catch { /* no cache */ }
+  return null;
+}
+
+async function writeFindCache(norm: string, payload: any): Promise<void> {
+  try {
+    const row = await prisma.siteContent.findUnique({ where: { key: AMAZON_FIND_CACHE_KEY } });
+    const entries: Record<string, any> = { ...(((row?.value as any)?.entries) || {}) };
+    entries[norm] = { at: Date.now(), payload };
+    const keys = Object.keys(entries).sort((x, y) => entries[y].at - entries[x].at).slice(0, 60);
+    const trimmed: Record<string, any> = {};
+    for (const k of keys) trimmed[k] = entries[k];
+    await prisma.siteContent.upsert({
+      where: { key: AMAZON_FIND_CACHE_KEY },
+      update: { value: { entries: trimmed } },
+      create: { key: AMAZON_FIND_CACHE_KEY, value: { entries: trimmed } },
+    });
+  } catch { /* cache is optional */ }
+}
+
+// "pack of 5", "set of 12", "50 pcs" -> 5, 12, 50
+function packCount(unitText: string | null | undefined): number | null {
+  if (!unitText) return null;
+  if (!/pack|set|pcs|pieces|pc|count/i.test(unitText)) return null;
+  const m = unitText.match(/(\d+)/);
+  const n = m ? parseInt(m[1], 10) : 0;
+  return n >= 2 && n <= 500 ? n : null;
+}
+
+router.post('/amazon-find', authenticateTokenOptional, async (req: any, res: Response) => {
+  const rawQuery = typeof req.body?.query === 'string' ? req.body.query.trim().slice(0, 120) : '';
+  const fallbackUrl = amazonSearchUrl(rawQuery);
+  try {
+    if (rawQuery.length < 2) return res.status(400).json({ error: 'Type what you are looking for.' });
+    const norm = rawQuery.toLowerCase().replace(/\s+/g, ' ');
+
+    const cached = await readFindCache(norm);
+    if (cached) return res.json({ ...cached, fallbackUrl, cached: true });
+
+    const userId = req.user?.userId;
+    let ipHash = '';
+    let quota: { allowed: boolean; reason?: string };
+    if (userId) {
+      quota = await checkShopAiQuota(userId);
+    } else {
+      const ip = String(req.headers['x-forwarded-for'] || req.ip || '').split(',')[0].trim();
+      ipHash = require('crypto').createHash('sha256').update(ip).digest('hex').slice(0, 16);
+      quota = await checkGuestAmazonFind(ipHash);
+    }
+    if (!quota.allowed) {
+      return res.status(429).json({
+        error: quota.reason === 'site'
+          ? 'MiniGuru AI search is very busy today.'
+          : userId
+            ? 'You have used all your MiniGuru AI searches for today.'
+            : 'You have used the free searches for today. Log in for more.',
+        fallbackUrl,
+        limitReached: true,
+      });
+    }
+    if (userId) await recordShopAiSearch(userId); else await recordGuestAmazonFind(ipHash);
+
+    // Plain search first (no AI). Only if it finds very little do we ask Gemini for a better phrase.
+    let found = await searchAmazonProducts(rawQuery, 10);
+    if (!found.configured) {
+      return res.json({ results: [], message: 'Amazon search is not available right now.', fallbackUrl });
+    }
+    let list: any[] = (found.results || []).filter((r: any) => r.available !== false);
+    let searchedFor = rawQuery;
+    if (list.length < 3) {
+      try {
+        const refined = await refineSearchQuery(rawQuery, undefined, undefined, []);
+        if (refined && refined.toLowerCase() !== norm) {
+          const f2 = await searchAmazonProducts(refined, 10);
+          const seen = new Set(list.map((r: any) => r.asin));
+          for (const r of (f2.results || [])) if (r.available !== false && !seen.has(r.asin)) list.push(r);
+          searchedFor = refined;
+        }
+      } catch { /* keep the plain results */ }
+    }
+    list.sort((a: any, b: any) => (a.priceRupees ?? Infinity) - (b.priceRupees ?? Infinity));
+    list = list.slice(0, 6);
+    if (list.length) {
+      const more = await getAmazonItemsWithSeller(list.map((a: any) => a.asin));
+      const byAsin = new Map<string, any>((more.results || []).map((r: any) => [r.asin, r]));
+      list = list.map((a: any) => ({ ...a, ...(byAsin.get(a.asin) || {}) }));
+    }
+    // Hide poorly rated items unless the seller is trusted.
+    list = list.filter((r: any) => !(typeof r.rating === 'number' && r.rating < 3.5 && !r.trusted));
+    list.sort((a: any, b: any) => (a.priceRupees ?? Infinity) - (b.priceRupees ?? Infinity));
+
+    const priced = list.filter((r: any) => typeof r.priceRupees === 'number');
+    const cheapestAsin = priced.length ? priced[0].asin : null;
+    const trustedPriced = priced.filter((r: any) => r.trusted);
+    const bestTrustedAsin = trustedPriced.length ? trustedPriced[0].asin : null;
+    const good = priced.filter((r: any) => typeof r.rating === 'number' && r.rating >= 4 && (r.trusted || (r.reviewCount ?? 0) >= 50));
+    const bestPickAsin = good.length ? good[0].asin : null;
+
+    const results = list.map((r: any) => {
+      const n = packCount(r.extractedUnit);
+      return {
+        asin: r.asin,
+        title: r.title,
+        imageUrl: r.imageUrl,
+        priceRupees: r.priceRupees,
+        pricePerPiece: n && typeof r.priceRupees === 'number' ? Math.round((r.priceRupees / n) * 10) / 10 : null,
+        packCount: n,
+        seller: r.seller ?? null,
+        trusted: !!r.trusted,
+        rating: r.rating ?? null,
+        reviewCount: r.reviewCount ?? null,
+        url: buildAffiliateUrl(r.asin),
+      };
+    });
+    const payload = { results, cheapestAsin, bestTrustedAsin, bestPickAsin, searchedFor };
+    if (results.length) await writeFindCache(norm, payload);
+    res.json({ ...payload, fallbackUrl, message: results.length ? undefined : 'No products found. Try other words.' });
+  } catch (err) {
+    console.error('[materials] POST /amazon-find error:', err);
+    res.status(500).json({ error: 'Amazon search is not available right now.', fallbackUrl });
   }
 });
 

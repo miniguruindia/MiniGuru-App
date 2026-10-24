@@ -100,6 +100,42 @@ class MiniguruApi {
     );
   }
 
+  /// Shop "Can't find it?": real Amazon products, cheapest first.
+  Future<http.Response> amazonFind(String query) async {
+    // Works for visitors too: send the login token only when there is one.
+    dynamic authToken;
+    try { authToken = await _getValidToken(); } catch (_) { authToken = null; }
+    return await http.post(
+      Uri.parse('$_baseUrl/materials/amazon-find'),
+      headers: _buildHeaders(authToken?.accessToken as String?),
+      body: jsonEncode({'query': query}),
+    );
+  }
+
+  Future<List<dynamic>> getSavedItems() async {
+    final authToken = await _getValidToken();
+    if (authToken == null) return [];
+    final r = await http.get(Uri.parse('$_baseUrl/shop/saved'), headers: _buildHeaders(authToken.accessToken));
+    if (r.statusCode != 200) return [];
+    return (jsonDecode(r.body)['items'] as List?) ?? [];
+  }
+
+  Future<String?> saveItem(Map<String, dynamic> item) async {
+    final authToken = await _getValidToken();
+    if (authToken == null) return 'Please log in first.';
+    final r = await http.post(Uri.parse('$_baseUrl/shop/saved'),
+        headers: _buildHeaders(authToken.accessToken), body: jsonEncode(item));
+    if (r.statusCode == 200 || r.statusCode == 201) return null;
+    try { return (jsonDecode(r.body)['error'] ?? 'Could not save.').toString(); } catch (_) { return 'Could not save.'; }
+  }
+
+  Future<bool> deleteSavedItem(String id) async {
+    final authToken = await _getValidToken();
+    if (authToken == null) return false;
+    final r = await http.delete(Uri.parse('$_baseUrl/shop/saved/$id'), headers: _buildHeaders(authToken.accessToken));
+    return r.statusCode == 200;
+  }
+
   Future<http.Response> changePassword(String currentPassword, String newPassword) async {
     final authToken = await _getValidToken();
     if (authToken == null) throw Exception('User not logged in');
