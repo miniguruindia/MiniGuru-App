@@ -16,7 +16,7 @@ import {
   approveContactChange,
   rejectContactChange,
 } from '../controllers/auth/contactVerificationController';
-import { listProductSuggestions, updateProductSuggestion, approveProductSuggestion } from '../controllers/admin/productSuggestionController';
+import { listProductSuggestions, updateProductSuggestion, approveProductSuggestion, deleteRejectedProductSuggestion, cleanupRejectedProductSuggestions } from '../controllers/admin/productSuggestionController';
 import prisma from '../utils/prismaClient';
 import { recordGoinsEvents } from '../utils/goinsLedger';
 
@@ -271,6 +271,9 @@ adminRouter.post('/contact-change-requests/:userId/reject', authenticateToken, a
 // ==================== PRODUCT SUGGESTIONS ====================
 adminRouter.get('/product-suggestions', authenticateToken, authorizeAdmin, listProductSuggestions);
 adminRouter.put('/product-suggestions/:id', authenticateToken, authorizeAdmin, updateProductSuggestion);
+// fixed path BEFORE the /:id routes (rule 61)
+adminRouter.post('/product-suggestions/cleanup-rejected', authenticateToken, authorizeAdmin, cleanupRejectedProductSuggestions);
 adminRouter.post('/product-suggestions/:id/approve', authenticateToken, authorizeAdmin, approveProductSuggestion);
+adminRouter.delete('/product-suggestions/:id', authenticateToken, authorizeAdmin, deleteRejectedProductSuggestion);
 
 export default adminRouter;

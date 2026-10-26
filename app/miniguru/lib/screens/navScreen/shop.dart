@@ -59,7 +59,16 @@ class _ShopState extends State<Shop>
   @override bool get wantKeepAlive => true;
 
   @override
-  void initState() { super.initState(); _loadMaterials(); _loadCollections(); _loadGroups(); }
+  void initState() { super.initState(); _checkLogin(); _loadMaterials(); _loadCollections(); _loadGroups(); }
+
+  // Visitors without a login never send "suggestions" from Amazon search.
+  bool _hasLogin = false;
+  Future<void> _checkLogin() async {
+    try {
+      final t = (await DatabaseHelper().getAuthToken())?.accessToken;
+      if (mounted) setState(() => _hasLogin = t != null && t.isNotEmpty);
+    } catch (_) {}
+  }
 
   // "Clubbed" category groups (Sept 2026) — e.g. one "Electronics & Circuits"
   // chip surfacing every material across several specific categories at
@@ -501,7 +510,7 @@ class _ShopState extends State<Shop>
   // Tells MiniGuru about an item the child acted on (once per item), unless unticked.
   Future<void> _maybeSuggest(Map<String, dynamic> r) async {
     final asin = (r['asin'] ?? '').toString();
-    if (!_alsoSuggest || asin.isEmpty || _suggestedAsins.contains(asin)) return;
+    if (!_hasLogin || !_alsoSuggest || asin.isEmpty || _suggestedAsins.contains(asin)) return;
     _suggestedAsins.add(asin);
     try {
       await MiniguruApi().suggestMaterial(
@@ -547,7 +556,7 @@ class _ShopState extends State<Shop>
               Align(alignment: Alignment.centerLeft,
                 child: Text('ℹ️ $limitNote',
                     style: GoogleFonts.nunito(fontSize: 11, fontWeight: FontWeight.w700, color: const Color(0xFF0A6CFF)))),
-            CheckboxListTile(
+            if (_hasLogin) CheckboxListTile(
               dense: true,
               contentPadding: EdgeInsets.zero,
               controlAffinity: ListTileControlAffinity.leading,
@@ -1085,7 +1094,7 @@ class _ShopState extends State<Shop>
                   child: Row(children: [
                     const Icon(Icons.check_circle_rounded, color: Color(0xFF0E9A3F)),
                     const SizedBox(width: 10),
-                    Expanded(child: Text('Email sent! Parent will receive full kit list with a one-tap Amazon buy link.',
+                    Expanded(child: Text('Email sent! Parent will get the kit list with a one-tap Amazon buy link. If it is not in the inbox, ask them to check the Spam folder.',
                         style: GoogleFonts.nunito(fontSize: 13, color: Color(0xFF0E9A3F), fontWeight: FontWeight.w700))),
                   ]),
                 ),

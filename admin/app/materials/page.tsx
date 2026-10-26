@@ -2481,6 +2481,42 @@ function SuggestionsTab() {
     }
   }
 
+  // Remove one rejected suggestion for good (only rejected ones can be removed).
+  const removeRejected = async (id: string) => {
+    if (!confirm('Remove this rejected suggestion for good? This cannot be undone.')) return
+    setBusyId(id)
+    try {
+      const token = await authToken()
+      await fetch(`${API_BASE}/admin/product-suggestions/${id}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      await load()
+    } finally {
+      setBusyId(null)
+    }
+  }
+
+  // Remove every suggestion rejected more than 90 days ago.
+  const [cleanMsg, setCleanMsg] = useState('')
+  const cleanupOld = async () => {
+    if (!confirm('Remove all suggestions that were rejected more than 90 days ago? This cannot be undone.')) return
+    setCleanMsg('')
+    try {
+      const token = await authToken()
+      const res = await fetch(`${API_BASE}/admin/product-suggestions/cleanup-rejected`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ olderThanDays: 90 }),
+      })
+      const d = await res.json().catch(() => ({}))
+      setCleanMsg(d.message || d.error || 'Done')
+      await load()
+    } catch {
+      setCleanMsg('Could not clean up. Please try again.')
+    }
+  }
+
   // Single action: approving a child's suggestion immediately creates the
   // real Material (autofilled from the child's own suggested Goins rate +
   // whatever the AI scan already found on Amazon) and marks the suggestion
@@ -2532,6 +2568,17 @@ function SuggestionsTab() {
           </button>
         ))}
       </div>
+
+      {filter === 'rejected' && (
+        <div className="flex items-center gap-3 mb-4 flex-wrap">
+          <button onClick={cleanupOld}
+            className="text-xs px-3 py-1.5 rounded border border-red-200 bg-red-50 text-red-600 hover:bg-red-100">
+            Remove rejected older than 90 days
+          </button>
+          <span className="text-xs text-gray-500">Rejected items are kept so the same item is not suggested again. Remove them only when you want to.</span>
+          {cleanMsg && <span className="text-xs text-green-700">{cleanMsg}</span>}
+        </div>
+      )}
 
       {loading ? (
         <div className="flex justify-center py-16"><Loader2 className="w-6 h-6 animate-spin text-indigo-500" /></div>
@@ -2595,6 +2642,17 @@ function SuggestionsTab() {
                     />
                   ) : null}
                 </div>
+                {s.status === 'rejected' && (
+                  <div className="flex flex-col gap-1 shrink-0">
+                    <button
+                      disabled={busyId === s.id}
+                      onClick={() => removeRejected(s.id)}
+                      className="text-xs px-2 py-1 rounded bg-red-50 text-red-600 border border-red-200 hover:bg-red-100 flex items-center gap-1"
+                    >
+                      <X className="w-3 h-3" /> Remove
+                    </button>
+                  </div>
+                )}
                 {(s.status === 'pending' || s.status === 'approved') && (
                   <div className="flex flex-col gap-1 shrink-0">
                     <button

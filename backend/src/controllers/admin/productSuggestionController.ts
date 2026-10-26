@@ -131,3 +131,34 @@ export const approveProductSuggestion = async (req: Request, res: Response) => {
     return res.status(500).json({ error: `Could not create material: ${(error as Error).message}` });
   }
 };
+
+
+// DELETE /admin/product-suggestions/:id  — removes ONE rejected suggestion.
+// Only rejected ones can be removed this way (pending / approved / added are kept).
+export const deleteRejectedProductSuggestion = async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const existing = await prisma.productSuggestion.findUnique({ where: { id } });
+  if (!existing) return res.status(404).json({ error: 'Suggestion not found (it may already be removed).' });
+  if (existing.status !== 'rejected') {
+    return res.status(400).json({ error: 'Only rejected suggestions can be removed.' });
+  }
+  await prisma.productSuggestion.delete({ where: { id } });
+  return res.status(200).json({ message: 'Suggestion removed.' });
+};
+
+// POST /admin/product-suggestions/cleanup-rejected  { olderThanDays?: number }
+// Removes rejected suggestions that were rejected more than N days ago (default 90, never less than 30).
+export const cleanupRejectedProductSuggestions = async (req: Request, res: Response) => {
+  const asked = parseInt(String(req.body?.olderThanDays ?? 90), 10);
+  const days = Number.isNaN(asked) ? 90 : Math.max(30, asked);
+  const cutoff = new Date(Date.now() - days * 86400000);
+  const rejected = await prisma.productSuggestion.findMany({
+    where: { status: 'rejected' },
+    select: { id: true, resolvedAt: true, createdAt: true },
+  });
+  const ids = rejected
+    .filter((r) => (r.resolvedAt || r.createdAt) < cutoff)
+    .map((r) => r.id);
+  if (ids.length) await prisma.productSuggestion.deleteMany({ where: { id: { in: ids } } });
+  return res.status(200).json({ message: `Removed ${ids.length} rejected suggestion(s) older than ${days} days.`, removed: ids.length, days });
+};

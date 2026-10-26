@@ -6,6 +6,7 @@
 // that imports this file needs to change.
 import sgMail from '@sendgrid/mail';
 import { checkEmailQuota, recordEmailSent } from '../../utils/costTracking';
+import { htmlToText } from '../../utils/htmlToText';
 
 let resendClient: any = null;
 if (process.env.RESEND_API_KEY) {
@@ -16,22 +17,11 @@ if (process.env.RESEND_API_KEY) {
 sgMail.setApiKey(process.env.SENDGRID_API_KEY || '');
 
 const DEFAULT_FROM = { email: process.env.FROM_EMAIL || 'connect@miniguru.in', name: 'MiniGuru' };
-// Second, lower-stakes "official" sender — for materials-kit-to-parent
-// emails and admin broadcasts/announcements. connect@miniguru.in stays
-// reserved for OTP codes and password resets (highest-stakes, most
-// security-sensitive mail). Requires miniguru.in@gmail.com to be a
-// verified sender identity with whichever provider is currently active
-// (SendGrid or Resend) — mail from an unverified sender is silently
-// rejected or spam-flagged, so confirm that's done before relying on this.
-// OFFICIAL_FROM was originally 'miniguru.in@gmail.com' — a Gmail address.
-// Resend (now the primary provider, since the Aug 23 SendGrid outage) can
-// only send FROM an address on a domain you've verified with them — only
-// miniguru.in is verified, never gmail.com (nobody can verify that, Google
-// owns it). Every send using OFFICIAL_FROM was silently failing at Resend's
-// API level (surfaced as "Failed to send email" — e.g. shop/send-to-parent).
-// Fixed to stay on the verified miniguru.in domain while still being a
-// separate, lower-stakes address from connect@ (reserved for OTP/reset).
-export const OFFICIAL_FROM = { email: 'updates@miniguru.in', name: 'MiniGuru' };
+// All MiniGuru mail now goes out from the one verified address connect@miniguru.in
+// (Oct 2026: a second sender, updates@, was landing in Spam with a "might be
+// dangerous" warning, and one sender builds a better reputation). OFFICIAL_FROM
+// is kept as a name so existing callers still work; it is the same address.
+export const OFFICIAL_FROM = DEFAULT_FROM;
 
 async function sendEmailRaw({
   to,
@@ -65,6 +55,7 @@ async function sendEmailRaw({
       to: [to],
       subject,
       html,
+      ...(htmlToText(html) ? { text: htmlToText(html) } : {}),
     });
     if (error) {
       throw new Error(`Resend send failed: ${error.message || JSON.stringify(error)}`);
@@ -73,8 +64,13 @@ async function sendEmailRaw({
     return;
   }
 
-  await sgMail.send({ to, from, subject, html });
+  await sgMail.send({ to, from, subject, html, ...(htmlToText(html) ? { text: htmlToText(html) } : {}) });
   await recordEmailSent();
+}
+
+function mailMeta(args: any) {
+  const from = args?.fromOverride || DEFAULT_FROM;
+  return { html: args?.html, from: from.email, kind: args?.kind, reference: args?.reference };
 }
 
 // Logs every attempt (sent / failed / blocked by the daily limit) for the admin Email log.
@@ -82,10 +78,10 @@ export async function sendEmail(args: any) {
   const { logEmail } = require('../../utils/emailLog');
   try {
     await sendEmailRaw(args);
-    await logEmail(args.to, args.subject, 'sent');
+    await logEmail(args.to, args.subject, 'sent', undefined, mailMeta(args));
   } catch (err: any) {
     const msg = String(err?.message || err);
-    await logEmail(args.to, args.subject, msg.startsWith('EMAIL_QUOTA_EXCEEDED') ? 'blocked' : 'failed', msg);
+    await logEmail(args.to, args.subject, msg.startsWith('EMAIL_QUOTA_EXCEEDED') ? 'blocked' : 'failed', msg, mailMeta(args));
     throw err;
   }
 }

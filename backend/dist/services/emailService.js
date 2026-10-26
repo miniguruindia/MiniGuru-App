@@ -23,6 +23,7 @@ exports.sendEmail = sendEmail;
 // change needed either way.
 const sgMail = require('@sendgrid/mail');
 const { checkEmailQuota, recordEmailSent } = require('../utils/costTracking');
+const { htmlToText } = require('../utils/htmlToText');
 let resendClient = null;
 if (process.env.RESEND_API_KEY) {
     const { Resend } = require('resend');
@@ -51,6 +52,7 @@ async function sendEmailRaw({ to, subject, html, cc, }) {
             ...(cc ? { cc: Array.isArray(cc) ? cc : [cc] } : {}),
             subject,
             html,
+            ...(htmlToText(html) ? { text: htmlToText(html) } : {}),
         });
         if (error) {
             throw new Error(`Resend send failed: ${error.message || JSON.stringify(error)}`);
@@ -68,19 +70,23 @@ async function sendEmailRaw({ to, subject, html, cc, }) {
         },
         subject,
         html,
+        ...(htmlToText(html) ? { text: htmlToText(html) } : {}),
     });
     await recordEmailSent();
+}
+function mailMeta(args) {
+    return { html: args?.html, from: process.env.FROM_EMAIL || 'connect@miniguru.in', kind: args?.kind, reference: args?.reference };
 }
 // Logs every attempt (sent / failed / blocked by the daily limit) for the admin Email log.
 async function sendEmail(args) {
     const { logEmail } = require('../utils/emailLog');
     try {
         await sendEmailRaw(args);
-        await logEmail(args.to, args.subject, 'sent');
+        await logEmail(args.to, args.subject, 'sent', undefined, mailMeta(args));
     }
     catch (err) {
         const msg = String(err?.message || err);
-        await logEmail(args.to, args.subject, msg.startsWith('EMAIL_QUOTA_EXCEEDED') ? 'blocked' : 'failed', msg);
+        await logEmail(args.to, args.subject, msg.startsWith('EMAIL_QUOTA_EXCEEDED') ? 'blocked' : 'failed', msg, mailMeta(args));
         throw err;
     }
 }

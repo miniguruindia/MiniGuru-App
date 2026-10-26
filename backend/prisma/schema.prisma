@@ -955,9 +955,30 @@ model EmailLog {
   status    String   // "sent" | "failed" | "blocked" (daily limit reached)
   error     String?
   createdAt DateTime @default(now())
+  // Added Oct 2026 (patch 37). All optional so older rows stay valid.
+  fromEmail String?
+  kind      String?  // kit-to-parent | materials-list | announcement | direct | security | forward | other
+  reference String?  // short human note: who/what this email was about
+  bodyHtml  String?  // never stored for "security" mail (codes and reset links)
+  saved     Boolean? // true = admin keeps it; it is never auto-deleted
+  savedAt   DateTime?
 
   @@index([createdAt])
   @@map("email_logs")
+}
+
+// One row per email address MiniGuru has written to, with the latest reason.
+// Lets the admin contact someone again later. Never auto-deleted.
+model EmailContact {
+  id            String   @id @default(auto()) @map("_id") @db.ObjectId
+  email         String   @unique
+  lastKind      String?
+  lastReference String?
+  sentCount     Int      @default(1)
+  firstSentAt   DateTime @default(now())
+  lastSentAt    DateTime @default(now())
+
+  @@map("email_contacts")
 }
 
 // An Amazon product a child or parent saved for later buying (Oct 2026).

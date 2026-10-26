@@ -26,7 +26,7 @@ router.get('/email-log', async (req, res) => {
     try {
         const limit = Math.min(Math.max(parseInt(String(req.query.limit || '100'), 10) || 100, 1), 300);
         const db = prismaClient_1.default;
-        const rows = await db.emailLog.findMany({ orderBy: { createdAt: 'desc' }, take: limit });
+        const rows = await db.emailLog.findMany({ orderBy: { createdAt: 'desc' }, take: limit, select: { id: true, toEmail: true, subject: true, status: true, error: true, createdAt: true } });
         const ist = new Date(Date.now() + 5.5 * 3600 * 1000);
         ist.setUTCHours(0, 0, 0, 0);
         const startOfIstDay = new Date(ist.getTime() - 5.5 * 3600 * 1000);

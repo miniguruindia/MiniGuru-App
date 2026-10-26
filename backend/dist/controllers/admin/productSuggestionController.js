@@ -22,7 +22,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.approveProductSuggestion = exports.updateProductSuggestion = exports.listProductSuggestions = void 0;
+exports.cleanupRejectedProductSuggestions = exports.deleteRejectedProductSuggestion = exports.approveProductSuggestion = exports.updateProductSuggestion = exports.listProductSuggestions = void 0;
 const prismaClient_1 = __importDefault(require("../../utils/prismaClient"));
 const amazonProductService_1 = require("../../services/amazonProductService");
 // GET /admin/product-suggestions?status=pending
@@ -125,3 +125,35 @@ const approveProductSuggestion = async (req, res) => {
     }
 };
 exports.approveProductSuggestion = approveProductSuggestion;
+// DELETE /admin/product-suggestions/:id  — removes ONE rejected suggestion.
+// Only rejected ones can be removed this way (pending / approved / added are kept).
+const deleteRejectedProductSuggestion = async (req, res) => {
+    const { id } = req.params;
+    const existing = await prismaClient_1.default.productSuggestion.findUnique({ where: { id } });
+    if (!existing)
+        return res.status(404).json({ error: 'Suggestion not found (it may already be removed).' });
+    if (existing.status !== 'rejected') {
+        return res.status(400).json({ error: 'Only rejected suggestions can be removed.' });
+    }
+    await prismaClient_1.default.productSuggestion.delete({ where: { id } });
+    return res.status(200).json({ message: 'Suggestion removed.' });
+};
+exports.deleteRejectedProductSuggestion = deleteRejectedProductSuggestion;
+// POST /admin/product-suggestions/cleanup-rejected  { olderThanDays?: number }
+// Removes rejected suggestions that were rejected more than N days ago (default 90, never less than 30).
+const cleanupRejectedProductSuggestions = async (req, res) => {
+    const asked = parseInt(String(req.body?.olderThanDays ?? 90), 10);
+    const days = Number.isNaN(asked) ? 90 : Math.max(30, asked);
+    const cutoff = new Date(Date.now() - days * 86400000);
+    const rejected = await prismaClient_1.default.productSuggestion.findMany({
+        where: { status: 'rejected' },
+        select: { id: true, resolvedAt: true, createdAt: true },
+    });
+    const ids = rejected
+        .filter((r) => (r.resolvedAt || r.createdAt) < cutoff)
+        .map((r) => r.id);
+    if (ids.length)
+        await prismaClient_1.default.productSuggestion.deleteMany({ where: { id: { in: ids } } });
+    return res.status(200).json({ message: `Removed ${ids.length} rejected suggestion(s) older than ${days} days.`, removed: ids.length, days });
+};
+exports.cleanupRejectedProductSuggestions = cleanupRejectedProductSuggestions;

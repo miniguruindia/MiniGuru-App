@@ -57,8 +57,8 @@ router.post('/send-to-parent', async (req: Request, res: Response) => {
     ).join('');
     const totalEst = items.reduce((s: number, i: any) => s + (i.priceEstimate || 0) * i.qty, 0);
     const rows = items.map((item: any) => `<tr>
-      <td style="padding:8px 12px;border-bottom:1px solid #eee"><strong>${item.name}</strong></td>
-      <td style="padding:8px 12px;border-bottom:1px solid #eee;text-align:center">${item.qty} ${item.unit || 'piece'}</td>
+      <td style="padding:8px 12px;border-bottom:1px solid #eee"><strong>${escHtml(item.name)}</strong></td>
+      <td style="padding:8px 12px;border-bottom:1px solid #eee;text-align:center">${escHtml(item.qty)} ${escHtml(item.unit || 'piece')}</td>
       <td style="padding:8px 12px;border-bottom:1px solid #eee;text-align:right">${item.priceEstimate ? '\u20b9' + (item.priceEstimate * item.qty) : '-'}</td>
       <td style="padding:8px 12px;border-bottom:1px solid #eee;text-align:center">${item.amazonASIN ? '<span style="background:#FF9900;color:#fff;padding:2px 8px;border-radius:4px;font-size:12px">Amazon</span>' : '<span style="background:#aaa;color:#fff;padding:2px 8px;border-radius:4px;font-size:12px">Local</span>'}</td>
     </tr>`).join('');
@@ -69,8 +69,8 @@ router.post('/send-to-parent', async (req: Request, res: Response) => {
 <h1 style="margin:0;color:#fff;font-size:28px">&#129504; MiniGuru</h1>
 <p style="margin:6px 0 0;color:rgba(255,255,255,0.85)">STEAM Education Platform</p></div>
 <div style="padding:32px">
-<h2 style="color:#1a1a2e">&#128722; ${childName || 'Your child'} needs materials!</h2>
-<p style="color:#555">They planned a STEAM project${projectTitle ? ' <strong>"' + projectTitle + '"</strong>' : ''}. Here are the materials:</p>
+<h2 style="color:#1a1a2e">&#128722; ${escHtml(childName || 'Your child')} needs materials!</h2>
+<p style="color:#555">They planned a STEAM project${projectTitle ? ' <strong>"' + escHtml(projectTitle) + '"</strong>' : ''}. Here are the materials:</p>
 <table width="100%" style="border:1px solid #eee;border-radius:8px;margin-bottom:24px">
 <tr style="background:#f5f7ff"><th style="padding:10px 12px;text-align:left;color:#5B6EF5">Material</th><th style="color:#5B6EF5">Qty</th><th style="color:#5B6EF5">Est.</th><th style="color:#5B6EF5">Source</th></tr>
 ${rows}
@@ -86,10 +86,12 @@ ${cartButtonsHtml ? '<div style="text-align:center;margin:28px 0">' + cartButton
 </body></html>`;
 
     await sendEmail({
-      to: parentEmail,
-      subject: `\u{1F6D2} ${childName || 'Your child'} needs materials for their STEAM project!`,
+      to: String(parentEmail).trim(),
+      subject: `Materials list for ${String(childName || 'your child').slice(0, 60)}'s STEAM project`,
       html,
-      fromOverride: OFFICIAL_FROM, // lower-stakes mail, connect@ reserved for OTP/reset
+      fromOverride: OFFICIAL_FROM, // now the same connect@ address as all other mail
+      kind: 'kit-to-parent',
+      reference: `Kit for ${String(childName || 'a child').slice(0, 40)} - ${items.length} items${projectTitle ? ' - ' + String(projectTitle).slice(0, 60) : ''}`,
     });
     await recordListShare(
       'send-to-parent',
@@ -216,6 +218,8 @@ ${buttons ? '<div style="text-align:center;margin:26px 0">' + buttons + '<p styl
       subject: `Materials list: ${listTitle}`.slice(0, 150),
       html,
       fromOverride: OFFICIAL_FROM,
+      kind: 'materials-list',
+      reference: `List "${listTitle.slice(0, 60)}"${senderName ? ' by ' + senderName : ''} - ${clean.length} items`,
     });
     listSendLog.set(ip, [...recent, now]);
     await recordListShare(
@@ -251,6 +255,11 @@ router.post('/suggest', authenticateTokenOptional, async (req: Request, res: Res
     const loggedInUser = (req as any).user;
     // A product found on Amazon is suggested only once per person (visitors: once overall).
     const asinMatch = String(suggestion).match(/\/dp\/([A-Z0-9]{10})/);
+    // Visitors who are not logged in never create suggestions from Amazon search
+    // (this also covers older app versions that still send them).
+    if (asinMatch && !loggedInUser?.id) {
+      return res.status(201).json({ success: true, message: 'Thanks for your suggestion!' });
+    }
     if (asinMatch) {
       const dup = await (prisma as any).productSuggestion.findFirst({
         where: {
