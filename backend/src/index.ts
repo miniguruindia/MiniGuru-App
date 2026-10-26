@@ -35,6 +35,7 @@ import guardianRouter from './routes/guardianRoutes';
 import schoolJoinRouter from './routes/schoolJoinRoutes';
 import accountMergeRouter from './routes/accountMergeRoutes';
 import adminAccountTypeRouter from './routes/adminAccountTypeRoutes';
+import adminDeleteUserRouter from './routes/adminDeleteUserRoutes';
 import communicationRouter from './routes/communicationRoutes';   // ← NEW
 import goinsRouter from './routes/goinsRoutes';           // ← NEW
 import dailyQuestRouter from './routes/dailyQuestRoutes';
@@ -308,6 +309,7 @@ try {
   app.use('/admin', costDashboardRouter);   // ← NEW: admin cost/quota dashboard
   app.use('/admin', accountMergeRouter);   // admin-only: merge duplicate child accounts
   app.use('/admin', adminAccountTypeRouter);   // admin-only: change account type (individual/parent/school/T-LAB)
+  app.use('/admin', adminDeleteUserRouter);   // admin-only: safe delete (students stay, optional keep-content)
   app.use(communitySubmissionsRouter);   // ← NEW: serves /happenings, /admin/happenings, /challenges, /admin/challenges
   app.use('/payment', paymentRouter);
   app.use('/api/videos', videoRoutes);

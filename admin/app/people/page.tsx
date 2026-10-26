@@ -90,18 +90,11 @@ function DirectoryTab() {
     }
   }
 
-  const handleDeleteUser = async (userId: string) => {
-    if (!confirm('Delete this user? This cannot be undone.')) return
-    try {
-      const token = await authToken()
-      const res = await fetch(`${API_BASE}/admin/users/${userId}`, {
-        method: 'DELETE', headers: { Authorization: `Bearer ${token}` },
-      })
-      if (!res.ok) throw new Error(`${res.status}`)
-      setUsers(prev => prev.filter(u => u.id !== userId))
-    } catch (err: any) {
-      alert('Could not delete user: ' + (err?.message || 'Unknown error'))
-    }
+  // Safe delete (Oct 2026): opens a dialog that explains what happens to students and content first.
+  const [deleteTarget, setDeleteTarget] = useState<User | null>(null)
+  const handleDeleteUser = (userId: string) => {
+    const u = users.find(x => x.id === userId)
+    if (u) setDeleteTarget(u)
   }
 
   // Cities that actually exist in the data — built dynamically, so this
@@ -261,6 +254,119 @@ function DirectoryTab() {
           </table>
         </div>
       </Card>
+      {deleteTarget && (
+        <DeleteUserDialog
+          user={deleteTarget}
+          onClose={() => setDeleteTarget(null)}
+          onDeleted={() => { const id = deleteTarget.id; setDeleteTarget(null); setUsers(prev => prev.filter(u => u.id !== id)) }}
+        />
+      )}
+    </div>
+  )
+}
+
+// Dialog for "Delete" in the Directory: shows the students and content first, lets the admin
+// keep the content (moved to the MiniGuru account) or remove everything. Students always stay.
+function DeleteUserDialog({ user, onClose, onDeleted }: { user: User; onClose: () => void; onDeleted: () => void }) {
+  const [preview, setPreview] = useState<any>(null)
+  const [loadError, setLoadError] = useState<string | null>(null)
+  const [mode, setMode] = useState<'keep' | 'remove'>('keep')
+  const [typed, setTyped] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    let alive = true
+    ;(async () => {
+      try {
+        const token = await authToken()
+        const res = await fetch(`${API_BASE}/admin/users/${user.id}/delete-preview`, { headers: { Authorization: `Bearer ${token}` } })
+        const body = await res.json().catch(() => ({}))
+        if (!alive) return
+        if (!res.ok) { setLoadError(body.message || `Could not load (${res.status})`); return }
+        setPreview(body)
+      } catch (e: any) {
+        if (alive) setLoadError(e?.message || 'Could not load')
+      }
+    })()
+    return () => { alive = false }
+  }, [user.id])
+
+  const confirmDelete = async () => {
+    if (busy) return
+    setBusy(true); setError(null)
+    try {
+      const token = await authToken()
+      const res = await fetch(`${API_BASE}/admin/users/${user.id}/delete`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mode, confirm: 'DELETE' }),
+      })
+      const body = await res.json().catch(() => ({}))
+      if (!res.ok) { setError(body.message || `Could not delete (${res.status})`); return }
+      onDeleted()
+    } catch (e: any) {
+      setError(e?.message || 'Could not delete')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const c = preview?.content
+  const st = preview?.students
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-xl p-6 max-w-lg w-full max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between mb-2">
+          <h3 className="text-lg font-bold text-gray-900">Delete {user.name}?</h3>
+          <button onClick={onClose}><X className="h-5 w-5 text-gray-400" /></button>
+        </div>
+        {loadError && <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700 mb-3">{loadError}</div>}
+        {!preview && !loadError && <div className="py-6 text-center text-gray-500 text-sm"><Loader2 className="h-5 w-5 animate-spin inline mr-2" />Checking what this account has…</div>}
+        {preview && (
+          <>
+            {(st.count > 0 || st.withoutLogin > 0) && (
+              <div className="p-3 bg-green-50 border border-green-200 rounded-lg text-sm text-green-800 mb-3">
+                <b>{st.count} student{st.count === 1 ? '' : 's'} will stay on MiniGuru</b> as independent learners, with their own login, Goins and projects.
+                {st.names.length > 0 && <div className="text-xs mt-1">{st.names.join(', ')}{st.count > st.names.length ? ' …' : ''}</div>}
+                {st.withoutLogin > 0 && <div className="text-xs mt-1 text-amber-700">{st.withoutLogin} older student entr{st.withoutLogin === 1 ? 'y has' : 'ies have'} no login of their own and will be removed.</div>}
+              </div>
+            )}
+            {preview.inSomeonesList > 0 && (
+              <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-800 mb-3">This person is in a school or family list. They will be taken out of it.</div>
+            )}
+            <div className="text-sm text-gray-700 mb-3">
+              Their account has {c.projects} project{c.projects === 1 ? '' : 's'}, {c.projectComments + c.videoComments} comment{c.projectComments + c.videoComments === 1 ? '' : 's'} and ⬡ {preview.user.score} Goins.
+              YouTube videos always stay online either way.
+            </div>
+            <label className="flex items-start gap-2 p-3 border rounded-lg mb-2 cursor-pointer">
+              <input type="radio" className="mt-1" checked={mode === 'keep'} onChange={() => setMode('keep')} />
+              <span className="text-sm"><b>Delete and keep content (recommended)</b><br />
+                <span className="text-gray-600">Projects, comments, ratings and Goins move to the MiniGuru account ({preview.keepAccount ? preview.keepAccount.email : 'not found'}), then the person is deleted.</span>
+              </span>
+            </label>
+            {mode === 'keep' && !preview.keepAccount && (
+              <div className="p-2 bg-red-50 border border-red-200 rounded-lg text-xs text-red-700 mb-2">The MiniGuru account was not found, so this option will not work. Choose "remove everything" or create that account first.</div>
+            )}
+            <label className="flex items-start gap-2 p-3 border rounded-lg mb-3 cursor-pointer">
+              <input type="radio" className="mt-1" checked={mode === 'remove'} onChange={() => setMode('remove')} />
+              <span className="text-sm"><b>Delete and remove everything of theirs</b><br />
+                <span className="text-gray-600">Projects, comments and Goins records are removed from MiniGuru. This cannot be undone.</span>
+              </span>
+            </label>
+            <label className="text-xs font-medium text-gray-500">Type DELETE to confirm</label>
+            <input value={typed} onChange={e => setTyped(e.target.value)} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm mb-3" placeholder="DELETE" />
+          </>
+        )}
+        {error && <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700 mb-3">{error}</div>}
+        <div className="flex justify-end gap-2">
+          <Button variant="outline" onClick={onClose} disabled={busy}>Cancel</Button>
+          <Button variant="destructive" onClick={confirmDelete}
+            disabled={busy || !preview || typed !== 'DELETE' || (mode === 'keep' && !preview?.keepAccount)}>
+            {busy ? 'Deleting…' : 'Delete account'}
+          </Button>
+        </div>
+      </div>
     </div>
   )
 }
