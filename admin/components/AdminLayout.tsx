@@ -19,7 +19,8 @@ import {
   Package,
   ShoppingBag,
   Megaphone,
-  Gauge
+  Gauge,
+  Download
 } from 'lucide-react'
 import Image from 'next/image'
 
@@ -104,6 +105,12 @@ export function AdminLayout({ children }: AdminLayoutProps) {
       href: '/communication', 
       icon: MessageSquare,
       current: pathname.startsWith('/communication')
+    },
+    { 
+      name: 'Data Export',
+      href: '/export',
+      icon: Download,
+      current: pathname.startsWith('/export')
     },
     // ── CMS content ────────────────────────────────────────
     { 

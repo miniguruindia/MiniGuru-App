@@ -39,6 +39,7 @@ const schoolJoinRoutes_1 = __importDefault(require("./routes/schoolJoinRoutes"))
 const accountMergeRoutes_1 = __importDefault(require("./routes/accountMergeRoutes"));
 const adminAccountTypeRoutes_1 = __importDefault(require("./routes/adminAccountTypeRoutes"));
 const adminDeleteUserRoutes_1 = __importDefault(require("./routes/adminDeleteUserRoutes"));
+const adminExportRoutes_1 = __importDefault(require("./routes/adminExportRoutes"));
 const communicationRoutes_1 = __importDefault(require("./routes/communicationRoutes")); // ← NEW
 const goinsRoutes_1 = __importDefault(require("./routes/goinsRoutes")); // ← NEW
 const dailyQuestRoutes_1 = __importDefault(require("./routes/dailyQuestRoutes"));
@@ -290,6 +291,7 @@ try {
     app.use('/products', productRoutes_1.default);
     app.use('/me', userRoutes_1.default);
     app.use('/project', projectRoutes_1.default);
+    app.use('/admin/export', adminExportRoutes_1.default); // admin-only: CSV downloads of users, projects, Goins, emails ...
     app.use('/admin', adminRoutes_1.default);
     app.use('/admin', schoolAccountRoutes_1.default); // ← NEW: school/T-LAB admin accounts
     app.use('/admin', costDashboardRoutes_1.default); // ← NEW: admin cost/quota dashboard

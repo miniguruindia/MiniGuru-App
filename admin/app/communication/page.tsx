@@ -6,7 +6,7 @@ import { Card } from '@/components/ui/card'
 import {
   Inbox, Send, Radio, Bell, RefreshCw, AlertCircle,
   CheckCircle, Trash2, Mail, MailOpen, Reply, Users,
-  Plus, X, ChevronDown, Info, AlertTriangle, Gift, Megaphone, Star, Copy, Clock
+  Plus, X, ChevronDown, Info, AlertTriangle, Gift, Megaphone, Star, Copy, Clock, Download
 } from 'lucide-react'
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || ''
@@ -492,6 +492,15 @@ const KIND_LABEL: Record<string, string> = {
 const fmtDate = (iso: string) => new Date(iso).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })
 const daysLeft = (iso: string | null) => iso ? Math.max(0, Math.ceil((new Date(iso).getTime() - Date.now()) / 86400000)) : null
 
+function saveFile(name: string, blob: Blob) {
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url; a.download = name
+  document.body.appendChild(a); a.click(); a.remove()
+  setTimeout(() => URL.revokeObjectURL(url), 2000)
+}
+const fileDay = () => new Date(Date.now() + 5.5 * 3600 * 1000).toISOString().slice(0, 10)
+
 function EmailsTab({ onCounts }: { onCounts: (expiring: number) => void }) {
   const [view, setView] = useState<'all' | 'fresh' | 'expiring' | 'saved' | 'contacts'>('all')
   const [rows, setRows] = useState<SentEmail[]>([])
@@ -545,6 +554,31 @@ function EmailsTab({ onCounts }: { onCounts: (expiring: number) => void }) {
     finally { setBusyId(null) }
   }
 
+  // Download the list as a spreadsheet (the part of the list you are looking at).
+  const downloadList = async () => {
+    setFlash(''); setFlashErr('')
+    try {
+      const v = view === 'contacts' ? '' : `?view=${view}`
+      const res = await fetch(`${API_BASE}/admin/export/${view === 'contacts' ? 'contacts' : 'emails'}${v}`, { headers: await authHeader() })
+      if (!res.ok) throw new Error()
+      saveFile(`miniguru-${view === 'contacts' ? 'contacts' : 'emails-' + view}-${fileDay()}.csv`, await res.blob())
+      setFlash('Downloaded')
+    } catch { setFlashErr('Could not download the list') }
+  }
+
+  // Download one email as a web page file (opens in any browser).
+  const downloadOne = async (r: SentEmail) => {
+    setFlash(''); setFlashErr('')
+    try {
+      const res = await fetch(`${API_BASE}/admin/communication/emails/${r.id}`, { headers: await authHeader() })
+      const d = await res.json()
+      if (!res.ok || !d.bodyHtml) throw new Error()
+      const head = `<!-- To: ${r.toEmail} | Subject: ${r.subject.replace(/--/g, '-')} | Sent: ${r.createdAt} -->\n`
+      saveFile(`email-${r.createdAt.slice(0, 10)}-${r.toEmail.replace(/[^a-z0-9@.]/gi, '_')}.html`, new Blob([head + d.bodyHtml], { type: 'text/html;charset=utf-8' }))
+      setFlash('Downloaded')
+    } catch { setFlashErr('This email has no stored content to download') }
+  }
+
   const toggleOpen = async (r: SentEmail) => {
     if (openId === r.id) { setOpenId(null); setOpenBody(null); return }
     setOpenId(r.id); setOpenBody(null)
@@ -591,6 +625,7 @@ function EmailsTab({ onCounts }: { onCounts: (expiring: number) => void }) {
             className={`px-3 py-1.5 rounded-full text-xs font-medium border ${view === p.id ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 border-gray-200'}`}>{p.label}</button>
         ))}
         <input value={q} onChange={e => setQ(e.target.value)} placeholder="Search email, subject or reason" className={`${inp} max-w-xs ml-auto`} />
+        <button onClick={downloadList} className="px-3 py-1.5 rounded-lg border border-gray-200 bg-white hover:bg-gray-50 text-xs text-gray-600 flex items-center gap-1" title="Download this list as a spreadsheet"><Download className="h-3.5 w-3.5" />Download list</button>
         <button onClick={load} className="p-2 rounded-lg border border-gray-200 bg-white hover:bg-gray-50" title="Refresh"><RefreshCw className="h-4 w-4 text-gray-500" /></button>
       </div>
 
@@ -639,6 +674,8 @@ function EmailsTab({ onCounts }: { onCounts: (expiring: number) => void }) {
                       className="text-xs px-2 py-1 rounded border border-gray-200 bg-white hover:bg-gray-50 disabled:opacity-40">{openId === r.id ? 'Hide' : 'View'}</button>
                     <button disabled={busyId === r.id} onClick={() => act(r.id, r.state === 'saved' ? 'unsave' : 'save')}
                       className="text-xs px-2 py-1 rounded border border-yellow-200 bg-yellow-50 text-yellow-800 hover:bg-yellow-100 flex items-center gap-1"><Star className="h-3 w-3" />{r.state === 'saved' ? 'Un-save' : 'Save'}</button>
+                    <button disabled={busyId === r.id || !r.hasBody} onClick={() => downloadOne(r)}
+                      className="text-xs px-2 py-1 rounded border border-gray-200 bg-white hover:bg-gray-50 disabled:opacity-40 flex items-center gap-1"><Download className="h-3 w-3" />Download</button>
                     <button disabled={busyId === r.id || !r.hasBody} onClick={() => act(r.id, 'forward')}
                       className="text-xs px-2 py-1 rounded border border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100 disabled:opacity-40 flex items-center gap-1"><Send className="h-3 w-3" />Forward</button>
                     <button disabled={busyId === r.id} onClick={() => act(r.id, 'delete')}

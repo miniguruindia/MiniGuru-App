@@ -36,6 +36,7 @@ import schoolJoinRouter from './routes/schoolJoinRoutes';
 import accountMergeRouter from './routes/accountMergeRoutes';
 import adminAccountTypeRouter from './routes/adminAccountTypeRoutes';
 import adminDeleteUserRouter from './routes/adminDeleteUserRoutes';
+import adminExportRouter from './routes/adminExportRoutes';
 import communicationRouter from './routes/communicationRoutes';   // ← NEW
 import goinsRouter from './routes/goinsRoutes';           // ← NEW
 import dailyQuestRouter from './routes/dailyQuestRoutes';
@@ -304,6 +305,7 @@ try {
   app.use('/products', productRouter);
   app.use('/me', userRouter);
   app.use('/project', projectRouter);
+  app.use('/admin/export', adminExportRouter);   // admin-only: CSV downloads of users, projects, Goins, emails ...
   app.use('/admin', adminRouter);
   app.use('/admin', schoolAccountRouter);   // ← NEW: school/T-LAB admin accounts
   app.use('/admin', costDashboardRouter);   // ← NEW: admin cost/quota dashboard
