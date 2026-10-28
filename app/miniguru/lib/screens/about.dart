@@ -252,7 +252,7 @@ class _HeroText extends StatelessWidget {
         ),
         const SizedBox(height: 10),
         Text(
-          'A changemaker platform for young makers\nBuilt on the Natural Learning Model',
+          'A child-led learning and innovation platform for young makers\nBuilt on the Natural Learning Model',
           style: _h(isMobile ? 13 : 16, _AC.white.withOpacity(0.9),
               w: FontWeight.w700),
         ),

@@ -23,7 +23,7 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      title: 'MiniGuru',
+      title: 'MiniGuru | Child-Led Learning & Innovation',
 
       // ── NEW: full design system theme ──────────────────────────────────
       theme: AppTheme.build(),

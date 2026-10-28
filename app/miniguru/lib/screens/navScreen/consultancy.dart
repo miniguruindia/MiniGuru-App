@@ -41,7 +41,7 @@ class _ConsultancyPageState extends State<ConsultancyPage> {
 
   // ── CMS-driven header values (with hardcoded fallbacks) ────────────────
   final _api = MiniguruApi();
-  String _tagline  = 'T-LAB, home tinkering spaces, and workshops — '
+  String _tagline  = 'Child-led T-LAB, home tinkering spaces, and workshops — '
                      'built around the Natural Learning Model.';
   String _statTlabs      = '32+';
   String _statStudents   = '10,000+';
