@@ -61,8 +61,14 @@ class _CommunityScreenState extends State<CommunityScreen>
         DeepLink.setSub('community', DeepLink.communityTabs[_tabController.index]);
       });
     DeepLink.setSub('community', DeepLink.communityTabs[widget.initialTab.clamp(0, 3)]);
+    DeepLink.communityTabRequest.addListener(_onTabRequest);
     _loadCms();
     _loadHappeningsAndChallenges();
+  }
+
+  void _onTabRequest() {
+    final i = DeepLink.communityTabs.indexOf(DeepLink.communityTabRequest.value);
+    if (i >= 0 && mounted) _tabController.animateTo(i);
   }
 
   // ── CMS field-mapping helpers ────────────────────────────────────────────
@@ -264,6 +270,7 @@ class _CommunityScreenState extends State<CommunityScreen>
 
   @override
   void dispose() {
+    DeepLink.communityTabRequest.removeListener(_onTabRequest);
     _tabController.dispose();
     super.dispose();
   }

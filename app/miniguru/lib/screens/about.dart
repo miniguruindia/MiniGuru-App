@@ -1,4 +1,5 @@
 // lib/screens/about.dart
+import 'package:miniguru/utils/deepLink.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -35,6 +36,8 @@ Future<void> _launchUrl(String url) async {
 }
 
 void _goConsultancy(BuildContext context, int tab) {
+  // Same page as the Consult tab (one page, one address)
+  if (DeepLink.openPage('consult/${DeepLink.consultTabs[tab.clamp(0, 2)]}')) return;
   Navigator.push(context,
       MaterialPageRoute(builder: (_) => ConsultancyPage(initialService: tab)));
 }

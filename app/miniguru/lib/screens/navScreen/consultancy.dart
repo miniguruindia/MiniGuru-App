@@ -103,8 +103,23 @@ class _ConsultancyPageState extends State<ConsultancyPage> {
     super.initState();
     _selectedService = widget.initialService;
     DeepLink.setSub('consult', DeepLink.consultTabs[_selectedService.clamp(0, 2)]);
+    DeepLink.consultTabRequest.addListener(_onTabRequest);
     _loadCms();
     _loadKitCollections();
+  }
+
+  void _onTabRequest() {
+    final i = DeepLink.consultTabs.indexOf(DeepLink.consultTabRequest.value);
+    if (i >= 0 && mounted) {
+      setState(() => _selectedService = i);
+      DeepLink.setSub('consult', DeepLink.consultTabs[i]);
+    }
+  }
+
+  @override
+  void dispose() {
+    DeepLink.consultTabRequest.removeListener(_onTabRequest);
+    super.dispose();
   }
 
   // ── Admin-editable plans / offer / downloads ──────────────────────────────

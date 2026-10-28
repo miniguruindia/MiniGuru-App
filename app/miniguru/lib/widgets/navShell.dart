@@ -8,6 +8,7 @@
 // HomeScreen owns the five tabs; it publishes their labels/icons here and
 // listens for taps. Phones and tablets keep the normal bottom bar.
 
+import 'package:miniguru/utils/deepLink.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:miniguru/widgets/mgIcons.dart';
@@ -116,9 +117,13 @@ class _Rail extends StatelessWidget {
                     padding: const EdgeInsets.only(top: 10),
                     child: InkWell(
                       borderRadius: BorderRadius.circular(14),
-                      onTap: () => NavShell.navigatorKey.currentState
-                          ?.push(MaterialPageRoute(
-                              builder: (_) => const CommunityScreen(initialTab: 3))),
+                      onTap: () {
+                        // Same page as Community > Resources (one page, one address)
+                        if (!DeepLink.openPage('community/resources')) {
+                          NavShell.navigatorKey.currentState?.push(MaterialPageRoute(
+                              builder: (_) => const CommunityScreen(initialTab: 3)));
+                        }
+                      },
                       child: Container(
                         width: 72,
                         padding: const EdgeInsets.symmetric(vertical: 8),

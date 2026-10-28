@@ -3,6 +3,7 @@
 // All content fetched from GET /cms/legal_* and GET /cms/faq
 // Falls back to hardcoded defaults if backend unavailable
 
+import 'package:miniguru/utils/deepLink.dart';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -193,10 +194,18 @@ connect@miniguru.in
     _tabController = TabController(
         length: _tabs.length, vsync: this, initialIndex: widget.initialTab);
     _loadCms();
+    // One page, one address: /privacy and /terms whichever way it was opened.
+    DeepLink.showTemp(widget.initialTab == 1 ? '/terms' : '/privacy');
+    _tabController.addListener(() {
+      if (!_tabController.indexIsChanging) {
+        DeepLink.showTemp(_tabController.index == 1 ? '/terms' : '/privacy');
+      }
+    });
   }
 
   @override
   void dispose() {
+    DeepLink.restore();
     _tabController.dispose();
     super.dispose();
   }

@@ -9,7 +9,7 @@
 // - Inner tabs (Ladder, Workshops, Preset Kits ...) report their own name here.
 // Every call is safe: on phones/tablets (not web) nothing happens.
 
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart' show kIsWeb, ValueNotifier;
 import 'package:flutter/services.dart';
 
 class DeepLink {
@@ -54,6 +54,28 @@ class DeepLink {
     if (i > 0) _sub[base] = names[i];
     return i < 0 ? 0 : i;
   }
+
+  // ── One page, one address ──────────────────────────────────────────
+  // Buttons that used to open a second copy of a tab (Events, Home Corner)
+  // call openPage('community/resources'); HomeScreen switches to the real
+  // tab instead. Returns false when this kind of user has no such tab.
+  static bool Function(String)? opener;
+  static bool openPage(String path) => opener?.call(path) ?? false;
+
+  /// Inner-tab request for an already open tab, e.g. 'resources'.
+  static final ValueNotifier<String> communityTabRequest = ValueNotifier<String>('');
+  static final ValueNotifier<String> consultTabRequest = ValueNotifier<String>('');
+
+  /// A full-screen page with its own address (/privacy, /terms) while it is open.
+  static void showTemp(String path) {
+    if (!kIsWeb) return;
+    try {
+      SystemNavigator.routeInformationUpdated(uri: Uri.parse(path), replace: true);
+    } catch (_) {}
+  }
+
+  /// Put the address bar back to the tab behind the page that just closed.
+  static void restore() => _write();
 
   static void setActive(String base) {
     _active = base;

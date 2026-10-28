@@ -40,6 +40,7 @@ class _HomeScreenState extends State<HomeScreen> {
   void initState() {
     super.initState();
     NavShell.index.addListener(_onShellIndex);
+    DeepLink.opener = _openPath;
     NavShell.attach();
     _checkAuth();
   }
@@ -77,11 +78,28 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  // Open an existing tab (and its inner tab) instead of a second copy of it.
+  bool _openPath(String path) {
+    final parts = path.split('/').where((s) => s.isNotEmpty).toList();
+    if (parts.isEmpty) return false;
+    for (var i = 0; i < 5; i++) {
+      if (_slug(i) != parts[0]) continue;
+      NavShell.go(i);
+      if (parts.length > 1) {
+        if (parts[0] == 'community') DeepLink.communityTabRequest.value = parts[1];
+        if (parts[0] == 'consult') DeepLink.consultTabRequest.value = parts[1];
+      }
+      return true;
+    }
+    return false;
+  }
+
   void _syncUrl() => DeepLink.setActive(_slug(_currentIndex));
 
   @override
   void dispose() {
     NavShell.index.removeListener(_onShellIndex);
+    if (DeepLink.opener == _openPath) DeepLink.opener = null;
     NavShell.detach();
     super.dispose();
   }

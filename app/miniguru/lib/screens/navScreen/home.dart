@@ -1,4 +1,5 @@
 // lib/screens/navScreen/home.dart
+import 'package:miniguru/utils/deepLink.dart';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:miniguru/widgets/navShell.dart';
@@ -470,8 +471,11 @@ class _HomeState extends State<Home> {
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
               onPressed: () {
                 Navigator.pop(ctx);
-                Navigator.push(context,
-                    MaterialPageRoute(builder: (_) => const CommunityScreen(initialTab: 3)));
+                // Same page as Community > Resources (one page, one address)
+                if (!DeepLink.openPage('community/resources')) {
+                  Navigator.push(context,
+                      MaterialPageRoute(builder: (_) => const CommunityScreen(initialTab: 3)));
+                }
               },
               child: Text('Read more', style: GoogleFonts.nunito(fontWeight: FontWeight.w900, fontSize: 14)),
             ),

@@ -6,6 +6,11 @@
       "**/.*",
       "**/node_modules/**"
     ],
+    "redirects": [
+      { "source": "/for-schools{,/}", "destination": "/about/#schools", "type": 301 },
+      { "source": "/for-parents{,/}", "destination": "/about/#parents", "type": 301 },
+      { "source": "/for-students{,/}", "destination": "/about/#students", "type": 301 }
+    ],
     "rewrites": [
       {
         "source": "**",
