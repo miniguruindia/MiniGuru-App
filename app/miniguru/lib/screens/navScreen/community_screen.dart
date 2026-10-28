@@ -869,7 +869,8 @@ class _LadderTabState extends State<_LadderTab> {
   // all-time total where whoever got ahead stays ahead.
   String _period = 'year'; // week | month | year | alltime
   int _offset = 0; // 0 = current period, -1 = previous, ...
-  String _scope = 'app'; // app | school
+  String _scope = 'school'; // app | school (falls back to app if the child has no school)
+  bool _scopeChosen = false;
   String? _categoryId;
   List<Map<String, dynamic>> _boardCategories = [];
   Map<String, dynamic>? _board;
@@ -1001,6 +1002,12 @@ class _LadderTabState extends State<_LadderTab> {
     if (wantPeriod != _period || wantOffset != _offset || wantScope != _scope || wantCat != _categoryId) {
       return;
     }
+    // Default is My School; a child with no school (or a guest) lands on Everyone.
+    if (!_scopeChosen && wantScope == 'school' && data != null && data['needsSchool'] == true) {
+      setState(() => _scope = 'app');
+      _loadPeriodBoard();
+      return;
+    }
     setState(() {
       _board = data;
       _boardError = data == null;
@@ -1029,6 +1036,175 @@ class _LadderTabState extends State<_LadderTab> {
                 color: selected ? Colors.white : const Color(0xFF0A5CE0))),
       ),
     );
+  }
+
+  // ── Drop-down filters (Oct 2026) ───────────────────────────────────
+  static const _periodNames = {'week': 'week', 'month': 'month', 'year': 'year'};
+
+  String _whenText() {
+    if (_period == 'alltime') return 'of all time';
+    final n = _periodNames[_period] ?? 'period';
+    if (_offset == 0) return 'this $n';
+    if (_offset == -1) return 'last $n';
+    return '${-_offset} ${n}s ago';
+  }
+
+  String _timeLabel() {
+    if (_period == 'alltime') return 'All-time';
+    final w = _whenText();
+    return w[0].toUpperCase() + w.substring(1);
+  }
+
+  Widget _dropdown<T>({
+    required String caption,
+    required String value,
+    required List<PopupMenuEntry<T>> Function() items,
+    required ValueChanged<T> onPick,
+  }) {
+    return Expanded(
+      child: PopupMenuButton<T>(
+        tooltip: caption,
+        position: PopupMenuPosition.under,
+        offset: const Offset(0, 4),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        color: Colors.white,
+        onSelected: onPick,
+        itemBuilder: (_) => items(),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+          decoration: BoxDecoration(
+            color: const Color(0xFFF3F5FF),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: const Color(0xFFCFD5F6), width: 1.5),
+          ),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(caption.toUpperCase(),
+                style: GoogleFonts.nunito(
+                    fontSize: 10, fontWeight: FontWeight.w800, color: const Color(0xFF6A7090))),
+            Row(children: [
+              Expanded(
+                child: Text(value,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.nunito(
+                        fontSize: 13, fontWeight: FontWeight.w900, color: const Color(0xFF1A1A2E))),
+              ),
+              const Icon(Icons.arrow_drop_down, size: 20, color: Color(0xFF4A58D8)),
+            ]),
+          ]),
+        ),
+      ),
+    );
+  }
+
+  PopupMenuEntry<String> _ddGroup(String t) => PopupMenuItem<String>(
+        enabled: false,
+        height: 28,
+        child: Text(t.toUpperCase(),
+            style: GoogleFonts.nunito(
+                fontSize: 10, fontWeight: FontWeight.w900, color: const Color(0xFF8A90B0))),
+      );
+
+  PopupMenuEntry<String> _ddItem(String v, String label, bool sel) => PopupMenuItem<String>(
+        value: v,
+        height: 38,
+        child: Row(children: [
+          Expanded(
+            child: Text(label,
+                style: GoogleFonts.nunito(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w800,
+                    color: sel ? const Color(0xFF4A58D8) : const Color(0xFF1A1A2E))),
+          ),
+          if (sel) const Icon(Icons.check, size: 16, color: Color(0xFF4A58D8)),
+        ]),
+      );
+
+  String catName2() {
+    for (final c in _boardCategories) {
+      if (c['id']?.toString() == _categoryId) return (c['name'] ?? '').toString();
+    }
+    return 'these';
+  }
+
+  Widget _boardDropdowns(bool isAllTime) {
+    String catName() {
+      if (_categoryId == null) return 'All Projects';
+      for (final c in _boardCategories) {
+        if (c['id']?.toString() == _categoryId) {
+          return '${(c['icon'] ?? '').toString().trim()} ${(c['name'] ?? '').toString()}'.trim();
+        }
+      }
+      return 'All Projects';
+    }
+
+    final timeDd = _dropdown<String>(
+      caption: 'Time',
+      value: _timeLabel(),
+      items: () {
+        bool sel(String p, int o) => _period == p && _offset == o;
+        return [
+          for (final p in const ['week', 'month', 'year']) ...[
+            _ddGroup(p),
+            _ddItem('$p:0', 'This $p', sel(p, 0)),
+            _ddItem('$p:-1', 'Last $p', sel(p, -1)),
+          ],
+          _ddGroup('Forever'),
+          _ddItem('alltime:0', 'All-time', _period == 'alltime'),
+        ];
+      },
+      onPick: (v) {
+        final parts = v.split(':');
+        setState(() {
+          _period = parts[0];
+          _offset = int.parse(parts[1]);
+        });
+        _loadPeriodBoard();
+      },
+    );
+
+    if (isAllTime) return Row(children: [timeDd, const Spacer(flex: 2)]);
+
+    return Row(children: [
+      timeDd,
+      const SizedBox(width: 8),
+      _dropdown<String>(
+        caption: 'Students',
+        value: _scope == 'school' ? 'My School' : 'Everyone',
+        items: () => [
+          _ddItem('app', 'Everyone', _scope == 'app'),
+          _ddItem('school', 'My School', _scope == 'school'),
+        ],
+        onPick: (v) {
+          setState(() {
+            _scope = v;
+            _scopeChosen = true;
+            _offset = 0;
+          });
+          _loadPeriodBoard();
+        },
+      ),
+      const SizedBox(width: 8),
+      _dropdown<String>(
+        caption: 'Projects',
+        value: catName(),
+        items: () => [
+          _ddItem('', 'All Projects', _categoryId == null),
+          for (final c in _boardCategories)
+            _ddItem(
+                c['id']?.toString() ?? '',
+                '${(c['icon'] ?? '').toString().trim()} ${(c['name'] ?? '').toString()}'.trim(),
+                _categoryId == c['id']?.toString()),
+        ],
+        onPick: (v) {
+          setState(() {
+            _categoryId = v.isEmpty ? null : v;
+            _offset = 0;
+          });
+          _loadPeriodBoard();
+        },
+      ),
+    ]);
   }
 
   Widget _boardRow(Map<String, dynamic> e) {
@@ -1090,12 +1266,6 @@ class _LadderTabState extends State<_LadderTab> {
   }
 
   Widget _buildPeriodBoard() {
-    const periods = [
-      ['week', 'This Week'],
-      ['month', 'This Month'],
-      ['year', 'This Year'],
-      ['alltime', 'All-Time'],
-    ];
     final isAllTime = _period == 'alltime';
     final board = _board;
     final entries = (board != null && board['entries'] is List)
@@ -1120,55 +1290,11 @@ class _LadderTabState extends State<_LadderTab> {
     final usePodium = leaders.length >= 3;
 
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      _chipRow([
-        for (final p in periods)
-          _boardChip(p[1], _period == p[0], () {
-            setState(() {
-              _period = p[0];
-              _offset = 0;
-            });
-            _loadPeriodBoard();
-          }),
-      ]),
-      const SizedBox(height: 10),
+      _boardDropdowns(isAllTime),
       if (!isAllTime) ...[
-        _chipRow([
-          _boardChip('🌍 Everyone', _scope == 'app', () {
-            setState(() {
-              _scope = 'app';
-              _offset = 0;
-            });
-            _loadPeriodBoard();
-          }),
-          _boardChip('🏫 My School', _scope == 'school', () {
-            setState(() {
-              _scope = 'school';
-              _offset = 0;
-            });
-            _loadPeriodBoard();
-          }),
-          if (_boardCategories.isNotEmpty)
-            _boardChip('All Projects', _categoryId == null, () {
-              setState(() {
-                _categoryId = null;
-                _offset = 0;
-              });
-              _loadPeriodBoard();
-            }),
-          for (final c in _boardCategories)
-            _boardChip(
-                '${(c['icon'] ?? '').toString().trim()} ${(c['name'] ?? '').toString()}'.trim(),
-                _categoryId == c['id']?.toString(), () {
-              setState(() {
-                _categoryId = c['id']?.toString();
-                _offset = 0;
-              });
-              _loadPeriodBoard();
-            }),
-        ]),
-        const SizedBox(height: 6),
         Row(children: [
           IconButton(
+            visualDensity: VisualDensity.compact,
             icon: const Icon(Icons.chevron_left),
             tooltip: 'Earlier',
             onPressed: () {
@@ -1185,6 +1311,7 @@ class _LadderTabState extends State<_LadderTab> {
                     color: const Color(0xFF1A1A2E))),
           ),
           IconButton(
+            visualDensity: VisualDensity.compact,
             icon: const Icon(Icons.chevron_right),
             tooltip: 'Later',
             onPressed: _offset >= 0
@@ -1195,13 +1322,15 @@ class _LadderTabState extends State<_LadderTab> {
                   },
           ),
         ]),
-        Text(
-            _shortText ? 'Goins earned in this period. Each period starts fresh!' :
-            'All the Goins earned in this period — projects, ratings, watching, '
-            'comments and daily quests. Project categories count project Goins only. '
-            'Each period starts fresh, so everyone gets a new chance to top it!',
-            style: GoogleFonts.nunito(fontSize: 11, color: const Color(0xFF5F5F88))),
-        const SizedBox(height: 12),
+        Center(
+          child: Text(
+              _categoryId == null
+                  ? 'Goins earned ${_whenText()}. A fresh race starts every ${_periodNames[_period] ?? 'period'}!'
+                  : 'Goins earned from ${catName2()} projects ${_whenText()}.',
+              textAlign: TextAlign.center,
+              style: GoogleFonts.nunito(fontSize: 11, color: const Color(0xFF5F5F88))),
+        ),
+        const SizedBox(height: 8),
         if (_boardLoading)
           const Center(
             child: Padding(
@@ -1520,32 +1649,18 @@ class _PodiumCard extends StatelessWidget {
       const [Color(0xFFE9EEF7), Color(0xFFAEB8CC), Color(0xFF8795B0)],
       const [Color(0xFFFFC59A), Color(0xFFE8883C), Color(0xFFC2651C)],
     ];
-    final tints  = [const Color(0xFFFFF3C2), const Color(0xFFEEF2FA), const Color(0xFFFFE4CE)];
     final labels = ['Gold', 'Silver', 'Bronze'];
     final first  = idx == 0;
-    final size   = first ? 66.0 : 54.0;
 
     return GestureDetector(
       onTap: leader.userId.isEmpty ? null : () => showMakerCard(context, leader.userId),
       child: Column(
       mainAxisAlignment: MainAxisAlignment.end,
       children: [
-        if (first) const Text('\u{1F451}', style: TextStyle(fontSize: 24)),
-        Container(
-          width: size, height: size,
-          decoration: BoxDecoration(
-            color: tints[idx],
-            shape: BoxShape.circle,
-            border: Border.all(color: Colors.white, width: 4),
-            boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.25), blurRadius: 8, offset: const Offset(0, 3))],
-          ),
-          child: Center(child: Text(leader.badge, style: TextStyle(fontSize: first ? 32 : 26))),
-        ),
-        const SizedBox(height: 4),
         Text(
           leader.name.split(' ').first,
           style: GoogleFonts.nunito(
-              fontSize: 12, fontWeight: FontWeight.w800,
+              fontSize: first ? 18 : 15, fontWeight: FontWeight.w900,
               color: const Color(0xFF1A1A2E)),
           textAlign: TextAlign.center,
           maxLines: 1,
