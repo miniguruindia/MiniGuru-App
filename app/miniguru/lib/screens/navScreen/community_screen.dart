@@ -6,6 +6,7 @@
 
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:miniguru/utils/deepLink.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:http/http.dart' as http;
 import 'package:miniguru/constants.dart';
@@ -55,7 +56,11 @@ class _CommunityScreenState extends State<CommunityScreen>
   void initState() {
     super.initState();
     _tabController = TabController(length: 4, vsync: this, initialIndex: widget.initialTab)
-      ..addListener(() => setState(() => _activeTab = _tabController.index));
+      ..addListener(() {
+        setState(() => _activeTab = _tabController.index);
+        DeepLink.setSub('community', DeepLink.communityTabs[_tabController.index]);
+      });
+    DeepLink.setSub('community', DeepLink.communityTabs[widget.initialTab.clamp(0, 3)]);
     _loadCms();
     _loadHappeningsAndChallenges();
   }

@@ -2,6 +2,7 @@
 // CMS-wired: header stats + tagline fetched from GET /cms/consultancy
 
 import 'package:flutter/material.dart';
+import 'package:miniguru/utils/deepLink.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:miniguru/network/MiniguruApi.dart';
@@ -101,6 +102,7 @@ class _ConsultancyPageState extends State<ConsultancyPage> {
   void initState() {
     super.initState();
     _selectedService = widget.initialService;
+    DeepLink.setSub('consult', DeepLink.consultTabs[_selectedService.clamp(0, 2)]);
     _loadCms();
     _loadKitCollections();
   }
@@ -744,7 +746,10 @@ class _ConsultancyPageState extends State<ConsultancyPage> {
           final sel = _selectedService == i;
           return Expanded(
             child: GestureDetector(
-              onTap: () => setState(() => _selectedService = i),
+              onTap: () {
+                setState(() => _selectedService = i);
+                DeepLink.setSub('consult', DeepLink.consultTabs[i]);
+              },
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 200),
                 padding: const EdgeInsets.symmetric(vertical: 9),

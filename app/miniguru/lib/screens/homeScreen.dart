@@ -17,6 +17,7 @@ import 'package:miniguru/models/User.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:miniguru/widgets/navShell.dart';
 import 'package:miniguru/widgets/mgIcons.dart';
+import 'package:miniguru/utils/deepLink.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -45,8 +46,38 @@ class _HomeScreenState extends State<HomeScreen> {
 
   void _onShellIndex() {
     final i = NavShell.index.value;
-    if (mounted && i != _currentIndex) setState(() => _currentIndex = i);
+    if (mounted && i != _currentIndex) {
+      setState(() => _currentIndex = i);
+      _syncUrl();
+    }
   }
+
+  // Address-bar name of each tab (the tabs differ for guests, children and mentors).
+  String _slug(int i) {
+    final mentor = _user?.isMentor == true && !SessionState.isChildSession;
+    final authed = SessionState.isChildSession || _isAuthenticated;
+    switch (i) {
+      case 0: return 'home';
+      case 1: return (mentor || !authed) ? 'consult' : 'community';
+      case 2: return 'shop';
+      case 3: return mentor ? 'children' : authed ? 'projects' : 'community';
+      default: return mentor ? 'account' : authed ? 'profile' : 'about';
+    }
+  }
+
+  // Opened from a shared address (miniguru.in/shop ...)? Go to that tab.
+  void _applyDeepLink() {
+    final base = DeepLink.takeBase();
+    if (base == null) return;
+    for (var i = 0; i < 5; i++) {
+      if (_slug(i) == base) {
+        _currentIndex = i;
+        break;
+      }
+    }
+  }
+
+  void _syncUrl() => DeepLink.setActive(_slug(_currentIndex));
 
   @override
   void dispose() {
@@ -61,7 +92,8 @@ class _HomeScreenState extends State<HomeScreen> {
     // If we are in a child session, just mark authenticated — don't overwrite with mentor data
     if (SessionState.isChildSession) {
       print('✅ [HomeScreen] Child session detected, marking as authenticated');
-      setState(() { _isAuthenticated = true; _authChecked = true; });
+      setState(() { _isAuthenticated = true; _authChecked = true; _applyDeepLink(); });
+      _syncUrl();
       return;
     }
     try {
@@ -89,7 +121,9 @@ class _HomeScreenState extends State<HomeScreen> {
           if (userData?.isMentor == true && !SessionState.isChildSession) {
             _currentIndex = 3;
           }
+          _applyDeepLink();
         });
+        _syncUrl();
       }
     } catch (e) {
       print('❌ [HomeScreen] Auth check failed: $e');
@@ -98,7 +132,9 @@ class _HomeScreenState extends State<HomeScreen> {
           _user = null;
           _isAuthenticated = false;
           _authChecked = true;
+          _applyDeepLink();
         });
+        _syncUrl();
       }
     }
   }
@@ -129,10 +165,12 @@ class _HomeScreenState extends State<HomeScreen> {
           // same Consultancy page shown to guests, matching what a
           // logged-out visitor sees.
           if (_user?.isMentor == true && !SessionState.isChildSession) {
-            _cachedScreens[index] = const ConsultancyPage();
+            _cachedScreens[index] = ConsultancyPage(initialService: DeepLink.takeTab('consult', DeepLink.consultTabs));
             break;
           }
-          _cachedScreens[index] = _isAuthenticated ? const CommunityScreen() : const ConsultancyPage();
+          _cachedScreens[index] = _isAuthenticated
+              ? CommunityScreen(initialTab: DeepLink.takeTab('community', DeepLink.communityTabs))
+              : ConsultancyPage(initialService: DeepLink.takeTab('consult', DeepLink.consultTabs));
           break;
         case 2:
           _cachedScreens[index] = const Shop();
@@ -142,7 +180,7 @@ class _HomeScreenState extends State<HomeScreen> {
             _cachedScreens[index] = const MentorActivityTab();
             break;
           }
-          _cachedScreens[index] = _isAuthenticated ? const ProjectScreen() : const CommunityScreen();
+          _cachedScreens[index] = _isAuthenticated ? const ProjectScreen() : CommunityScreen(initialTab: DeepLink.takeTab('community', DeepLink.communityTabs));
           break;
       }
     }
@@ -154,6 +192,7 @@ class _HomeScreenState extends State<HomeScreen> {
       setState(() => _currentIndex = index);
     }
     NavShell.index.value = index;
+    _syncUrl();
   }
 
   PreferredSizeWidget? _buildTopBar() {

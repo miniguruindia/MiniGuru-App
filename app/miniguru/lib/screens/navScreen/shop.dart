@@ -6,6 +6,7 @@
 
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:miniguru/utils/deepLink.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:http/http.dart' as http;
 import 'package:miniguru/secrets.dart';
@@ -38,7 +39,9 @@ class Shop extends StatefulWidget {
 class _ShopState extends State<Shop>
     with AutomaticKeepAliveClientMixin, SingleTickerProviderStateMixin {
 
-  late final TabController _tabCtrl = TabController(length: 3, vsync: this);
+  late final TabController _tabCtrl = TabController(
+      length: 3, vsync: this, initialIndex: DeepLink.takeTab('shop', DeepLink.shopTabs))
+    ..addListener(() => DeepLink.setSub('shop', DeepLink.shopTabs[_tabCtrl.index]));
 
   List<Map<String, dynamic>> _all      = [];
   List<Map<String, dynamic>> _filtered = [];

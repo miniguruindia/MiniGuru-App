@@ -1,5 +1,7 @@
 // lib/main.dart
 import 'package:flutter/material.dart';
+import 'package:flutter_web_plugins/url_strategy.dart';
+import 'package:miniguru/utils/deepLink.dart';
 import 'package:miniguru/constants.dart';
 import 'package:miniguru/screens/homeScreen.dart';
 import 'package:miniguru/screens/loginScreen.dart';
@@ -12,6 +14,9 @@ import 'package:miniguru/widgets/navShell.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // Real addresses (miniguru.in/shop) instead of miniguru.in/#/shop
+  usePathUrlStrategy();
+  DeepLink.capture();
   print('🚀 MiniGuru starting...');
   runApp(const MyApp());
 }
@@ -33,6 +38,8 @@ class MyApp extends StatelessWidget {
       builder: (context, child) => NavShellFrame(child: child ?? const SizedBox.shrink()),
 
       initialRoute: SplashScreen.id,
+      // One start-up page only, even for addresses like /community/ladder
+      onGenerateInitialRoutes: (_) => [MaterialPageRoute(builder: (_) => const SplashScreen())],
 
       onGenerateRoute: (settings) {
         print('📍 Navigating to: ${settings.name}');

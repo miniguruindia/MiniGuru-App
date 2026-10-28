@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:miniguru/utils/deepLink.dart';
 import 'package:miniguru/constants.dart';
 import 'package:miniguru/database/database_helper.dart';
 import 'package:miniguru/network/MiniguruApi.dart';
@@ -95,7 +96,7 @@ class _SplashScreenState extends State<SplashScreen>
       if (!mounted) return;
 
       // ✅ First launch → Get Started, returning users → Home directly
-      if (!hasSeenOnboarding) {
+      if (!hasSeenOnboarding && !DeepLink.hasTarget) {
         await prefs.setBool('hasSeenOnboarding', true);
         Navigator.pushReplacementNamed(context, GetStartedScreen.id);
       } else {
