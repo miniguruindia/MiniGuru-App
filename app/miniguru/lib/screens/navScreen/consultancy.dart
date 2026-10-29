@@ -86,6 +86,28 @@ class _ConsultancyPageState extends State<ConsultancyPage> {
           'For children under 8, we begin with craft, clay, and basic '
           'construction — and introduce electronics and sharp tools gradually.',
     },
+    {
+      'question': 'Where do the materials come from?',
+      'answer': "MiniGuru is the one source. We have curated a comprehensive set of "
+          "everything a T-LAB or Tinkering Corner may need, and we keep a suggested "
+          "list for each project. For anything else, MiniGuru's AI search looks on "
+          "Amazon.in for a suitable item at the lowest price and leaves out the rest.",
+    },
+    {
+      'question': 'How does MiniGuru keep children motivated?',
+      'answer': "Through community. A child watches a peer's project made in an Indian "
+          "setting, with materials found around them, and feels the trigger to try "
+          "something of their own. Views are not the purpose. The Goin economy adds a "
+          "realistic way to feel valued as someone who creates value.",
+    },
+    {
+      'question': 'Is an unfinished project a failure?',
+      'answer': "No. A child who starts a drone and drops it halfway has still imagined "
+          "it, gathered materials and struggled to make a motor run by working out "
+          "what a complete circuit is. That is real learning. Adults often cannot see "
+          "it, but peers on MiniGuru can, and a T-LAB facilitator learns to. Children "
+          "need appreciation and resources, and MiniGuru offers both.",
+    },
   ];
   final Set<int> _openFaqIndexes = {};
   final Map<String, bool> _profileOpen = {
@@ -883,6 +905,27 @@ class _ConsultancyPageState extends State<ConsultancyPage> {
                   'make, plans it, builds it, fails, iterates, and presents it on a '
                   'Sharing schedule. The facilitator supports — but never directs.',
             ),
+            const SizedBox(height: 12),
+            _differentiatorCard(
+              icon: Icons.favorite_outline,
+              iconColor: const Color(0xFFE91E63),
+              title: 'Exploration Is Valued',
+              body: 'A child who starts a drone and drops it halfway has still imagined '
+                  'it, gathered materials and worked out what a complete circuit is. '
+                  'Adults rarely see that. Peers on MiniGuru do, and your facilitator '
+                  'learns to. Children need appreciation and resources, and MiniGuru '
+                  'offers both.',
+            ),
+            const SizedBox(height: 12),
+            _differentiatorCard(
+              icon: Icons.diversity_3_outlined,
+              iconColor: const Color(0xFF0E9A3F),
+              title: 'A Community That Motivates',
+              body: 'A child watches a peer\'s project made in an Indian setting with '
+                  'materials found around them, and feels the trigger to try their own. '
+                  'Views are not the purpose. Goins give a realistic feeling of being '
+                  'valued for creating value.',
+            ),
           ]),
         ),
 
@@ -907,6 +950,12 @@ class _ConsultancyPageState extends State<ConsultancyPage> {
                   'Mechanics, Soft Cutting (craft and art), Hard Cutting (wood and '
                   'fabrication), and General Science (Chem/Bio). Includes storage for '
                   'scrap materials.',
+            ),
+            const SizedBox(height: 10),
+            _offerCard(
+              icon: Icons.shopping_basket_outlined,
+              title: 'Where Materials Come From',
+              body: "MiniGuru is the one source for materials. We have curated a comprehensive set of everything a T-LAB or Tinkering Corner may need, and we keep a suggested list for each project. For anything else, MiniGuru's AI search looks on Amazon.in for a suitable item at the lowest price and leaves out the rest.",
             ),
             const SizedBox(height: 10),
             _offerCard(
@@ -1433,6 +1482,20 @@ class _ConsultancyPageState extends State<ConsultancyPage> {
                 'project, rebuilding after failure, trying a different approach. '
                 'A permanent corner makes this possible in a way that a one-off '
                 'kit or activity never can.'),
+            const SizedBox(height: 10),
+            _whyCard(Icons.favorite_outline, 'Unfinished Is Not Failed',
+                'A child who starts a drone and drops it has still imagined it, '
+                'collected materials and worked out how a circuit completes. That is '
+                'real progress. Peers on MiniGuru see it and appreciate it, and so '
+                'will you, with a little practice.'),
+            const SizedBox(height: 10),
+            _whyCard(Icons.diversity_3_outlined, 'A Community That Motivates',
+                'Seeing a peer\'s project from an Indian home, made with everyday '
+                'materials, triggers a child to try. Goins make the effort feel '
+                'valued. Views are not the purpose.'),
+            const SizedBox(height: 10),
+            _whyCard(Icons.shopping_basket_outlined, 'Materials From One Source',
+                "MiniGuru is the one source for materials. We have curated a comprehensive set of everything a T-LAB or Tinkering Corner may need, and we keep a suggested list for each project. For anything else, MiniGuru's AI search looks on Amazon.in for a suitable item at the lowest price and leaves out the rest."),
           ]),
         ),
 

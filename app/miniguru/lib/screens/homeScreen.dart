@@ -47,6 +47,11 @@ class _HomeScreenState extends State<HomeScreen> {
 
   void _onShellIndex() {
     final i = NavShell.index.value;
+    if (mounted && i != _currentIndex && _slug(i) == 'about') {
+      NavShell.index.value = _currentIndex; // stay on the current tab
+      DeepLink.openAboutPage();
+      return;
+    }
     if (mounted && i != _currentIndex) {
       setState(() => _currentIndex = i);
       _syncUrl();
@@ -206,6 +211,10 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _onNavBarTap(int index) {
+    if (_slug(index) == 'about') {
+      DeepLink.openAboutPage();
+      return;
+    }
     if (_currentIndex != index) {
       setState(() => _currentIndex = index);
     }

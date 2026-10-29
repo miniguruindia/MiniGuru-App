@@ -38,9 +38,12 @@ section{padding-top:38px}
 .split{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:28px;align-items:start}
 .split.rev{grid-template-columns:300px minmax(0,1fr)}
 .photo{border-radius:20px;border:4px solid #fff;box-shadow:0 8px 24px rgba(26,26,46,.16);display:block;width:100%}
-.band{background:var(--navy);color:#fff;border-radius:22px;padding:26px 28px;margin-top:30px}
-.band h2,.band h3{color:#fff}
-.band a{color:var(--yellow)}
+.band{background:#E3EEFF;border:1px solid var(--line);color:var(--ink);border-radius:22px;padding:26px 28px;margin-top:30px}
+.band h2,.band h3{color:var(--navy)}
+.band a:not(.btn){color:var(--blue)}
+.band a.btn{color:var(--navy)}
+.special{grid-column:1/-1;background:linear-gradient(135deg,#FFF8D6,#FFFFFF);border:2px solid var(--yellow)}
+.sub{margin:34px 0 4px}
 .pills{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0}
 .pill{background:#fff;border:1px solid var(--line);border-radius:30px;padding:5px 14px;font-size:15px;font-weight:800;color:var(--ink)}
 .pill a{text-decoration:none}

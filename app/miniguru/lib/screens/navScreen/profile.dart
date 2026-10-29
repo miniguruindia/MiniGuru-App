@@ -1,6 +1,7 @@
 // lib/screens/navScreen/profile.dart
 // v4: badges below avatar · animated count-up · photo upload (base64/CSP-safe)
 
+import 'package:miniguru/utils/deepLink.dart';
 import 'package:miniguru/screens/goinsHistoryScreen.dart';
 import 'dart:convert';
 import 'dart:typed_data';
@@ -513,7 +514,7 @@ class _ProfileState extends State<Profile>
                         const SizedBox(height: 8),
                         _tile(Icons.info_outline, 'About MiniGuru',
                             const Color(0xFF7DB2FF),
-                            () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AboutScreen()))),
+                            () => DeepLink.openAboutPage()),
 
                         const SizedBox(height: 24),
                         _buildLogoutBtn(),

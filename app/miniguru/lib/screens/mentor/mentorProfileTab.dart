@@ -1,3 +1,4 @@
+import 'package:miniguru/utils/deepLink.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:miniguru/constants.dart';
@@ -450,8 +451,7 @@ class _MentorProfileTabState extends State<MentorProfileTab> {
             label: 'About MiniGuru',
             subtitle: 'Our story, contact info, and platform details',
             color: const Color(0xFF7DB2FF),
-            onTap: () => Navigator.push(context,
-                MaterialPageRoute(builder: (_) => const AboutScreen())),
+            onTap: () => DeepLink.openAboutPage(),
           ),
           const SizedBox(height: 10),
           _actionTile(

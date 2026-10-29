@@ -11,6 +11,7 @@
 
 import 'package:flutter/foundation.dart' show kIsWeb, ValueNotifier;
 import 'package:flutter/services.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class DeepLink {
   static const communityTabs = ['ladder', 'challenges', 't-lab', 'resources'];
@@ -76,6 +77,16 @@ class DeepLink {
 
   /// Put the address bar back to the tab behind the page that just closed.
   static void restore() => _write();
+
+  /// The About page is the public web page (miniguru.in/about/): one About for everyone.
+  static Future<void> openAboutPage() async {
+    final uri = Uri.parse('https://miniguru.in/about/');
+    try {
+      await launchUrl(uri,
+          mode: kIsWeb ? LaunchMode.platformDefault : LaunchMode.externalApplication,
+          webOnlyWindowName: '_self');
+    } catch (_) {}
+  }
 
   static void setActive(String base) {
     _active = base;
