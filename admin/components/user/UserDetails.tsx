@@ -2,6 +2,7 @@
 import { useState } from 'react';
 import { User, UserOrder } from '@/types/users';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { contactEmail, contactPhone, VerifiedBadge } from '@/lib/contact';
 
 interface UserDetailsProps {
   user: User;
@@ -54,8 +55,9 @@ export function UserDetails({ user }: UserDetailsProps) {
                     ? 'bg-purple-100 text-purple-800' : 'bg-green-100 text-green-800'
                 }`}>{user.role}</span>
               </div>
-              <p className="text-gray-500 text-sm mt-1">{user.email}</p>
-              <p className="text-gray-500 text-sm">{user.phoneNumber}</p>
+              <p className="text-gray-500 text-sm mt-1">MiniGuru ID: <span className="font-mono text-gray-800">{user.email}</span></p>
+              <p className="text-gray-500 text-sm">Email: <VerifiedBadge value={contactEmail(user)} verified={user.emailVerified} /></p>
+              <p className="text-gray-500 text-sm">Phone: <VerifiedBadge value={contactPhone(user)} verified={user.phoneVerified} /></p>
               <p className="text-gray-400 text-xs mt-2">
                 Age {user.age} · Joined {new Date(user.createdAt).toLocaleDateString('en-IN', { year: 'numeric', month: 'long', day: 'numeric' })}
               </p>
@@ -99,8 +101,9 @@ export function UserDetails({ user }: UserDetailsProps) {
           <CardContent className="pt-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
             {[
               { label: 'Full Name', value: user.name },
-              { label: 'Email', value: user.email },
-              { label: 'Phone', value: user.phoneNumber },
+              { label: 'MiniGuru ID (login)', value: user.email },
+              { label: 'Email', value: <VerifiedBadge value={contactEmail(user)} verified={user.emailVerified} /> },
+              { label: 'Phone', value: <VerifiedBadge value={contactPhone(user)} verified={user.phoneVerified} /> },
               { label: 'Age', value: user.age },
               { label: 'Role', value: user.role },
               { label: 'Password', value: '••••••••' },

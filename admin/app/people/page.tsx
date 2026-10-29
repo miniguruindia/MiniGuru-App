@@ -8,6 +8,7 @@ import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { User, GuardianInfo } from '@/types/users'
 import { SkeletonCard } from '@/components/SkeletonCard'
+import { contactEmail, contactPhone, VerifiedBadge } from '@/lib/contact'
 import {
   RefreshCw, WifiOff, Users as UsersIcon, School, ShieldAlert,
   Plus, KeyRound, X, Copy, Check, Search, Loader2,
@@ -201,7 +202,9 @@ function DirectoryTab() {
             <thead className="bg-gray-50 border-b border-gray-100">
               <tr>
                 <th className="text-left px-4 py-3 font-medium text-gray-500">Name</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-500">Email / Login ID</th>
+                <th className="text-left px-4 py-3 font-medium text-gray-500">MiniGuru ID (login)</th>
+                <th className="text-left px-4 py-3 font-medium text-gray-500">Email</th>
+                <th className="text-left px-4 py-3 font-medium text-gray-500">Phone</th>
                 <th className="text-left px-4 py-3 font-medium text-gray-500">Type</th>
                 <th className="text-left px-4 py-3 font-medium text-gray-500">City / Institution</th>
                 <th className="text-left px-4 py-3 font-medium text-gray-500">Goins</th>
@@ -211,7 +214,7 @@ function DirectoryTab() {
             </thead>
             <tbody className="divide-y divide-gray-50">
               {filtered.length === 0 ? (
-                <tr><td colSpan={7} className="text-center py-12 text-gray-400">No users match these filters</td></tr>
+                <tr><td colSpan={9} className="text-center py-12 text-gray-400">No users match these filters</td></tr>
               ) : filtered.map(user => {
                 const type = accountTypeOf(user)
                 const g: GuardianInfo | null | undefined = user.guardianInfo
@@ -219,6 +222,8 @@ function DirectoryTab() {
                   <tr key={user.id} className="hover:bg-gray-50 transition-colors">
                     <td className="px-4 py-3 font-medium text-gray-900">{user.name}</td>
                     <td className="px-4 py-3 font-mono text-xs text-gray-500">{user.email}</td>
+                    <td className="px-4 py-3 text-xs text-gray-700"><VerifiedBadge value={contactEmail(user)} verified={user.emailVerified} /></td>
+                    <td className="px-4 py-3 text-xs text-gray-700"><VerifiedBadge value={contactPhone(user)} verified={user.phoneVerified} /></td>
                     <td className="px-4 py-3">
                       <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${type.badgeClass}`}>{type.label}</span>
                     </td>

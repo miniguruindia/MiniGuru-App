@@ -27,6 +27,7 @@ const userSelectAttributes = {
     guardianEmail: true,
     emailVerified: true,
     phoneVerified: true,
+    parentPhone: true,
     mentorType: true,
 };
 // FIXED: Get user details with proper wallet structure
@@ -136,6 +137,9 @@ const listUsers = async (req, res) => {
                 profilePhoto: true,
                 isMentor: true,
                 guardianEmail: true,
+                emailVerified: true,
+                phoneVerified: true,
+                parentPhone: true,
                 mentorType: true,
                 guardianInfo: true,
                 age: true,
@@ -209,6 +213,7 @@ const getUserById = async (req, res) => {
                 guardianEmail: user.guardianEmail ?? null,
                 emailVerified: user.emailVerified ?? false,
                 phoneVerified: user.phoneVerified ?? false,
+                parentPhone: user.parentPhone ?? null,
                 mentorType: user.mentorType ?? null,
                 passwordHash: user.passwordHash, // Include password hash for admin access
                 projects: user.projects,

@@ -24,6 +24,7 @@ const userSelectAttributes = {
     guardianEmail: true,
     emailVerified: true,
     phoneVerified: true,
+    parentPhone: true,
     mentorType: true,
 };
 
@@ -143,6 +144,9 @@ const listUsers = async (req: Request, res: Response) => {
     profilePhoto: true,
     isMentor: true,
     guardianEmail: true,
+    emailVerified: true,
+    phoneVerified: true,
+    parentPhone: true,
     mentorType: true,
     guardianInfo: true,
                 age: true,
@@ -221,6 +225,7 @@ const getUserById = async (req: Request, res: Response) => {
                 guardianEmail: user.guardianEmail ?? null,
                 emailVerified: user.emailVerified ?? false,
                 phoneVerified: user.phoneVerified ?? false,
+                parentPhone: user.parentPhone ?? null,
                 mentorType: user.mentorType ?? null,
                 passwordHash: user.passwordHash, // Include password hash for admin access
                 projects: user.projects,

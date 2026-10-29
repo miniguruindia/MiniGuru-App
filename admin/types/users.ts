@@ -57,6 +57,10 @@ export interface User {
   projects: Project[];
   totalProjects: number;
   profilePhoto?: string | null;
+  guardianEmail?: string | null;
+  parentPhone?: string | null;
+  emailVerified?: boolean;
+  phoneVerified?: boolean;
   passwordHash?: string;
   orders?: UserOrder[];
   isMentor?: boolean;

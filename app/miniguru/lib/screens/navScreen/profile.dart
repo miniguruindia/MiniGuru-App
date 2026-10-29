@@ -643,10 +643,11 @@ class _ProfileState extends State<Profile>
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Text(email,
+                      Text('MiniGuru ID: $email',
                           style: GoogleFonts.nunito(
                               fontSize: 12,
-                              color: Colors.white.withOpacity(0.8))),
+                              fontWeight: FontWeight.w700,
+                              color: Colors.white.withOpacity(0.9))),
                       const SizedBox(width: 4),
                       Icon(Icons.copy_rounded, size: 12, color: Colors.white.withOpacity(0.8)),
                     ],
