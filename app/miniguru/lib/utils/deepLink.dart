@@ -88,6 +88,17 @@ class DeepLink {
     } catch (_) {}
   }
 
+  /// The Consult page is the public web page (miniguru.in/consult/) for visitors.
+  static Future<void> openConsultPage([String sub = '']) async {
+    final frag = (sub.isEmpty || sub == 'school-t-lab') ? '' : '#$sub';
+    final uri = Uri.parse('https://miniguru.in/consult/$frag');
+    try {
+      await launchUrl(uri,
+          mode: kIsWeb ? LaunchMode.platformDefault : LaunchMode.externalApplication,
+          webOnlyWindowName: '_self');
+    } catch (_) {}
+  }
+
   static void setActive(String base) {
     _active = base;
     _write();

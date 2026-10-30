@@ -7,9 +7,9 @@
       "**/node_modules/**"
     ],
     "redirects": [
-      { "source": "/for-schools{,/}", "destination": "/about/#schools", "type": 301 },
-      { "source": "/for-parents{,/}", "destination": "/about/#parents", "type": 301 },
-      { "source": "/for-students{,/}", "destination": "/about/#students", "type": 301 }
+      { "source": "/for-schools{,/}", "destination": "/consult/#school-t-lab", "type": 301 },
+      { "source": "/for-parents{,/}", "destination": "/consult/#home-corner", "type": 301 },
+      { "source": "/for-students{,/}", "destination": "/about/", "type": 301 }
     ],
     "rewrites": [
       {

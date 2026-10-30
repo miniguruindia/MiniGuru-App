@@ -47,14 +47,31 @@ class _HomeScreenState extends State<HomeScreen> {
 
   void _onShellIndex() {
     final i = NavShell.index.value;
-    if (mounted && i != _currentIndex && _slug(i) == 'about') {
+    if (mounted && i != _currentIndex && _isWebTab(i)) {
       NavShell.index.value = _currentIndex; // stay on the current tab
-      DeepLink.openAboutPage();
+      _openWebTab(i);
       return;
     }
     if (mounted && i != _currentIndex) {
       setState(() => _currentIndex = i);
       _syncUrl();
+    }
+  }
+
+  // About (and Consult, for visitors) are public web pages: one page for everyone.
+  bool _isWebTab(int i) {
+    final slug = _slug(i);
+    if (slug == 'about') return true;
+    final mentor = _user?.isMentor == true && !SessionState.isChildSession;
+    final authed = SessionState.isChildSession || _isAuthenticated;
+    return slug == 'consult' && !mentor && !authed;
+  }
+
+  void _openWebTab(int i, [String sub = '']) {
+    if (_slug(i) == 'about') {
+      DeepLink.openAboutPage();
+    } else {
+      DeepLink.openConsultPage(sub);
     }
   }
 
@@ -77,6 +94,12 @@ class _HomeScreenState extends State<HomeScreen> {
     if (base == null) return;
     for (var i = 0; i < 5; i++) {
       if (_slug(i) == base) {
+        if (_isWebTab(i)) {
+          final names = DeepLink.consultTabs;
+          final k = base == 'consult' ? DeepLink.takeTab('consult', names) : 0;
+          Future.microtask(() => _openWebTab(i, base == 'consult' ? names[k] : ''));
+          break;
+        }
         _currentIndex = i;
         break;
       }
@@ -89,6 +112,10 @@ class _HomeScreenState extends State<HomeScreen> {
     if (parts.isEmpty) return false;
     for (var i = 0; i < 5; i++) {
       if (_slug(i) != parts[0]) continue;
+      if (_isWebTab(i)) {
+        _openWebTab(i, parts.length > 1 ? parts[1] : '');
+        return true;
+      }
       NavShell.go(i);
       if (parts.length > 1) {
         if (parts[0] == 'community') DeepLink.communityTabRequest.value = parts[1];
@@ -211,8 +238,8 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _onNavBarTap(int index) {
-    if (_slug(index) == 'about') {
-      DeepLink.openAboutPage();
+    if (_isWebTab(index)) {
+      _openWebTab(index);
       return;
     }
     if (_currentIndex != index) {

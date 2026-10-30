@@ -1052,14 +1052,14 @@ class _ConsultancyPageState extends State<ConsultancyPage> {
                 icon: Icons.build_outlined,
                 description: 'Room preparation, furniture, tools, and initial material '
                     'kit (school-managed procurement under our guidance)',
-                amount: '₹80,000 – ₹1,50,000',
-                note: 'Varies by room size and existing resources. Excludes room '
-                    'renovation and decoration.',
+                amount: '₹1,50,000 – ₹2,00,000',
+                note: 'Tools and materials. Depends on the number of children and grades. '
+                    'The space itself is built to your budget.',
                 amountColor: const Color(0xFF0E9A3F),
               ),
               const SizedBox(height: 10),
               _investmentCard(
-                label: 'Year-Long Partnership',
+                label: 'Sustained Partnership (at least a year)',
                 icon: Icons.handshake_outlined,
                 description: 'Consultancy fee covering all visits, facilitator '
                     'orientation, remote support, handbook, and MiniGuru school access',
