@@ -114,6 +114,10 @@ model User {
   favouriteSubject String?
   dreamInvention   String?
   whenIGrowUp      String?
+  // Activity tracking (Oct 2026): last time this account used the app (saved at most every 30 minutes)
+  // and the channel a self sign-up came from (e.g. whatsapp, direct).
+  lastActiveAt  DateTime?
+  signupSource  String?
   isMentor      Boolean        @default(false)
   mentorType    GuardianType?
   guardianInfo  GuardianInfo?

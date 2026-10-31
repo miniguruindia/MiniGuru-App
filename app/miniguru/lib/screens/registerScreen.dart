@@ -10,6 +10,7 @@ import 'package:miniguru/network/MiniguruApi.dart';
 import 'package:miniguru/screens/legalScreen.dart';
 import 'package:miniguru/screens/loginScreen.dart';
 import 'package:miniguru/secrets.dart';
+import 'package:miniguru/utils/deepLink.dart';
 
 // ─── Account type enum ────────────────────────────────────────────────────────
 enum _AccountType { child, parent, school }
@@ -238,6 +239,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
           'guardianPhone': _phoneCtrl.text.trim(),
           'password':      _passwordCtrl.text,
           'miniguruId':    _miniguruId,
+          if (DeepLink.signupSource.isNotEmpty) 'src': DeepLink.signupSource,
         }),
       );
       if (!mounted) return;

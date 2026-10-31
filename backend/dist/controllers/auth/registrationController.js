@@ -7,6 +7,7 @@ exports.generateId = generateId;
 exports.sendOtp = sendOtp;
 exports.verifyOtp = verifyOtp;
 exports.registerChild = registerChild;
+const signupSource_1 = require("../../utils/signupSource");
 const bcryptjs_1 = __importDefault(require("bcryptjs"));
 const emailService_1 = require("../../services/emailService");
 const prismaClient_1 = __importDefault(require("../../utils/prismaClient"));
@@ -216,6 +217,7 @@ async function registerChild(req, res) {
                 parentPhone: guardianPhone?.trim() || null,
                 guardianEmail: guardianEmail.toLowerCase().trim(),
                 emailVerified: false,
+                signupSource: (0, signupSource_1.cleanSource)(req.body?.src),
                 score: 100,
                 role: 'USER',
                 wallet: { create: { balance: 0 } },

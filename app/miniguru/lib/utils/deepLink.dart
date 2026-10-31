@@ -25,11 +25,18 @@ class DeepLink {
   static final Map<String, String> _sub = {};
   static String _active = '';
 
+  /// Where this visitor came from, e.g. ?src=whatsapp (used only to count sign-ups by channel).
+  static String signupSource = '';
+
   /// Call once from main(), before runApp.
   static void capture() {
     if (!kIsWeb) return;
     try {
       _initial = Uri.base.pathSegments.where((s) => s.isNotEmpty).toList();
+      final q = Uri.base.queryParameters;
+      signupSource = (q['src'] ?? q['utm_source'] ?? q['ref'] ?? '')
+          .toLowerCase().replaceAll(RegExp(r'[^a-z0-9._-]'), '');
+      if (signupSource.length > 40) signupSource = signupSource.substring(0, 40);
     } catch (_) {}
   }
 

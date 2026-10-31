@@ -12,6 +12,18 @@ declare global {
   }
 }
 
+// Remember when an account was last used (Oct 2026). At most one small database write per
+// account every 30 minutes (per server), and never allowed to slow down or break a request.
+const lastTouched = new Map<string, number>();
+function touchLastActive(userId: string) {
+  const now = Date.now();
+  const prev = lastTouched.get(userId) || 0;
+  if (now - prev < 30 * 60 * 1000) return;
+  lastTouched.set(userId, now);
+  if (lastTouched.size > 5000) lastTouched.clear();
+  (prisma as any).user.update({ where: { id: userId }, data: { lastActiveAt: new Date(now) } }).catch(() => {});
+}
+
 // Authenticate any logged-in user
 const authenticateUser = async (req: Request, res: Response, next: NextFunction) => {
   try {
@@ -45,6 +57,7 @@ const authenticateUser = async (req: Request, res: Response, next: NextFunction)
     }
 
     req.user = { ...user, userId: user.id };
+    touchLastActive(user.id);
     next();
   } catch (error: any) {
     console.error('Auth error:', error);

@@ -37,6 +37,8 @@ const cmsRoutes_1 = __importDefault(require("./routes/cmsRoutes"));
 const guardianRoutes_1 = __importDefault(require("./routes/guardianRoutes"));
 const schoolJoinRoutes_1 = __importDefault(require("./routes/schoolJoinRoutes"));
 const accountDeletionRoutes_1 = __importDefault(require("./routes/accountDeletionRoutes"));
+const youtubeViewsRoutes_1 = __importDefault(require("./routes/youtubeViewsRoutes"));
+const adminActivityRoutes_1 = __importDefault(require("./routes/adminActivityRoutes"));
 const accountMergeRoutes_1 = __importDefault(require("./routes/accountMergeRoutes"));
 const adminAccountTypeRoutes_1 = __importDefault(require("./routes/adminAccountTypeRoutes"));
 const adminDeleteUserRoutes_1 = __importDefault(require("./routes/adminDeleteUserRoutes"));
@@ -298,9 +300,11 @@ try {
     app.use('/admin', costDashboardRoutes_1.default); // ← NEW: admin cost/quota dashboard
     app.use('/admin', accountMergeRoutes_1.default); // admin-only: merge duplicate child accounts
     app.use('/admin', adminAccountTypeRoutes_1.default); // admin-only: change account type (individual/parent/school/T-LAB)
+    app.use('/admin', adminActivityRoutes_1.default); // admin-only: Activity page (active users, funnel, sources, shares)
     app.use('/admin', adminDeleteUserRoutes_1.default); // admin-only: safe delete (students stay, optional keep-content)
     app.use(communitySubmissionsRoutes_1.default); // ← NEW: serves /happenings, /admin/happenings, /challenges, /admin/challenges
     app.use('/payment', paymentRoutes_1.default);
+    app.use('/api/videos', youtubeViewsRoutes_1.default); // views on YouTube badge (before the /:videoId routes)
     app.use('/api/videos', videoRoutes_1.default);
     app.use('/api/videos', videoRatingRoutes_1.default);
     app.use('/materials', materialsRoutes_1.default);

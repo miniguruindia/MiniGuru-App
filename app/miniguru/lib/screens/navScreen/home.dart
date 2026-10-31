@@ -16,6 +16,7 @@ import 'package:miniguru/screens/navScreen/community_screen.dart' show Community
 import 'package:miniguru/screens/notificationsScreen.dart';
 import 'package:miniguru/widgets/mgIcons.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:miniguru/widgets/youtubeViewsChip.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 // Flutter Web only allows touch/trackpad swipe on horizontal lists by
@@ -1739,6 +1740,7 @@ class _HomeState extends State<Home> {
                           Text('@${video['channelTitle'] ?? 'miniguru'}',
                               style: GoogleFonts.nunito(
                                   fontSize: 10, color: Colors.white70)),
+                          YoutubeViewsChip(videoId: videoId, onDark: true),
                         ],
                       ),
                     ),

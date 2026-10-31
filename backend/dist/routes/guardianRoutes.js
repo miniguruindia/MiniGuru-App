@@ -3,6 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
+const signupSource_1 = require("../utils/signupSource");
 const express_1 = require("express");
 const bcryptjs_1 = __importDefault(require("bcryptjs"));
 const prismaClient_1 = __importDefault(require("../utils/prismaClient"));
@@ -112,6 +113,7 @@ router.post('/register', async (req, res) => {
                 passwordHash,
                 age: age ?? 25,
                 score: 100,
+                signupSource: (0, signupSource_1.cleanSource)(req.body?.src),
                 isMentor: true,
                 mentorType,
                 guardianInfo: {

@@ -2,6 +2,7 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:miniguru/widgets/youtubeViewsChip.dart';
 import 'package:miniguru/constants.dart';
 import 'package:miniguru/models/Draft.dart';
 import 'package:miniguru/models/ProjectCategory.dart';
@@ -404,6 +405,12 @@ class _ProjectScreenState extends State<ProjectScreen>
 }
 
 // ── Published Project Card ────────────────────────────────────
+// YouTube video id inside a project's video JSON ({"url": "https://youtu.be/..."}); '' when none.
+String _ytId(String raw) {
+  final m = RegExp(r'(?:v=|youtu\.be/|embed/|shorts/)([A-Za-z0-9_-]{11})').firstMatch(raw);
+  return m?.group(1) ?? '';
+}
+
 class _ProjectCard extends StatelessWidget {
   final Project     project;
   final Color       color;
@@ -451,6 +458,8 @@ class _ProjectCard extends StatelessWidget {
                 decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20)),
                 child: Text(project.category, style: GoogleFonts.poppins(fontSize: 11, fontWeight: FontWeight.w700)),
               ),
+              const SizedBox(width: 8),
+              Flexible(child: YoutubeViewsChip(videoId: _ytId(project.video), mine: true)),
               const Spacer(),
               Text(project.author, style: GoogleFonts.poppins(fontSize: 11, color: Colors.black45)),
             ]),

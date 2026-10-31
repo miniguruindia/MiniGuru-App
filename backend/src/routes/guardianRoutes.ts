@@ -1,3 +1,4 @@
+import { cleanSource } from '../utils/signupSource';
 import { Router, Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
 import prisma from '../utils/prismaClient';
@@ -117,6 +118,7 @@ router.post('/register', async (req: Request, res: Response) => {
         passwordHash,
         age: age ?? 25,
         score: 100,
+        signupSource: cleanSource(req.body?.src),
         isMentor: true,
         mentorType,
         guardianInfo: {

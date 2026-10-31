@@ -304,8 +304,8 @@ function DeletionRequestsPanel({ refreshKey, onReview }: { refreshKey: number; o
                 {' · wants: '}{r.mode === 'remove' ? 'remove everything' : 'keep projects'}
               </span>
             </div>
-            <Button variant="destructive" size="sm" disabled={r.status !== 'SCHEDULED'} onClick={() => onReview(r)}>
-              {r.due ? 'Review and delete' : 'Review early'}
+            <Button variant="destructive" size="sm" onClick={() => onReview(r)}>
+              {r.due ? 'Review and delete' : r.status === 'AWAITING_GUARDIAN' ? 'Review (parent has not decided)' : 'Review early'}
             </Button>
           </div>
         ))}

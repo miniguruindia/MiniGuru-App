@@ -11,6 +11,7 @@ import 'package:miniguru/network/MiniguruApi.dart';
 import 'package:miniguru/models/User.dart';
 import 'package:miniguru/constants.dart';
 import 'package:miniguru/widgets/makerCard.dart';
+import 'package:miniguru/widgets/youtubeViewsChip.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class UnifiedVideoPlayer extends StatefulWidget {
@@ -816,6 +817,8 @@ class _UnifiedVideoPlayerState extends State<UnifiedVideoPlayer> {
                                     style: GoogleFonts.nunito(
                                         fontSize: 13, color: Colors.black54),
                                   ),
+                                  const SizedBox(width: 8),
+                                  YoutubeViewsChip(videoId: widget.videoId),
                                   const SizedBox(width: 8),
                                   const Text('·', style: TextStyle(color: Colors.black38)),
                                   const SizedBox(width: 8),

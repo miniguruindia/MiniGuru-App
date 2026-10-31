@@ -34,6 +34,8 @@ import cmsRouter from './routes/cmsRoutes';
 import guardianRouter from './routes/guardianRoutes';
 import schoolJoinRouter from './routes/schoolJoinRoutes';
 import accountDeletionRouter from './routes/accountDeletionRoutes';
+import youtubeViewsRouter from './routes/youtubeViewsRoutes';
+import adminActivityRouter from './routes/adminActivityRoutes';
 import accountMergeRouter from './routes/accountMergeRoutes';
 import adminAccountTypeRouter from './routes/adminAccountTypeRoutes';
 import adminDeleteUserRouter from './routes/adminDeleteUserRoutes';
@@ -312,9 +314,11 @@ try {
   app.use('/admin', costDashboardRouter);   // ← NEW: admin cost/quota dashboard
   app.use('/admin', accountMergeRouter);   // admin-only: merge duplicate child accounts
   app.use('/admin', adminAccountTypeRouter);   // admin-only: change account type (individual/parent/school/T-LAB)
+  app.use('/admin', adminActivityRouter);   // admin-only: Activity page (active users, funnel, sources, shares)
   app.use('/admin', adminDeleteUserRouter);   // admin-only: safe delete (students stay, optional keep-content)
   app.use(communitySubmissionsRouter);   // ← NEW: serves /happenings, /admin/happenings, /challenges, /admin/challenges
   app.use('/payment', paymentRouter);
+  app.use('/api/videos', youtubeViewsRouter);   // views on YouTube badge (before the /:videoId routes)
   app.use('/api/videos', videoRoutes);
   app.use('/api/videos', videoRatingRouter);
   app.use('/materials', materialsRouter);

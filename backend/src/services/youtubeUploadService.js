@@ -271,4 +271,15 @@ async function deleteVideo(videoId) {
   return true;
 }
 
-module.exports = { upload, getAuthUrl, handleCallback, uploadToYouTube, setVideoPublic, setVideoPrivate, deleteVideo, checkVideoStatus, refreshTokenNow, getOAuth2Client };
+// View counts of public videos (Oct 2026): { videoId: views }. Up to 50 ids per call, 1 quota unit.
+async function getVideoViewCounts(ids) {
+  const youtube = google.youtube({ version: 'v3', auth: getOAuth2Client() });
+  const res = await youtube.videos.list({ part: 'statistics', id: ids.join(',') });
+  const out = {};
+  for (const it of (res.data.items || [])) {
+    out[it.id] = parseInt((it.statistics && it.statistics.viewCount) || '0', 10) || 0;
+  }
+  return out;
+}
+
+module.exports = { upload, getAuthUrl, handleCallback, uploadToYouTube, setVideoPublic, setVideoPrivate, deleteVideo, checkVideoStatus, refreshTokenNow, getOAuth2Client, getVideoViewCounts };

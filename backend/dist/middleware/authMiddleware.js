@@ -6,6 +6,19 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.authenticateTokenOptional = exports.authenticateToken = exports.authorizeAdmin = exports.authenticateAdmin = exports.authenticateUser = void 0;
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const prismaClient_1 = __importDefault(require("../utils/prismaClient"));
+// Remember when an account was last used (Oct 2026). At most one small database write per
+// account every 30 minutes (per server), and never allowed to slow down or break a request.
+const lastTouched = new Map();
+function touchLastActive(userId) {
+    const now = Date.now();
+    const prev = lastTouched.get(userId) || 0;
+    if (now - prev < 30 * 60 * 1000)
+        return;
+    lastTouched.set(userId, now);
+    if (lastTouched.size > 5000)
+        lastTouched.clear();
+    prismaClient_1.default.user.update({ where: { id: userId }, data: { lastActiveAt: new Date(now) } }).catch(() => { });
+}
 // Authenticate any logged-in user
 const authenticateUser = async (req, res, next) => {
     try {
@@ -32,6 +45,7 @@ const authenticateUser = async (req, res, next) => {
             return res.status(401).json({ error: 'Unauthorized - User not found' });
         }
         req.user = { ...user, userId: user.id };
+        touchLastActive(user.id);
         next();
     }
     catch (error) {

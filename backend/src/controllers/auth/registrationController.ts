@@ -1,3 +1,4 @@
+import { cleanSource } from '../../utils/signupSource';
 import { Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
 import { sendEmail } from '../../services/emailService';
@@ -210,6 +211,7 @@ export async function registerChild(req: Request, res: Response) {
         parentPhone: guardianPhone?.trim() || null,
         guardianEmail: guardianEmail.toLowerCase().trim(),
         emailVerified: false,
+        signupSource: cleanSource(req.body?.src),
         score: 100,
         role: 'USER',
         wallet: { create: { balance: 0 } },

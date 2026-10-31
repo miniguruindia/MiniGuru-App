@@ -15,6 +15,7 @@ import 'package:path/path.dart';
 import 'package:http_parser/http_parser.dart';
 import 'package:miniguru/secrets.dart';
 import 'package:miniguru/state/sessionState.dart';
+import 'package:miniguru/utils/deepLink.dart';
 
 
 class MiniguruApi {
@@ -1552,6 +1553,7 @@ class MiniguruApi {
         'phoneNumber': phoneNumber,
         'password': password,
         'mentorType': mentorType,
+        if (DeepLink.signupSource.isNotEmpty) 'src': DeepLink.signupSource,
         if (institutionName != null) 'institutionName': institutionName,
         if (city != null) 'city': city,
         if (state != null) 'state': state,
@@ -1636,6 +1638,24 @@ class MiniguruApi {
       return out;
     } catch (e) { print('❌ schoolJoinCall: $e'); }
     return {'_status': 0, 'message': 'Could not reach MiniGuru. Check your internet and try again.'};
+  }
+
+  /// Real YouTube view counts for a few videos: {videoId: views}. Empty when unavailable.
+  Future<Map<String, int>> fetchYoutubeViews(List<String> ids) async {
+    try {
+      final authToken = await _db!.getAuthToken();
+      if (authToken == null || ids.isEmpty) return {};
+      final r = await http.get(
+        Uri.parse('$_baseUrl/api/videos/youtube-views?ids=${ids.join(',')}'),
+        headers: _buildHeaders(authToken.accessToken),
+      );
+      if (r.statusCode != 200) return {};
+      final data = jsonDecode(r.body);
+      final m = data is Map ? data['views'] : null;
+      if (m is! Map) return {};
+      return {for (final e in m.entries) e.key.toString(): (e.value as num).toInt()};
+    } catch (e) { print('❌ fetchYoutubeViews: $e'); }
+    return {};
   }
 
   /// Self-service account deletion requests. Same shape as schoolJoinCall.
