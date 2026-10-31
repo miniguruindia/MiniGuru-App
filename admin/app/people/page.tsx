@@ -93,6 +93,7 @@ function DirectoryTab() {
 
   // Safe delete (Oct 2026): opens a dialog that explains what happens to students and content first.
   const [deleteTarget, setDeleteTarget] = useState<User | null>(null)
+  const [delKey, setDelKey] = useState(0)
   const handleDeleteUser = (userId: string) => {
     const u = users.find(x => x.id === userId)
     if (u) setDeleteTarget(u)
@@ -163,6 +164,7 @@ function DirectoryTab() {
 
   return (
     <div className="space-y-4">
+      <DeletionRequestsPanel refreshKey={delKey} onReview={(r) => setDeleteTarget({ id: r.userId, name: r.name, email: r.email } as unknown as User)} />
       <div className="flex items-center justify-between">
         <p className="text-sm text-gray-500">One click to see just children, just parents, a whole city, or search by name/email.</p>
         <button onClick={handleRetry} disabled={retrying}
@@ -263,10 +265,52 @@ function DirectoryTab() {
         <DeleteUserDialog
           user={deleteTarget}
           onClose={() => setDeleteTarget(null)}
-          onDeleted={() => { const id = deleteTarget.id; setDeleteTarget(null); setUsers(prev => prev.filter(u => u.id !== id)) }}
+          onDeleted={() => { const id = deleteTarget.id; setDeleteTarget(null); setUsers(prev => prev.filter(u => u.id !== id)); setDelKey(k => k + 1) }}
         />
       )}
     </div>
+  )
+}
+
+// Deletion requests made by people from inside the app (Oct 2026). An admin reviews each one,
+// then deletes with the same safe-delete dialog. A request is "due" after its 7 days.
+function DeletionRequestsPanel({ refreshKey, onReview }: { refreshKey: number; onReview: (r: any) => void }) {
+  const [rows, setRows] = useState<any[]>([])
+  useEffect(() => {
+    let alive = true
+    ;(async () => {
+      try {
+        const token = await authToken()
+        const res = await fetch(`${API_BASE}/account-deletion/admin/list`, { headers: { Authorization: `Bearer ${token}` } })
+        const body = await res.json().catch(() => ({}))
+        if (alive && res.ok && Array.isArray(body.requests)) setRows(body.requests)
+      } catch { /* the panel just stays hidden */ }
+    })()
+    return () => { alive = false }
+  }, [refreshKey])
+  if (!rows.length) return null
+  return (
+    <Card className="p-4 border-amber-300 bg-amber-50">
+      <h3 className="text-sm font-bold text-amber-900 mb-2">Account deletion requests ({rows.length})</h3>
+      <div className="space-y-2">
+        {rows.map(r => (
+          <div key={r.id} className="flex items-center justify-between gap-3 text-sm bg-white rounded-lg border border-amber-200 px-3 py-2">
+            <div>
+              <b>{r.name}</b> <span className="text-gray-500">{r.email}</span><br />
+              <span className="text-xs text-gray-600">
+                {r.status === 'AWAITING_GUARDIAN'
+                  ? 'Waiting for the parent or school to decide'
+                  : r.due ? 'Seven days are over: ready to review' : `Waiting period until ${new Date(r.deleteAfter).toLocaleDateString()}`}
+                {' · wants: '}{r.mode === 'remove' ? 'remove everything' : 'keep projects'}
+              </span>
+            </div>
+            <Button variant="destructive" size="sm" disabled={r.status !== 'SCHEDULED'} onClick={() => onReview(r)}>
+              {r.due ? 'Review and delete' : 'Review early'}
+            </Button>
+          </div>
+        ))}
+      </div>
+    </Card>
   )
 }
 

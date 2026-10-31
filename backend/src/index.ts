@@ -33,6 +33,7 @@ import userAnalyticsRouter from './routes/userAnalyticsRoutes';
 import cmsRouter from './routes/cmsRoutes';
 import guardianRouter from './routes/guardianRoutes';
 import schoolJoinRouter from './routes/schoolJoinRoutes';
+import accountDeletionRouter from './routes/accountDeletionRoutes';
 import accountMergeRouter from './routes/accountMergeRoutes';
 import adminAccountTypeRouter from './routes/adminAccountTypeRoutes';
 import adminDeleteUserRouter from './routes/adminDeleteUserRoutes';
@@ -326,6 +327,7 @@ try {
   app.use('/cms', cmsRouter);
 app.use('/mentor', guardianRouter);
 app.use('/school-join', schoolJoinRouter);
+app.use('/account-deletion', accountDeletionRouter);
   app.use('/communication', communicationRouter);
   app.use('/admin/communication', communicationRouter);
   app.use('/admin/cms', cmsRouter);           // ← NEW: Goins balance, deduct, award

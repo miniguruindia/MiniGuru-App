@@ -167,6 +167,9 @@ router.post('/users/:userId/delete', async (req: Request, res: Response) => {
     await db.schoolJoinRequest.updateMany({ where: { OR: [{ schoolId: fromId }, { childUserId: fromId }], status: 'PENDING' }, data: { status: 'CANCELLED', decidedAt: new Date() } });
     await db.childProfile.deleteMany({ where: { linkedUserId: fromId } }); // this person's own place in a school/family list
 
+    // close any self-service deletion request for this person
+    await db.accountDeletionRequest.updateMany({ where: { userId: fromId, status: { in: ['AWAITING_GUARDIAN', 'SCHEDULED'] } }, data: { status: 'DONE', decidedAt: new Date() } });
+
     // last step: the account (its list of students' link rows goes with it; the students themselves stay)
     await prisma.user.delete({ where: { id: fromId } });
 

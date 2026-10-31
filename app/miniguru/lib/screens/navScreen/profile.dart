@@ -22,6 +22,7 @@ import 'package:miniguru/widgets/contactVerificationCard.dart';
 import 'package:miniguru/screens/about.dart';
 import 'package:miniguru/screens/navScreen/consultancy.dart';
 import 'package:miniguru/widgets/schoolJoinWidgets.dart';
+import 'package:miniguru/widgets/accountDeletionWidgets.dart';
 
 class Profile extends StatefulWidget {
   const Profile({super.key});
@@ -518,6 +519,8 @@ class _ProfileState extends State<Profile>
 
                         const SizedBox(height: 24),
                         _buildLogoutBtn(),
+                        const SizedBox(height: 12),
+                        const DeleteAccountTile(),
                       ]),
                   ),
                 ],

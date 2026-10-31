@@ -17,6 +17,7 @@ import 'package:miniguru/screens/mentor/submitChallengeScreen.dart';
 import 'package:miniguru/screens/about.dart';
 import 'package:miniguru/screens/navScreen/community_screen.dart';
 import 'package:miniguru/widgets/schoolJoinWidgets.dart';
+import 'package:miniguru/widgets/accountDeletionWidgets.dart';
 
 class MentorProfileTab extends StatefulWidget {
   const MentorProfileTab({super.key});
@@ -95,6 +96,7 @@ class _MentorProfileTabState extends State<MentorProfileTab> {
               const SizedBox(height: 16),
               // Children asking to join this school / family wait here for approval.
               SchoolJoinBanner(onChanged: _loadData),
+              const DeletionRequestsBanner(),
               ContactVerificationCard(
                 email: _mentor?.email,
                 guardianEmail: _mentor?.guardianEmail,
@@ -461,6 +463,8 @@ class _MentorProfileTabState extends State<MentorProfileTab> {
             color: Colors.red,
             onTap: _logout,
           ),
+          const SizedBox(height: 10),
+          const DeleteAccountTile(),
         ],
       ),
     );

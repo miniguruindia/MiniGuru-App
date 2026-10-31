@@ -996,3 +996,20 @@ model SavedItem {
   @@index([userId])
   @@map("saved_items")
 }
+
+// Self-service "Delete my account" requests (Oct 2026). Nothing is deleted from here:
+// a request waits 7 days, then an admin reviews it and uses the safe delete.
+model AccountDeletionRequest {
+  id          String    @id @default(auto()) @map("_id") @db.ObjectId
+  userId      String    @db.ObjectId
+  status      String    @default("SCHEDULED") // AWAITING_GUARDIAN | SCHEDULED | CANCELLED | DECLINED | DONE
+  mode        String    @default("keep")      // keep | remove
+  requestedAt DateTime  @default(now())
+  deleteAfter DateTime?
+  decidedAt   DateTime?
+  decidedById String?   @db.ObjectId
+
+  @@index([userId, status])
+  @@index([status])
+  @@map("account_deletion_requests")
+}

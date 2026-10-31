@@ -36,6 +36,7 @@ const userAnalyticsRoutes_1 = __importDefault(require("./routes/userAnalyticsRou
 const cmsRoutes_1 = __importDefault(require("./routes/cmsRoutes"));
 const guardianRoutes_1 = __importDefault(require("./routes/guardianRoutes"));
 const schoolJoinRoutes_1 = __importDefault(require("./routes/schoolJoinRoutes"));
+const accountDeletionRoutes_1 = __importDefault(require("./routes/accountDeletionRoutes"));
 const accountMergeRoutes_1 = __importDefault(require("./routes/accountMergeRoutes"));
 const adminAccountTypeRoutes_1 = __importDefault(require("./routes/adminAccountTypeRoutes"));
 const adminDeleteUserRoutes_1 = __importDefault(require("./routes/adminDeleteUserRoutes"));
@@ -312,6 +313,7 @@ try {
     app.use('/cms', cmsRoutes_1.default);
     app.use('/mentor', guardianRoutes_1.default);
     app.use('/school-join', schoolJoinRoutes_1.default);
+    app.use('/account-deletion', accountDeletionRoutes_1.default);
     app.use('/communication', communicationRoutes_1.default);
     app.use('/admin/communication', communicationRoutes_1.default);
     app.use('/admin/cms', cmsRoutes_1.default); // ← NEW: Goins balance, deduct, award
