@@ -185,26 +185,20 @@ class _DeleteAccountTileState extends State<DeleteAccountTile> {
         ]),
       );
     }
-    return InkWell(
-      onTap: _start,
-      borderRadius: BorderRadius.circular(14),
-      child: Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: const Color(0xFFFFD0D0)),
+    // Kept small and far away from Logout, so it cannot be tapped by mistake.
+    return Padding(
+      padding: const EdgeInsets.only(top: 64, bottom: 24),
+      child: Column(children: [
+        const Divider(height: 1),
+        const SizedBox(height: 18),
+        TextButton(
+          onPressed: _start,
+          child: Text(_mustAsk ? 'Ask to delete my account' : 'Delete my account',
+              style: GoogleFonts.nunito(
+                  fontWeight: FontWeight.w700, fontSize: 12, color: Colors.grey[600],
+                  decoration: TextDecoration.underline)),
         ),
-        child: Row(children: [
-          const Icon(Icons.delete_outline, color: _red),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(_mustAsk ? 'Ask to delete my account' : 'Delete my account',
-                style: GoogleFonts.nunito(fontWeight: FontWeight.w800, color: _red)),
-          ),
-          const Icon(Icons.chevron_right, color: _red),
-        ]),
-      ),
+      ]),
     );
   }
 }

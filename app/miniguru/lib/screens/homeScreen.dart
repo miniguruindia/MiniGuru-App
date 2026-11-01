@@ -92,6 +92,8 @@ class _HomeScreenState extends State<HomeScreen> {
   void _applyDeepLink() {
     final base = DeepLink.takeBase();
     if (base == null) return;
+    // Schools/teachers always land on Children's Activity, even when coming back from About/Consult.
+    if ((base == 'home' || base == '') && _user?.isMentor == true && !SessionState.isChildSession) return;
     for (var i = 0; i < 5; i++) {
       if (_slug(i) == base) {
         if (_isWebTab(i)) {

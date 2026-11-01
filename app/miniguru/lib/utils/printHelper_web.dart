@@ -10,16 +10,25 @@ Future<bool> printHtmlDocument(String doc) async {
       ..style.position = 'fixed'
       ..style.right = '0'
       ..style.bottom = '0'
-      ..style.width = '0'
-      ..style.height = '0'
+      ..style.width = '2px'
+      ..style.height = '2px'
       ..style.border = '0'
       ..srcdoc = doc;
     html.document.body!.append(f);
     f.onLoad.first.then((_) {
-      Future.delayed(const Duration(milliseconds: 500), () {
+      Future.delayed(const Duration(milliseconds: 900), () {
         try {
-          jsu.callMethod(f.contentWindow!, 'print', []);
-        } catch (_) {}
+          // Use the raw browser window of the frame: dart:html wraps it, and the wrapper cannot print.
+          final w = jsu.getProperty(f, 'contentWindow');
+          jsu.callMethod(w, 'focus', []);
+          jsu.callMethod(w, 'print', []);
+        } catch (_) {
+          // Fallback: open the page in a new tab, where the child can press Ctrl+P / Save as PDF.
+          try {
+            final blob = html.Blob([doc], 'text/html');
+            html.window.open(html.Url.createObjectUrlFromBlob(blob), '_blank');
+          } catch (_) {}
+        }
       });
     });
     Future.delayed(const Duration(minutes: 3), () => f.remove());
