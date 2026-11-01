@@ -1257,6 +1257,7 @@ class _HomeState extends State<Home> {
                         style: GoogleFonts.nunito(fontSize: 11, color: Colors.white70),
                       ),
                     ],
+                    YoutubeViewsChip(videoId: v['videoId']?.toString() ?? '', onDark: true),
                   ],
                 ),
               ),
@@ -1807,6 +1808,7 @@ class _HomeState extends State<Home> {
                     color: Colors.black87),
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis),
+            YoutubeViewsChip(videoId: videoId),
             // 🛒 Materials strip — same addition as _buildVideoCard above.
             if (materials.isNotEmpty) ...[
               const SizedBox(height: 6),
@@ -1889,6 +1891,7 @@ class _HomeState extends State<Home> {
                         Text('@${video['channelTitle'] ?? 'maker'}',
                             style: GoogleFonts.nunito(
                                 fontSize: 9, color: Colors.white70)),
+                        YoutubeViewsChip(videoId: videoId, onDark: true),
                       ],
                     ),
                   ),

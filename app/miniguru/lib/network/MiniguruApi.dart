@@ -1743,11 +1743,11 @@ class MiniguruApi {
   /// Real YouTube view counts for a few videos: {videoId: views}. Empty when unavailable.
   Future<Map<String, int>> fetchYoutubeViews(List<String> ids) async {
     try {
-      final authToken = await _db!.getAuthToken();
-      if (authToken == null || ids.isEmpty) return {};
+      if (ids.isEmpty) return {};
+      final authToken = await _db?.getAuthToken(); // optional: guests see the numbers too
       final r = await http.get(
         Uri.parse('$_baseUrl/api/videos/youtube-views?ids=${ids.join(',')}'),
-        headers: _buildHeaders(authToken.accessToken),
+        headers: _buildHeaders(authToken?.accessToken),
       );
       if (r.statusCode != 200) return {};
       final data = jsonDecode(r.body);

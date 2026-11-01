@@ -56,7 +56,7 @@ export async function buildViewsBoard(opts: { start: Date | null; end: Date | nu
   await syncYoutubeViews();
   const where: any = { status: 'published' };
   if (opts.categoryId) where.categoryId = opts.categoryId;
-  const projects: any[] = await db.project.findMany({ where, select: { id: true, userId: true, collaborators: true } });
+  const projects: any[] = await db.project.findMany({ where, select: { id: true, userId: true, collaborators: true, createdAt: true } });
   if (projects.length === 0) return [];
   const ids = projects.map((p) => p.id);
   const endDay = opts.end ? istDay(new Date(Math.min(opts.end.getTime() - 1, Date.now()))) : '9999-12-31';
@@ -77,7 +77,8 @@ export async function buildViewsBoard(opts: { start: Date | null; end: Date | nu
     const endV = list[list.length - 1].views;
     if (!opts.start) { gained.set(p.id, endV); continue; }
     const before = list.filter((s) => s.day < startDay);
-    const baseV = before.length ? before[before.length - 1].views : list[0].views;
+    // A video uploaded inside the period had no views before it, so it counts from zero.
+    const baseV = before.length ? before[before.length - 1].views : (new Date(p.createdAt) >= (opts.start as Date) ? 0 : list[0].views);
     gained.set(p.id, Math.max(0, endV - baseV));
   }
 

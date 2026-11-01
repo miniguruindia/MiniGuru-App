@@ -886,7 +886,7 @@ class _LadderTabState extends State<_LadderTab> {
   // Goins EARNED for building (project approvals + peer ratings received)
   // in a window, so the board resets each week/month/year instead of the
   // all-time total where whoever got ahead stays ahead.
-  String _period = 'year'; // week | month | year | alltime
+  late String _period = widget.views ? 'alltime' : 'year'; // week | month | year | alltime
   int _offset = 0; // 0 = current period, -1 = previous, ...
   String _scope = 'school'; // app | school (falls back to app if the child has no school)
   bool _scopeChosen = false;
@@ -1352,7 +1352,7 @@ class _LadderTabState extends State<_LadderTab> {
                   ? (widget.views
                       ? (_period == 'alltime'
                           ? 'Views on YouTube, all-time.'
-                          : 'Views on YouTube ${_whenText()}, counted from the day we started saving them.')
+                          : 'Views on YouTube ${_whenText()}: views gained in that time, by videos old and new.')
                       : 'Goins earned ${_whenText()}. A fresh race starts every ${_periodNames[_period] ?? 'period'}!')
                   : (widget.views
                       ? 'Views on YouTube for ${catName2()} projects ${_whenText()}.'

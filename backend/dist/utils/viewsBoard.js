@@ -65,7 +65,7 @@ async function buildViewsBoard(opts) {
     const where = { status: 'published' };
     if (opts.categoryId)
         where.categoryId = opts.categoryId;
-    const projects = await db.project.findMany({ where, select: { id: true, userId: true, collaborators: true } });
+    const projects = await db.project.findMany({ where, select: { id: true, userId: true, collaborators: true, createdAt: true } });
     if (projects.length === 0)
         return [];
     const ids = projects.map((p) => p.id);
@@ -91,7 +91,8 @@ async function buildViewsBoard(opts) {
             continue;
         }
         const before = list.filter((s) => s.day < startDay);
-        const baseV = before.length ? before[before.length - 1].views : list[0].views;
+        // A video uploaded inside the period had no views before it, so it counts from zero.
+        const baseV = before.length ? before[before.length - 1].views : (new Date(p.createdAt) >= opts.start ? 0 : list[0].views);
         gained.set(p.id, Math.max(0, endV - baseV));
     }
     const credit = new Map();
