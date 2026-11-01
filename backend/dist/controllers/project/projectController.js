@@ -60,7 +60,7 @@ const createProject = async (req, res) => {
         }
         ownerUserId = req.subject.linkedUserId;
     }
-    const { title, description, startDate, endDate, materials, categoryName, collaboratorIds, videoStoragePath, thumbnailStoragePath, challengeId, desiredPrivacyStatus, planId, } = req.body;
+    const { title, description, startDate, endDate, materials, categoryName, collaboratorIds, videoStoragePath, thumbnailStoragePath, challengeId, desiredPrivacyStatus, planId, planSketch, } = req.body;
     if (!title || !description || !startDate || !endDate || !materials || !categoryName) {
         return res.status(400).json({ error: "All fields are required" });
     }
@@ -286,6 +286,7 @@ const createProject = async (req, res) => {
             aiConfidence: aiReview.confidence,
             aiReviewedAt,
             desiredPrivacyStatus: ['PUBLIC', 'UNLISTED', 'PRIVATE'].includes(desiredPrivacyStatus) ? desiredPrivacyStatus : 'PUBLIC',
+            planSketch: typeof planSketch === 'string' && planSketch.length < 600000 && /^[A-Za-z0-9+/=]+$/.test(planSketch) ? planSketch : undefined,
             planId: typeof planId === 'string' && /^MG-[A-Z]{1,6}-[A-Z]{1,3}-\d{4,}$/.test(planId) ? planId : undefined,
             youtubeUploadStatus: ytStatus.uploadStatus,
             youtubeStatusReason: ytStatus.statusReason,

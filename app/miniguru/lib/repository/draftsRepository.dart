@@ -204,6 +204,7 @@ class DraftRepository {
       // stays Unlisted on YouTube forever regardless of review outcome.
       'desiredPrivacyStatus': project['desiredPrivacyStatus'] ?? 'PUBLIC',
       if (project['planId'] != null) 'planId': project['planId'],
+      if (project['planSketch'] != null) 'planSketch': project['planSketch'],
     };
 
     return transformedProject;

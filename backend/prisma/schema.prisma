@@ -320,6 +320,8 @@ model Project {
   status      String            @default("pending")
   aiVerdict   String?
   planId      String?   // planning-sheet ID, e.g. MG-SSK-PK-0042
+  planCreatedAt DateTime?  // when that ID was created
+  planSketch  String?   // optional sketch (base64), planning sheet only — never sent to YouTube
   // What the uploader chose at upload time — one of YouTube's own three
   // real privacy states, per YouTube API Services' RMF:
   //   "PUBLIC"   (default) — may become public once it passes review

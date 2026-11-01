@@ -21,6 +21,9 @@ import 'package:miniguru/repository/userDataRepository.dart';
 import 'package:miniguru/repository/GoinsRepository.dart';
 import 'package:miniguru/widgets/material_picker_widget.dart';
 import 'package:miniguru/widgets/sketchPad.dart';
+import 'package:miniguru/utils/planSheetHtml.dart';
+import 'package:miniguru/utils/printHelper_stub.dart'
+    if (dart.library.html) 'package:miniguru/utils/printHelper_web.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:miniguru/secrets.dart';
 import 'homeScreen.dart';
@@ -108,6 +111,26 @@ class _AddDraftScreenState extends State<AddDraftScreen>
     }
   }
 
+  Future<void> _printSheet() async {
+    final maker = await MiniguruApi().fetchPlanMaker();
+    if (_planId == null) await _ensurePlanId();
+    final d = PlanSheetData(
+      planId: _planId,
+      planCreatedAt: DateTime.tryParse(_planCreatedAt ?? '')?.toLocal(),
+      maker: maker['name'] ?? '',
+      school: maker['school'] ?? '',
+      title: _titleCtrl.text.trim(),
+      description: _descCtrl.text.trim(),
+      category: _categoryCtrl.text.trim(),
+      startDate: _startDate,
+      endDate: _endDate,
+      materials: [for (final m in _pickedMaterials) MapEntry(m.item.name, m.quantity)],
+      sketchB64: _sketchB64,
+    );
+    final ok = await printHtmlDocument(buildPlanSheetHtml(d));
+    if (!ok) _showSnack('Printing works in the web app: open miniguru.in in a browser.', isError: true);
+  }
+
   Widget _buildPlanId() {
     if (_planId == null) {
       return Container(
@@ -130,6 +153,11 @@ class _AddDraftScreenState extends State<AddDraftScreen>
               Text('Planned on ${_fmtPlanTime(_planCreatedAt)}',
                   style: GoogleFonts.nunito(fontSize: 11, fontWeight: FontWeight.w700, color: _muted)),
           ]),
+        ),
+        TextButton.icon(
+          onPressed: _printSheet,
+          icon: const Text('🖨️'),
+          label: Text('Print / PDF', style: GoogleFonts.nunito(fontWeight: FontWeight.w900, fontSize: 12)),
         ),
         IconButton(
           tooltip: 'Copy ID',
@@ -512,6 +540,7 @@ class _AddDraftScreenState extends State<AddDraftScreen>
       await _ensurePlanId();
       final projectData = {
         if (_planId != null) 'planId': _planId,
+        if (_sketchB64 != null) 'planSketch': _sketchB64,
         'title':       _titleCtrl.text,
         'description': _descCtrl.text,
         'startDate':   _startDate,

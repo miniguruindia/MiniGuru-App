@@ -3,6 +3,10 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:miniguru/widgets/youtubeViewsChip.dart';
+import 'package:miniguru/network/MiniguruApi.dart';
+import 'package:miniguru/utils/planSheetHtml.dart';
+import 'package:miniguru/utils/printHelper_stub.dart'
+    if (dart.library.html) 'package:miniguru/utils/printHelper_web.dart';
 import 'package:miniguru/constants.dart';
 import 'package:miniguru/models/Draft.dart';
 import 'package:miniguru/models/ProjectCategory.dart';
@@ -460,6 +464,21 @@ class _ProjectCard extends StatelessWidget {
               ),
               const SizedBox(width: 8),
               Flexible(child: YoutubeViewsChip(videoId: _ytId(project.video), mine: true)),
+              InkWell(
+                onTap: () async {
+                  final j = await MiniguruApi().fetchPlanSheet(project.id);
+                  if (j == null) {
+                    if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Could not open the planning sheet. Please try again.')));
+                    return;
+                  }
+                  final ok = await printHtmlDocument(buildPlanSheetHtml(PlanSheetData.fromServer(j)));
+                  if (!ok && context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Printing works in the web app: open miniguru.in in a browser.')));
+                },
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  child: Text('🖨️ Sheet', style: GoogleFonts.poppins(fontSize: 11, fontWeight: FontWeight.w700)),
+                ),
+              ),
               const Spacer(),
               Text(project.author, style: GoogleFonts.poppins(fontSize: 11, color: Colors.black45)),
             ]),

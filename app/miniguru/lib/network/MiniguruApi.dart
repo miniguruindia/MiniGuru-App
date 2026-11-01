@@ -669,6 +669,7 @@ class MiniguruApi {
       if (data['challengeId'] != null) 'challengeId': data['challengeId'],
       'desiredPrivacyStatus': data['desiredPrivacyStatus'] ?? 'PUBLIC',
       if (data['planId'] != null) 'planId': data['planId'],
+      if (data['planSketch'] != null) 'planSketch': data['planSketch'],
     };
 
     http.Response response;
@@ -1657,6 +1658,31 @@ class MiniguruApi {
       if (code == null || code.isEmpty) return null;
       return {'code': code, 'createdAt': d['createdAt']?.toString() ?? DateTime.now().toIso8601String()};
     } catch (e) { print('❌ allocatePlanId: $e'); }
+    return null;
+  }
+
+  /// Maker name + school of whoever is active, for the printed sheet header.
+  Future<Map<String, String>> fetchPlanMaker() async {
+    try {
+      final authToken = await _db!.getAuthToken();
+      if (authToken == null) return {};
+      final r = await http.get(Uri.parse('$_baseUrl/plan-ids/maker'), headers: _buildHeaders(authToken.accessToken));
+      if (r.statusCode != 200) return {};
+      final d = jsonDecode(r.body);
+      return {'name': d['name']?.toString() ?? '', 'school': d['school']?.toString() ?? ''};
+    } catch (e) { print('❌ fetchPlanMaker: $e'); }
+    return {};
+  }
+
+  /// Everything the printed planning sheet needs for a saved project. Null on failure.
+  Future<Map<String, dynamic>?> fetchPlanSheet(String projectId) async {
+    try {
+      final authToken = await _db!.getAuthToken();
+      if (authToken == null) return null;
+      final r = await http.get(Uri.parse('$_baseUrl/plan-ids/project/$projectId'), headers: _buildHeaders(authToken.accessToken));
+      if (r.statusCode != 200) return null;
+      return Map<String, dynamic>.from(jsonDecode(r.body));
+    } catch (e) { print('❌ fetchPlanSheet: $e'); }
     return null;
   }
 
