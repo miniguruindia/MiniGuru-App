@@ -826,6 +826,19 @@ class _MentorActivityTabState extends State<MentorActivityTab> {
                             child: Column(children: [
                               _buildLearnersSection(),
                               if (_children.isNotEmpty) _buildBatchSnapshot(),
+                              if (_children.isNotEmpty)
+                                SizedBox(
+                                  height: 52,
+                                  child: ListView(
+                                    scrollDirection: Axis.horizontal,
+                                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                    children: [
+                                      _filterChip('All', null),
+                                      ..._children.map((c) => _filterChip(c.name, c.id)),
+                                    ],
+                                  ),
+                                ),
+                              _buildSearchBox(),
                             ]),
                           ),
                           Expanded(
@@ -833,19 +846,6 @@ class _MentorActivityTabState extends State<MentorActivityTab> {
                             child: Padding(
                               padding: const EdgeInsets.only(top: 12),
                               child: Column(children: [
-                                if (_children.isNotEmpty)
-                                  SizedBox(
-                                    height: 52,
-                                    child: ListView(
-                                      scrollDirection: Axis.horizontal,
-                                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                                      children: [
-                                        _filterChip('All', null),
-                                        ..._children.map((c) => _filterChip(c.name, c.id)),
-                                      ],
-                                    ),
-                                  ),
-                                _buildSearchBox(),
                                 if (filtered.isEmpty)
                                   Padding(
                                     padding: const EdgeInsets.only(top: 40),

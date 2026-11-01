@@ -18,7 +18,6 @@ import 'package:miniguru/screens/about.dart';
 import 'package:miniguru/screens/navScreen/community_screen.dart';
 import 'package:miniguru/widgets/schoolJoinWidgets.dart';
 import 'package:miniguru/widgets/accountDeletionWidgets.dart';
-import 'package:miniguru/utils/materialsListPrint.dart';
 
 class MentorProfileTab extends StatefulWidget {
   const MentorProfileTab({super.key});
@@ -107,6 +106,7 @@ class _MentorProfileTabState extends State<MentorProfileTab> {
                 onChanged: _loadData,
               ),
               const SizedBox(height: 16),
+              if (wide) _buildActions('account'),
             ];
             return Column(
               children: [
@@ -121,7 +121,7 @@ class _MentorProfileTabState extends State<MentorProfileTab> {
                         children: [
                           Expanded(child: Column(children: left)),
                           const SizedBox(width: 12),
-                          Expanded(child: _buildActions()),
+                          Expanded(child: _buildActions('rest')),
                         ],
                       ),
                     ),
@@ -361,11 +361,27 @@ class _MentorProfileTabState extends State<MentorProfileTab> {
       ),
     );
   }
-  Widget _buildActions() {
+  // [part]: null = every tile; 'account' = account-settings tiles (shown under the
+  // wallet on a wide screen); 'rest' = everything else. Keeps the two columns balanced.
+  Widget _buildActions([String? part]) {
+    const accountIdx = {3, 4, 5, 6};
+    final all = _actionTiles().where((w) => w is! SizedBox).toList();
+    final picked = <Widget>[];
+    for (var i = 0; i < all.length; i++) {
+      final isAcc = accountIdx.contains(i);
+      if (part == null || (part == 'account') == isAcc) {
+        if (picked.isNotEmpty) picked.add(const SizedBox(height: 10));
+        picked.add(all[i]);
+      }
+    }
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: Column(
-        children: [
+      child: Column(children: picked),
+    );
+  }
+
+  List<Widget> _actionTiles() {
+    return [
           _actionTile(
             icon: Icons.supervisor_account,
             label: 'Switch Learner',
@@ -465,23 +481,8 @@ class _MentorProfileTabState extends State<MentorProfileTab> {
             onTap: _logout,
           ),
           const SizedBox(height: 10),
-          _actionTile(
-            icon: Icons.print_rounded,
-            label: 'Print materials list',
-            subtitle: 'Table with pictures and Goins value, for offline planning',
-            color: const Color(0xFF12B24A),
-            onTap: () async {
-              final ok = await printMaterialsList();
-              if (!ok && mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Printing works in the web app: open miniguru.in in a browser.')));
-              }
-            },
-          ),
-          const SizedBox(height: 10),
           const DeleteAccountTile(),
-        ],
-      ),
-    );
+    ];
   }
 
   Widget _actionTile({

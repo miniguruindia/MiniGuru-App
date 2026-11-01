@@ -64,7 +64,7 @@ class _HomeScreenState extends State<HomeScreen> {
     if (slug == 'about') return true;
     final mentor = _user?.isMentor == true && !SessionState.isChildSession;
     final authed = SessionState.isChildSession || _isAuthenticated;
-    return slug == 'consult' && !mentor && !authed;
+    return slug == 'consult';
   }
 
   void _openWebTab(int i, [String sub = '']) {
@@ -275,43 +275,6 @@ class _HomeScreenState extends State<HomeScreen> {
                 child: const Text('Switch', style: TextStyle(color: Colors.white, fontSize: 12, decoration: TextDecoration.underline)),
               ),
             ],
-          ),
-        ),
-      );
-    }
-    // Always-visible "My Account" shortcut for mentors/teachers — previously
-    // only reachable via the last (right-most) bottom-nav icon.
-    if (_user?.isMentor == true) {
-      return PreferredSize(
-        preferredSize: const Size.fromHeight(40),
-        child: SafeArea(
-          bottom: false,
-          child: Container(
-            color: Colors.white,
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            height: 40,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                InkWell(
-                  onTap: () => _onNavBarTap(4),
-                  borderRadius: BorderRadius.circular(8),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: const [
-                        Icon(Icons.supervisor_account, size: 18, color: Color(0xFF0A6CFF)),
-                        SizedBox(width: 6),
-                        Text('My Account',
-                            style: TextStyle(
-                                fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF0A6CFF))),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            ),
           ),
         ),
       );

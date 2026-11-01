@@ -7,6 +7,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:miniguru/utils/deepLink.dart';
+import 'package:miniguru/utils/materialsListPrint.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:http/http.dart' as http;
 import 'package:miniguru/secrets.dart';
@@ -1193,6 +1194,18 @@ class _ShopState extends State<Shop>
   Widget _buildAppBar() {
     return SliverAppBar(
       pinned: true, expandedHeight: 100, backgroundColor: _accent, elevation: 0,
+      actions: [
+        IconButton(
+          tooltip: 'Print materials list (picture, name, Goins)',
+          icon: const Icon(Icons.print_rounded, color: Colors.white),
+          onPressed: () async {
+            final ok = await printMaterialsList();
+            if (!ok && mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Printing works in the web app: open miniguru.in in a browser.')));
+            }
+          },
+        ),
+      ],
       flexibleSpace: FlexibleSpaceBar(
         titlePadding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
         title: Column(mainAxisAlignment: MainAxisAlignment.end, crossAxisAlignment: CrossAxisAlignment.start, children: [
