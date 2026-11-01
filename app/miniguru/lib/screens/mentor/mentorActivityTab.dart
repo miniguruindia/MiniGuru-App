@@ -34,6 +34,7 @@ class _MentorActivityTabState extends State<MentorActivityTab> {
   String? _selectedChildId; // null = all children
   int _pendingTopUpCount = 0;
   String _search = ''; // search by project name or learner name
+  Map<String, int> _views = {}; // YouTube views by video id (for the 'Top by YouTube views' box)
 
   // Merged in from the old separate "Learners" tab (MentorChildrenTab).
   final List<List<Color>> _learnerGradients = const [
@@ -67,10 +68,25 @@ class _MentorActivityTabState extends State<MentorActivityTab> {
           _pendingTopUpCount = topUpRequests.length;
           _isLoading = false;
         });
+        _loadViews();
       }
     } catch (e) {
       if (mounted) setState(() => _isLoading = false);
     }
+  }
+
+  static String _ytIdOf(String raw) {
+    final m = RegExp(r'(?:v=|youtu\.be/|embed/|shorts/)([A-Za-z0-9_-]{11})').firstMatch(raw);
+    return m?.group(1) ?? '';
+  }
+
+  Future<void> _loadViews() async {
+    final ids = _projects.map((p) => _ytIdOf(p.video)).where((i) => i.isNotEmpty).toSet().toList();
+    final got = <String, int>{};
+    for (var i = 0; i < ids.length; i += 50) {
+      got.addAll(await _api.fetchYoutubeViews(ids.sublist(i, i + 50 > ids.length ? ids.length : i + 50)));
+    }
+    if (mounted) setState(() => _views = got);
   }
 
   // Applies the learner chip, then the search box (project name, category or learner name).
@@ -818,54 +834,19 @@ class _MentorActivityTabState extends State<MentorActivityTab> {
                   child: Center(
                     child: ConstrainedBox(
                       constraints: const BoxConstraints(maxWidth: 1200),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Expanded(
-                            flex: 4,
-                            child: Column(children: [
-                              _buildLearnersSection(),
-                              if (_children.isNotEmpty) _buildBatchSnapshot(),
-                              if (_children.isNotEmpty)
-                                SizedBox(
-                                  height: 52,
-                                  child: ListView(
-                                    scrollDirection: Axis.horizontal,
-                                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                                    children: [
-                                      _filterChip('All', null),
-                                      ..._children.map((c) => _filterChip(c.name, c.id)),
-                                    ],
-                                  ),
-                                ),
-                              _buildSearchBox(),
-                            ]),
-                          ),
-                          Expanded(
-                            flex: 6,
-                            child: Padding(
-                              padding: const EdgeInsets.only(top: 12),
-                              child: Column(children: [
-                                if (filtered.isEmpty)
-                                  Padding(
-                                    padding: const EdgeInsets.only(top: 40),
-                                    child: Text(
-                                        _search.trim().isEmpty
-                                            ? 'No projects yet.\nProjects created by your children will appear here'
-                                            : 'No project or learner matches "$_search"',
-                                        textAlign: TextAlign.center,
-                                        style: GoogleFonts.nunito(fontSize: 14, color: Colors.grey[700])),
-                                  )
-                                else
-                                  Padding(
-                                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                                    child: Column(children: filtered.map(_buildProjectCard).toList()),
-                                  ),
-                              ]),
-                            ),
-                          ),
-                        ],
-                      ),
+                      child: Column(children: [
+                        _buildLearnersSection(),
+                        if (_children.isNotEmpty) _statsCard(),
+                        if (_children.isNotEmpty)
+                          Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                            Expanded(child: _goinsBox()),
+                            Expanded(child: _viewsBox()),
+                          ]),
+                        Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                          Expanded(flex: 6, child: _latestBox(filtered)),
+                          Expanded(flex: 4, child: _controlsBox()),
+                        ]),
+                      ]),
                     ),
                   ),
                 ),
@@ -883,8 +864,9 @@ class _MentorActivityTabState extends State<MentorActivityTab> {
               // Batch Snapshot — replaces the old duplicate Goins lists that
               // used to live on the Profile tab (Family Goins bar chart +
               // My Learners score list). One clear summary here instead.
-              if (_children.isNotEmpty)
-                SliverToBoxAdapter(child: _buildBatchSnapshot()),
+              if (_children.isNotEmpty) SliverToBoxAdapter(child: _statsCard()),
+              if (_children.isNotEmpty) SliverToBoxAdapter(child: _goinsBox()),
+              if (_children.isNotEmpty) SliverToBoxAdapter(child: _viewsBox()),
 
               // Filter chips
               if (_children.isNotEmpty)
@@ -1059,6 +1041,148 @@ class _MentorActivityTabState extends State<MentorActivityTab> {
           ],
         ),
       ),
+    );
+  }
+
+  // ── School dashboard blocks (Nov 2026) ─────────────────────────────────
+  Widget _dashCard({required String title, required Widget child, EdgeInsets margin = const EdgeInsets.fromLTRB(16, 12, 16, 0)}) {
+    return Padding(
+      padding: margin,
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(18),
+          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 8, offset: const Offset(0, 3))],
+        ),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(title, style: GoogleFonts.nunito(fontSize: 15, fontWeight: FontWeight.w900, color: Colors.black87)),
+          const SizedBox(height: 8),
+          child,
+        ]),
+      ),
+    );
+  }
+
+  Widget _statsCard() {
+    final totalGoins = _children.fold<int>(0, (sum, c) => sum + c.score);
+    return _dashCard(
+      title: 'At a glance',
+      child: Row(children: [
+        Expanded(child: _snapshotStat('👥', '${_children.length}', 'Learners')),
+        Expanded(child: _snapshotStat('🎬', '${_projects.length}', 'Projects')),
+        Expanded(child: _snapshotStat('🪙', '$totalGoins', 'Total Goins')),
+      ]),
+    );
+  }
+
+  Widget _rankRow(int rank, String name, double fraction, String value, Color color) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(children: [
+        SizedBox(width: 24, child: Text('${rank + 1}', style: GoogleFonts.nunito(fontWeight: FontWeight.w900, color: pastelBlueText))),
+        SizedBox(width: 110, child: Text(name, maxLines: 1, overflow: TextOverflow.ellipsis,
+            style: GoogleFonts.nunito(fontSize: 12, fontWeight: FontWeight.w700))),
+        Expanded(
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(5),
+            child: LinearProgressIndicator(
+              value: fraction.clamp(0.0, 1.0), minHeight: 9,
+              backgroundColor: const Color(0xFFEEF1FA), valueColor: AlwaysStoppedAnimation(color)),
+          ),
+        ),
+        SizedBox(width: 52, child: Text(value, textAlign: TextAlign.right,
+            style: GoogleFonts.nunito(fontSize: 12, fontWeight: FontWeight.w800, color: color))),
+      ]),
+    );
+  }
+
+  Widget _goinsBox() {
+    final ranked = List<ChildProfile>.from(_children)..sort((a, b) => b.score.compareTo(a.score));
+    final top = ranked.take(15).toList();
+    final max = top.isEmpty ? 1 : top.first.score.clamp(1, 1 << 30);
+    return _dashCard(
+      title: '🪙 Top ${top.length} by Goins',
+      child: SizedBox(
+        height: 210,
+        child: top.isEmpty
+            ? Text('Add learners to see the ranking.', style: GoogleFonts.nunito(fontSize: 13, color: Colors.grey[700]))
+            : ListView(children: [
+                for (var i = 0; i < top.length; i++)
+                  _rankRow(i, top[i].name, top[i].score / max, '${top[i].score}', const Color(0xFFFFB800)),
+              ]),
+      ),
+    );
+  }
+
+  Widget _viewsBox() {
+    final rows = <MapEntry<Project, int>>[];
+    for (final p in _projects) {
+      final v = _views[_ytIdOf(p.video)];
+      if (v != null) rows.add(MapEntry(p, v));
+    }
+    rows.sort((a, b) => b.value.compareTo(a.value));
+    final top = rows.take(15).toList();
+    final max = top.isEmpty ? 1 : top.first.value.clamp(1, 1 << 30);
+    return _dashCard(
+      title: '▶ Top by YouTube views',
+      child: SizedBox(
+        height: 210,
+        child: top.isEmpty
+            ? Text('Views appear here once your children\'s videos are on YouTube.',
+                style: GoogleFonts.nunito(fontSize: 13, color: Colors.grey[700]))
+            : ListView(children: [
+                for (var i = 0; i < top.length; i++)
+                  _rankRow(i, top[i].key.title, top[i].value / max, '${top[i].value}', const Color(0xFFFF3B30)),
+              ]),
+      ),
+    );
+  }
+
+  Widget _latestBox(List<Project> filtered) {
+    final list = List<Project>.from(filtered)..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    return _dashCard(
+      title: '🎬 Latest projects (scroll for older)',
+      child: SizedBox(
+        height: 560,
+        child: list.isEmpty
+            ? Center(child: Text(
+                _search.trim().isEmpty ? 'No projects yet.\nProjects created by your children will appear here' : 'No project or learner matches "$_search"',
+                textAlign: TextAlign.center, style: GoogleFonts.nunito(fontSize: 14, color: Colors.grey[700])))
+            : ListView(children: list.map(_buildProjectCard).toList()),
+      ),
+    );
+  }
+
+  Widget _controlsBox() {
+    return _dashCard(
+      title: '🔎 Find and filter',
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        if (_children.isNotEmpty)
+          SizedBox(
+            height: 46,
+            child: ListView(scrollDirection: Axis.horizontal, children: [
+              _filterChip('All', null),
+              ..._children.map((c) => _filterChip(c.name, c.id)),
+            ]),
+          ),
+        _buildSearchBox(),
+        const SizedBox(height: 4),
+        Wrap(spacing: 8, runSpacing: 8, children: [
+          ActionChip(
+            avatar: const Icon(Icons.video_call, size: 18),
+            label: Text('Upload video', style: GoogleFonts.nunito(fontWeight: FontWeight.w800)),
+            onPressed: _showUploadDialog,
+          ),
+          ActionChip(
+            avatar: const Icon(Icons.inbox_rounded, size: 18),
+            label: Text(_pendingTopUpCount > 0 ? 'Goins requests ($_pendingTopUpCount)' : 'Goins requests',
+                style: GoogleFonts.nunito(fontWeight: FontWeight.w800)),
+            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const GoinsTopUpRequestsScreen())).then((_) => _loadData()),
+          ),
+        ]),
+      ]),
     );
   }
 
