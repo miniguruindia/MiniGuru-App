@@ -677,6 +677,51 @@ router.get('/admin/all', authMiddleware_1.authenticateToken, requireAdmin, async
         res.status(500).json({ error: 'Failed to fetch materials' });
     }
 });
+// GET /admin/duplicates — groups of materials that look like the same item (Nov 2026):
+// the same Amazon ASIN, or the same name once capitals, spaces and symbols are ignored.
+// Items that are already variants of each other are not listed. Read-only.
+router.get('/admin/duplicates', authMiddleware_1.authenticateToken, requireAdmin, async (_req, res) => {
+    try {
+        const all = await prismaClient_1.default.material.findMany({
+            where: { isActive: true },
+            select: { id: true, name: true, category: true, amazonASIN: true, goinsPrice: true, variantOf: true, imageUrl: true },
+        });
+        const norm = (s) => (s || '').toLowerCase().replace(/[^a-z0-9\u0900-\u097f]+/g, '');
+        const byAsin = new Map();
+        const byName = new Map();
+        for (const m of all) {
+            const a = (m.amazonASIN || '').trim().toUpperCase();
+            if (a)
+                byAsin.set(a, [...(byAsin.get(a) || []), m]);
+            const n = norm(m.name);
+            if (n)
+                byName.set(n, [...(byName.get(n) || []), m]);
+        }
+        const seen = new Set();
+        const groups = [];
+        const push = (reason, items) => {
+            if (items.length < 2)
+                return;
+            // already linked as head + variants: nothing to clean up
+            const heads = items.filter((i) => !i.variantOf);
+            if (heads.length < 2 && items.every((i) => !i.variantOf || items.some((h) => h.id === i.variantOf)))
+                return;
+            const key = items.map((i) => i.id).sort().join(',');
+            if (seen.has(key))
+                return;
+            seen.add(key);
+            groups.push({ reason, items });
+        };
+        for (const [a, items] of byAsin)
+            push(`Same Amazon ASIN (${a})`, items);
+        for (const [, items] of byName)
+            push('Same name', items);
+        return res.json({ groups });
+    }
+    catch (e) {
+        return res.status(500).json({ error: 'Could not look for duplicates.' });
+    }
+});
 router.post('/admin/create', authMiddleware_1.authenticateToken, requireAdmin, async (req, res) => {
     try {
         const { name, description, imageUrl, icon, category, unit, goinsPrice, priceEstimate, amazonASIN, showInShop, showInPlanning, categories, images, aliases, variantOf } = req.body;

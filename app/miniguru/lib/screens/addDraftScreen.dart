@@ -147,6 +147,7 @@ class _AddDraftScreenState extends State<AddDraftScreen>
         content: Text(
           'Other children will see your title, description, sketch and materials, with your first name and the ID. '
           'They can try your idea, and you get a few Goins when they do.\n\n'
+          "The sketch is your own. MiniGuru has no direct say in it.\n\n"
           'MiniGuru staff do not read ideas; they are only checked automatically. Please do not write phone numbers, addresses or links.',
           style: GoogleFonts.nunito(fontSize: 13),
         ),
@@ -220,7 +221,7 @@ class _AddDraftScreenState extends State<AddDraftScreen>
     Uint8List? img;
     try { if (_sketchB64 != null) img = base64Decode(_sketchB64!); } catch (_) {}
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Text('Draw or add a picture of your idea. This is only for your planning sheet — it is not shown with your video.',
+      Text('Draw or add a picture of your idea. This is only for your planning sheet — it is not shown with your video.\nThis is your own sketch. MiniGuru has no direct say in it.',
           style: GoogleFonts.nunito(fontSize: 12, fontWeight: FontWeight.w700, color: _muted)),
       const SizedBox(height: 10),
       if (img != null) ...[

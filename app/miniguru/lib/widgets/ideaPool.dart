@@ -273,6 +273,8 @@ class _IdeaDetailScreenState extends State<IdeaDetailScreen> {
                       if ((i['sketch'] ?? '').toString().isNotEmpty) ...[
                         const SizedBox(height: 10),
                         ClipRRect(borderRadius: BorderRadius.circular(12), child: Image.memory(base64Decode(i['sketch']), fit: BoxFit.contain)),
+                        const SizedBox(height: 4),
+                        Text("Child's own sketch. MiniGuru has no direct say in it.", style: GoogleFonts.nunito(fontSize: 11, fontWeight: FontWeight.w700, color: _muted)),
                       ],
                       const SizedBox(height: 10),
                       Text(i['description']?.toString() ?? '', style: GoogleFonts.nunito(fontSize: 14)),

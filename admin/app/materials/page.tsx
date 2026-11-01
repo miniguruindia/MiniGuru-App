@@ -1717,6 +1717,7 @@ function MaterialsPageInner() {
             </p>
           </div>
           <div className="flex gap-2">
+            <a href="/materials/duplicates" className="flex items-center gap-2 px-3 py-2 border border-gray-200 rounded-lg hover:bg-gray-50 text-sm">Find duplicates</a>
             <button onClick={load} className="flex items-center gap-2 px-3 py-2 border border-gray-200 rounded-lg hover:bg-gray-50 text-sm">
               <RefreshCw className="h-4 w-4" />
             </button>

@@ -671,6 +671,44 @@ router.get('/admin/all', authenticateToken, requireAdmin, async (_req: Request, 
   }
 });
 
+// GET /admin/duplicates — groups of materials that look like the same item (Nov 2026):
+// the same Amazon ASIN, or the same name once capitals, spaces and symbols are ignored.
+// Items that are already variants of each other are not listed. Read-only.
+router.get('/admin/duplicates', authenticateToken, requireAdmin, async (_req: Request, res: Response) => {
+  try {
+    const all: any[] = await prisma.material.findMany({
+      where: { isActive: true },
+      select: { id: true, name: true, category: true, amazonASIN: true, goinsPrice: true, variantOf: true, imageUrl: true },
+    });
+    const norm = (s: string) => (s || '').toLowerCase().replace(/[^a-z0-9\u0900-\u097f]+/g, '');
+    const byAsin = new Map<string, any[]>();
+    const byName = new Map<string, any[]>();
+    for (const m of all) {
+      const a = (m.amazonASIN || '').trim().toUpperCase();
+      if (a) byAsin.set(a, [...(byAsin.get(a) || []), m]);
+      const n = norm(m.name);
+      if (n) byName.set(n, [...(byName.get(n) || []), m]);
+    }
+    const seen = new Set<string>();
+    const groups: any[] = [];
+    const push = (reason: string, items: any[]) => {
+      if (items.length < 2) return;
+      // already linked as head + variants: nothing to clean up
+      const heads = items.filter((i) => !i.variantOf);
+      if (heads.length < 2 && items.every((i) => !i.variantOf || items.some((h) => h.id === i.variantOf))) return;
+      const key = items.map((i) => i.id).sort().join(',');
+      if (seen.has(key)) return;
+      seen.add(key);
+      groups.push({ reason, items });
+    };
+    for (const [a, items] of byAsin) push(`Same Amazon ASIN (${a})`, items);
+    for (const [, items] of byName) push('Same name', items);
+    return res.json({ groups });
+  } catch (e) {
+    return res.status(500).json({ error: 'Could not look for duplicates.' });
+  }
+});
+
 router.post('/admin/create', authenticateToken, requireAdmin, async (req: Request, res: Response) => {
   try {
     const { name, description, imageUrl, icon, category, unit, goinsPrice,

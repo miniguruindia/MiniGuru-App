@@ -2,7 +2,10 @@
 // Full-screen Material Picker for children to select STEM materials
 // Light theme — white background, clean cards, proper image sizing
 
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'package:miniguru/secrets.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:miniguru/models/MaterialItem.dart';
 import 'package:miniguru/repository/GoinsRepository.dart';
@@ -64,6 +67,9 @@ class _MaterialPickerSheetState extends State<MaterialPickerSheet> {
   List<MaterialItem>     _filtered     = [];
   Map<String, int>       _quantities   = {};
   String                 _activeCategoryId = 'all';
+  // Group chips (Nov 2026): same groups as the Shop. Optional; if loading fails the category chips still work.
+  List<Map<String, dynamic>> _groups = [];
+  String                 _activeGroupId = '';
   String                 _searchQuery  = '';
   bool                   _loading      = true;
 
@@ -74,6 +80,27 @@ class _MaterialPickerSheetState extends State<MaterialPickerSheet> {
       _quantities[p.item.id] = p.quantity;
     }
     _loadData();
+    _loadGroups();
+  }
+
+  Future<void> _loadGroups() async {
+    try {
+      final res = await http.get(Uri.parse('$apiBaseUrl/materials/category-groups'));
+      if (res.statusCode == 200) {
+        final list = jsonDecode(res.body);
+        if (mounted) setState(() => _groups = List<Map<String, dynamic>>.from(list));
+      }
+    } catch (_) {}
+  }
+
+  Set<String> get _groupCats {
+    if (_activeGroupId.isEmpty) return {};
+    for (final g in _groups) {
+      if (g['id']?.toString() == _activeGroupId) {
+        return ((g['memberCategories'] as List?) ?? []).map((e) => e.toString()).toSet();
+      }
+    }
+    return {};
   }
 
   Future<void> _loadData() async {
@@ -117,7 +144,10 @@ class _MaterialPickerSheetState extends State<MaterialPickerSheet> {
   void _applyFilter() {
     setState(() {
       _filtered = _collapseVariants(_allMaterials.where((m) {
-        final matchCat    = _activeCategoryId == 'all' || m.categoryId == _activeCategoryId;
+        final gc = _groupCats;
+        final matchCat    = _activeGroupId.isNotEmpty
+            ? gc.contains(m.categoryName)
+            : (_activeCategoryId == 'all' || m.categoryId == _activeCategoryId);
         final nq = _normQ(_searchQuery);
         final hay = _normQ('${m.name} ${m.categoryName}');
         final matchSearch = nq.isEmpty ||
@@ -240,6 +270,13 @@ class _MaterialPickerSheetState extends State<MaterialPickerSheet> {
 
   void _setCategory(String id) {
     _activeCategoryId = id;
+    _activeGroupId = '';
+    _applyFilter();
+  }
+
+  void _setGroup(String id) {
+    _activeGroupId = (_activeGroupId == id) ? '' : id;
+    _activeCategoryId = 'all';
     _applyFilter();
   }
 
@@ -281,6 +318,7 @@ class _MaterialPickerSheetState extends State<MaterialPickerSheet> {
           _buildGoinsBar(),
           if (_overBudget) _buildShortfallBanner(),
           _buildSearch(),
+          _buildGroupRow(),
           _buildCategoryRow(),
           Expanded(child: _loading ? _buildLoader() : _buildMaterialGrid()),
           _buildSuggestLink(),
@@ -530,6 +568,40 @@ class _MaterialPickerSheetState extends State<MaterialPickerSheet> {
     );
   }
 
+  Widget _buildGroupRow() {
+    if (_groups.isEmpty) return const SizedBox.shrink();
+    return SizedBox(
+      height: 40,
+      child: ListView.builder(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        itemCount: _groups.length,
+        itemBuilder: (_, i) {
+          final g = _groups[i];
+          final active = _activeGroupId == g['id']?.toString();
+          return GestureDetector(
+            onTap: () => _setGroup(g['id'].toString()),
+            child: Container(
+              margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+              decoration: BoxDecoration(
+                color: active ? _blue : _card,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: active ? _blue : _border),
+              ),
+              child: Text('${g['emoji'] ?? ''} ${g['name'] ?? ''}',
+                  style: GoogleFonts.nunito(
+                    color: active ? Colors.white : _muted,
+                    fontSize: 12,
+                    fontWeight: active ? FontWeight.w800 : FontWeight.w600,
+                  )),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
   Widget _buildCategoryRow() {
     final all = [
       MaterialCategory(id: 'all', name: 'All', emoji: '🌟'),
@@ -543,7 +615,7 @@ class _MaterialPickerSheetState extends State<MaterialPickerSheet> {
         itemCount: all.length,
         itemBuilder: (_, i) {
           final cat    = all[i];
-          final active = _activeCategoryId == cat.id;
+          final active = _activeGroupId.isEmpty && _activeCategoryId == cat.id;
           return GestureDetector(
             onTap: () => _setCategory(cat.id),
             child: AnimatedContainer(

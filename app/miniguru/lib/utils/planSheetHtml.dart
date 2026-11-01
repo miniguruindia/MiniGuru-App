@@ -120,7 +120,7 @@ table{width:100%;border-collapse:collapse;margin-top:3px}td,th{border:1px solid 
 <div class="two"><div><div class="lbl">Category</div><div class="val">${_esc(d.category)}</div></div>
 <div><div class="lbl">Start &ndash; finish</div><div class="val">${d.startDate != null || d.endDate != null ? '${_day(d.startDate)} &ndash; ${_day(d.endDate)}' : ''}</div></div></div>
 <div class="lbl">What I will build and why</div><div class="box">${_esc(d.description)}</div>
-<div class="lbl">My sketch</div><div class="sk">$sketch</div>
+<div class="lbl">My sketch</div><div class="sk">$sketch</div><div style="font-size:10px;color:#777">Child's own sketch. MiniGuru has no direct say in it.</div>
 <div class="lbl">Materials I need</div>
 <table><tr><th>Material</th><th class="q">Qty</th></tr>$rows</table>
 <div class="lbl">Steps / notes (write by hand)</div><div class="lines"></div>
