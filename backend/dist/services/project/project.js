@@ -3,6 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
+const videoCode_1 = require("../../utils/videoCode");
 const prismaClient_1 = __importDefault(require("../../utils/prismaClient"));
 const error_1 = require("../../utils/error");
 class ProjectService {
@@ -64,6 +65,7 @@ class ProjectService {
                 desiredPrivacyStatus: ["PUBLIC", "UNLISTED", "PRIVATE"].includes(desiredPrivacyStatus) ? desiredPrivacyStatus : "PUBLIC",
                 ...(planId ? { planId, planCreatedAt: (await prismaClient_1.default.planSheet.findFirst({ where: { code: planId }, select: { createdAt: true } }).catch(() => null))?.createdAt ?? undefined } : {}),
                 ...(planSketch ? { planSketch } : {}),
+                ...{ videoCode: await (0, videoCode_1.newVideoCode)() },
                 youtubeUploadStatus: youtubeUploadStatus ?? undefined,
                 youtubeStatusReason: youtubeStatusReason ?? undefined,
                 youtubeRegionsBlocked: typeof youtubeRegionsBlocked === "number" ? youtubeRegionsBlocked : undefined,

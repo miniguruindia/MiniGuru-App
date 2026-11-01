@@ -21,7 +21,8 @@ import {
   Megaphone,
   Gauge,
   Download,
-  Activity
+  Activity,
+  Lightbulb
 } from 'lucide-react'
 import Image from 'next/image'
 
@@ -52,6 +53,12 @@ export function AdminLayout({ children }: AdminLayoutProps) {
       href: '/activity',
       icon: Activity,
       current: pathname.startsWith('/activity')
+    },
+    { 
+      name: 'Ideas',
+      href: '/ideas',
+      icon: Lightbulb,
+      current: pathname.startsWith('/ideas')
     },
     { 
       name: 'Cost & Quotas',

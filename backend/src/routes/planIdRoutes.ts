@@ -112,6 +112,7 @@ router.get('/project/:projectId', authenticateToken, resolveSubject, async (req:
     }
     return res.json({
       planId: p.planId || null,
+      videoCode: p.videoCode || null,
       planCreatedAt: p.planCreatedAt || p.createdAt,
       maker: p.user?.name || '',
       school: p.user?.schoolName || '',

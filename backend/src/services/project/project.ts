@@ -1,3 +1,4 @@
+import { newVideoCode } from "../../utils/videoCode";
 import prisma from "../../utils/prismaClient";
 import { Project } from "@prisma/client";
 import { NotFoundError } from "../../utils/error";
@@ -89,6 +90,7 @@ class ProjectService {
         desiredPrivacyStatus: ["PUBLIC", "UNLISTED", "PRIVATE"].includes(desiredPrivacyStatus) ? desiredPrivacyStatus : "PUBLIC",
         ...(planId ? ({ planId, planCreatedAt: (await (prisma as any).planSheet.findFirst({ where: { code: planId }, select: { createdAt: true } }).catch(() => null))?.createdAt ?? undefined } as any) : {}),
         ...(planSketch ? ({ planSketch } as any) : {}),
+        ...({ videoCode: await newVideoCode() } as any),
         youtubeUploadStatus: youtubeUploadStatus ?? undefined,
         youtubeStatusReason: youtubeStatusReason ?? undefined,
         youtubeRegionsBlocked: typeof youtubeRegionsBlocked === "number" ? youtubeRegionsBlocked : undefined,

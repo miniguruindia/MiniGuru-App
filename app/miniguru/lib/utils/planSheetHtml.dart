@@ -34,11 +34,12 @@ class PlanSheetData {
   final DateTime? publishedAt;
   final int? goins;
   final int? views;
+  final String? videoCode;
   PlanSheetData({
     this.planId, this.planCreatedAt, this.maker = '', this.school = '', this.title = '',
     this.description = '', this.category = '', this.startDate, this.endDate,
     this.materials = const [], this.sketchB64, this.published = false, this.thumbnail,
-    this.publishedAt, this.goins, this.views,
+    this.publishedAt, this.goins, this.views, this.videoCode,
   });
 
   factory PlanSheetData.fromServer(Map<String, dynamic> j) {
@@ -63,6 +64,7 @@ class PlanSheetData {
       publishedAt: dt(j['publishedAt']),
       goins: (j['goins'] as num?)?.toInt(),
       views: (j['views'] as num?)?.toInt(),
+      videoCode: j['videoCode']?.toString(),
     );
   }
 }
@@ -83,7 +85,7 @@ String buildPlanSheetHtml(PlanSheetData d) {
       ? '''<div class="pub"><div class="pt">🎉 PUBLISHED</div><div class="pr">
 ${(d.thumbnail ?? '').isNotEmpty ? '<img class="th" src="${_esc(d.thumbnail)}">' : '<div class="th"></div>'}
 <div><b>${_esc(d.title)}</b>
-<div class="mut">${d.publishedAt != null ? 'Published ${_dayTime(d.publishedAt)}' : 'Published'}</div>
+<div class="mut">${d.publishedAt != null ? 'Published ${_dayTime(d.publishedAt)}' : 'Published'}${(d.videoCode ?? '').isNotEmpty ? ' &middot; Video ID ${_esc(d.videoCode)}' : ''}</div>
 <div class="st">${d.goins != null ? '<span>🪙 ${d.goins} Goins earned</span>' : ''}${d.views != null ? '<span>▶ ${d.views} views on YouTube</span>' : ''}</div>
 </div></div></div>'''
       : '';

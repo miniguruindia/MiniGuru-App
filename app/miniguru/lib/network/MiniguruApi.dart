@@ -1686,6 +1686,60 @@ class MiniguruApi {
     return null;
   }
 
+  // ── Idea Pool (Nov 2026) ──────────────────────────────────────────────
+  Future<List<Map<String, dynamic>>?> fetchIdeas({String q = '', String type = 'all'}) async {
+    try {
+      final authToken = await _db!.getAuthToken();
+      if (authToken == null) return null;
+      final r = await http.get(
+        Uri.parse('$_baseUrl/ideas?type=$type&q=${Uri.encodeQueryComponent(q)}'),
+        headers: _buildHeaders(authToken.accessToken),
+      ).timeout(const Duration(seconds: 25));
+      if (r.statusCode != 200) return null;
+      final d = jsonDecode(r.body);
+      return [for (final e in (d['items'] as List? ?? [])) Map<String, dynamic>.from(e)];
+    } catch (e) { print('❌ fetchIdeas: $e'); }
+    return null;
+  }
+
+  Future<Map<String, dynamic>?> fetchIdea(String id) async {
+    try {
+      final authToken = await _db!.getAuthToken();
+      if (authToken == null) return null;
+      final r = await http.get(Uri.parse('$_baseUrl/ideas/$id'), headers: _buildHeaders(authToken.accessToken));
+      if (r.statusCode != 200) return null;
+      return Map<String, dynamic>.from(jsonDecode(r.body));
+    } catch (e) { print('❌ fetchIdea: $e'); }
+    return null;
+  }
+
+  /// Returns {ok: true} or {ok: false, error: '...'}.
+  Future<Map<String, dynamic>> shareIdea(Map<String, dynamic> body) async {
+    try {
+      final authToken = await _db!.getAuthToken();
+      if (authToken == null) return {'ok': false, 'error': 'Please log in first.'};
+      final r = await http.post(Uri.parse('$_baseUrl/ideas/share'),
+          headers: _buildHeaders(authToken.accessToken), body: jsonEncode(body)).timeout(const Duration(seconds: 60));
+      final d = r.body.isNotEmpty ? jsonDecode(r.body) : {};
+      if (r.statusCode == 200) return {'ok': true};
+      return {'ok': false, 'error': d['error']?.toString() ?? 'Could not share the idea right now.'};
+    } catch (e) { print('❌ shareIdea: $e'); }
+    return {'ok': false, 'error': 'Could not share the idea right now.'};
+  }
+
+  /// "I'll try this": returns {idea: {...}, goinsGiven, already?, own?} or null.
+  Future<Map<String, dynamic>?> tryIdea(String id) async {
+    try {
+      final authToken = await _db!.getAuthToken();
+      if (authToken == null) return null;
+      final r = await http.post(Uri.parse('$_baseUrl/ideas/$id/try'),
+          headers: _buildHeaders(authToken.accessToken), body: '{}').timeout(const Duration(seconds: 30));
+      if (r.statusCode != 200) return null;
+      return Map<String, dynamic>.from(jsonDecode(r.body));
+    } catch (e) { print('❌ tryIdea: $e'); }
+    return null;
+  }
+
   /// Real YouTube view counts for a few videos: {videoId: views}. Empty when unavailable.
   Future<Map<String, int>> fetchYoutubeViews(List<String> ids) async {
     try {

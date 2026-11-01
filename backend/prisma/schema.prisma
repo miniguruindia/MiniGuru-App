@@ -302,6 +302,39 @@ model PlanSheet {
   @@map("plan_sheets")
 }
 
+// Ideas children share for others to try (Nov 2026). Not reviewed by staff; checked automatically
+// for personal details. Admin can hide one. Finished projects appear in the pool from Project itself.
+model Idea {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  code        String   // planning-sheet ID, e.g. MG-SSK-PK-0042
+  title       String
+  description String
+  sketch      String?  // base64 picture, optional
+  materials   Json?    // [{id, name, quantity}]
+  category    String?
+  makerUserId String   @db.ObjectId
+  makerName   String   // first name only is ever shown
+  status      String   @default("visible") // visible | hidden (admin) 
+  tries       Int      @default(0)
+  paidTries   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([code])
+  @@index([status, createdAt])
+  @@map("ideas")
+}
+
+model IdeaTry {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  ideaId    String   @db.ObjectId
+  userId    String   @db.ObjectId
+  createdAt DateTime @default(now())
+
+  @@index([ideaId, userId])
+  @@map("idea_tries")
+}
+
 model Project {
   id          String            @id @default(auto()) @map("_id") @db.ObjectId
   title       String
@@ -320,6 +353,7 @@ model Project {
   status      String            @default("pending")
   aiVerdict   String?
   planId      String?   // planning-sheet ID, e.g. MG-SSK-PK-0042
+  videoCode   String?   // short video ID, e.g. MG-V-8H2M
   planCreatedAt DateTime?  // when that ID was created
   planSketch  String?   // optional sketch (base64), planning sheet only — never sent to YouTube
   // What the uploader chose at upload time — one of YouTube's own three

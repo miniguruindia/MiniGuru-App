@@ -17,6 +17,7 @@ import 'package:miniguru/screens/registerScreen.dart';
 import 'package:miniguru/screens/addDraftScreen.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:miniguru/widgets/makerCard.dart';
+import 'package:miniguru/widgets/ideaPool.dart';
 
 class CommunityScreen extends StatefulWidget {
   const CommunityScreen({super.key, this.initialTab = 0});
@@ -55,12 +56,12 @@ class _CommunityScreenState extends State<CommunityScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 4, vsync: this, initialIndex: widget.initialTab)
+    _tabController = TabController(length: 5, vsync: this, initialIndex: widget.initialTab)
       ..addListener(() {
         setState(() => _activeTab = _tabController.index);
         DeepLink.setSub('community', DeepLink.communityTabs[_tabController.index]);
       });
-    DeepLink.setSub('community', DeepLink.communityTabs[widget.initialTab.clamp(0, 3)]);
+    DeepLink.setSub('community', DeepLink.communityTabs[widget.initialTab.clamp(0, 4)]);
     DeepLink.communityTabRequest.addListener(_onTabRequest);
     _loadCms();
     _loadHappeningsAndChallenges();
@@ -280,6 +281,7 @@ class _CommunityScreenState extends State<CommunityScreen>
     _Tab('🎯', 'Challenges'),
     _Tab('🧪', 'T-LAB'),
     _Tab('📦', 'Resources'),
+    _Tab('💡', 'Ideas'),
   ];
 
   @override
@@ -295,6 +297,7 @@ class _CommunityScreenState extends State<CommunityScreen>
             _ChallengesTab(challenges: _challenges),
             _TLabTab(happenings: _happenings),
             _ResourcesTab(resources: _resources),
+            const IdeaPoolTab(),
           ],
         ),
       ),

@@ -17,6 +17,7 @@ export type LedgerSource =
   | 'RATING_GIVEN'
   | 'DAILY_QUEST'
   | 'TOPUP'
+  | 'IDEA_TRIED'
   | 'ADMIN_ADJUST';
 
 export interface LedgerInput {

@@ -14,7 +14,7 @@ import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class DeepLink {
-  static const communityTabs = ['ladder', 'challenges', 't-lab', 'resources'];
+  static const communityTabs = ['ladder', 'challenges', 't-lab', 'resources', 'ideas'];
   static const consultTabs = ['school-t-lab', 'workshops', 'home-corner'];
   static const shopTabs = ['browse', 'kits', 'my-kit'];
 

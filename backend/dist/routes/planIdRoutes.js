@@ -122,6 +122,7 @@ router.get('/project/:projectId', authMiddleware_1.authenticateToken, resolveSub
         }
         return res.json({
             planId: p.planId || null,
+            videoCode: p.videoCode || null,
             planCreatedAt: p.planCreatedAt || p.createdAt,
             maker: p.user?.name || '',
             school: p.user?.schoolName || '',

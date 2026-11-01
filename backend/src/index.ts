@@ -36,6 +36,8 @@ import schoolJoinRouter from './routes/schoolJoinRoutes';
 import accountDeletionRouter from './routes/accountDeletionRoutes';
 import youtubeViewsRouter from './routes/youtubeViewsRoutes';
 import planIdRouter from './routes/planIdRoutes';
+import ideaRouter from './routes/ideaRoutes';
+import adminIdeaRouter from './routes/adminIdeaRoutes';
 import adminActivityRouter from './routes/adminActivityRoutes';
 import accountMergeRouter from './routes/accountMergeRoutes';
 import adminAccountTypeRouter from './routes/adminAccountTypeRoutes';
@@ -315,6 +317,7 @@ try {
   app.use('/admin', costDashboardRouter);   // ← NEW: admin cost/quota dashboard
   app.use('/admin', accountMergeRouter);   // admin-only: merge duplicate child accounts
   app.use('/admin', adminAccountTypeRouter);   // admin-only: change account type (individual/parent/school/T-LAB)
+  app.use('/admin', adminIdeaRouter);   // admin-only: Ideas list (hide / show)
   app.use('/admin', adminActivityRouter);   // admin-only: Activity page (active users, funnel, sources, shares)
   app.use('/admin', adminDeleteUserRouter);   // admin-only: safe delete (students stay, optional keep-content)
   app.use(communitySubmissionsRouter);   // ← NEW: serves /happenings, /admin/happenings, /challenges, /admin/challenges
@@ -334,6 +337,7 @@ app.use('/mentor', guardianRouter);
 app.use('/school-join', schoolJoinRouter);
 app.use('/account-deletion', accountDeletionRouter);
 app.use('/plan-ids', planIdRouter);
+app.use('/ideas', ideaRouter);
   app.use('/communication', communicationRouter);
   app.use('/admin/communication', communicationRouter);
   app.use('/admin/cms', cmsRouter);           // ← NEW: Goins balance, deduct, award

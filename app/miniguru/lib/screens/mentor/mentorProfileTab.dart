@@ -18,6 +18,7 @@ import 'package:miniguru/screens/about.dart';
 import 'package:miniguru/screens/navScreen/community_screen.dart';
 import 'package:miniguru/widgets/schoolJoinWidgets.dart';
 import 'package:miniguru/widgets/accountDeletionWidgets.dart';
+import 'package:miniguru/utils/materialsListPrint.dart';
 
 class MentorProfileTab extends StatefulWidget {
   const MentorProfileTab({super.key});
@@ -462,6 +463,19 @@ class _MentorProfileTabState extends State<MentorProfileTab> {
             subtitle: 'Sign out of your account',
             color: Colors.red,
             onTap: _logout,
+          ),
+          const SizedBox(height: 10),
+          _actionTile(
+            icon: Icons.print_rounded,
+            label: 'Print materials list',
+            subtitle: 'Table with pictures and Goins value, for offline planning',
+            color: const Color(0xFF12B24A),
+            onTap: () async {
+              final ok = await printMaterialsList();
+              if (!ok && mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Printing works in the web app: open miniguru.in in a browser.')));
+              }
+            },
           ),
           const SizedBox(height: 10),
           const DeleteAccountTile(),

@@ -131,6 +131,51 @@ class _AddDraftScreenState extends State<AddDraftScreen>
     if (!ok) _showSnack('Printing works in the web app: open miniguru.in in a browser.', isError: true);
   }
 
+  bool _sharing = false;
+
+  Future<void> _shareIdea() async {
+    if (_sharing) return;
+    if (_titleCtrl.text.trim().length < 3 || _descCtrl.text.trim().length < 10) {
+      _showSnack('Please write a title and a few lines about your idea first.', isError: true);
+      return;
+    }
+    final go = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Text('💡 Share this idea?', style: GoogleFonts.nunito(fontWeight: FontWeight.w900)),
+        content: Text(
+          'Other children will see your title, description, sketch and materials, with your first name and the ID. '
+          'They can try your idea, and you get a few Goins when they do.\n\n'
+          'MiniGuru staff do not read ideas; they are only checked automatically. Please do not write phone numbers, addresses or links.',
+          style: GoogleFonts.nunito(fontSize: 13),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Not now')),
+          ElevatedButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Share')),
+        ],
+      ),
+    );
+    if (go != true) return;
+    setState(() => _sharing = true);
+    await _ensurePlanId();
+    final r = await MiniguruApi().shareIdea({
+      'planId': _planId,
+      'title': _titleCtrl.text.trim(),
+      'description': _descCtrl.text.trim(),
+      'category': _categoryCtrl.text.trim(),
+      if (_sketchB64 != null) 'sketch': _sketchB64,
+      'materials': [for (final m in _pickedMaterials) {'id': m.item.id, 'name': m.item.name, 'quantity': m.quantity}],
+    });
+    if (!mounted) return;
+    setState(() => _sharing = false);
+    if (r['ok'] == true) {
+      _showSnack('Your idea is in the Idea Pool! 💡');
+    } else {
+      _showSnack(r['error']?.toString() ?? 'Could not share the idea right now.', isError: true);
+    }
+  }
+
   Widget _buildPlanId() {
     if (_planId == null) {
       return Container(
@@ -199,6 +244,20 @@ class _AddDraftScreenState extends State<AddDraftScreen>
             child: Text('Remove', style: GoogleFonts.nunito(fontWeight: FontWeight.w800, color: _red)),
           ),
       ]),
+      const SizedBox(height: 12),
+      const Divider(height: 1),
+      const SizedBox(height: 10),
+      Text('Not going to build this one? Let another child try it.',
+          style: GoogleFonts.nunito(fontSize: 12, fontWeight: FontWeight.w700, color: _muted)),
+      const SizedBox(height: 6),
+      ElevatedButton.icon(
+        onPressed: _sharing ? null : _shareIdea,
+        icon: const Text('💡'),
+        label: Text(_sharing ? 'Sharing…' : 'Share this idea for others to try',
+            style: GoogleFonts.nunito(fontWeight: FontWeight.w900)),
+        style: ElevatedButton.styleFrom(
+            backgroundColor: _amber, foregroundColor: _ink, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+      ),
     ]);
   }
 
