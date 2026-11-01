@@ -35,6 +35,7 @@ import guardianRouter from './routes/guardianRoutes';
 import schoolJoinRouter from './routes/schoolJoinRoutes';
 import accountDeletionRouter from './routes/accountDeletionRoutes';
 import youtubeViewsRouter from './routes/youtubeViewsRoutes';
+import planIdRouter from './routes/planIdRoutes';
 import adminActivityRouter from './routes/adminActivityRoutes';
 import accountMergeRouter from './routes/accountMergeRoutes';
 import adminAccountTypeRouter from './routes/adminAccountTypeRoutes';
@@ -332,6 +333,7 @@ try {
 app.use('/mentor', guardianRouter);
 app.use('/school-join', schoolJoinRouter);
 app.use('/account-deletion', accountDeletionRouter);
+app.use('/plan-ids', planIdRouter);
   app.use('/communication', communicationRouter);
   app.use('/admin/communication', communicationRouter);
   app.use('/admin/cms', cmsRouter);           // ← NEW: Goins balance, deduct, award

@@ -20,6 +20,7 @@ import 'package:miniguru/repository/projectRepository.dart';
 import 'package:miniguru/repository/userDataRepository.dart';
 import 'package:miniguru/repository/GoinsRepository.dart';
 import 'package:miniguru/widgets/material_picker_widget.dart';
+import 'package:miniguru/widgets/sketchPad.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:miniguru/secrets.dart';
 import 'homeScreen.dart';
@@ -60,6 +61,118 @@ class _AddDraftScreenState extends State<AddDraftScreen>
   // Confirmed product decision: planning-only, instant-add, equal Goins
   // split on approval. Each entry: {'id': userId, 'name': displayName}.
   final List<Map<String, String>> _collaborators = [];
+
+  // ── Planning-sheet ID + optional sketch (Nov 2026) ────────────────────
+  // The ID (e.g. MG-SSK-PK-0042) is given by the server the first time the sheet is
+  // saved or submitted. The sketch stays on the sheet only — it is NEVER sent with the video.
+  String? _planId;
+  String? _planCreatedAt;
+  String? _sketchB64;
+
+  Future<void> _ensurePlanId() async {
+    if (_planId != null) return;
+    final r = await MiniguruApi().allocatePlanId();
+    if (r != null && mounted) {
+      setState(() { _planId = r['code']; _planCreatedAt = r['createdAt']; });
+    }
+  }
+
+  static const _mon = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  String _fmtPlanTime(String? iso) {
+    final d = DateTime.tryParse(iso ?? '')?.toLocal();
+    if (d == null) return '';
+    final h = d.hour % 12 == 0 ? 12 : d.hour % 12;
+    return '${d.day} ${_mon[d.month - 1]} ${d.year}, $h:${d.minute.toString().padLeft(2, '0')} ${d.hour < 12 ? 'am' : 'pm'}';
+  }
+
+  Future<void> _drawSketch() async {
+    Uint8List? bg;
+    try { if (_sketchB64 != null) bg = base64Decode(_sketchB64!); } catch (_) {}
+    final bytes = await showSketchPad(context, background: bg);
+    if (bytes != null && mounted) setState(() => _sketchB64 = base64Encode(bytes));
+  }
+
+  Future<void> _pickSketchPhoto() async {
+    try {
+      final f = await _picker.pickImage(
+          source: ImageSource.gallery, maxWidth: 800, maxHeight: 800, imageQuality: 70);
+      if (f == null) return;
+      final bytes = await f.readAsBytes();
+      if (bytes.length > 400 * 1024) {
+        _showSnack('That picture is too big. Please choose a smaller one.', isError: true);
+        return;
+      }
+      if (mounted) setState(() => _sketchB64 = base64Encode(bytes));
+    } catch (e) {
+      _showSnack('Could not add the picture.', isError: true);
+    }
+  }
+
+  Widget _buildPlanId() {
+    if (_planId == null) {
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(color: const Color(0xFFF1F6FF), borderRadius: BorderRadius.circular(12)),
+        child: Text('🆔 Your planning sheet gets its own ID when you save it.',
+            style: GoogleFonts.nunito(fontSize: 12, fontWeight: FontWeight.w700, color: _muted)),
+      );
+    }
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(12, 8, 6, 8),
+      decoration: BoxDecoration(color: const Color(0xFFEAF3FF), borderRadius: BorderRadius.circular(12), border: Border.all(color: _cardBorder)),
+      child: Row(children: [
+        Expanded(
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text('🆔 $_planId', style: GoogleFonts.nunito(fontSize: 16, fontWeight: FontWeight.w900, color: _accent)),
+            if (_fmtPlanTime(_planCreatedAt).isNotEmpty)
+              Text('Planned on ${_fmtPlanTime(_planCreatedAt)}',
+                  style: GoogleFonts.nunito(fontSize: 11, fontWeight: FontWeight.w700, color: _muted)),
+          ]),
+        ),
+        IconButton(
+          tooltip: 'Copy ID',
+          icon: const Icon(Icons.copy_rounded, size: 18, color: _accent),
+          onPressed: () {
+            Clipboard.setData(ClipboardData(text: _planId!));
+            _showSnack('ID copied ✅');
+          },
+        ),
+      ]),
+    );
+  }
+
+  Widget _buildSketch() {
+    Uint8List? img;
+    try { if (_sketchB64 != null) img = base64Decode(_sketchB64!); } catch (_) {}
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Text('Draw or add a picture of your idea. This is only for your planning sheet — it is not shown with your video.',
+          style: GoogleFonts.nunito(fontSize: 12, fontWeight: FontWeight.w700, color: _muted)),
+      const SizedBox(height: 10),
+      if (img != null) ...[
+        ClipRRect(borderRadius: BorderRadius.circular(12), child: Image.memory(img, height: 180, fit: BoxFit.contain)),
+        const SizedBox(height: 10),
+      ],
+      Wrap(spacing: 8, runSpacing: 8, children: [
+        OutlinedButton.icon(
+          onPressed: _drawSketch,
+          icon: const Text('✏️'),
+          label: Text(img == null ? 'Draw' : 'Edit drawing', style: GoogleFonts.nunito(fontWeight: FontWeight.w800)),
+        ),
+        OutlinedButton.icon(
+          onPressed: _pickSketchPhoto,
+          icon: const Text('🖼️'),
+          label: Text('Add picture', style: GoogleFonts.nunito(fontWeight: FontWeight.w800)),
+        ),
+        if (img != null)
+          TextButton(
+            onPressed: () => setState(() => _sketchB64 = null),
+            child: Text('Remove', style: GoogleFonts.nunito(fontWeight: FontWeight.w800, color: _red)),
+          ),
+      ]),
+    ]);
+  }
 
   // STEAM Challenge join (optional) -- see mg_award_challenge_bonus_on_approval.py
   List<Map<String, dynamic>> _openChallenges = [];
@@ -193,6 +306,9 @@ class _AddDraftScreenState extends State<AddDraftScreen>
       _categoryCtrl.text = draft.category;
       _startDate         = draft.startDate;
       _endDate           = draft.endDate;
+      _planId            = draft.planId;
+      _planCreatedAt     = draft.planCreatedAt;
+      _sketchB64         = draft.sketch;
       if (draft.materials.isNotEmpty) {
         final all    = await _goinsRepo.getMaterials();
         final picked = <PickedMaterial>[];
@@ -354,6 +470,7 @@ class _AddDraftScreenState extends State<AddDraftScreen>
       // own id instead, so each child's drafts are actually their own.
       final myUserData = await UserRepository().getUserDataFromLocalDb();
       final myOwnKey = myUserData?.id;
+      await _ensurePlanId();
 
       _draftId = await _draftRepo.saveOrUpdateDraft(
         id:          _draftId > 0 ? _draftId : null,
@@ -366,6 +483,9 @@ class _AddDraftScreenState extends State<AddDraftScreen>
         childKey:    SessionState.isChildSession
             ? SessionState.activeChildProfileId
             : myOwnKey,
+        planId:        _planId,
+        planCreatedAt: _planCreatedAt,
+        sketch:        _sketchB64,
       );
       _showSnack('Saved as draft! ✅');
       // BEHAVIOR CHANGE (founder request): sending the materials-to-buy
@@ -389,7 +509,9 @@ class _AddDraftScreenState extends State<AddDraftScreen>
         builder: (_) => const _UploadingDialog());
 
     try {
+      await _ensurePlanId();
       final projectData = {
+        if (_planId != null) 'planId': _planId,
         'title':       _titleCtrl.text,
         'description': _descCtrl.text,
         'startDate':   _startDate,
@@ -657,6 +779,11 @@ class _AddDraftScreenState extends State<AddDraftScreen>
                               child: _buildDetails()),
                           const SizedBox(height: 12),
                           _section(
+                              emoji: '✏️',
+                              title: 'Sketch (optional)',
+                              child: _buildSketch()),
+                          const SizedBox(height: 12),
+                          _section(
                               emoji: '📅',
                               title: 'Timeline',
                               child: _buildTimeline()),
@@ -738,6 +865,8 @@ class _AddDraftScreenState extends State<AddDraftScreen>
       );
 
   Widget _buildDetails() => Column(children: [
+        _buildPlanId(),
+        const SizedBox(height: 12),
         _field(
             ctrl:  _titleCtrl,
             label: 'Title',

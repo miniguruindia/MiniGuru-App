@@ -668,6 +668,7 @@ class MiniguruApi {
         'collaboratorIds': data['collaboratorIds'],
       if (data['challengeId'] != null) 'challengeId': data['challengeId'],
       'desiredPrivacyStatus': data['desiredPrivacyStatus'] ?? 'PUBLIC',
+      if (data['planId'] != null) 'planId': data['planId'],
     };
 
     http.Response response;
@@ -1638,6 +1639,25 @@ class MiniguruApi {
       return out;
     } catch (e) { print('❌ schoolJoinCall: $e'); }
     return {'_status': 0, 'message': 'Could not reach MiniGuru. Check your internet and try again.'};
+  }
+
+  /// Gives a planning sheet its ID, e.g. {code: MG-SSK-PK-0042, createdAt: ...}. Null when unavailable.
+  Future<Map<String, String>?> allocatePlanId() async {
+    try {
+      final authToken = await _db!.getAuthToken();
+      if (authToken == null) return null;
+      final r = await http.post(
+        Uri.parse('$_baseUrl/plan-ids'),
+        headers: _buildHeaders(authToken.accessToken),
+        body: '{}',
+      ).timeout(const Duration(seconds: 20));
+      if (r.statusCode != 200) return null;
+      final d = jsonDecode(r.body);
+      final code = d['code']?.toString();
+      if (code == null || code.isEmpty) return null;
+      return {'code': code, 'createdAt': d['createdAt']?.toString() ?? DateTime.now().toIso8601String()};
+    } catch (e) { print('❌ allocatePlanId: $e'); }
+    return null;
   }
 
   /// Real YouTube view counts for a few videos: {videoId: views}. Empty when unavailable.

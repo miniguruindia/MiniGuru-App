@@ -18,7 +18,10 @@ class DraftRepository {
       Map<String, int>? materials,
       DateTime? startDate,
       DateTime? endDate,
-      String? childKey}) async {
+      String? childKey,
+      String? planId,
+      String? planCreatedAt,
+      String? sketch}) async {
     final draft = Draft(
       title: title,
       description: description,
@@ -27,6 +30,9 @@ class DraftRepository {
       startDate: startDate,
       endDate: endDate,
       childKey: childKey,
+      planId: planId,
+      planCreatedAt: planCreatedAt,
+      sketch: sketch,
     );
     return await _db.insertDraft(draft);
   }
@@ -55,7 +61,10 @@ class DraftRepository {
       Map<String, int>? materials,
       DateTime? startDate,
       DateTime? endDate,
-      String? childKey}) async {
+      String? childKey,
+      String? planId,
+      String? planCreatedAt,
+      String? sketch}) async {
     final draft = Draft(
       id: id,
       title: title,
@@ -65,6 +74,9 @@ class DraftRepository {
       startDate: startDate,
       endDate: endDate,
       childKey: childKey,
+      planId: planId,
+      planCreatedAt: planCreatedAt,
+      sketch: sketch,
     );
     await _db.updateDraft(draft);
   }
@@ -81,19 +93,28 @@ class DraftRepository {
       Map<String, int>? materials,
       DateTime? startDate,
       DateTime? endDate,
-      String? childKey}) async {
+      String? childKey,
+      String? planId,
+      String? planCreatedAt,
+      String? sketch}) async {
     if (id == null) {
       return await saveDraft(title, description, category,
           materials: materials,
           startDate: startDate,
           endDate: endDate,
-          childKey: childKey);
+          childKey: childKey,
+          planId: planId,
+          planCreatedAt: planCreatedAt,
+          sketch: sketch);
     } else {
       await updateDraft(id, title, description, category,
           materials: materials,
           startDate: startDate,
           endDate: endDate,
-          childKey: childKey);
+          childKey: childKey,
+          planId: planId,
+          planCreatedAt: planCreatedAt,
+          sketch: sketch);
       return -1;
     }
   }
@@ -182,6 +203,7 @@ class DraftRepository {
       // Uploader's own privacy-status choice — PRIVATE means the video
       // stays Unlisted on YouTube forever regardless of review outcome.
       'desiredPrivacyStatus': project['desiredPrivacyStatus'] ?? 'PUBLIC',
+      if (project['planId'] != null) 'planId': project['planId'],
     };
 
     return transformedProject;

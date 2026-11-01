@@ -132,7 +132,7 @@ class _ProjectScreenState extends State<ProjectScreen>
       } else {
         _drafts = _allDrafts.where((d) {
           final matchesCat   = _selectedCategory.isEmpty || d.category.toLowerCase() == _selectedCategory.toLowerCase();
-          final matchesQuery = query.isEmpty || d.title.toLowerCase().contains(query.toLowerCase());
+          final matchesQuery = query.isEmpty || d.title.toLowerCase().contains(query.toLowerCase()) || (d.planId ?? '').toLowerCase().contains(query.toLowerCase());
           return matchesCat && matchesQuery;
         }).toList();
       }
@@ -500,6 +500,10 @@ class _DraftCard extends StatelessWidget {
               Text(draft.title,
                 style: GoogleFonts.poppins(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.black87),
                 maxLines: 1, overflow: TextOverflow.ellipsis),
+              if (draft.planId != null)
+                Text('🆔 ${draft.planId}',
+                  style: GoogleFonts.poppins(fontSize: 10, fontWeight: FontWeight.w700, color: Colors.blueGrey),
+                  maxLines: 1, overflow: TextOverflow.ellipsis),
               const SizedBox(height: 3),
               Text(draft.description,
                 style: GoogleFonts.poppins(fontSize: 12, color: Colors.black54),

@@ -291,6 +291,17 @@ model ProjectCategory {
   @@map("projectcategories")
 }
 
+// Planning-sheet IDs (Nov 2026). One row per ID handed out; the project made from the sheet keeps the code.
+model PlanSheet {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  number    Int
+  code      String
+  userId    String   @db.ObjectId
+  createdAt DateTime @default(now())
+
+  @@map("plan_sheets")
+}
+
 model Project {
   id          String            @id @default(auto()) @map("_id") @db.ObjectId
   title       String
@@ -308,6 +319,7 @@ model Project {
   comments    Comment[]
   status      String            @default("pending")
   aiVerdict   String?
+  planId      String?   // planning-sheet ID, e.g. MG-SSK-PK-0042
   // What the uploader chose at upload time — one of YouTube's own three
   // real privacy states, per YouTube API Services' RMF:
   //   "PUBLIC"   (default) — may become public once it passes review

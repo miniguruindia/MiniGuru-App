@@ -49,6 +49,7 @@ class ProjectService {
       aiConfidence,
       aiReviewedAt,
       desiredPrivacyStatus,
+      planId,
       // YouTube's own reported status (Sept 2026) — a best-effort snapshot
       // taken right after upload in createProject. See checkVideoStatus()
       // in youtubeUploadService.js. Undefined when the check itself failed
@@ -85,6 +86,7 @@ class ProjectService {
         aiConfidence: typeof aiConfidence === "number" ? aiConfidence : undefined,
         aiReviewedAt: aiReviewedAt ?? undefined,
         desiredPrivacyStatus: ["PUBLIC", "UNLISTED", "PRIVATE"].includes(desiredPrivacyStatus) ? desiredPrivacyStatus : "PUBLIC",
+        ...(planId ? ({ planId } as any) : {}),
         youtubeUploadStatus: youtubeUploadStatus ?? undefined,
         youtubeStatusReason: youtubeStatusReason ?? undefined,
         youtubeRegionsBlocked: typeof youtubeRegionsBlocked === "number" ? youtubeRegionsBlocked : undefined,

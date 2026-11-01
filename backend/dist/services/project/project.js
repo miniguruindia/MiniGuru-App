@@ -31,7 +31,7 @@ class ProjectService {
         const { title, description, startDate, endDate, materials, categoryName, thumbnailPath, videoUrl, collaborators, challengeId, 
         // AI first-pass video review result (optional — undefined when the
         // review was never run, e.g. GEMINI_API_KEY not configured).
-        aiVerdict, aiReason, aiConfidence, aiReviewedAt, desiredPrivacyStatus, 
+        aiVerdict, aiReason, aiConfidence, aiReviewedAt, desiredPrivacyStatus, planId, 
         // YouTube's own reported status (Sept 2026) — a best-effort snapshot
         // taken right after upload in createProject. See checkVideoStatus()
         // in youtubeUploadService.js. Undefined when the check itself failed
@@ -62,6 +62,7 @@ class ProjectService {
                 aiConfidence: typeof aiConfidence === "number" ? aiConfidence : undefined,
                 aiReviewedAt: aiReviewedAt ?? undefined,
                 desiredPrivacyStatus: ["PUBLIC", "UNLISTED", "PRIVATE"].includes(desiredPrivacyStatus) ? desiredPrivacyStatus : "PUBLIC",
+                ...(planId ? { planId } : {}),
                 youtubeUploadStatus: youtubeUploadStatus ?? undefined,
                 youtubeStatusReason: youtubeStatusReason ?? undefined,
                 youtubeRegionsBlocked: typeof youtubeRegionsBlocked === "number" ? youtubeRegionsBlocked : undefined,

@@ -7,6 +7,9 @@ class Draft {
   final String category;
   final Map<String, int> materials;
   final String? childKey; // NEW — which child (or 'self') this draft belongs to
+  final String? planId;        // MG-SSK-PK-0042, given by the server
+  final String? planCreatedAt; // ISO time the ID was created
+  final String? sketch;        // optional sketch, PNG/JPEG as base64 (planning only — never sent with the video)
 
   Draft({
     this.id,
@@ -17,6 +20,9 @@ class Draft {
     required this.category,
     required this.materials,
     this.childKey,
+    this.planId,
+    this.planCreatedAt,
+    this.sketch,
   });
 
   Map<String, dynamic> toMap() {
@@ -29,6 +35,9 @@ class Draft {
       'category': category,
       'materials': materials.isNotEmpty ? _serializeMaterials(materials) : null,
       'childKey': childKey,
+      'planId': planId,
+      'planCreatedAt': planCreatedAt,
+      'sketch': sketch,
     };
   }
 
@@ -42,6 +51,9 @@ class Draft {
       endDate: map['endDate'] != null ? DateTime.parse(map['endDate']) : null,
       category: map['category'],
       childKey: map['childKey'],
+      planId: map['planId'],
+      planCreatedAt: map['planCreatedAt'],
+      sketch: map['sketch'],
       materials: map['materials'] != null
           ? _deserializeMaterials(map['materials'])
           : {},

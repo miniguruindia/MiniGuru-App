@@ -77,6 +77,11 @@ class DatabaseHelper {
         try {
           await db.execute('ALTER TABLE drafts ADD COLUMN childKey TEXT');
         } catch (_) {}
+        for (final c in ['planId', 'planCreatedAt', 'sketch']) {
+          try {
+            await db.execute('ALTER TABLE drafts ADD COLUMN $c TEXT');
+          } catch (_) {}
+        }
       },
     );
   }
@@ -172,7 +177,10 @@ class DatabaseHelper {
         endDate TEXT,
         category TEXT NOT NULL,
         materials TEXT,
-        childKey TEXT
+        childKey TEXT,
+        planId TEXT,
+        planCreatedAt TEXT,
+        sketch TEXT
       )
     ''');
     await _createGoinsTables(db);
