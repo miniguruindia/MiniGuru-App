@@ -1887,9 +1887,11 @@ class MiniguruApi {
     int offset = 0,
     String scope = 'app',
     String? categoryId,
+    String metric = 'goins',
   }) async {
     try {
       final qs = <String, String>{
+        if (metric == 'views') 'metric': 'views',
         'period': period,
         'offset': '$offset',
         'scope': scope,
@@ -1916,9 +1918,10 @@ class MiniguruApi {
     required String period,
     String scope = 'app',
     String? categoryId,
+    String metric = 'goins',
   }) async {
     try {
-      final qs = <String, String>{'period': period, 'scope': scope, 'count': '6'};
+      final qs = <String, String>{'period': period, 'scope': scope, 'count': '6', if (metric == 'views') 'metric': 'views'};
       if (categoryId != null && categoryId.isNotEmpty) qs['categoryId'] = categoryId;
       final authToken = await _db?.getAuthToken();
       final response = await http

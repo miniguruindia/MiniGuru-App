@@ -463,7 +463,6 @@ class _ProjectCard extends StatelessWidget {
                 child: Text(project.category, style: GoogleFonts.poppins(fontSize: 11, fontWeight: FontWeight.w700)),
               ),
               const SizedBox(width: 8),
-              Flexible(child: YoutubeViewsChip(videoId: _ytId(project.video), mine: true)),
               InkWell(
                 onTap: () async {
                   final j = await MiniguruApi().fetchPlanSheet(project.id);
@@ -480,8 +479,13 @@ class _ProjectCard extends StatelessWidget {
                 ),
               ),
               const Spacer(),
-              Text(project.author, style: GoogleFonts.poppins(fontSize: 11, color: Colors.black45)),
+              Flexible(child: Text(project.author, maxLines: 1, overflow: TextOverflow.ellipsis, style: GoogleFonts.poppins(fontSize: 11, color: Colors.black45))),
             ]),
+            // On its own line so it is never cut off on a small screen.
+            Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: YoutubeViewsChip(videoId: _ytId(project.video), mine: true),
+            ),
           ]),
         ),
       ),

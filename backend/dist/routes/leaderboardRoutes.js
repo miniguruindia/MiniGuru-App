@@ -12,6 +12,7 @@ const prismaClient_1 = __importDefault(require("../utils/prismaClient"));
 const levelSystem_1 = require("../utils/levelSystem");
 const authMiddleware_1 = require("../middleware/authMiddleware");
 const goinsLedger_1 = require("../utils/goinsLedger");
+const viewsBoard_1 = require("../utils/viewsBoard");
 const router = (0, express_1.Router)();
 router.get('/', async (_req, res) => {
     try {
@@ -124,7 +125,26 @@ router.get('/period', authMiddleware_1.authenticateTokenOptional, async (req, re
             offset = -120;
         const scope = q.scope === 'school' ? 'school' : 'app';
         const limit = Math.min(50, Math.max(1, parseInt(q.limit, 10) || 20));
-        const { start, end, label } = (0, goinsLedger_1.periodRange)(period, offset);
+        const isViews = q.metric === 'views';
+        const allTime = isViews && q.period === 'alltime';
+        const { start, end, label } = allTime ? { start: new Date(0), end: new Date(), label: 'All-time' } : (0, goinsLedger_1.periodRange)(period, offset);
+        if (isViews) {
+            const meId0 = req.user?.userId;
+            let gid0 = null;
+            if (scope === 'school') {
+                gid0 = await resolveGuardianId(meId0);
+                if (!gid0)
+                    return res.json({ period, offset, label, scope, entries: [], myRank: null, myAmount: null, needsSchool: true });
+            }
+            const cat = typeof q.categoryId === 'string' && OBJECT_ID.test(q.categoryId) ? q.categoryId : undefined;
+            const vrows = await (0, viewsBoard_1.buildViewsBoard)({ start: allTime ? null : start, end: allTime ? null : end, categoryId: cat, guardianId: gid0 });
+            const ventries = vrows.slice(0, limit).map((r) => ({
+                rank: rankOf(vrows, r.amount), userId: r.userId, name: r.name, amount: r.amount, badge: r.badge, isMe: r.userId === meId0,
+            }));
+            const vm = meId0 ? vrows.find((r) => r.userId === meId0) : undefined;
+            return res.json({ period: allTime ? 'alltime' : period, offset, label, scope, entries: ventries,
+                myRank: vm ? rankOf(vrows, vm.amount) : null, myAmount: vm ? vm.amount : null, totalParticipants: vrows.length });
+        }
         const where = { createdAt: { gte: start, lt: end } };
         if (typeof q.categoryId === 'string' && OBJECT_ID.test(q.categoryId))
             where.categoryId = q.categoryId;
@@ -178,6 +198,16 @@ router.get('/winners', authMiddleware_1.authenticateTokenOptional, async (req, r
             base.guardianId = gid;
         }
         const winners = [];
+        if (q.metric === 'views') {
+            for (let i = 1; i <= count; i++) {
+                const { start, end, label } = (0, goinsLedger_1.periodRange)(period, -i);
+                const vrows = await (0, viewsBoard_1.buildViewsBoard)({ start, end, categoryId: base.categoryId, guardianId: base.guardianId || null });
+                if (vrows.length === 0)
+                    continue;
+                winners.push({ label, offset: -i, top: vrows.slice(0, 3).map((r) => ({ rank: rankOf(vrows, r.amount), name: r.name, amount: r.amount, badge: r.badge })) });
+            }
+            return res.json({ period, scope, winners });
+        }
         for (let i = 1; i <= count; i++) {
             const { start, end, label } = (0, goinsLedger_1.periodRange)(period, -i);
             const rows = await buildBoard({ ...base, createdAt: { gte: start, lt: end } });

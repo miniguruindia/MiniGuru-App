@@ -335,6 +335,20 @@ model IdeaTry {
   @@map("idea_tries")
 }
 
+// One row per published project per day: its YouTube view count that day (Nov 2026).
+// Used for the YouTube views ladder: views in a period = latest count - count before the period.
+model YtViewSnap {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  projectId String   @db.ObjectId
+  day       String   // YYYY-MM-DD in Indian time
+  views     Int
+  createdAt DateTime @default(now())
+
+  @@index([projectId, day])
+  @@index([day])
+  @@map("yt_view_snaps")
+}
+
 model Project {
   id          String            @id @default(auto()) @map("_id") @db.ObjectId
   title       String

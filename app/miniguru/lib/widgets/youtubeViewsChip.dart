@@ -1,6 +1,6 @@
 // "views on YouTube" badge (Oct 2026). Shows the real YouTube view count of a video,
 // so children see their making is being watched, without leaving the app.
-//  - 10 or more views: "▶ 1.2K on YouTube"  (on your own video: "Your video: 1.2K views on YouTube")
+//  - 10 or more views: "▶ 1.2K on YouTube"  (on your own video: "▶ 1.2K views on YouTube")
 //  - fewer: "▶ New"  (a tiny number never discourages anyone)
 //  - no answer from the server: nothing is shown.
 // Counts are fetched in one batch per moment and kept for 3 hours.
@@ -69,7 +69,7 @@ class YoutubeViewsChip extends StatelessWidget {
         final isNew = n < 10;
         final text = isNew
             ? (mine ? '▶ New on YouTube' : '▶ New')
-            : (mine ? '▶ Your video: ${_short(n)} views on YouTube' : '▶ ${_short(n)} on YouTube');
+            : (mine ? '▶ ${_short(n)} views on YouTube' : '▶ ${_short(n)} on YouTube');
         return Text(text,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,

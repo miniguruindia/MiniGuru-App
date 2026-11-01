@@ -23,7 +23,7 @@ class CommunityScreen extends StatefulWidget {
   const CommunityScreen({super.key, this.initialTab = 0});
   static const String id = 'CommunityScreen';
 
-  /// 0 Ladder, 1 Challenges, 2 T-LAB, 3 Resources.
+  /// 0 Ladder, 1 YouTube, 2 Challenges, 3 Resources, 4 Ideas, 5 T-LAB.
   final int initialTab;
 
   @override
@@ -56,12 +56,12 @@ class _CommunityScreenState extends State<CommunityScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 5, vsync: this, initialIndex: widget.initialTab)
+    _tabController = TabController(length: 6, vsync: this, initialIndex: widget.initialTab)
       ..addListener(() {
         setState(() => _activeTab = _tabController.index);
         DeepLink.setSub('community', DeepLink.communityTabs[_tabController.index]);
       });
-    DeepLink.setSub('community', DeepLink.communityTabs[widget.initialTab.clamp(0, 4)]);
+    DeepLink.setSub('community', DeepLink.communityTabs[widget.initialTab.clamp(0, 5)]);
     DeepLink.communityTabRequest.addListener(_onTabRequest);
     _loadCms();
     _loadHappeningsAndChallenges();
@@ -278,10 +278,11 @@ class _CommunityScreenState extends State<CommunityScreen>
 
   static const _tabs = [
     _Tab('🏆', 'Ladder'),
+    _Tab('▶️', 'YouTube'),
     _Tab('🎯', 'Challenges'),
-    _Tab('🧪', 'T-LAB'),
     _Tab('📦', 'Resources'),
     _Tab('💡', 'Ideas'),
+    _Tab('🧪', 'T-LAB'),
   ];
 
   @override
@@ -294,10 +295,11 @@ class _CommunityScreenState extends State<CommunityScreen>
           controller: _tabController,
           children: [
             const _LadderTab(),
+            const _LadderTab(views: true),
             _ChallengesTab(challenges: _challenges),
-            _TLabTab(happenings: _happenings),
             _ResourcesTab(resources: _resources),
             const IdeaPoolTab(),
+            _TLabTab(happenings: _happenings),
           ],
         ),
       ),
@@ -363,7 +365,8 @@ class _CommunityScreenState extends State<CommunityScreen>
           color: const Color(0xFF1A1A2E),
           child: TabBar(
             controller: _tabController,
-            isScrollable: false,
+            isScrollable: true,
+            tabAlignment: TabAlignment.start,
             indicatorColor: const Color(0xFFFFD60A),
             indicatorWeight: 3,
             labelColor: Colors.white,
@@ -853,7 +856,8 @@ class _ChallengeCard extends StatelessWidget {
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _LadderTab extends StatefulWidget {
-  const _LadderTab();
+  final bool views; // true = the YouTube views ladder (same boards, ranked by views on YouTube)
+  const _LadderTab({this.views = false});
   @override
   State<_LadderTab> createState() => _LadderTabState();
 }
@@ -917,7 +921,7 @@ class _LadderTabState extends State<_LadderTab> {
   }
 
   Widget _levelsHeader() {
-    if (_wide) return const SizedBox.shrink();
+    if (_wide || widget.views) return const SizedBox.shrink();
     return InkWell(
       onTap: () => setState(() => _levelsOpen = !_levelsOpen),
       borderRadius: BorderRadius.circular(12),
@@ -982,10 +986,10 @@ class _LadderTabState extends State<_LadderTab> {
   @override
   void initState() {
     super.initState();
-    _fetchLeaderboard();
+    if (!widget.views) _fetchLeaderboard();
     _loadBoardCategories();
     _loadPeriodBoard();
-    _loadMyBadges();
+    if (!widget.views) _loadMyBadges();
   }
 
   Future<void> _loadBoardCategories() async {
@@ -998,7 +1002,7 @@ class _LadderTabState extends State<_LadderTab> {
   }
 
   Future<void> _loadPeriodBoard() async {
-    if (_period == 'alltime') return;
+    if (_period == 'alltime' && !widget.views) return;
     setState(() {
       _boardLoading = true;
       _boardError = false;
@@ -1008,10 +1012,13 @@ class _LadderTabState extends State<_LadderTab> {
     final wantOffset = _offset;
     final wantScope = _scope;
     final wantCat = _categoryId;
+    final metric = widget.views ? 'views' : 'goins';
     final data = await api.getPeriodLeaderboard(
-        period: wantPeriod, offset: wantOffset, scope: wantScope, categoryId: wantCat);
-    final win = await api.getPastWinners(
-        period: wantPeriod, scope: wantScope, categoryId: wantCat);
+        period: wantPeriod, offset: wantOffset, scope: wantScope, categoryId: wantCat, metric: metric);
+    final win = wantPeriod == 'alltime'
+        ? null
+        : await api.getPastWinners(
+            period: wantPeriod, scope: wantScope, categoryId: wantCat, metric: metric);
     if (!mounted) return;
     // Ignore a stale answer if the child already tapped something else.
     if (wantPeriod != _period || wantOffset != _offset || wantScope != _scope || wantCat != _categoryId) {
@@ -1270,7 +1277,7 @@ class _LadderTabState extends State<_LadderTab> {
             color: const Color(0xFFFFE98A),
             borderRadius: BorderRadius.circular(20),
           ),
-          child: Text('🪙 ${amount}G',
+          child: Text(widget.views ? '▶ $amount' : '🪙 ${amount}G',
               style: GoogleFonts.nunito(
                   fontSize: 11,
                   fontWeight: FontWeight.w800,
@@ -1281,7 +1288,9 @@ class _LadderTabState extends State<_LadderTab> {
   }
 
   Widget _buildPeriodBoard() {
-    final isAllTime = _period == 'alltime';
+    final isAllTime = _period == 'alltime' && !widget.views;
+    final showNav = _period != 'alltime';
+    final unit = widget.views ? 'views' : 'Goins';
     final board = _board;
     final entries = (board != null && board['entries'] is List)
         ? List<Map<String, dynamic>>.from(
@@ -1307,7 +1316,7 @@ class _LadderTabState extends State<_LadderTab> {
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       _boardDropdowns(isAllTime),
       if (!isAllTime) ...[
-        Row(children: [
+        if (showNav) Row(children: [
           IconButton(
             visualDensity: VisualDensity.compact,
             icon: const Icon(Icons.chevron_left),
@@ -1340,8 +1349,14 @@ class _LadderTabState extends State<_LadderTab> {
         Center(
           child: Text(
               _categoryId == null
-                  ? 'Goins earned ${_whenText()}. A fresh race starts every ${_periodNames[_period] ?? 'period'}!'
-                  : 'Goins earned from ${catName2()} projects ${_whenText()}.',
+                  ? (widget.views
+                      ? (_period == 'alltime'
+                          ? 'Views on YouTube, all-time.'
+                          : 'Views on YouTube ${_whenText()}, counted from the day we started saving them.')
+                      : 'Goins earned ${_whenText()}. A fresh race starts every ${_periodNames[_period] ?? 'period'}!')
+                  : (widget.views
+                      ? 'Views on YouTube for ${catName2()} projects ${_whenText()}.'
+                      : 'Goins earned from ${catName2()} projects ${_whenText()}.'),
               textAlign: TextAlign.center,
               style: GoogleFonts.nunito(fontSize: 11, color: const Color(0xFF5F5F88))),
         ),
@@ -1381,16 +1396,18 @@ class _LadderTabState extends State<_LadderTab> {
               borderRadius: BorderRadius.circular(12),
             ),
             child: Text(
-                _offset == 0
-                    ? 'No Goins earned here yet — finish a project and be the first on the board! 🚀'
-                    : 'No Goins were earned in this period.',
+                widget.views
+                    ? 'No views counted here yet. Publish a video and watch the numbers grow! ▶️'
+                    : (_offset == 0
+                        ? 'No Goins earned here yet — finish a project and be the first on the board! 🚀'
+                        : 'No Goins were earned in this period.'),
                 style: GoogleFonts.nunito(fontSize: 12, color: const Color(0xFF4F4F78))),
           )
         else ...[
           if (myRank != null && myAmount != null)
             Padding(
               padding: const EdgeInsets.only(bottom: 10),
-              child: Text('Your rank: #$myRank · ${myAmount}G',
+              child: Text('Your rank: #$myRank · ${widget.views ? '$myAmount views' : '${myAmount}G'}',
                   style: GoogleFonts.nunito(
                       fontSize: 13,
                       fontWeight: FontWeight.w800,
@@ -1400,11 +1417,11 @@ class _LadderTabState extends State<_LadderTab> {
             Row(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                Expanded(child: _PodiumCard(leader: leaders[1], podiumHeight: 80)),
+                Expanded(child: _PodiumCard(leader: leaders[1], podiumHeight: 80, unit: unit)),
                 const SizedBox(width: 8),
-                Expanded(child: _PodiumCard(leader: leaders[0], podiumHeight: 110)),
+                Expanded(child: _PodiumCard(leader: leaders[0], podiumHeight: 110, unit: unit)),
                 const SizedBox(width: 8),
-                Expanded(child: _PodiumCard(leader: leaders[2], podiumHeight: 60)),
+                Expanded(child: _PodiumCard(leader: leaders[2], podiumHeight: 60, unit: unit)),
               ],
             ),
           if (usePodium) const SizedBox(height: 12),
@@ -1441,7 +1458,7 @@ class _LadderTabState extends State<_LadderTab> {
                       if (t is Map)
                         Text(
                             '${_medal((t['rank'] as num?)?.toInt() ?? 1)} '
-                            '${(t['name'] ?? '').toString().split(' ').first} · ${(t['amount'] ?? 0)}G',
+                            '${(t['name'] ?? '').toString().split(' ').first} · ${(t['amount'] ?? 0)}${widget.views ? ' views' : 'G'}',
                             style: GoogleFonts.nunito(
                                 fontSize: 12,
                                 fontWeight: FontWeight.w700,
@@ -1499,16 +1516,18 @@ class _LadderTabState extends State<_LadderTab> {
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
       children: [
-        const _SectionHeader(
-          title: 'Maker Ladder',
-          subtitle: 'Build projects → earn Goins → climb the ladder!',
-          emoji: '🏆',
+        _SectionHeader(
+          title: widget.views ? 'YouTube Ladder' : 'Maker Ladder',
+          subtitle: widget.views
+              ? 'Make videos people love → get views on YouTube → climb the ladder!'
+              : 'Build projects → earn Goins → climb the ladder!',
+          emoji: widget.views ? '▶️' : '🏆',
         ),
         const SizedBox(height: 20),
 
         // ── Top 3 Podium ──────────────────────────────────────────────────
         _buildPeriodBoard(),
-        if (_period != 'alltime')
+        if (_period != 'alltime' || widget.views)
           const SizedBox.shrink()
         else if (_loading)
           const Center(
@@ -1640,10 +1659,11 @@ class _LadderTabState extends State<_LadderTab> {
         const SizedBox(height: 24),
         ],
         const SizedBox(height: 12),
-        const _JoinCTA(
-          title: 'Climb the ladder!',
-          subtitle: 'Build projects, earn Goins, and reach the top!',
-        ),
+        if (!widget.views)
+          const _JoinCTA(
+            title: 'Climb the ladder!',
+            subtitle: 'Build projects, earn Goins, and reach the top!',
+          ),
       ],
     );
   }
@@ -1653,7 +1673,8 @@ class _LadderTabState extends State<_LadderTab> {
 class _PodiumCard extends StatelessWidget {
   final _Leader leader;
   final double  podiumHeight;
-  const _PodiumCard({required this.leader, required this.podiumHeight});
+  final String unit;
+  const _PodiumCard({required this.leader, required this.podiumHeight, this.unit = 'Goins'});
 
   @override
   Widget build(BuildContext context) {
@@ -1690,7 +1711,7 @@ class _PodiumCard extends StatelessWidget {
             boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.18), blurRadius: 4, offset: const Offset(0, 1))],
           ),
           child: Text(
-            '${leader.score} Goins',
+            '${leader.score} $unit',
             style: GoogleFonts.nunito(
                 fontSize: 11, fontWeight: FontWeight.w800,
                 color: const Color(0xFF8F5A00)),
