@@ -415,34 +415,46 @@ class _HomeState extends State<Home> {
               ],
             ),
           ),
-          if (MediaQuery.of(context).size.width < 1000) _buildEventsFab(),
         ]),
       ),
     );
   }
 
-  // Small floating trophy button (phones). Tap opens a short note with
-  // "Read more", which goes to the Resources and events page. On wide screens
-  // the same link lives in the left strip, so this button is hidden there.
-  Widget _buildEventsFab() {
-    return Positioned(
-      right: 12,
-      bottom: 14,
-      child: Material(
-        color: GColors.yellow,
-        shape: const CircleBorder(),
-        elevation: 4,
-        child: InkWell(
-          customBorder: const CircleBorder(),
-          onTap: _showEventsNote,
-          child: const SizedBox(
-            width: 46,
-            height: 46,
-            child: Center(child: Text('🏆', style: TextStyle(fontSize: 22))),
+  // Phones: two small round icons in the top bar (Ideas and Events) instead of a
+  // floating button. On wide screens both live in the left strip (navShell.dart).
+  Widget _topIcon(String emoji, String tip, Color bg, VoidCallback onTap) {
+    return Padding(
+      padding: const EdgeInsets.only(right: 6),
+      child: Tooltip(
+        message: tip,
+        child: Material(
+          color: bg,
+          shape: const CircleBorder(),
+          child: InkWell(
+            customBorder: const CircleBorder(),
+            onTap: onTap,
+            child: SizedBox(
+              width: 34,
+              height: 34,
+              child: Center(child: Text(emoji, style: const TextStyle(fontSize: 18))),
+            ),
           ),
         ),
       ),
     );
+  }
+
+  List<Widget> _topIcons() {
+    if (MediaQuery.of(context).size.width >= 1000) return const [];
+    return [
+      _topIcon('💡', 'Idea collection', const Color(0xFFFEF3C7), () {
+        if (!DeepLink.openPage('community/ideas')) {
+          Navigator.push(context,
+              MaterialPageRoute(builder: (_) => const CommunityScreen(initialTab: 4)));
+        }
+      }),
+      _topIcon('🏆', 'Competitions and events', GColors.yellow, _showEventsNote),
+    ];
   }
 
   void _showEventsNote() {
@@ -512,20 +524,28 @@ class _HomeState extends State<Home> {
             ),
           ),
           const SizedBox(width: 12),
-          Text('MiniGuru',
-              style: GoogleFonts.nunito(fontWeight: FontWeight.w900,
-                  fontSize: 22, color: Colors.black87)),
+          Flexible(
+            child: Text('MiniGuru',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: GoogleFonts.nunito(fontWeight: FontWeight.w900,
+                    fontSize: 22, color: Colors.black87)),
+          ),
         ],
       ),
       actions: [
+        ..._topIcons(),
         if (_isAuthenticated && user != null) ...[
           _buildBell(),
           _buildUserAvatar(),
         ]
         else
           Padding(
-            padding: const EdgeInsets.only(right: 8),
+            padding: const EdgeInsets.only(right: 4),
             child: TextButton(
+              style: TextButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  minimumSize: const Size(0, 36)),
               onPressed: () => Navigator.pushNamed(context, LoginScreen.id),
               child: Text('Login / Signup',
                   style: GoogleFonts.nunito(

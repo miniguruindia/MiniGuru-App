@@ -837,14 +837,18 @@ class _MentorActivityTabState extends State<MentorActivityTab> {
                       child: Column(children: [
                         _buildLearnersSection(),
                         if (_children.isNotEmpty) _statsCard(),
-                        if (_children.isNotEmpty)
-                          Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                            Expanded(child: _goinsBox()),
-                            Expanded(child: _viewsBox()),
-                          ]),
+                        // Filter, search and quick actions: full width on top.
+                        _controlsBox(),
+                        // Latest projects on the left; Goins and YouTube views stacked on the right.
                         Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
                           Expanded(flex: 6, child: _latestBox(filtered)),
-                          Expanded(flex: 4, child: _controlsBox()),
+                          Expanded(
+                            flex: 4,
+                            child: Column(children: [
+                              if (_children.isNotEmpty) _goinsBox(),
+                              if (_children.isNotEmpty) _viewsBox(),
+                            ]),
+                          ),
                         ]),
                       ]),
                     ),
@@ -1110,7 +1114,7 @@ class _MentorActivityTabState extends State<MentorActivityTab> {
             ? Text('Add learners to see the ranking.', style: GoogleFonts.nunito(fontSize: 13, color: Colors.grey[700]))
             : ListView(children: [
                 for (var i = 0; i < top.length; i++)
-                  _rankRow(i, top[i].name, top[i].score / max, '${top[i].score}', const Color(0xFFFFB800)),
+                  _rankRow(i, top[i].name, top[i].score / max, '${top[i].score}', const Color(0xFF12B24A)),
               ]),
       ),
     );
@@ -1134,7 +1138,7 @@ class _MentorActivityTabState extends State<MentorActivityTab> {
                 style: GoogleFonts.nunito(fontSize: 13, color: Colors.grey[700]))
             : ListView(children: [
                 for (var i = 0; i < top.length; i++)
-                  _rankRow(i, top[i].key.title, top[i].value / max, '${top[i].value}', const Color(0xFFFF3B30)),
+                  _rankRow(i, top[i].key.title, top[i].value / max, '${top[i].value}', const Color(0xFFC79A00)),
               ]),
       ),
     );

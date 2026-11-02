@@ -113,7 +113,8 @@ class _Rail extends StatelessWidget {
                       fontSize: 11, fontWeight: FontWeight.w700, color: const Color(0xFF0A6CFF)),
                   unselectedLabelTextStyle: GoogleFonts.nunito(
                       fontSize: 10, fontWeight: FontWeight.w600, color: Colors.grey.shade600),
-                  trailing: Padding(
+                  trailing: Column(mainAxisSize: MainAxisSize.min, children: [
+                    Padding(
                     padding: const EdgeInsets.only(top: 10),
                     child: InkWell(
                       borderRadius: BorderRadius.circular(14),
@@ -147,6 +148,36 @@ class _Rail extends StatelessWidget {
                       ),
                     ),
                   ),
+                    Padding(
+                      padding: const EdgeInsets.only(top: 10),
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(14),
+                        onTap: () {
+                          // Same page as Community > Ideas (one page, one address)
+                          if (!DeepLink.openPage('community/ideas')) {
+                            NavShell.navigatorKey.currentState?.push(MaterialPageRoute(
+                                builder: (_) => const CommunityScreen(initialTab: 4)));
+                          }
+                        },
+                        child: Container(
+                          width: 72,
+                          padding: const EdgeInsets.symmetric(vertical: 8),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFFEF3C7),
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(color: const Color(0xFFF4B400)),
+                          ),
+                          child: Column(mainAxisSize: MainAxisSize.min, children: [
+                            const Text('💡', style: TextStyle(fontSize: 22)),
+                            const SizedBox(height: 2),
+                            Text('Ideas',
+                                style: GoogleFonts.nunito(
+                                    fontSize: 11, fontWeight: FontWeight.w900, color: const Color(0xFF1A1A2E))),
+                          ]),
+                        ),
+                      ),
+                    ),
+                  ]),
                   destinations: [
                     for (final it in items)
                       NavigationRailDestination(
