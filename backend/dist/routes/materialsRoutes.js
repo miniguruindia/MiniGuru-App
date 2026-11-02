@@ -95,6 +95,8 @@ function syncLegacyFields(data) {
     }
 }
 // ── PUBLIC ROUTES ─────────────────────────────────────────────────────────────
+// NOTE: amazonNeedsAttention / amazonAttentionReason are ADMIN-ONLY hints.
+// They must NEVER be used to filter this public list or to block buying.
 router.get('/', async (req, res) => {
     try {
         const { category, categoryId, search } = req.query;

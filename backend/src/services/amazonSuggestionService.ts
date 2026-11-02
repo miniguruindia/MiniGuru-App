@@ -238,6 +238,7 @@ export interface RefreshSummary {
   flagged: number;
   cleared: number;
   stoppedEarly: boolean;
+  apiError?: string;
 }
 
 /**
@@ -286,6 +287,11 @@ export async function runPhotoAudit(limit: number = 100): Promise<{ checked: num
       stoppedEarly = true;
       break;
     }
+    if (result.error && result.results.length === 0) {
+      // Amazon call failed — say nothing about the photos; leave them alone.
+      stoppedEarly = true;
+      break;
+    }
     const byAsin = new Map(result.results.map((r) => [r.asin, r]));
 
     for (const material of batch) {
@@ -329,6 +335,15 @@ export async function runAmazonRefreshCheck(limit: number = 50): Promise<Refresh
     const result = await getAmazonItems(asins);
     if (!result.configured) {
       summary.stoppedEarly = true;
+      break;
+    }
+    // SAFETY: if Amazon itself failed (bad credentials, throttling, outage),
+    // that says nothing about the items. Never flag anything from a failed
+    // call — leave every item exactly as it was and stop the run.
+    if (result.error && result.results.length === 0) {
+      summary.stoppedEarly = true;
+      summary.apiError = result.error;
+      console.error('[amazonRefresh] Amazon call failed, nothing flagged:', result.error);
       break;
     }
 

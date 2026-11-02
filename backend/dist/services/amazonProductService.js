@@ -31,6 +31,24 @@ function isConfigured() {
         process.env.AMAZON_CREATORS_VERSION &&
         process.env.AMAZON_CREATORS_PARTNER_TAG);
 }
+// The SDK rejects with a plain object ({status, body, error}) that has NO
+// .message — which used to surface as a useless "Amazon search failed".
+// This digs out the HTTP status and Amazon's own wording so the admin (and
+// the Cloud Run log) can see the real cause.
+function describeAmazonError(err, fallback) {
+    const status = err?.status || err?.response?.status;
+    const body = err?.body || err?.response?.body || {};
+    const text = body?.errors?.[0]?.message ||
+        body?.message ||
+        body?.Message ||
+        body?.error_description ||
+        (typeof body?.error === 'string' ? body.error : '') ||
+        err?.message ||
+        err?.error?.message ||
+        '';
+    const parts = [status ? `HTTP ${status}` : '', String(text || '')].filter(Boolean);
+    return parts.length ? `${fallback} (${parts.join(' - ').slice(0, 300)})` : fallback;
+}
 function getApi() {
     const client = new ApiClient();
     client.credentialId = process.env.AMAZON_CREATORS_CREDENTIAL_ID;
@@ -110,9 +128,7 @@ async function searchAmazonProducts(query, itemCount = 5) {
         };
     }
     catch (err) {
-        const message = err?.response?.body?.errors?.[0]?.message ||
-            err?.message ||
-            'Amazon search failed';
+        const message = describeAmazonError(err, 'Amazon search failed');
         console.error('[amazonProductService] search failed:', message);
         return { configured: true, results: [], error: message };
     }
@@ -148,9 +164,7 @@ async function getAmazonItems(asins) {
         };
     }
     catch (err) {
-        const message = err?.response?.body?.errors?.[0]?.message ||
-            err?.message ||
-            'Amazon lookup failed';
+        const message = describeAmazonError(err, 'Amazon lookup failed');
         console.error('[amazonProductService] getItems failed:', message);
         return { configured: true, results: [], error: message };
     }
@@ -201,7 +215,7 @@ async function getAmazonItemsWithSeller(asins) {
             return { configured: true, results };
     }
     catch (err) {
-        console.warn('[amazonProductService] seller lookup failed, using plain lookup:', err?.message);
+        console.warn('[amazonProductService] seller lookup failed, using plain lookup:', describeAmazonError(err, 'seller lookup'));
     }
     return getAmazonItems(clean);
 }
