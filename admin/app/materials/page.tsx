@@ -210,8 +210,10 @@ function FindOnAmazonModal({ material: m, apiBase, onClose, onPicked }: {
             </div>
           )}
           {!loading && configured && error && (
-            <div className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg p-3">
-              {error}
+            <div className={`text-sm rounded-lg p-3 border ${/eligib/i.test(error) ? 'text-amber-800 bg-amber-50 border-amber-200' : 'text-red-700 bg-red-50 border-red-200'}`}>
+              {/eligib/i.test(error)
+                ? <>Amazon has paused our search connection (account eligibility &mdash; it returns when qualifying sales recover). Close this and type the ASIN and price by hand in the material row.</>
+                : error}
             </div>
           )}
           {!loading && configured && !error && results.length === 0 && (
@@ -1165,6 +1167,23 @@ function AiSuggestionsTab({ apiBase, onMaterialsChanged, flash, onEditMaterial }
 
   React.useEffect(() => { loadAll() }, [loadAll])
 
+  const clearFlags = async () => {
+    if (!window.confirm('Clear all attention flags? This only removes the red notes here. Nothing changes for children.')) return
+    try {
+      const token = await authToken()
+      const res = await fetch(`${apiBase}/materials/admin/amazon-clear-flags`, {
+        method: 'POST', headers: { Authorization: `Bearer ${token}` },
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed')
+      flash(`Cleared ${data.clearedFlags} flags` + (data.removedFalseNoMatch ? ` and ${data.removedFalseNoMatch} false "no match" rows` : ''))
+      await loadAll()
+      onMaterialsChanged()
+    } catch (e: any) {
+      flash('Could not clear: ' + e.message, true)
+    }
+  }
+
   const runAll = async () => {
     setScanning(true)
     try {
@@ -1176,6 +1195,12 @@ function AiSuggestionsTab({ apiBase, onMaterialsChanged, flash, onEditMaterial }
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Run failed')
+      if (data.refresh?.apiError) {
+        setLastScan(`Amazon refused the connection (${data.refresh.apiError}). Nothing was changed or flagged.`)
+        flash('Amazon connection is off — nothing changed', true)
+        await loadAll()
+        return
+      }
       setLastScan(`Checked ${data.refresh.checked} linked materials (${data.refresh.flagged} need attention) and scanned ${data.scan.scanned} materials with no ASIN (${data.scan.suggested} new matches, ${data.scan.noMatch} no match) in ${data.durationSec}s. Photos were compared in the same pass.`)
       flash('Scan & refresh complete')
       await loadAll()
@@ -1253,6 +1278,21 @@ function AiSuggestionsTab({ apiBase, onMaterialsChanged, flash, onEditMaterial }
               <p className="text-amber-700">⚠️ The automatic daily run is not switched on yet — ask Claude for the one-time scheduler setup commands.</p>
             )}
           </div>
+        )}
+        {status?.lastRun?.refresh?.apiError && (
+          <div className="mt-3 text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-lg p-3">
+            <p className="font-semibold">⚠️ Amazon connection is off</p>
+            <p className="text-xs mt-1">
+              Amazon said: {status.lastRun.refresh.apiError}. While this lasts, Find, Compare and the daily check cannot work, and the
+              &ldquo;needs attention&rdquo; flags below are NOT reliable. Nothing is hidden or blocked for children &mdash; the Shop works as normal.
+              You can still type an ASIN and price by hand in each material. This comes back by itself when Amazon re-enables the account.
+            </p>
+          </div>
+        )}
+        {needsAttention.length > 0 && (
+          <button onClick={clearFlags} className="mt-3 px-3 py-1.5 border border-gray-300 rounded-lg text-xs text-gray-700 hover:bg-gray-50">
+            Clear all {needsAttention.length} attention flags
+          </button>
         )}
         {lastScan && <p className="text-xs text-gray-500 mt-2">{lastScan}</p>}
       </Card>

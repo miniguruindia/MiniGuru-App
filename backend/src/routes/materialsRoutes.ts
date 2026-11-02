@@ -1376,6 +1376,31 @@ router.post('/admin/amazon-refresh/run', async (req: any, res: any) => {
   }
 });
 
+// Clears every "needs attention" flag (admin-only hints, never shown to users)
+// and removes "No Amazon match" rows that were only caused by Amazon failing.
+router.post('/admin/amazon-clear-flags', authenticateToken, requireAdmin, async (_req: any, res: any) => {
+  try {
+    const flags = await prisma.material.updateMany({
+      where: { amazonNeedsAttention: true },
+      data: { amazonNeedsAttention: false, amazonAttentionReason: null } as any,
+    });
+    const bogus = await prisma.amazonSuggestion.deleteMany({
+      where: {
+        status: 'NO_MATCH',
+        OR: [
+          { reason: { contains: 'Amazon search failed', mode: 'insensitive' } },
+          { reason: { contains: 'eligibility', mode: 'insensitive' } },
+          { reason: { contains: 'HTTP 4', mode: 'insensitive' } },
+        ],
+      } as any,
+    });
+    res.json({ clearedFlags: flags.count, removedFalseNoMatch: bogus.count });
+  } catch (err) {
+    console.error('[materials] POST /admin/amazon-clear-flags error:', err);
+    res.status(500).json({ error: 'Could not clear flags' });
+  }
+});
+
 router.get('/admin/amazon-needs-attention', authenticateToken, requireAdmin, async (req: any, res: any) => {
   try {
     const materials = await prisma.material.findMany({

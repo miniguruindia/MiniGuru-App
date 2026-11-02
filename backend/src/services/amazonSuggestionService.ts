@@ -65,6 +65,7 @@ export interface ScanSummary {
   skipped: number;
   stoppedEarly: boolean;
   suggestionsEnriched: number;
+  apiError?: string;
 }
 
 /**
@@ -145,6 +146,15 @@ export async function runAmazonSuggestionScan(limit: number = 25): Promise<ScanS
         break; // no point continuing if credentials aren't set at all
       }
 
+      // SAFETY: an Amazon failure (e.g. account eligibility) is not "no match".
+      // Record nothing and stop, so no false "No Amazon match" rows pile up.
+      if (search.error && search.results.length === 0 && /HTTP\s*\d{3}|failed|eligib/i.test(search.error)) {
+        summary.scanned -= 1;
+        summary.stoppedEarly = true;
+        (summary as any).apiError = search.error;
+        break;
+      }
+
       const top = search.results[0];
       if (!top) {
         await prisma.amazonSuggestion.create({
@@ -210,6 +220,10 @@ export async function runAmazonSuggestionScan(limit: number = 25): Promise<ScanS
         if (!search.configured) {
           summary.stoppedEarly = true;
           break;
+        }
+        if (search.error && search.results.length === 0 && /HTTP\s*\d{3}|failed|eligib/i.test(search.error)) {
+          summary.stoppedEarly = true;
+          break; // Amazon failed - do not mark this suggestion as searched
         }
         const top = search.results[0];
         await prisma.productSuggestion.update({
@@ -512,7 +526,7 @@ export async function runMaterialsMaintenance(
   const started = Date.now();
   const refresh = await runAmazonRefreshCheck(opts.refreshLimit ?? 150);
   // Keep the whole round well inside Cloud Run's request timeout.
-  const scan: ScanSummary = Date.now() - started < 120_000
+  const scan: ScanSummary = !refresh.apiError && Date.now() - started < 120_000
     ? await runAmazonSuggestionScan(opts.scanLimit ?? 15)
     : { scanned: 0, suggested: 0, noMatch: 0, skipped: 0, stoppedEarly: true, suggestionsEnriched: 0 };
   const summary: MaintenanceSummary = {
