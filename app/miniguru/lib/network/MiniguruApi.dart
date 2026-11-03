@@ -372,6 +372,7 @@ class MiniguruApi {
           phoneNumber: data['phoneNumber'],
           totalProjects: data['totalProjects'] ?? 0,
           isMentor: data['isMentor'] ?? false,
+          mentorType: data['mentorType'] as String?,
           guardianEmail: data['guardianEmail'],
           emailVerified: data['emailVerified'] ?? false,
           phoneVerified: data['phoneVerified'] ?? false,
