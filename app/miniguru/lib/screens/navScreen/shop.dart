@@ -13,6 +13,7 @@ import 'package:http/http.dart' as http;
 import 'package:miniguru/secrets.dart';
 import 'package:miniguru/database/database_helper.dart';
 import 'package:miniguru/network/MiniguruApi.dart';
+import 'package:miniguru/state/sessionState.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -67,10 +68,17 @@ class _ShopState extends State<Shop>
 
   // Visitors without a login never send "suggestions" from Amazon search.
   bool _hasLogin = false;
+  // School / T-LAB facilitator accounts send an official purchase request instead of a "kit to parent".
+  bool _isSchool = false;
   Future<void> _checkLogin() async {
     try {
       final t = (await DatabaseHelper().getAuthToken())?.accessToken;
       if (mounted) setState(() => _hasLogin = t != null && t.isNotEmpty);
+      if (t != null && t.isNotEmpty && !SessionState.isChildSession) {
+        final u = await MiniguruApi().getUserData();
+        final school = u != null && u.isMentor && (u.mentorType == 'SCHOOL' || u.mentorType == 'TLAB');
+        if (mounted) setState(() => _isSchool = school);
+      }
     } catch (_) {}
   }
 
@@ -1042,6 +1050,7 @@ class _ShopState extends State<Shop>
                   },
                   body: jsonEncode({
                     'parentEmail': email,
+                    'audience': (_isSchool && !SessionState.isChildSession) ? 'school' : 'parent',
                     'ccEmails':    ccCtrl.text
                         .split(RegExp(r'[\s,;]+'))
                         .where((e) => e.contains('@'))
@@ -1088,8 +1097,8 @@ class _ShopState extends State<Shop>
                 const Text('📧', style: TextStyle(fontSize: 22)),
                 const SizedBox(width: 10),
                 Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text('Send Kit to Parent', style: GoogleFonts.nunito(fontSize: 18, fontWeight: FontWeight.w900, color: _ink)),
-                  Text('${_kit.length} items — parent gets one-tap Amazon link',
+                  Text(_isSchool ? 'Send Purchase Request' : 'Send Kit to Parent', style: GoogleFonts.nunito(fontSize: 18, fontWeight: FontWeight.w900, color: _ink)),
+                  Text(_isSchool ? '${_kit.length} items — goes to your purchase department' : '${_kit.length} items — parent gets one-tap Amazon link',
                       style: GoogleFonts.nunito(fontSize: 12, color: _muted)),
                 ])),
                 IconButton(icon: const Icon(Icons.close_rounded, color: _muted),
@@ -1103,7 +1112,7 @@ class _ShopState extends State<Shop>
                   child: Row(children: [
                     const Icon(Icons.check_circle_rounded, color: Color(0xFF0E9A3F)),
                     const SizedBox(width: 10),
-                    Expanded(child: Text('Email sent! Parent will get the kit list with a one-tap Amazon buy link. If it is not in the inbox, ask them to check the Spam folder.',
+                    Expanded(child: Text(_isSchool ? 'Purchase request sent. If it is not in the inbox, ask them to check the Spam folder.' : 'Email sent! Parent will get the kit list with a one-tap Amazon buy link. If it is not in the inbox, ask them to check the Spam folder.',
                         style: GoogleFonts.nunito(fontSize: 13, color: Color(0xFF0E9A3F), fontWeight: FontWeight.w700))),
                   ]),
                 ),
@@ -1115,7 +1124,7 @@ class _ShopState extends State<Shop>
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
                     child: Text('Done', style: GoogleFonts.nunito(fontWeight: FontWeight.w800)))),
               ] else ...[
-                Text("Parent's email address",
+                Text(_isSchool ? 'Purchase department email' : "Parent's email address",
                     style: GoogleFonts.nunito(fontSize: 13, fontWeight: FontWeight.w700, color: _ink)),
                 const SizedBox(height: 8),
                 TextField(
@@ -1123,7 +1132,7 @@ class _ShopState extends State<Shop>
                   keyboardType: TextInputType.emailAddress,
                   style: GoogleFonts.nunito(fontSize: 14),
                   decoration: InputDecoration(
-                    hintText: 'parent@example.com',
+                    hintText: _isSchool ? 'purchase@yourschool.edu' : 'parent@example.com',
                     hintStyle: GoogleFonts.nunito(color: _muted, fontSize: 14),
                     prefixIcon: const Icon(Icons.email_outlined, color: _muted, size: 20),
                     filled: true, fillColor: const Color(0xFFE3EEFF),
@@ -1132,7 +1141,7 @@ class _ShopState extends State<Shop>
                   ),
                 ),
                 const SizedBox(height: 10),
-                Text('Also send to (optional)',
+                Text(_isSchool ? 'Principal / approver email (optional)' : 'Also send to (optional)',
                     style: GoogleFonts.nunito(fontSize: 13, fontWeight: FontWeight.w700, color: _ink)),
                 const SizedBox(height: 6),
                 TextField(
@@ -1140,7 +1149,7 @@ class _ShopState extends State<Shop>
                   keyboardType: TextInputType.emailAddress,
                   style: GoogleFonts.nunito(fontSize: 14),
                   decoration: InputDecoration(
-                    hintText: 'other parent or relative, separate with commas',
+                    hintText: _isSchool ? 'principal@yourschool.edu, separate with commas' : 'other parent or relative, separate with commas',
                     hintStyle: GoogleFonts.nunito(color: _muted, fontSize: 13),
                     prefixIcon: const Icon(Icons.group_outlined, color: _muted, size: 20),
                     filled: true, fillColor: const Color(0xFFE3EEFF),
@@ -1155,7 +1164,7 @@ class _ShopState extends State<Shop>
                         ? const SizedBox(width: 16, height: 16,
                             child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
                         : const Icon(Icons.send_rounded, size: 16),
-                    label: Text(sending ? 'Sending...' : 'Send Email to Parent',
+                    label: Text(sending ? 'Sending...' : (_isSchool ? 'Send Purchase Request' : 'Send Email to Parent'),
                         style: GoogleFonts.nunito(fontWeight: FontWeight.w800, fontSize: 14)),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: _accent, foregroundColor: Colors.white,
@@ -1212,6 +1221,40 @@ class _ShopState extends State<Shop>
     );
   }
 
+  Future<void> _doPrint({required bool kitOnly}) async {
+    final ok = kitOnly ? await printKitList(_kit.values.toList()) : await printMaterialsList();
+    if (!ok && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Printing works in the web app: open miniguru.in in a browser.')));
+    }
+  }
+
+  void _showPrintChoice() {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('Print materials', style: GoogleFonts.nunito(fontWeight: FontWeight.w900)),
+        content: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text('Save paper: add only the items you need to My Kit, then print My Kit. It is a much shorter list.',
+              style: GoogleFonts.nunito(fontSize: 13, height: 1.4)),
+          const SizedBox(height: 8),
+          Text(_kit.isEmpty ? 'My Kit is empty right now.' : 'My Kit has ${_kit.length} items.',
+              style: GoogleFonts.nunito(fontSize: 12, color: _muted)),
+        ]),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          OutlinedButton(
+            onPressed: _kit.isEmpty ? null : () { Navigator.pop(ctx); _doPrint(kitOnly: true); },
+            child: Text('Print My Kit${_kit.isEmpty ? '' : ' (${_kit.length})'}'),
+          ),
+          ElevatedButton(
+            onPressed: () { Navigator.pop(ctx); _doPrint(kitOnly: false); },
+            child: const Text('Print full list'),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildAppBar() {
     return SliverAppBar(
       pinned: true, expandedHeight: 100, backgroundColor: _accent, elevation: 0,
@@ -1219,12 +1262,7 @@ class _ShopState extends State<Shop>
         IconButton(
           tooltip: 'Print materials list (picture, name, Goins)',
           icon: const Icon(Icons.print_rounded, color: Colors.white),
-          onPressed: () async {
-            final ok = await printMaterialsList();
-            if (!ok && mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Printing works in the web app: open miniguru.in in a browser.')));
-            }
-          },
+          onPressed: _showPrintChoice,
         ),
       ],
       flexibleSpace: FlexibleSpaceBar(

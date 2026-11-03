@@ -56,13 +56,27 @@ function parseCc(raw: any, main: string): string[] {
   return out;
 }
 
-router.post('/send-to-parent', async (req: Request, res: Response) => {
+router.post('/send-to-parent', authenticateTokenOptional, async (req: any, res: Response) => {
   try {
     const { childName, parentEmail, projectTitle, items } = req.body;
     if (!parentEmail || !items || items.length === 0) {
       return res.status(400).json({ error: 'parentEmail and items are required' });
     }
     const ccList = parseCc(req.body.ccEmails, String(parentEmail));
+    // School / T-LAB facilitator accounts send an official purchase request instead of a
+    // child's "kit to parent". Checked on the server from the login, so it cannot be faked.
+    let schoolMode = false;
+    let schoolName = '';
+    if (req.body.audience === 'school' && req.user?.userId) {
+      const su: any = await prisma.user.findUnique({
+        where: { id: req.user.userId },
+        select: { name: true, isMentor: true, mentorType: true, guardianInfo: true },
+      });
+      if (su && su.isMentor && (su.mentorType === 'SCHOOL' || su.mentorType === 'TLAB')) {
+        schoolMode = true;
+        schoolName = String(su.guardianInfo?.institutionName || su.name || '').trim().slice(0, 80);
+      }
+    }
     const ccNote = ccList.length
       ? '<p style="color:#888;font-size:12px;margin:0 0 14px">Also shared with: ' + ccList.map(escHtml).join(', ') + '</p>'
       : '';
@@ -89,7 +103,7 @@ router.post('/send-to-parent', async (req: Request, res: Response) => {
       <td style="padding:8px 12px;border-bottom:1px solid #eee;text-align:center">${item.amazonASIN ? '<span style="background:#FF9900;color:#fff;padding:2px 8px;border-radius:4px;font-size:12px">Amazon</span>' : '<span style="background:#aaa;color:#fff;padding:2px 8px;border-radius:4px;font-size:12px">Local</span>'}</td>
     </tr>`).join('');
 
-    const html = `<!DOCTYPE html><html><body style="font-family:Arial,sans-serif;background:#f5f7ff">
+    const childHtml = `<!DOCTYPE html><html><body style="font-family:Arial,sans-serif;background:#f5f7ff">
 <div style="max-width:600px;margin:30px auto;background:#fff;border-radius:16px;overflow:hidden">
 <div style="background:linear-gradient(135deg,#5B6EF5,#7C3AED);padding:28px 32px;text-align:center">
 <h1 style="margin:0;color:#fff;font-size:28px">&#129504; MiniGuru</h1>
@@ -112,14 +126,46 @@ ${cartButtonsHtml ? '<div style="text-align:center;margin:28px 0">' + cartButton
 <a href="https://miniguru.in" style="color:#5B6EF5">miniguru.in</a> &middot; <a href="mailto:connect@miniguru.in" style="color:#5B6EF5">connect@miniguru.in</a></p></div></div>
 </body></html>`;
 
+    // Official, low-key purchase request (school / T-LAB accounts): plain wording, logo at the bottom.
+    const schoolRows = items.map((item: any) => `<tr>
+      <td style="padding:6px 10px;border-bottom:1px solid #e5e5e5">${escHtml(item.name)}</td>
+      <td style="padding:6px 10px;border-bottom:1px solid #e5e5e5;text-align:center">${escHtml(item.qty)} ${escHtml(item.unit || 'piece')}</td>
+      <td style="padding:6px 10px;border-bottom:1px solid #e5e5e5;text-align:right">${item.priceEstimate ? '&#8377;' + item.priceEstimate * item.qty : '-'}</td>
+      <td style="padding:6px 10px;border-bottom:1px solid #e5e5e5;text-align:center;color:#666">${item.amazonASIN ? 'Amazon' : 'Local'}</td>
+    </tr>`).join('');
+    const schoolButtons = cartParts.map((u, idx) =>
+      '<a href="' + u + '" style="display:inline-block;margin:4px 6px 4px 0;background:#f0f0f0;color:#222;text-decoration:none;padding:9px 18px;border-radius:6px;border:1px solid #ccc;font-size:14px">Open Amazon cart' + (cartParts.length > 1 ? ' - part ' + (idx + 1) : '') + '</a>'
+    ).join('');
+    const schoolHtml = `<!DOCTYPE html><html><body style="font-family:Arial,sans-serif;background:#ffffff;color:#222">
+<div style="max-width:620px;margin:0 auto;padding:24px;font-size:15px;line-height:1.55">
+<p>Dear Purchase Department,</p>
+<p>The T-LAB facilitator at <strong>${escHtml(schoolName || 'our school')}</strong> requests your approval to purchase the items below for the STEAM LAB${projectTitle ? ' (' + escHtml(projectTitle) + ')' : ''}. Please review the list and place the order, or pass it to the person who buys.</p>
+${ccNote ? ccNote.replace('Also shared with:', 'Copy to:') : ''}
+<table width="100%" style="border-collapse:collapse;border:1px solid #e5e5e5;margin:14px 0;font-size:14px">
+<tr style="background:#f6f6f6"><th style="padding:7px 10px;text-align:left">Item</th><th style="padding:7px 10px">Qty</th><th style="padding:7px 10px;text-align:right">Est.</th><th style="padding:7px 10px">Source</th></tr>
+${schoolRows}
+${totalEst > 0 ? '<tr><td colspan="2" style="padding:8px 10px;font-weight:700">Estimated total</td><td style="padding:8px 10px;font-weight:700;text-align:right">&#8377;' + totalEst + '</td><td></td></tr>' : ''}
+</table>
+${schoolButtons ? '<p style="margin:12px 0 4px">To order the Amazon items:</p><div>' + schoolButtons + '</div><p style="color:#888;font-size:12px;margin:8px 0 0">Carts are pre-filled. Prices are estimates; please check the current price on Amazon. Items marked Local are best bought nearby.</p>' : ''}
+<p style="margin-top:22px">Regards,<br>T-LAB facilitator, ${escHtml(schoolName || 'our school')}</p>
+<hr style="border:none;border-top:1px solid #e5e5e5;margin:26px 0 14px">
+<div style="text-align:center;color:#999;font-size:12px">
+<img src="https://miniguru.in/icons/Icon-192.png" width="32" height="32" alt="MiniGuru" style="border-radius:8px"><br>
+Sent through MiniGuru &middot; MiniGuru Innovation Pvt Ltd, Ujjain, Madhya Pradesh<br>
+<a href="https://miniguru.in" style="color:#999">miniguru.in</a> &middot; <a href="mailto:connect@miniguru.in" style="color:#999">connect@miniguru.in</a></div>
+</div></body></html>`;
+    const html = schoolMode ? schoolHtml : childHtml;
+
     await sendEmail({
       to: String(parentEmail).trim(),
       ...(ccList.length ? { cc: ccList } : {}),
-      subject: `Materials list for ${String(childName || 'your child').slice(0, 60)}'s STEAM project`,
+      subject: schoolMode
+        ? `Purchase request of STEAM items${schoolName ? ' - ' + schoolName : ''}`.slice(0, 150)
+        : `Materials list for ${String(childName || 'your child').slice(0, 60)}'s STEAM project`,
       html,
       fromOverride: OFFICIAL_FROM, // now the same connect@ address as all other mail
-      kind: 'kit-to-parent',
-      reference: `Kit for ${String(childName || 'a child').slice(0, 40)} - ${items.length} items${projectTitle ? ' - ' + String(projectTitle).slice(0, 60) : ''}`,
+      kind: schoolMode ? 'purchase-request' : 'kit-to-parent',
+      reference: `${schoolMode ? 'Purchase request' : 'Kit'} for ${String(childName || 'a child').slice(0, 40)} - ${items.length} items${projectTitle ? ' - ' + String(projectTitle).slice(0, 60) : ''}`,
     });
     await recordListShare(
       'send-to-parent',

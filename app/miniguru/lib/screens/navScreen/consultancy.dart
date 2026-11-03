@@ -2605,26 +2605,11 @@ class _KitChecklistCardState extends State<_KitChecklistCard> {
               style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.bold)),
           content: SingleChildScrollView(
             child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Wrap(spacing: 8, children: [
-                ChoiceChip(
-                  label: const Text('To a parent'),
-                  selected: audience == 'parent',
-                  onSelected: (_) => setD(() => audience = 'parent'),
-                ),
-                ChoiceChip(
-                  label: const Text('To school office'),
-                  selected: audience == 'school',
-                  onSelected: (_) => setD(() => audience = 'school'),
-                ),
-              ]),
-              const SizedBox(height: 8),
               TextField(
                 controller: emailCtrl,
                 keyboardType: TextInputType.emailAddress,
-                decoration: InputDecoration(
-                    labelText: audience == 'school'
-                        ? 'Main email (office / principal / purchase)'
-                        : 'Main email (the person this is for)'),
+                decoration: const InputDecoration(
+                    labelText: 'Main email (the person this is for)'),
               ),
               const SizedBox(height: 8),
               TextField(
