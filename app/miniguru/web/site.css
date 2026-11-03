@@ -105,3 +105,8 @@ footer p{margin:6px 0}
  .seg{margin:16px 20px 0}.seg a{font-size:13px}.tabs{margin-left:0;width:100%;gap:4px}.tabs a{font-size:13px;padding:6px 11px}
 }
 @media(max-width:480px){.vids{grid-template-columns:1fr}.vid{max-width:320px}.gal{grid-template-columns:1fr}.gal img{max-width:320px}}
+
+.card.rec{display:flex;gap:16px;align-items:center}
+.card.rec img{width:92px;height:92px;object-fit:cover;border-radius:12px;flex:none;box-shadow:0 3px 10px rgba(20,20,43,.15)}
+.card.rec h3{margin:0 0 4px}
+@media(max-width:560px){.card.rec img{width:72px;height:72px}}

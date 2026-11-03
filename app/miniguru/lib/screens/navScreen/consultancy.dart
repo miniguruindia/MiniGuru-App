@@ -2595,28 +2595,57 @@ class _KitChecklistCardState extends State<_KitChecklistCard> {
     if (_sending) return;
     final emailCtrl = TextEditingController();
     final nameCtrl = TextEditingController();
+    final ccCtrl = TextEditingController();
+    String audience = 'parent';
     final go = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text('Send this list by email',
-            style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.bold)),
-        content: Column(mainAxisSize: MainAxisSize.min, children: [
-          TextField(
-            controller: emailCtrl,
-            keyboardType: TextInputType.emailAddress,
-            decoration: const InputDecoration(
-                labelText: 'Send to (parent / purchase department email)'),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setD) => AlertDialog(
+          title: Text('Send this list by email',
+              style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.bold)),
+          content: SingleChildScrollView(
+            child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Wrap(spacing: 8, children: [
+                ChoiceChip(
+                  label: const Text('To a parent'),
+                  selected: audience == 'parent',
+                  onSelected: (_) => setD(() => audience = 'parent'),
+                ),
+                ChoiceChip(
+                  label: const Text('To school office'),
+                  selected: audience == 'school',
+                  onSelected: (_) => setD(() => audience = 'school'),
+                ),
+              ]),
+              const SizedBox(height: 8),
+              TextField(
+                controller: emailCtrl,
+                keyboardType: TextInputType.emailAddress,
+                decoration: InputDecoration(
+                    labelText: audience == 'school'
+                        ? 'Main email (office / principal / purchase)'
+                        : 'Main email (the person this is for)'),
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                controller: ccCtrl,
+                keyboardType: TextInputType.emailAddress,
+                decoration: const InputDecoration(
+                    labelText: 'Also send to (optional, up to 3)',
+                    helperText: 'Separate with commas. They get a copy (CC).'),
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                controller: nameCtrl,
+                decoration: const InputDecoration(labelText: 'Your name (optional)'),
+              ),
+            ]),
           ),
-          const SizedBox(height: 8),
-          TextField(
-            controller: nameCtrl,
-            decoration: const InputDecoration(labelText: 'Your name (optional)'),
-          ),
-        ]),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
-          ElevatedButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Send')),
-        ],
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+            ElevatedButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Send')),
+          ],
+        ),
       ),
     );
     if (go != true) return;
@@ -2633,6 +2662,11 @@ class _KitChecklistCardState extends State<_KitChecklistCard> {
             headers: {'Content-Type': 'application/json'},
             body: jsonEncode({
               'recipientEmail': email,
+              'audience': audience,
+              'ccEmails': ccCtrl.text
+                  .split(RegExp(r'[\s,;]+'))
+                  .where((e) => e.contains('@'))
+                  .toList(),
               'senderName': nameCtrl.text.trim(),
               'listTitle': widget.name,
               'items': selected

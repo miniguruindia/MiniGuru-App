@@ -981,6 +981,7 @@ class _ShopState extends State<Shop>
 
   void _showSendSheet() {
     final emailCtrl = TextEditingController();
+    final ccCtrl = TextEditingController();
     // BUGFIX (Aug 2026): sending/sent/err used to be declared INSIDE the
     // StatefulBuilder's builder callback below. That callback re-runs on
     // every setSt() rebuild, which re-declared all three as fresh
@@ -1041,6 +1042,10 @@ class _ShopState extends State<Shop>
                   },
                   body: jsonEncode({
                     'parentEmail': email,
+                    'ccEmails':    ccCtrl.text
+                        .split(RegExp(r'[\s,;]+'))
+                        .where((e) => e.contains('@'))
+                        .toList(),
                     'childName':   'Your child',
                     'items':       items,
                     'cartUrl':     _buildCartUrl(),
@@ -1124,6 +1129,22 @@ class _ShopState extends State<Shop>
                     filled: true, fillColor: const Color(0xFFE3EEFF),
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
                     errorText: err,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Text('Also send to (optional)',
+                    style: GoogleFonts.nunito(fontSize: 13, fontWeight: FontWeight.w700, color: _ink)),
+                const SizedBox(height: 6),
+                TextField(
+                  controller: ccCtrl,
+                  keyboardType: TextInputType.emailAddress,
+                  style: GoogleFonts.nunito(fontSize: 14),
+                  decoration: InputDecoration(
+                    hintText: 'other parent or relative, separate with commas',
+                    hintStyle: GoogleFonts.nunito(color: _muted, fontSize: 13),
+                    prefixIcon: const Icon(Icons.group_outlined, color: _muted, size: 20),
+                    filled: true, fillColor: const Color(0xFFE3EEFF),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
                   ),
                 ),
                 const SizedBox(height: 16),

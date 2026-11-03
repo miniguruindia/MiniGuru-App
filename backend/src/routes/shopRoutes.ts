@@ -34,12 +34,38 @@ async function recordListShare(source: string, senderName: string, rows: { asin:
   }
 }
 
+// Optional extra recipients (other parent, school approver). The first address is
+// always the main "To"; these go in CC. Max 3, valid format only, no repeats.
+function parseCc(raw: any, main: string): string[] {
+  const list: string[] = Array.isArray(raw)
+    ? raw.map((x: any) => String(x))
+    : typeof raw === 'string'
+      ? raw.split(/[\s,;]+/)
+      : [];
+  const seen = new Set<string>([String(main || '').trim().toLowerCase()]);
+  const out: string[] = [];
+  for (const e of list) {
+    const v = e.trim();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v) || v.length > 120) continue;
+    const k = v.toLowerCase();
+    if (seen.has(k)) continue;
+    seen.add(k);
+    out.push(v);
+    if (out.length >= 3) break;
+  }
+  return out;
+}
+
 router.post('/send-to-parent', async (req: Request, res: Response) => {
   try {
     const { childName, parentEmail, projectTitle, items } = req.body;
     if (!parentEmail || !items || items.length === 0) {
       return res.status(400).json({ error: 'parentEmail and items are required' });
     }
+    const ccList = parseCc(req.body.ccEmails, String(parentEmail));
+    const ccNote = ccList.length
+      ? '<p style="color:#888;font-size:12px;margin:0 0 14px">Also shared with: ' + ccList.map(escHtml).join(', ') + '</p>'
+      : '';
     const amazonItems = items.filter((i: any) => i.amazonASIN);
     // Amazon allows 10 lines per cart link, so longer lists are split into parts of 10
     const cartParts: string[] = [];
@@ -71,6 +97,7 @@ router.post('/send-to-parent', async (req: Request, res: Response) => {
 <div style="padding:32px">
 <h2 style="color:#1a1a2e">&#128722; ${escHtml(childName || 'Your child')} needs materials!</h2>
 <p style="color:#555">They planned a STEAM project${projectTitle ? ' <strong>"' + escHtml(projectTitle) + '"</strong>' : ''}. Here are the materials:</p>
+${ccNote}
 <table width="100%" style="border:1px solid #eee;border-radius:8px;margin-bottom:24px">
 <tr style="background:#f5f7ff"><th style="padding:10px 12px;text-align:left;color:#5B6EF5">Material</th><th style="color:#5B6EF5">Qty</th><th style="color:#5B6EF5">Est.</th><th style="color:#5B6EF5">Source</th></tr>
 ${rows}
@@ -87,6 +114,7 @@ ${cartButtonsHtml ? '<div style="text-align:center;margin:28px 0">' + cartButton
 
     await sendEmail({
       to: String(parentEmail).trim(),
+      ...(ccList.length ? { cc: ccList } : {}),
       subject: `Materials list for ${String(childName || 'your child').slice(0, 60)}'s STEAM project`,
       html,
       fromOverride: OFFICIAL_FROM, // now the same connect@ address as all other mail
@@ -157,6 +185,12 @@ router.post('/send-list', async (req: Request, res: Response) => {
 
     const listTitle = String(body.listTitle || 'Materials list').slice(0, 100);
     const senderName = String(body.senderName || '').trim().slice(0, 80);
+    // 'school' = a purchase request to a school office / approver; anything else = a parent.
+    const isSchool = body.audience === 'school';
+    const ccList = parseCc(body.ccEmails, email);
+    const ccNote = ccList.length
+      ? '<p style="color:#888;font-size:12px;margin:0 0 14px">Also shared with: ' + ccList.map(escHtml).join(', ') + '</p>'
+      : '';
 
     // Amazon cart links: same ASIN merged, 10 lines per link.
     const merged = new Map<string, number>();
@@ -197,10 +231,13 @@ router.post('/send-list', async (req: Request, res: Response) => {
 <div style="max-width:640px;margin:30px auto;background:#fff;border-radius:16px;overflow:hidden">
 <div style="background:linear-gradient(135deg,#1B5E20,#2E7D32);padding:26px 32px;text-align:center">
 <h1 style="margin:0;color:#fff;font-size:26px">&#129504; MiniGuru</h1>
-<p style="margin:6px 0 0;color:rgba(255,255,255,0.85)">Materials list</p></div>
+<p style="margin:6px 0 0;color:rgba(255,255,255,0.85)">${isSchool ? 'Purchase request' : 'Materials list'}</p></div>
 <div style="padding:30px">
-<h2 style="color:#1a1a2e;margin-top:0">&#128203; ${escHtml(listTitle)}</h2>
-<p style="color:#555">${senderName ? escHtml(senderName) + ' has' : 'Someone has'} shared this materials list with you. Quantities and items were chosen from MiniGuru's recommended list.</p>
+<h2 style="color:#1a1a2e;margin-top:0">&#128203; ${isSchool ? 'Purchase request: ' : ''}${escHtml(listTitle)}</h2>
+<p style="color:#555">${isSchool
+  ? (senderName ? escHtml(senderName) : 'A teacher') + ' is requesting your approval to buy the items below. Please review the list, then order with the Amazon button or pass it to the person who buys.'
+  : (senderName ? escHtml(senderName) + ' has' : 'Someone has') + ' shared this materials list with you. Quantities and items were chosen from MiniGuru\'s recommended list.'}</p>
+${ccNote}
 <table width="100%" style="border:1px solid #eee;border-radius:8px;margin-bottom:22px">
 <tr style="background:#f1f8f1"><th style="padding:10px 12px;text-align:left;color:#1B5E20">Material</th><th style="color:#1B5E20">Qty</th><th style="color:#1B5E20">Est.</th><th style="color:#1B5E20">Source</th></tr>
 ${rows}
@@ -215,7 +252,10 @@ ${buttons ? '<div style="text-align:center;margin:26px 0">' + buttons + '<p styl
 
     await sendEmail({
       to: email,
-      subject: `Materials list: ${listTitle}`.slice(0, 150),
+      ...(ccList.length ? { cc: ccList } : {}),
+      subject: (isSchool
+        ? `Purchase request${senderName ? ' from ' + senderName : ''}: ${listTitle}`
+        : `Materials list: ${listTitle}`).slice(0, 150),
       html,
       fromOverride: OFFICIAL_FROM,
       kind: 'materials-list',

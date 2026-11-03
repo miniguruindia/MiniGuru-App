@@ -28,7 +28,7 @@ const DEFAULT_FROM = { email: process.env.FROM_EMAIL || 'connect@miniguru.in', n
 // dangerous" warning, and one sender builds a better reputation). OFFICIAL_FROM
 // is kept as a name so existing callers still work; it is the same address.
 exports.OFFICIAL_FROM = DEFAULT_FROM;
-async function sendEmailRaw({ to, subject, html, fromOverride, }) {
+async function sendEmailRaw({ to, subject, html, fromOverride, cc, }) {
     const from = fromOverride || DEFAULT_FROM;
     // Stop 5 short of Resend's real 100/day free-tier cap so a burst landing
     // at the same moment this check runs can never push the account over the
@@ -44,6 +44,7 @@ async function sendEmailRaw({ to, subject, html, fromOverride, }) {
         const { error } = await resendClient.emails.send({
             from: `${from.name} <${from.email}>`,
             to: [to],
+            ...(cc && cc.length ? { cc } : {}),
             subject,
             html,
             ...((0, htmlToText_1.htmlToText)(html) ? { text: (0, htmlToText_1.htmlToText)(html) } : {}),
@@ -54,7 +55,7 @@ async function sendEmailRaw({ to, subject, html, fromOverride, }) {
         await (0, costTracking_1.recordEmailSent)();
         return;
     }
-    await mail_1.default.send({ to, from, subject, html, ...((0, htmlToText_1.htmlToText)(html) ? { text: (0, htmlToText_1.htmlToText)(html) } : {}) });
+    await mail_1.default.send({ to, ...(cc && cc.length ? { cc } : {}), from, subject, html, ...((0, htmlToText_1.htmlToText)(html) ? { text: (0, htmlToText_1.htmlToText)(html) } : {}) });
     await (0, costTracking_1.recordEmailSent)();
 }
 function mailMeta(args) {

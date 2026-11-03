@@ -28,11 +28,13 @@ async function sendEmailRaw({
   subject,
   html,
   fromOverride,
+  cc,
 }: {
   to: string;
   subject: string;
   html: string;
   fromOverride?: { email: string; name: string };
+  cc?: string[];
 }) {
   const from = fromOverride || DEFAULT_FROM;
 
@@ -53,6 +55,7 @@ async function sendEmailRaw({
     const { error } = await resendClient.emails.send({
       from: `${from.name} <${from.email}>`,
       to: [to],
+      ...(cc && cc.length ? { cc } : {}),
       subject,
       html,
       ...(htmlToText(html) ? { text: htmlToText(html) } : {}),
@@ -64,7 +67,7 @@ async function sendEmailRaw({
     return;
   }
 
-  await sgMail.send({ to, from, subject, html, ...(htmlToText(html) ? { text: htmlToText(html) } : {}) });
+  await sgMail.send({ to, ...(cc && cc.length ? { cc } : {}), from, subject, html, ...(htmlToText(html) ? { text: htmlToText(html) } : {}) });
   await recordEmailSent();
 }
 

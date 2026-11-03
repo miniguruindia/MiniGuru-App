@@ -462,7 +462,7 @@ class _FounderContent extends StatelessWidget {
         'Educator by heart and entrepreneur by spirit — on a mission to reshape '
         'education with the Natural Learning Model. Over 24 years in elementary '
         'education; 10+ years building T-LAB across India. Recognised as one of '
-        "India's Top 100 Educators (India Prime Awards 2022).",
+        "India's Top 100 Educators (India Prime Awards 2023).",
         style: _b(14.5, _AC.ink),
       ),
       const SizedBox(height: 14),
@@ -1130,7 +1130,7 @@ class _AwardsSection extends StatelessWidget {
           'ICONGO & United Nations',
           'Global recognition for impact in education through tinkering pedagogy'),
       _AD('🏆', "India's Top 100 Educators",
-          'India Prime Awards 2022',
+          'India Prime Awards 2023',
           "Recognised among India's most impactful educators of the year"),
       _AD('⭐', 'CII-YI Award',
           'Confederation of Indian Industry — Young Indians, Bhopal',
