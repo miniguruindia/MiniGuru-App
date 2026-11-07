@@ -20,7 +20,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.SHOP_AI_PER_USER_DAILY = exports.SHOP_AI_DAILY_CAP = exports.PHONE_SMS_PER_USER_DAILY = exports.PHONE_SMS_DAILY_CAP = exports.FIREBASE_STORAGE_LIMIT_GB = exports.YOUTUBE_UPLOAD_DAILY_LIMIT = exports.YOUTUBE_UNIT_COSTS = exports.YOUTUBE_DAILY_LIMIT = exports.EMAIL_MONTHLY_LIMIT = exports.EMAIL_DAILY_CUTOFF = exports.EMAIL_DAILY_LIMIT = void 0;
+exports.GEMINI_HELPER_DAILY_CAP = exports.SHOP_AI_PER_USER_DAILY = exports.SHOP_AI_DAILY_CAP = exports.PHONE_SMS_PER_USER_DAILY = exports.PHONE_SMS_DAILY_CAP = exports.FIREBASE_STORAGE_LIMIT_GB = exports.YOUTUBE_UPLOAD_DAILY_LIMIT = exports.YOUTUBE_UNIT_COSTS = exports.YOUTUBE_DAILY_LIMIT = exports.EMAIL_MONTHLY_LIMIT = exports.EMAIL_DAILY_CUTOFF = exports.EMAIL_DAILY_LIMIT = void 0;
 exports.checkEmailQuota = checkEmailQuota;
 exports.recordEmailSent = recordEmailSent;
 exports.recordYoutubeUnits = recordYoutubeUnits;
@@ -31,6 +31,8 @@ exports.recordPhoneSmsStarted = recordPhoneSmsStarted;
 exports.recordPhoneVerified = recordPhoneVerified;
 exports.checkShopAiQuota = checkShopAiQuota;
 exports.recordShopAiSearch = recordShopAiSearch;
+exports.checkGeminiHelperQuota = checkGeminiHelperQuota;
+exports.recordGeminiHelperCall = recordGeminiHelperCall;
 exports.getCostDashboardSnapshot = getCostDashboardSnapshot;
 exports.checkGuestAmazonFind = checkGuestAmazonFind;
 exports.recordGuestAmazonFind = recordGuestAmazonFind;
@@ -304,9 +306,30 @@ async function getShopAiStatus() {
         note: 'Name and photo search in the Shop. Own cap, so it never uses the video-review allowance. Photos are never stored.',
     };
 }
+// ── Gemini product helper (Admin Find / Compare when Amazon is off) ────────
+// Own daily cap so it can never eat the video-review allowance. Free tier only.
+const GEMINI_HELPER_KEY = 'gemini_product_helper';
+exports.GEMINI_HELPER_DAILY_CAP = 60;
+async function checkGeminiHelperQuota() {
+    const d = await readDailyCounter(GEMINI_HELPER_KEY);
+    return d.count < exports.GEMINI_HELPER_DAILY_CAP;
+}
+async function recordGeminiHelperCall() {
+    const d = await readDailyCounter(GEMINI_HELPER_KEY);
+    d.count += 1;
+    await writeDailyCounter(GEMINI_HELPER_KEY, d);
+}
+async function getGeminiHelperStatus() {
+    const d = await readDailyCounter(GEMINI_HELPER_KEY);
+    return {
+        callsToday: d.count,
+        dailyCap: exports.GEMINI_HELPER_DAILY_CAP,
+        note: 'Admin Find / Compare when Amazon is not answering. Own cap, free tier only, never bills. Web search needs a paid plan, so on the free plan it gives names only.',
+    };
+}
 // ── Full dashboard snapshot ──────────────────────────────────────────────
 async function getCostDashboardSnapshot() {
-    const [email, gemini, youtube, youtubeUploads, mongo, firebase, amazon, phoneAuth, shopAi] = await Promise.all([
+    const [email, gemini, youtube, youtubeUploads, mongo, firebase, amazon, phoneAuth, shopAi, geminiHelper] = await Promise.all([
         checkEmailQuota(),
         getGeminiQuotaStatus(),
         getYoutubeQuotaStatus(),
@@ -316,6 +339,7 @@ async function getCostDashboardSnapshot() {
         getAmazonQuotaStatus(),
         getPhoneAuthStatus(),
         getShopAiStatus(),
+        getGeminiHelperStatus(),
     ]);
     return {
         email: {
@@ -355,6 +379,7 @@ async function getCostDashboardSnapshot() {
         },
         phoneAuth,
         shopAi,
+        geminiHelper,
         gcpConsoleOnly: {
             note: 'Cloud Run request volume and Artifact Registry storage cost are only visible via the GCP Billing console — not trackable from application code. Check Cloud Console → Billing → Reports periodically.',
         },

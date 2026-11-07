@@ -321,10 +321,35 @@ async function getShopAiStatus() {
   };
 }
 
+// ── Gemini product helper (Admin Find / Compare when Amazon is off) ────────
+// Own daily cap so it can never eat the video-review allowance. Free tier only.
+const GEMINI_HELPER_KEY = 'gemini_product_helper';
+export const GEMINI_HELPER_DAILY_CAP = 60;
+
+export async function checkGeminiHelperQuota(): Promise<boolean> {
+  const d = await readDailyCounter(GEMINI_HELPER_KEY);
+  return d.count < GEMINI_HELPER_DAILY_CAP;
+}
+
+export async function recordGeminiHelperCall(): Promise<void> {
+  const d = await readDailyCounter(GEMINI_HELPER_KEY);
+  d.count += 1;
+  await writeDailyCounter(GEMINI_HELPER_KEY, d);
+}
+
+async function getGeminiHelperStatus() {
+  const d = await readDailyCounter(GEMINI_HELPER_KEY);
+  return {
+    callsToday: d.count,
+    dailyCap: GEMINI_HELPER_DAILY_CAP,
+    note: 'Admin Find / Compare when Amazon is not answering. Own cap, free tier only, never bills. Web search needs a paid plan, so on the free plan it gives names only.',
+  };
+}
+
 // ── Full dashboard snapshot ──────────────────────────────────────────────
 
 export async function getCostDashboardSnapshot() {
-  const [email, gemini, youtube, youtubeUploads, mongo, firebase, amazon, phoneAuth, shopAi] = await Promise.all([
+  const [email, gemini, youtube, youtubeUploads, mongo, firebase, amazon, phoneAuth, shopAi, geminiHelper] = await Promise.all([
     checkEmailQuota(),
     getGeminiQuotaStatus(),
     getYoutubeQuotaStatus(),
@@ -334,6 +359,7 @@ export async function getCostDashboardSnapshot() {
     getAmazonQuotaStatus(),
     getPhoneAuthStatus(),
     getShopAiStatus(),
+    getGeminiHelperStatus(),
   ]);
 
   return {
@@ -374,6 +400,7 @@ export async function getCostDashboardSnapshot() {
     },
     phoneAuth,
     shopAi,
+    geminiHelper,
     gcpConsoleOnly: {
       note: 'Cloud Run request volume and Artifact Registry storage cost are only visible via the GCP Billing console — not trackable from application code. Check Cloud Console → Billing → Reports periodically.',
     },

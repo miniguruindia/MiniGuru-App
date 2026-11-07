@@ -7,6 +7,7 @@
 // admin must open the tagged link and check before linking. Never throws.
 
 import { GoogleGenAI } from '@google/genai';
+import { checkGeminiHelperQuota, recordGeminiHelperCall } from '../utils/costTracking';
 
 const MODEL = 'gemini-3.5-flash';
 const TAG = 'miniguru04-21';
@@ -53,6 +54,11 @@ function parseJson(text: string): any {
   return null;
 }
 
+function isQuotaError(err: any): boolean {
+  const t = String(err?.message || err || '');
+  return /429|RESOURCE_EXHAUSTED|quota/i.test(t);
+}
+
 function unitFromTitle(title: string): string | null {
   const m = title.match(/\b(pack of \d+|set of \d+|\d+\s*(?:pcs|pieces|pc|pack|units)|\d+(?:\.\d+)?\s*(?:ml|l|g|kg|mm|cm|m))\b/i);
   return m ? m[0].trim() : null;
@@ -86,27 +92,57 @@ export async function geminiFindProducts(
 ): Promise<GeminiResult> {
   const ai = client();
   if (!ai) return { ok: false, results: [], error: 'Gemini is not configured.' };
-  try {
-    const prompt = `You help a children's STEAM-education shop in India find products on amazon.in.
-Use Google Search. Find up to 5 real, different products sold on amazon.in that match this material, cheapest first.
+  if (!(await checkGeminiHelperQuota())) {
+    return { ok: false, results: [], error: "Today's Gemini helper limit is used up. It resets tomorrow." };
+  }
+  await recordGeminiHelperCall();
+
+  const base = `You help a children's STEAM-education shop in India find products on amazon.in.
 Material: "${query}"
-${description ? 'Details: "' + String(description).slice(0, 200) + '"\n' : ''}${avoidTitles.length ? 'Do not suggest anything like these rejected products:\n' + avoidTitles.map((t) => '- ' + t).join('\n') + '\n' : ''}
-For each product give: title, asin (the 10-character code, ONLY if you actually saw it in an amazon.in/dp/ address, otherwise empty string), price (approximate rupees as a number, or null), note (one short line, for example pack size).
+${description ? 'Details: "' + String(description).slice(0, 200) + '"\n' : ''}${avoidTitles.length ? 'Do not suggest anything like these rejected products:\n' + avoidTitles.map((t) => '- ' + t).join('\n') + '\n' : ''}`;
+  const withSearch = base + `Use Google Search. Find up to 5 real, different products sold on amazon.in that match, cheapest first.
+For each give: title, asin (the 10-character code, ONLY if you actually saw it in an amazon.in/dp/ address, otherwise empty string), price (approximate rupees as a number, or null), note (one short line, for example pack size).
 Reply with ONLY a JSON array like [{"title":"...","asin":"","price":199,"note":"..."}]. Never invent an asin.`;
+  const plain = base + `Without searching, suggest up to 5 typical products a parent could buy on amazon.in for this material, cheapest kind first.
+For each give: title (a good Amazon search phrase with pack size), asin (always empty string), price (approximate rupees as a number, or null), note (one short line).
+Reply with ONLY a JSON array like [{"title":"...","asin":"","price":199,"note":"..."}].`;
+
+  const run = async (prompt: string, search: boolean) => {
     const r: any = await ai.models.generateContent({
       model: MODEL,
       contents: prompt,
-      config: { tools: [{ googleSearch: {} }] },
+      config: search ? { tools: [{ googleSearch: {} }] } : undefined,
     });
     const arr = parseJson(r?.text ?? '');
-    if (!Array.isArray(arr)) return { ok: false, results: [], error: 'Gemini gave no usable answer.' };
-    const out = arr.map(toCandidate).filter(Boolean) as GeminiCandidate[];
-    out.sort((a, b) => (a.priceRupees ?? Infinity) - (b.priceRupees ?? Infinity));
-    return { ok: out.length > 0, results: out.slice(0, 5), error: out.length ? undefined : 'Gemini found nothing.' };
-  } catch (err: any) {
-    console.error('[geminiProductService] find failed:', err?.message || err);
-    return { ok: false, results: [], error: 'Gemini search failed.' };
+    if (!Array.isArray(arr)) throw new Error('no usable answer');
+    return arr;
+  };
+
+  let arr: any[] | null = null;
+  let searched = true;
+  try {
+    arr = await run(withSearch, true);
+  } catch (e1: any) {
+    // Web search is often not allowed on a free key: try again without it.
+    console.error('[geminiProductService] search mode failed:', String(e1?.message || e1).slice(0, 300));
+    searched = false;
+    try {
+      arr = await run(plain, false);
+    } catch (e2: any) {
+      console.error('[geminiProductService] plain mode failed:', String(e2?.message || e2).slice(0, 300));
+      return {
+        ok: false,
+        results: [],
+        error: isQuotaError(e2)
+          ? "Gemini's free daily limit is used up. Try again tomorrow."
+          : 'Gemini could not answer. Try again in a minute.',
+      };
+    }
   }
+  const out = (arr || []).map(toCandidate).filter(Boolean) as GeminiCandidate[];
+  if (!searched) out.forEach((c) => { c.asin = ''; c.detailPageUrl = taggedSearchUrl(c.title); c.note = (c.note ? c.note + ' · ' : '') + 'name only (no web search)'; });
+  out.sort((a, b) => (a.priceRupees ?? Infinity) - (b.priceRupees ?? Infinity));
+  return { ok: out.length > 0, results: out.slice(0, 5), error: out.length ? undefined : 'Gemini found nothing.' };
 }
 
 /** Try to read one product page. Returns null when Gemini could not read it. */
@@ -115,6 +151,8 @@ export async function geminiDescribeProduct(
 ): Promise<{ title: string; priceRupees: number | null; extractedUnit: string | null; description: string | null } | null> {
   const ai = client();
   if (!ai || !/^[A-Z0-9]{10}$/.test(asin)) return null;
+  if (!(await checkGeminiHelperQuota())) return null;
+  await recordGeminiHelperCall();
   try {
     const url = 'https://www.amazon.in/dp/' + asin;
     const prompt = `Read this product page: ${url}

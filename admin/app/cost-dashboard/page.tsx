@@ -45,6 +45,7 @@ interface Snapshot {
     note: string
   }
   shopAi?: { callsToday: number; dailyCap: number; note: string }
+  geminiHelper?: { callsToday: number; dailyCap: number; note: string }
   gcpConsoleOnly: { note: string }
 }
 
@@ -199,6 +200,17 @@ export default function CostDashboardPage() {
                 unit="GB"
                 subtitle={data.firebaseStorage.error || (data.firebaseStorage.cached ? 'Cached (refreshed every 15 min).' : 'Checked live.')}
               />
+              {data.geminiHelper && (
+                <QuotaCard
+                  icon={Sparkles}
+                  title="Gemini - Admin product helper"
+                  used={data.geminiHelper.callsToday}
+                  limit={data.geminiHelper.dailyCap}
+                  unit="today"
+                  blocked={data.geminiHelper.callsToday >= data.geminiHelper.dailyCap}
+                  note={data.geminiHelper.note}
+                />
+              )}
               {data.shopAi && (
                 <QuotaCard
                   icon={Search}
