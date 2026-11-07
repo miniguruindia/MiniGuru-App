@@ -56,6 +56,15 @@ function parseCc(raw: any, main: string): string[] {
   return out;
 }
 
+// Item name as a tagged single-item Amazon link (keeps the affiliate tag even when the
+// buyer opens one item, or pays on another device than the one that opened the cart).
+function itemLink(name: any, asin: any): string {
+  const n = escHtml(name);
+  const a = String(asin || '').trim().toUpperCase();
+  if (!/^[A-Z0-9]{10}$/.test(a)) return n;
+  return '<a href="https://www.amazon.in/dp/' + a + '?tag=' + AMAZON_TAG + '" style="color:inherit;text-decoration:underline">' + n + '</a>';
+}
+
 router.post('/send-to-parent', authenticateTokenOptional, async (req: any, res: Response) => {
   try {
     const { childName, parentEmail, projectTitle, items } = req.body;
@@ -97,7 +106,7 @@ router.post('/send-to-parent', authenticateTokenOptional, async (req: any, res: 
     ).join('');
     const totalEst = items.reduce((s: number, i: any) => s + (i.priceEstimate || 0) * i.qty, 0);
     const rows = items.map((item: any) => `<tr>
-      <td style="padding:8px 12px;border-bottom:1px solid #eee"><strong>${escHtml(item.name)}</strong></td>
+      <td style="padding:8px 12px;border-bottom:1px solid #eee"><strong>${itemLink(item.name, item.amazonASIN)}</strong></td>
       <td style="padding:8px 12px;border-bottom:1px solid #eee;text-align:center">${escHtml(item.qty)} ${escHtml(item.unit || 'piece')}</td>
       <td style="padding:8px 12px;border-bottom:1px solid #eee;text-align:right">${item.priceEstimate ? '\u20b9' + (item.priceEstimate * item.qty) : '-'}</td>
       <td style="padding:8px 12px;border-bottom:1px solid #eee;text-align:center">${item.amazonASIN ? '<span style="background:#FF9900;color:#fff;padding:2px 8px;border-radius:4px;font-size:12px">Amazon</span>' : '<span style="background:#aaa;color:#fff;padding:2px 8px;border-radius:4px;font-size:12px">Local</span>'}</td>
@@ -110,7 +119,7 @@ router.post('/send-to-parent', authenticateTokenOptional, async (req: any, res: 
 <p style="margin:6px 0 0;color:rgba(255,255,255,0.85)">STEAM Education Platform</p></div>
 <div style="padding:32px">
 <h2 style="color:#1a1a2e">&#128722; ${escHtml(childName || 'Your child')} needs materials!</h2>
-<p style="color:#555">They planned a STEAM project${projectTitle ? ' <strong>"' + escHtml(projectTitle) + '"</strong>' : ''}. Here are the materials:</p>
+<p style="color:#555">They planned a STEAM project${projectTitle ? ' <strong>"' + escHtml(projectTitle) + '"</strong>' : ''}. Here are the materials (tap an item name to open just that item on Amazon):</p>
 ${ccNote}
 <table width="100%" style="border:1px solid #eee;border-radius:8px;margin-bottom:24px">
 <tr style="background:#f5f7ff"><th style="padding:10px 12px;text-align:left;color:#5B6EF5">Material</th><th style="color:#5B6EF5">Qty</th><th style="color:#5B6EF5">Est.</th><th style="color:#5B6EF5">Source</th></tr>
@@ -128,7 +137,7 @@ ${cartButtonsHtml ? '<div style="text-align:center;margin:28px 0">' + cartButton
 
     // Official, low-key purchase request (school / T-LAB accounts): plain wording, logo at the bottom.
     const schoolRows = items.map((item: any) => `<tr>
-      <td style="padding:6px 10px;border-bottom:1px solid #e5e5e5">${escHtml(item.name)}</td>
+      <td style="padding:6px 10px;border-bottom:1px solid #e5e5e5">${itemLink(item.name, item.amazonASIN)}</td>
       <td style="padding:6px 10px;border-bottom:1px solid #e5e5e5;text-align:center">${escHtml(item.qty)} ${escHtml(item.unit || 'piece')}</td>
       <td style="padding:6px 10px;border-bottom:1px solid #e5e5e5;text-align:right">${item.priceEstimate ? '&#8377;' + item.priceEstimate * item.qty : '-'}</td>
       <td style="padding:6px 10px;border-bottom:1px solid #e5e5e5;text-align:center;color:#666">${item.amazonASIN ? 'Amazon' : 'Local'}</td>
@@ -146,7 +155,7 @@ ${ccNote ? ccNote.replace('Also shared with:', 'Copy to:') : ''}
 ${schoolRows}
 ${totalEst > 0 ? '<tr><td colspan="2" style="padding:8px 10px;font-weight:700">Estimated total</td><td style="padding:8px 10px;font-weight:700;text-align:right">&#8377;' + totalEst + '</td><td></td></tr>' : ''}
 </table>
-${schoolButtons ? '<p style="margin:12px 0 4px">To order the Amazon items:</p><div>' + schoolButtons + '</div><p style="color:#888;font-size:12px;margin:8px 0 0">Carts are pre-filled. Prices are estimates; please check the current price on Amazon. Items marked Local are best bought nearby.</p>' : ''}
+${schoolButtons ? '<p style="margin:12px 0 4px">To order the Amazon items:</p><div>' + schoolButtons + '</div><p style="color:#888;font-size:12px;margin:8px 0 0">Carts are pre-filled; you can also tap an item name to open just that item. Prices are estimates; please check the current price on Amazon. Items marked Local are best bought nearby.</p>' : ''}
 <p style="margin-top:22px">Regards,<br>T-LAB facilitator, ${escHtml(schoolName || 'our school')}</p>
 <hr style="border:none;border-top:1px solid #e5e5e5;margin:26px 0 14px">
 <div style="text-align:center;color:#999;font-size:12px">
@@ -258,7 +267,7 @@ router.post('/send-list', async (req: Request, res: Response) => {
     const rows = clean
       .map(
         (i: any) => `<tr>
-      <td style="padding:8px 12px;border-bottom:1px solid #eee"><strong>${escHtml(i.name)}</strong></td>
+      <td style="padding:8px 12px;border-bottom:1px solid #eee"><strong>${itemLink(i.name, i.asin)}</strong></td>
       <td style="padding:8px 12px;border-bottom:1px solid #eee;text-align:center">${i.qty} ${escHtml(i.unit)}</td>
       <td style="padding:8px 12px;border-bottom:1px solid #eee;text-align:right">${i.price ? '&#8377;' + i.price * i.qty : '-'}</td>
       <td style="padding:8px 12px;border-bottom:1px solid #eee;text-align:center">${i.asin ? '<span style="background:#FF9900;color:#fff;padding:2px 8px;border-radius:4px;font-size:12px">Amazon</span>' : '<span style="background:#aaa;color:#fff;padding:2px 8px;border-radius:4px;font-size:12px">Local</span>'}</td>
