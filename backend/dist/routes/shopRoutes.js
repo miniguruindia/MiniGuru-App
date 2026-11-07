@@ -67,6 +67,12 @@ function itemLink(name, asin) {
         return n;
     return '<a href="https://www.amazon.in/dp/' + a + '?tag=' + AMAZON_TAG + '" style="color:inherit;text-decoration:underline">' + n + '</a>';
 }
+// When a list needs more than one Amazon cart (10 items each), say so, so no part is skipped.
+function cartNote(itemCount, parts) {
+    if (parts < 2)
+        return '';
+    return '<p style="margin:0 0 8px;color:#B45309;font-size:13px;font-weight:700;text-align:center">' + itemCount + ' Amazon items are in ' + parts + ' carts. Please open every part so no item is missed.</p>';
+}
 router.post('/send-to-parent', authMiddleware_1.authenticateTokenOptional, async (req, res) => {
     try {
         const { childName, parentEmail, projectTitle, items } = req.body;
@@ -125,7 +131,7 @@ ${ccNote}
 ${rows}
 ${totalEst > 0 ? '<tr style="background:#f5f7ff"><td colspan="2" style="padding:10px 12px;font-weight:700">Total</td><td style="padding:10px 12px;font-weight:700;color:#5B6EF5;text-align:right">&#8377;' + totalEst + '</td><td></td></tr>' : ''}
 </table>
-${cartButtonsHtml ? '<div style="text-align:center;margin:28px 0">' + cartButtonsHtml + '<p style="color:#aaa;font-size:12px;margin:10px 0 0">Cart pre-filled. Pay via UPI, card or COD.</p></div>' : ''}
+${cartButtonsHtml ? '<div style="text-align:center;margin:28px 0">' + cartNote(amazonItems.length, cartParts.length) + cartButtonsHtml + '<p style="color:#aaa;font-size:12px;margin:10px 0 0">Cart pre-filled. Pay via UPI, card or COD.</p></div>' : ''}
 <div style="background:#f0f4ff;border-radius:10px;padding:16px 20px">
 <p style="margin:0;color:#5B6EF5;font-weight:700">&#9989; What happens next?</p>
 <p style="margin:8px 0 0;color:#444">Once they get the materials, they build, film, and upload to MiniGuru. On approval they earn Goins!</p></div></div>
@@ -151,7 +157,7 @@ ${ccNote ? ccNote.replace('Also shared with:', 'Copy to:') : ''}
 ${schoolRows}
 ${totalEst > 0 ? '<tr><td colspan="2" style="padding:8px 10px;font-weight:700">Estimated total</td><td style="padding:8px 10px;font-weight:700;text-align:right">&#8377;' + totalEst + '</td><td></td></tr>' : ''}
 </table>
-${schoolButtons ? '<p style="margin:12px 0 4px">To order the Amazon items:</p><div>' + schoolButtons + '</div><p style="color:#888;font-size:12px;margin:8px 0 0">Carts are pre-filled; you can also tap an item name to open just that item. Prices are estimates; please check the current price on Amazon. Items marked Local are best bought nearby.</p>' : ''}
+${schoolButtons ? '<p style="margin:12px 0 4px">To order the Amazon items:</p>' + cartNote(amazonItems.length, cartParts.length) + '<div>' + schoolButtons + '</div><p style="color:#888;font-size:12px;margin:8px 0 0">Carts are pre-filled; you can also tap an item name to open just that item. Prices are estimates; please check the current price on Amazon. Items marked Local are best bought nearby.</p>' : ''}
 <p style="margin-top:22px">Regards,<br>T-LAB facilitator, ${escHtml(schoolName || 'our school')}</p>
 <hr style="border:none;border-top:1px solid #e5e5e5;margin:26px 0 14px">
 <div style="text-align:center;color:#999;font-size:12px">
@@ -276,7 +282,7 @@ ${ccNote}
 ${rows}
 ${total > 0 ? '<tr style="background:#f1f8f1"><td colspan="2" style="padding:10px 12px;font-weight:700">Estimated total</td><td style="padding:10px 12px;font-weight:700;color:#1B5E20;text-align:right">&#8377;' + total + '</td><td></td></tr>' : ''}
 </table>
-${buttons ? '<div style="text-align:center;margin:26px 0">' + buttons + '<p style="color:#aaa;font-size:12px;margin:10px 0 0">Carts are pre-filled. Prices are estimates — please check the current price on Amazon. Items marked Local are best bought nearby.</p></div>' : ''}
+${buttons ? '<div style="text-align:center;margin:26px 0">' + cartNote(asinList.length, cartUrls.length) + buttons + '<p style="color:#aaa;font-size:12px;margin:10px 0 0">Carts are pre-filled. Prices are estimates — please check the current price on Amazon. Items marked Local are best bought nearby.</p></div>' : ''}
 </div>
 <div style="background:#f5f7ff;padding:18px 32px;text-align:center;border-top:1px solid #eee">
 <p style="margin:0;color:#aaa;font-size:12px">MiniGuru Innovation Pvt Ltd &middot; Ujjain, Madhya Pradesh<br>

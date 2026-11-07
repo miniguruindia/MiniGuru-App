@@ -84,6 +84,9 @@ interface AmazonCandidate {
   trusted?: boolean
   isYourPick?: boolean
   savings?: number
+  source?: string
+  unverified?: boolean
+  note?: string
 }
 
 function FindOnAmazonModal({ material: m, apiBase, onClose, onPicked }: {
@@ -101,6 +104,9 @@ function FindOnAmazonModal({ material: m, apiBase, onClose, onPicked }: {
   const [linkText, setLinkText] = React.useState('')
   const [comparing, setComparing] = React.useState(false)
   const [compareMode, setCompareMode] = React.useState(false)
+  const [geminiOnly, setGeminiOnly] = React.useState(false)
+  const [via, setVia] = React.useState('amazon')
+  const [amazonError, setAmazonError] = React.useState<string | null>(null)
 
   async function compareLink() {
     if (!linkText.trim()) return
@@ -110,11 +116,12 @@ function FindOnAmazonModal({ material: m, apiBase, onClose, onPicked }: {
       const res = await fetch(`${apiBase}/materials/admin/${m.id}/find-by-link`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url: linkText.trim() }),
+        body: JSON.stringify({ url: linkText.trim(), source: geminiOnly ? 'gemini' : undefined }),
       })
       const data = await res.json()
       if (data.error && !(data.results || []).length) { setError(data.error) }
       else {
+        setVia(data.via || 'amazon')
         setResults(data.results || [])
         setSearchedFor(data.searchedFor || '')
         setHidden(0)
@@ -128,7 +135,8 @@ function FindOnAmazonModal({ material: m, apiBase, onClose, onPicked }: {
   }
 
   async function discard(r: AmazonCandidate) {
-    setResults(prev => prev.filter(x => x.asin !== r.asin))
+    setResults(prev => prev.filter(x => x !== r))
+    if (!r.asin) return
     try {
       const token = await authToken()
       await fetch(`${apiBase}/materials/admin/${m.id}/find-discard`, {
@@ -143,15 +151,18 @@ function FindOnAmazonModal({ material: m, apiBase, onClose, onPicked }: {
 
   React.useEffect(() => {
     (async () => {
+      setLoading(true); setError(null); setCompareMode(false)
       try {
         const token = await authToken()
         const res = await fetch(`${apiBase}/materials/admin/${m.id}/find-on-amazon`, {
           method: 'POST',
           headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-          body: JSON.stringify({}),
+          body: JSON.stringify({ source: geminiOnly ? 'gemini' : undefined }),
         })
         const data = await res.json()
         setConfigured(!!data.configured)
+        setVia(data.via || 'amazon')
+        setAmazonError(data.amazonError || null)
         setResults(data.results || [])
         setSearchedFor(data.searchedFor || m.name)
         setHidden(data.hiddenCount || 0)
@@ -162,7 +173,7 @@ function FindOnAmazonModal({ material: m, apiBase, onClose, onPicked }: {
         setLoading(false)
       }
     })()
-  }, [m.id])
+  }, [m.id, geminiOnly])
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
@@ -175,6 +186,16 @@ function FindOnAmazonModal({ material: m, apiBase, onClose, onPicked }: {
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X size={20} /></button>
         </div>
         <div className="flex-1 overflow-y-auto p-4">
+          <label className="flex items-center gap-2 text-xs text-gray-700 mb-2">
+            <input type="checkbox" checked={geminiOnly} onChange={e => setGeminiOnly(e.target.checked)} />
+            Use Gemini only (skip Amazon). Amazon is tried first when this is off, and Gemini takes over if Amazon fails.
+          </label>
+          {!loading && via === 'gemini' && (
+            <div className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-lg p-2 mb-2">
+              {geminiOnly ? 'Gemini suggestions.' : <>Amazon is not answering{amazonError ? ` (${amazonError})` : ''}, so Gemini suggested these.</>}{' '}
+              Prices are <b>estimates</b> and codes may be wrong. Open the link, check it is the right product, then link it.
+            </div>
+          )}
           <div className="mb-3 p-2 border border-dashed border-orange-300 rounded-lg bg-orange-50/40">
             <p className="text-xs text-gray-600 mb-1">
               Not the right product? Paste an Amazon link (or ASIN). MiniGuru checks it and looks for the same or similar product at a lower price from a trusted seller.
@@ -200,7 +221,7 @@ function FindOnAmazonModal({ material: m, apiBase, onClose, onPicked }: {
               <Loader2 className="animate-spin mr-2" size={18} /> Searching Amazon…
             </div>
           )}
-          {!loading && !configured && (
+          {!loading && !configured && via !== 'gemini' && (
             <div className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg p-3">
               Amazon Product Advertising API isn&apos;t connected yet — add
               <code className="mx-1 px-1 bg-amber-100 rounded">AMAZON_PAAPI_ACCESS_KEY</code>,
@@ -210,8 +231,8 @@ function FindOnAmazonModal({ material: m, apiBase, onClose, onPicked }: {
             </div>
           )}
           {!loading && configured && error && (
-            <div className={`text-sm rounded-lg p-3 border ${/eligib/i.test(error) ? 'text-amber-800 bg-amber-50 border-amber-200' : 'text-red-700 bg-red-50 border-red-200'}`}>
-              {/eligib/i.test(error)
+            <div className={`text-sm rounded-lg p-3 border ${via !== 'gemini' && /eligib/i.test(error) ? 'text-amber-800 bg-amber-50 border-amber-200' : 'text-red-700 bg-red-50 border-red-200'}`}>
+              {via !== 'gemini' && /eligib/i.test(error)
                 ? <>Amazon has paused our search connection (account eligibility &mdash; it returns when qualifying sales recover). Close this and type the ASIN and price by hand in the material row.</>
                 : error}
             </div>
@@ -230,7 +251,7 @@ function FindOnAmazonModal({ material: m, apiBase, onClose, onPicked }: {
               )}
               {results.map((r, idx) => (
                 <div
-                  key={r.asin}
+                  key={r.asin || `g${idx}`}
                   className="w-full flex items-center gap-3 p-2 border border-gray-200 rounded-lg hover:border-orange-400 hover:bg-orange-50 text-left transition-colors"
                 >
                   <div className="w-14 h-14 flex-shrink-0 bg-white border rounded flex items-center justify-center overflow-hidden">
@@ -247,7 +268,10 @@ function FindOnAmazonModal({ material: m, apiBase, onClose, onPicked }: {
                     >
                       {r.title}
                     </a>
-                    <p className="text-xs text-gray-500 font-mono">{r.asin}</p>
+                    <p className="text-xs text-gray-500 font-mono">{r.asin || 'No code yet: open the link and copy the ASIN'}</p>
+                    {r.unverified && (
+                      <p className="text-xs text-amber-700">⚠️ Gemini guess{r.note ? ` · ${r.note}` : ''}</p>
+                    )}
                     {r.extractedUnit && (
                       <p className="text-xs text-indigo-600">📦 {r.extractedUnit}</p>
                     )}
@@ -261,7 +285,8 @@ function FindOnAmazonModal({ material: m, apiBase, onClose, onPicked }: {
                     <div className="flex gap-2 mt-1">
                       <button
                         onClick={() => onPicked(r.asin, r.priceRupees, r.imageUrl, r.extractedUnit, r.title ?? null)}
-                        className="px-2 py-0.5 bg-orange-500 text-white rounded text-xs hover:bg-orange-600"
+                        disabled={!r.asin}
+                        className="px-2 py-0.5 bg-orange-500 text-white rounded text-xs hover:bg-orange-600 disabled:opacity-30 disabled:cursor-not-allowed"
                       >
                         Link this
                       </button>
@@ -275,7 +300,7 @@ function FindOnAmazonModal({ material: m, apiBase, onClose, onPicked }: {
                   </div>
                   <div className="text-right whitespace-nowrap">
                     <div className="text-sm font-semibold text-orange-600">
-                      {r.priceRupees != null ? `₹${r.priceRupees}` : '—'}
+                      {r.priceRupees != null ? `${r.unverified ? '≈ ' : ''}₹${r.priceRupees}` : '—'}
                     </div>
                     {r.isYourPick && (
                       <div className="text-[10px] font-bold text-blue-700 bg-blue-100 rounded px-1 mt-1">Your pick</div>
@@ -283,7 +308,7 @@ function FindOnAmazonModal({ material: m, apiBase, onClose, onPicked }: {
                     {(r.savings ?? 0) > 0 && (
                       <div className="text-[10px] font-bold text-green-700 bg-green-100 rounded px-1 mt-1">₹{r.savings} cheaper</div>
                     )}
-                    {!compareMode && idx === 0 && r.priceRupees != null && (
+                    {!compareMode && !r.unverified && idx === 0 && r.priceRupees != null && (
                       <div className="text-[10px] font-bold text-green-700 bg-green-100 rounded px-1 mt-1">Lowest price</div>
                     )}
                   </div>

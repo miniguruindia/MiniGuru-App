@@ -10,6 +10,7 @@ const authMiddleware_1 = require("../middleware/authMiddleware");
 const firebaseStorageService_1 = require("../services/firebaseStorageService");
 const amazonProductService_1 = require("../services/amazonProductService");
 const materialSearchAssistService_1 = require("../services/materialSearchAssistService");
+const geminiProductService_1 = require("../services/geminiProductService");
 const shopAiSearchService_1 = require("../services/shopAiSearchService");
 const costTracking_1 = require("../utils/costTracking");
 const goinsPricing_1 = require("../utils/goinsPricing");
@@ -1104,8 +1105,19 @@ router.post('/admin/:id/find-on-amazon', authMiddleware_1.authenticateToken, req
         catch {
             searchQuery = rawQuery;
         }
-        const result = await (0, amazonProductService_1.searchAmazonProducts)(searchQuery, 10);
-        const visible = (result.results || []).filter((r) => !discardedAsins.has(r.asin));
+        // Amazon first. If it fails for any reason (or the admin ticked "Gemini only"),
+        // Gemini proposes products instead. Those are marked unverified.
+        const geminiOnly = req.body?.source === 'gemini';
+        let result = geminiOnly ? { configured: true, results: [] } : await (0, amazonProductService_1.searchAmazonProducts)(searchQuery, 10);
+        let via = 'amazon';
+        let amazonError = null;
+        if (geminiOnly || !result.configured || (result.error && !(result.results || []).length)) {
+            amazonError = geminiOnly ? null : (result.error || 'Amazon is not connected');
+            const g = await (0, geminiProductService_1.geminiFindProducts)(rawQuery, material.description, discarded.slice(-8).map((d) => d.title));
+            result = { configured: true, results: g.results, error: g.ok ? undefined : g.error };
+            via = 'gemini';
+        }
+        const visible = (result.results || []).filter((r) => !r.asin || !discardedAsins.has(r.asin));
         // Cheapest first; items without a price go last.
         visible.sort((a, b) => {
             const pa = typeof a.priceRupees === 'number' ? a.priceRupees : Infinity;
@@ -1121,6 +1133,8 @@ router.post('/admin/:id/find-on-amazon', authMiddleware_1.authenticateToken, req
             results,
             searchedFor: searchQuery,
             rawQuery,
+            via,
+            amazonError,
             hiddenCount: (result.results || []).length - visible.length,
         });
     }
@@ -1149,12 +1163,26 @@ router.post('/admin/:id/find-by-link', authMiddleware_1.authenticateToken, requi
         }
         if (!asin)
             return res.status(400).json({ error: 'Could not find a product code (ASIN) in that link. Paste the full product page link.' });
-        const own = await (0, amazonProductService_1.getAmazonItemsWithSeller)([asin]);
-        if (!own.configured)
-            return res.json({ configured: false, results: [] });
-        const pasted = own.results[0];
-        if (!pasted)
-            return res.json({ configured: true, results: [], error: own.error || 'Amazon did not return that product.' });
+        const geminiOnly = req.body?.source === 'gemini';
+        const own = geminiOnly ? { configured: false, results: [] } : await (0, amazonProductService_1.getAmazonItemsWithSeller)([asin]);
+        let pasted = own.results[0];
+        let via = 'amazon';
+        if (!pasted) {
+            // Amazon did not answer: let Gemini try to read the page; otherwise show the link as is.
+            via = 'gemini';
+            const d = await (0, geminiProductService_1.geminiDescribeProduct)(asin);
+            pasted = {
+                asin,
+                title: d?.title || 'Your pasted product (Gemini could not read it - open the link to check)',
+                imageUrl: null,
+                priceRupees: d?.priceRupees ?? null,
+                detailPageUrl: (0, amazonProductService_1.buildAffiliateUrl)(asin),
+                available: true,
+                extractedUnit: d?.extractedUnit ?? null,
+                source: 'gemini',
+                unverified: true,
+            };
+        }
         // Look for the same or similar products.
         const discarded = await readFindDiscards(req.params.id);
         const skip = new Set([asin, ...discarded.map((d) => d.asin)]);
@@ -1163,12 +1191,17 @@ router.post('/admin/:id/find-by-link', authMiddleware_1.authenticateToken, requi
             query = await (0, materialSearchAssistService_1.refineSearchQuery)(pasted.title, undefined, undefined, []);
         }
         catch { /* keep the title */ }
-        const found = await (0, amazonProductService_1.searchAmazonProducts)(query, 10);
-        let alts = (found.results || []).filter((r) => !skip.has(r.asin));
+        let found = via === 'gemini' ? { results: [] } : await (0, amazonProductService_1.searchAmazonProducts)(query, 10);
+        if (via === 'gemini' || (found.error && !(found.results || []).length)) {
+            via = 'gemini';
+            const g = await (0, geminiProductService_1.geminiFindProducts)(pasted.title.startsWith('Your pasted') ? asin : pasted.title, null, []);
+            found = { results: g.results };
+        }
+        let alts = (found.results || []).filter((r) => !r.asin || !skip.has(r.asin));
         alts.sort((a, b) => (a.priceRupees ?? Infinity) - (b.priceRupees ?? Infinity));
         alts = alts.slice(0, 6);
         // Add seller and rating to the shortlist in one extra lookup.
-        if (alts.length) {
+        if (alts.length && via === 'amazon') {
             const more = await (0, amazonProductService_1.getAmazonItemsWithSeller)(alts.map((a) => a.asin));
             const byAsin = new Map((more.results || []).map((r) => [r.asin, r]));
             alts = alts.map((a) => ({ ...a, ...(byAsin.get(a.asin) || {}) }));
@@ -1183,7 +1216,7 @@ router.post('/admin/:id/find-by-link', authMiddleware_1.authenticateToken, requi
                     : 0,
             })),
         ];
-        res.json({ configured: true, results, searchedFor: query, rawQuery: pasted.title, hiddenCount: 0 });
+        res.json({ configured: true, results, searchedFor: query, rawQuery: pasted.title, via, hiddenCount: 0 });
     }
     catch (err) {
         console.error('[materials] POST /admin/:id/find-by-link error:', err);
