@@ -31,6 +31,11 @@ interface Material {
   images?: string[]
   aliases?: string[]
   variantOf?: string | null
+  // Nov 2026: backup ASINs, the "unavailable" flag and the last time it was checked
+  amazonBackupAsins?: string[]
+  amazonUnavailable?: boolean | null
+  amazonUnavailableNote?: string | null
+  amazonLastCheckedAt?: string | null
 }
 
 async function authToken() {
@@ -1451,9 +1456,9 @@ function AiSuggestionsTab({ apiBase, onMaterialsChanged, flash, onEditMaterial }
 
 function MaterialsPageInner() {
   const searchParams = useSearchParams()
-  const initialTab = (['materials', 'ai', 'suggestions', 'images', 'collections', 'groups'].includes(searchParams.get('tab') || '')
+  const initialTab = (['materials', 'review', 'ai', 'suggestions', 'images', 'collections', 'groups'].includes(searchParams.get('tab') || '')
     ? searchParams.get('tab') : 'materials') as 'materials'|'ai'|'suggestions'|'images'|'collections'|'groups'
-  const [tab, setTab]             = useState<'materials'|'ai'|'suggestions'|'images'|'collections'|'groups'>(initialTab)
+  const [tab, setTab]             = useState<'materials'|'review'|'ai'|'suggestions'|'images'|'collections'|'groups'>(initialTab)
   const [materials, setMaterials] = useState<Material[]>([])
   const [filtered, setFiltered]   = useState<Material[]>([])
   const [catFilter, setCatFilter] = useState('All')
@@ -1841,6 +1846,7 @@ function MaterialsPageInner() {
             { key: 'materials', label: '📦 Materials' },
             { key: 'ai',       label: '🤖 AI Scan & Refresh' },
             { key: 'suggestions', label: '💡 Suggestions' },
+            { key: 'review',   label: '🛡️ ASIN Review' },
             { key: 'images',   label: '🖼️ Image Issues' },
             { key: 'collections', label: '🗂️ Collections' },
             { key: 'groups', label: '🏷️ Category Groups' },
@@ -2020,6 +2026,7 @@ function MaterialsPageInner() {
 
         {/* ── AMAZON SETUP TAB ── */}
         {/* ── AI SCAN & REFRESH TAB ── */}
+        {tab === 'review' && <AsinReviewTab apiBase={API_BASE} materials={materials} onMaterialsChanged={load} flash={flash} onEditMaterial={onEditMaterial} />}
         {tab === 'ai' && <AiSuggestionsTab apiBase={API_BASE} onMaterialsChanged={load} flash={flash} onEditMaterial={onEditMaterial} />}
 
         {/* ── SUGGESTIONS FROM USERS TAB ── */}
@@ -2295,6 +2302,264 @@ interface CategoryGroupRow {
   memberCategories: string[]
   sortOrder: number
   isActive: boolean
+}
+
+
+// ── ASIN Review (Nov 2026) — works with no Amazon API ───────────────────────
+// You open the item on Amazon yourself, then press one button. "Unavailable" makes
+// the shop use the first backup ASIN (or a tagged Amazon search if there is none),
+// so a school's cart never breaks. Nothing here needs the API; when the API is back
+// the nightly check keeps working alongside this.
+const REVIEW_DAYS = 30
+function daysAgo(iso?: string | null): number | null {
+  if (!iso) return null
+  const t = new Date(iso).getTime()
+  return Number.isFinite(t) ? Math.floor((Date.now() - t) / 86400000) : null
+}
+
+function AsinReviewTab({ apiBase, materials, onMaterialsChanged, flash, onEditMaterial }: {
+  apiBase: string
+  materials: Material[]
+  onMaterialsChanged: () => void
+  flash: (msg: string, isError?: boolean) => void
+  onEditMaterial: (materialId: string) => void
+}) {
+  const [filter, setFilter] = React.useState<'review' | 'unavailable' | 'all'>('review')
+  const [q, setQ] = React.useState('')
+  const [busy, setBusy] = React.useState<string | null>(null)
+  const [limit, setLimit] = React.useState(40)
+  const [showImport, setShowImport] = React.useState(false)
+  const [importText, setImportText] = React.useState('')
+  const [importOut, setImportOut] = React.useState<any[] | null>(null)
+  const [importing, setImporting] = React.useState(false)
+
+  async function put(id: string, body: any, ok: string) {
+    setBusy(id)
+    try {
+      const token = await authToken()
+      const res = await fetch(`${apiBase}/materials/admin/${id}`, {
+        method: 'PUT',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      })
+      if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || 'Save failed')
+      flash(ok)
+      onMaterialsChanged()
+    } catch (e: any) {
+      flash(e.message || 'Save failed', true)
+    } finally { setBusy(null) }
+  }
+
+  const withAsin = materials.filter(m => m.isActive && m.amazonASIN)
+  const needsReview = (m: Material) => {
+    if (m.amazonUnavailable) return true
+    const d = daysAgo(m.amazonLastCheckedAt)
+    return d === null || d >= REVIEW_DAYS
+  }
+  let rows = withAsin.filter(m =>
+    filter === 'all' ? true : filter === 'unavailable' ? !!m.amazonUnavailable : needsReview(m))
+  if (q.trim()) {
+    const t = q.trim().toLowerCase()
+    rows = rows.filter(m => m.name.toLowerCase().includes(t) || (m.amazonASIN || '').toLowerCase().includes(t))
+  }
+  // Flagged first, then the longest-unchecked.
+  rows = [...rows].sort((a, b) => {
+    if (!!a.amazonUnavailable !== !!b.amazonUnavailable) return a.amazonUnavailable ? -1 : 1
+    const da = daysAgo(a.amazonLastCheckedAt) ?? 9999
+    const db = daysAgo(b.amazonLastCheckedAt) ?? 9999
+    return db - da
+  })
+  const flaggedCount = withAsin.filter(m => m.amazonUnavailable).length
+
+  function downloadCsv() {
+    const esc = (v: any) => `"${String(v ?? '').replace(/"/g, '""')}"`
+    const lines = [['Item name', 'ASIN', 'Backup 1', 'Backup 2', 'Price'].map(esc).join(',')]
+    for (const m of materials.filter(x => x.isActive)) {
+      const b = m.amazonBackupAsins || []
+      lines.push([m.name, m.amazonASIN || '', b[0] || '', b[1] || '', m.priceEstimate ?? ''].map(esc).join(','))
+    }
+    const blob = new Blob(['﻿' + lines.join('\n')], { type: 'text/csv;charset=utf-8' })
+    const a = document.createElement('a')
+    a.href = URL.createObjectURL(blob)
+    a.download = 'miniguru-items-asin.csv'
+    a.click()
+    URL.revokeObjectURL(a.href)
+  }
+
+  function parseImport(): { name: string; asin: string; backups: string[] }[] {
+    return importText.split(/\r?\n/).map(line => {
+      // Accepts commas or tabs (a paste from a spreadsheet).
+      const cells = line.split(/\t|,(?=(?:[^"]*"[^"]*")*[^"]*$)/).map(c => c.trim().replace(/^"|"$/g, ''))
+      const name = cells[0] || ''
+      const asin = validAsin(cells[1] || '')
+      const backups = [cells[2], cells[3], cells[4]].map(c => validAsin(c || '')).filter(Boolean)
+      return { name, asin, backups }
+    }).filter(r => r.name && !/^item name$/i.test(r.name) && (r.asin || r.backups.length))
+  }
+
+  async function runImport(apply: boolean) {
+    const rowsIn = parseImport()
+    if (!rowsIn.length) { flash('No usable rows found. Each line: item name, ASIN, backup 1, backup 2.', true); return }
+    setImporting(true)
+    try {
+      const token = await authToken()
+      const res = await fetch(`${apiBase}/materials/admin/asin-import`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ rows: rowsIn, apply }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Import failed')
+      setImportOut(data.results || [])
+      if (apply) { flash('Import done.'); onMaterialsChanged() }
+    } catch (e: any) {
+      flash(e.message || 'Import failed', true)
+    } finally { setImporting(false) }
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="bg-white rounded-xl border border-gray-200 p-4">
+        <p className="text-sm text-gray-700">
+          Open the item on Amazon, then press one button. <b>Unavailable</b> makes the shop use the first backup ASIN,
+          or a tagged Amazon search if there is none, so a school's cart never breaks.
+          Items not checked in {REVIEW_DAYS}+ days are listed as "to review".
+        </p>
+        <div className="flex flex-wrap gap-2 mt-3 items-center">
+          {([
+            ['review', `To review (${withAsin.filter(needsReview).length})`],
+            ['unavailable', `Unavailable (${flaggedCount})`],
+            ['all', `All with ASIN (${withAsin.length})`],
+          ] as const).map(([k, label]) => (
+            <button key={k} onClick={() => { setFilter(k); setLimit(40) }}
+              className={`px-3 py-1 rounded-full text-xs border ${filter === k ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-gray-600 border-gray-300'}`}>
+              {label}
+            </button>
+          ))}
+          <input value={q} onChange={e => setQ(e.target.value)} placeholder="Search name or ASIN"
+            className="px-2 py-1 border border-gray-300 rounded text-xs w-48" />
+          <button onClick={() => setShowImport(v => !v)} className="px-3 py-1 rounded text-xs border border-gray-300 hover:bg-gray-50">
+            {showImport ? 'Close table import' : '📋 Import my table'}
+          </button>
+          <button onClick={downloadCsv} className="px-3 py-1 rounded text-xs border border-gray-300 hover:bg-gray-50">⬇️ Download items table</button>
+        </div>
+      </div>
+
+      {showImport && (
+        <div className="bg-white rounded-xl border border-amber-300 p-4">
+          <p className="text-sm text-gray-700 mb-2">
+            Paste your table here, one item per line: <b>item name, ASIN (or Amazon link), backup 1, backup 2</b>.
+            You can paste straight from a spreadsheet. Items are matched by name. Press Preview first.
+          </p>
+          <textarea value={importText} onChange={e => setImportText(e.target.value)} rows={6}
+            placeholder={'Cello tape, B0C6XK6RX9, B0GVT5NF8W\nGlue stick, https://www.amazon.in/dp/B0BN5FYCFS'}
+            className="w-full px-2 py-1 border border-gray-300 rounded text-xs font-mono" />
+          <div className="flex gap-2 mt-2">
+            <button disabled={importing} onClick={() => runImport(false)} className="px-3 py-1 rounded text-xs border border-gray-300 hover:bg-gray-50">Preview</button>
+            <button disabled={importing} onClick={() => runImport(true)} className="px-3 py-1 rounded text-xs bg-orange-500 text-white hover:bg-orange-600">Apply</button>
+          </div>
+          {importOut && (
+            <div className="mt-3 max-h-56 overflow-y-auto text-xs border border-gray-200 rounded">
+              {importOut.map((r, i) => (
+                <div key={i} className="flex justify-between gap-2 px-2 py-1 border-b border-gray-100">
+                  <span>{r.name}</span>
+                  <span className={/not found|more than one|no ASIN/.test(r.status) ? 'text-red-600' : 'text-green-700'}>{r.status}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {rows.length === 0 && (
+        <div className="bg-white rounded-xl border border-gray-200 p-6 text-center text-sm text-gray-500">Nothing here. 🎉</div>
+      )}
+
+      {rows.slice(0, limit).map(m => (
+        <ReviewRow key={m.id + (m.amazonASIN || '') + (m.amazonLastCheckedAt || '')} m={m}
+          busy={busy === m.id}
+          onSave={(body, ok) => put(m.id, body, ok)}
+          onEdit={() => onEditMaterial(m.id)} />
+      ))}
+      {rows.length > limit && (
+        <button onClick={() => setLimit(l => l + 40)} className="w-full py-2 text-sm text-indigo-700 hover:underline">
+          Show more ({rows.length - limit} left)
+        </button>
+      )}
+    </div>
+  )
+}
+
+function ReviewRow({ m, busy, onSave, onEdit }: {
+  m: Material
+  busy: boolean
+  onSave: (body: any, ok: string) => void
+  onEdit: () => void
+}) {
+  const [b1, setB1] = React.useState((m.amazonBackupAsins || [])[0] || '')
+  const [b2, setB2] = React.useState((m.amazonBackupAsins || [])[1] || '')
+  const [price, setPrice] = React.useState(m.priceEstimate != null ? String(m.priceEstimate) : '')
+  const [newAsin, setNewAsin] = React.useState('')
+  const d = daysAgo(m.amazonLastCheckedAt)
+  const link = `https://www.amazon.in/dp/${m.amazonASIN}?tag=miniguru04-21`
+  const backupsList = [b1, b2].map(validAsin).filter(Boolean)
+  const dirty =
+    backupsList.join(',') !== (m.amazonBackupAsins || []).join(',') ||
+    price !== (m.priceEstimate != null ? String(m.priceEstimate) : '') ||
+    !!validAsin(newAsin)
+
+  return (
+    <div className={`bg-white rounded-xl border p-3 ${m.amazonUnavailable ? 'border-red-300' : 'border-gray-200'}`}>
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <div className="min-w-0">
+          <p className="font-medium text-sm text-gray-900">{m.name}</p>
+          <p className="text-xs text-gray-500 font-mono">
+            {m.amazonASIN} ·{' '}
+            {d === null ? 'never checked' : d === 0 ? 'checked today' : `checked ${d} days ago`}
+            {m.amazonUnavailable && <span className="ml-2 text-red-600 font-bold">UNAVAILABLE — shop is using {backupsList.length ? 'backup 1' : 'a search link'}</span>}
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <a href={link} target="_blank" rel="noopener noreferrer" className="px-3 py-1 rounded text-xs bg-blue-600 text-white hover:bg-blue-700">Open on Amazon ↗</a>
+          <button disabled={busy} onClick={() => onSave({ amazonVerified: true }, 'Marked as checked.')}
+            className="px-3 py-1 rounded text-xs bg-green-600 text-white hover:bg-green-700 disabled:opacity-50">Still OK ✓</button>
+          {m.amazonUnavailable
+            ? <button disabled={busy} onClick={() => onSave({ amazonUnavailable: false }, 'Flag removed.')}
+                className="px-3 py-1 rounded text-xs border border-gray-300 hover:bg-gray-50 disabled:opacity-50">Back in stock</button>
+            : <button disabled={busy} onClick={() => onSave({ amazonUnavailable: true }, 'Flagged. The shop now uses the backup or a search link.')}
+                className="px-3 py-1 rounded text-xs bg-red-600 text-white hover:bg-red-700 disabled:opacity-50">Unavailable ✗</button>}
+          <button onClick={onEdit} className="px-3 py-1 rounded text-xs border border-gray-300 hover:bg-gray-50">Edit details</button>
+        </div>
+      </div>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mt-2">
+        <label className="text-xs text-gray-500">Backup 1
+          <input value={b1} onChange={e => setB1(extractAsin(e.target.value))} placeholder="ASIN or link"
+            className="w-full px-2 py-1 border border-gray-300 rounded text-xs font-mono text-gray-900" />
+        </label>
+        <label className="text-xs text-gray-500">Backup 2
+          <input value={b2} onChange={e => setB2(extractAsin(e.target.value))} placeholder="ASIN or link"
+            className="w-full px-2 py-1 border border-gray-300 rounded text-xs font-mono text-gray-900" />
+        </label>
+        <label className="text-xs text-gray-500">Price ₹
+          <input value={price} onChange={e => setPrice(e.target.value.replace(/[^0-9]/g, ''))} inputMode="numeric"
+            className="w-full px-2 py-1 border border-gray-300 rounded text-xs text-gray-900" />
+        </label>
+        <label className="text-xs text-gray-500">Replace main ASIN
+          <input value={newAsin} onChange={e => setNewAsin(extractAsin(e.target.value))} placeholder="paste new link or ASIN"
+            className="w-full px-2 py-1 border border-gray-300 rounded text-xs font-mono text-gray-900" />
+        </label>
+      </div>
+      {dirty && (
+        <button disabled={busy} onClick={() => {
+          const body: any = {}
+          if (backupsList.join(',') !== (m.amazonBackupAsins || []).join(',')) body.amazonBackupAsins = backupsList
+          if (price !== (m.priceEstimate != null ? String(m.priceEstimate) : '')) body.priceEstimate = price ? Number(price) : null
+          if (validAsin(newAsin)) body.amazonASIN = validAsin(newAsin)
+          onSave(body, 'Saved.')
+        }} className="mt-2 px-3 py-1 rounded text-xs bg-orange-500 text-white hover:bg-orange-600 disabled:opacity-50">Save changes</button>
+      )}
+    </div>
+  )
 }
 
 function CategoryGroupsTab({ apiBase, allCategories, flash }: {

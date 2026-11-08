@@ -60,11 +60,17 @@ function parseCc(raw, main) {
 }
 // Item name as a tagged single-item Amazon link (keeps the affiliate tag even when the
 // buyer opens one item, or pays on another device than the one that opened the cart).
-function itemLink(name, asin) {
+function itemLink(name, asin, url) {
     const n = escHtml(name);
     const a = String(asin || '').trim().toUpperCase();
-    if (!/^[A-Z0-9]{10}$/.test(a))
+    if (!/^[A-Z0-9]{10}$/.test(a)) {
+        // No usable ASIN: an item the shop swapped to a tagged Amazon SEARCH link still gets a link.
+        const u = String(url || '');
+        if (u.indexOf('https://www.amazon.in/s?k=') === 0 && u.indexOf('tag=' + AMAZON_TAG) > 0 && u.length < 400) {
+            return '<a href="' + escHtml(u) + '" style="color:inherit;text-decoration:underline">' + n + ' (search on Amazon)</a>';
+        }
         return n;
+    }
     return '<a href="https://www.amazon.in/dp/' + a + '?tag=' + AMAZON_TAG + '" style="color:inherit;text-decoration:underline">' + n + '</a>';
 }
 // When a list needs more than one Amazon cart (10 items each), say so, so no part is skipped.
@@ -112,7 +118,7 @@ router.post('/send-to-parent', authMiddleware_1.authenticateTokenOptional, async
         const cartButtonsHtml = cartParts.map((u, idx) => '<a href="' + u + '" style="display:inline-block;margin:6px;background:#FF9900;color:#fff;text-decoration:none;padding:14px 32px;border-radius:50px;font-weight:700;font-size:16px">&#128717; Buy on Amazon' + (cartParts.length > 1 ? ' — part ' + (idx + 1) + ' of ' + cartParts.length : '') + '</a>').join('');
         const totalEst = items.reduce((s, i) => s + (i.priceEstimate || 0) * i.qty, 0);
         const rows = items.map((item) => `<tr>
-      <td style="padding:8px 12px;border-bottom:1px solid #eee"><strong>${itemLink(item.name, item.amazonASIN)}</strong></td>
+      <td style="padding:8px 12px;border-bottom:1px solid #eee"><strong>${itemLink(item.name, item.amazonASIN, item.amazonUrl)}</strong></td>
       <td style="padding:8px 12px;border-bottom:1px solid #eee;text-align:center">${escHtml(item.qty)} ${escHtml(item.unit || 'piece')}</td>
       <td style="padding:8px 12px;border-bottom:1px solid #eee;text-align:right">${item.priceEstimate ? '\u20b9' + (item.priceEstimate * item.qty) : '-'}</td>
       <td style="padding:8px 12px;border-bottom:1px solid #eee;text-align:center">${item.amazonASIN ? '<span style="background:#FF9900;color:#fff;padding:2px 8px;border-radius:4px;font-size:12px">Amazon</span>' : '<span style="background:#aaa;color:#fff;padding:2px 8px;border-radius:4px;font-size:12px">Local</span>'}</td>
@@ -141,7 +147,7 @@ ${cartButtonsHtml ? '<div style="text-align:center;margin:28px 0">' + cartNote(a
 </body></html>`;
         // Official, low-key purchase request (school / T-LAB accounts): plain wording, logo at the bottom.
         const schoolRows = items.map((item) => `<tr>
-      <td style="padding:6px 10px;border-bottom:1px solid #e5e5e5">${itemLink(item.name, item.amazonASIN)}</td>
+      <td style="padding:6px 10px;border-bottom:1px solid #e5e5e5">${itemLink(item.name, item.amazonASIN, item.amazonUrl)}</td>
       <td style="padding:6px 10px;border-bottom:1px solid #e5e5e5;text-align:center">${escHtml(item.qty)} ${escHtml(item.unit || 'piece')}</td>
       <td style="padding:6px 10px;border-bottom:1px solid #e5e5e5;text-align:right">${item.priceEstimate ? '&#8377;' + item.priceEstimate * item.qty : '-'}</td>
       <td style="padding:6px 10px;border-bottom:1px solid #e5e5e5;text-align:center;color:#666">${item.amazonASIN ? 'Amazon' : 'Local'}</td>

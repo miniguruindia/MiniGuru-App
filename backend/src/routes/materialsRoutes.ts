@@ -88,6 +88,31 @@ function toFlutterShape(m: any) {
   };
 }
 
+// ── Availability swap (Nov 2026) — PUBLIC views only ─────────────────────────
+// An item the admin flagged "unavailable" must never break a school's cart.
+//  - has a backup ASIN   -> the first backup is used instead
+//  - no backup           -> the ASIN is dropped from carts (empty) and the single
+//                           "buy" link becomes a tagged Amazon search for the item name
+// The admin screens read the raw record, so they always see the real ASIN.
+const AMAZON_TAG_PUBLIC = 'miniguru04-21';
+function validAsinText(a: any): string {
+  const t = String(a || '').trim().toUpperCase();
+  return /^[A-Z0-9]{10}$/.test(t) ? t : '';
+}
+function toPublicShape(m: any) {
+  const shaped: any = toFlutterShape(m);
+  if (m.amazonUnavailable !== true || !m.amazonASIN) return shaped;
+  const backups = (m.amazonBackupAsins || []).map(validAsinText).filter((a: string) => a && a !== m.amazonASIN);
+  if (backups.length > 0) {
+    return { ...shaped, amazonASIN: backups[0], amazonUrl: 'https://www.amazon.in/dp/' + backups[0] + '?tag=' + AMAZON_TAG_PUBLIC };
+  }
+  return {
+    ...shaped,
+    amazonASIN: '',
+    amazonUrl: 'https://www.amazon.in/s?k=' + encodeURIComponent(String(m.name || '')) + '&tag=' + AMAZON_TAG_PUBLIC,
+  };
+}
+
 // Keeps the legacy single-value fields (`category`, `imageUrl`) in lock
 // step with the new arrays whenever an admin write touches either array —
 // every existing reader of the singular fields (shop cards, the planning
@@ -151,7 +176,7 @@ router.get('/', async (req: Request, res: Response) => {
     // records with no check date can never break the query.
     const checked = (m: any) => (m.amazonLastCheckedAt ? new Date(m.amazonLastCheckedAt).getTime() : 0);
     materials.sort((a: any, b: any) => checked(b) - checked(a));
-    res.json(materials.map(toFlutterShape));
+    res.json(materials.map(toPublicShape));
   } catch (err) {
     console.error('[materials] GET / error:', err);
     res.status(500).json({ message: 'Failed to fetch materials.' });
@@ -201,7 +226,7 @@ router.post('/ai-search', authenticateToken, async (req: any, res: Response) => 
     const byId = new Map(rows.map((r: any) => [r.id, r]));
     const materials = result.matches
       .filter((m) => byId.has(m.id))
-      .map((m) => ({ ...toFlutterShape(byId.get(m.id)), aiReason: m.reason }));
+      .map((m) => ({ ...toPublicShape(byId.get(m.id)), aiReason: m.reason }));
     res.json({ materials });
   } catch (err) {
     console.error('[materials] POST /ai-search error:', err);
@@ -490,7 +515,7 @@ router.get('/collections/:id', async (req: Request, res: Response) => {
       description: collection.description,
       icon: collection.icon || '🧰',
       materials: ordered.map((m) => ({
-        ...toFlutterShape(m),
+        ...toPublicShape(m),
         defaultQty: ((collection as any).quantities && (collection as any).quantities[m.id]) || 1,
       })),
     });
@@ -790,6 +815,44 @@ router.put('/admin/:id', authenticateToken, requireAdmin, async (req: any, res: 
       data.amazonASIN = asin;
       data.amazonUrl  = asin ? ('https://www.amazon.in/dp/' + asin + '?tag=miniguru04-21') : null;
     }
+    // Backup ASINs, the unavailable flag and "still OK" (Nov 2026). A new main ASIN
+    // typed by an admin is a human fix, so it also clears the unavailable flag.
+    if ('amazonBackupAsins' in body) {
+      const raw = Array.isArray(body.amazonBackupAsins) ? body.amazonBackupAsins : [];
+      const mainAsin = ('amazonASIN' in body ? validAsinText(body.amazonASIN) : '') ||
+        validAsinText((await prisma.material.findUnique({ where: { id }, select: { amazonASIN: true } }))?.amazonASIN);
+      const seen = new Set<string>();
+      data.amazonBackupAsins = raw.map(validAsinText).filter((a: string) => {
+        if (!a || a === mainAsin || seen.has(a)) return false;
+        seen.add(a);
+        return true;
+      }).slice(0, 3);
+    }
+    if ('amazonUnavailable' in body) {
+      if (body.amazonUnavailable === true) {
+        data.amazonUnavailable = true;
+        data.amazonUnavailableAt = new Date();
+        data.amazonUnavailableNote = body.amazonUnavailableNote ? String(body.amazonUnavailableNote).slice(0, 200) : null;
+      } else {
+        data.amazonUnavailable = false;
+        data.amazonUnavailableAt = null;
+        data.amazonUnavailableNote = null;
+      }
+    }
+    if ('amazonASIN' in body) {
+      data.amazonUnavailable = false;
+      data.amazonUnavailableAt = null;
+      data.amazonUnavailableNote = null;
+    }
+    // "Still OK": the admin opened the Amazon page and it looks right.
+    if (body.amazonVerified === true) {
+      data.amazonLastCheckedAt = new Date();
+      data.amazonNeedsAttention = false;
+      data.amazonAttentionReason = null;
+      data.amazonUnavailable = false;
+      data.amazonUnavailableAt = null;
+      data.amazonUnavailableNote = null;
+    }
     // Multi-category / multi-image / aliases (Sept 2026 shop upgrade) —
     // additive fields, only touched when the caller actually sends them.
     if ('categories' in body) {
@@ -1014,6 +1077,61 @@ router.delete(
     }
   }
 );
+
+// POST /admin/asin-import  body: { rows: [{ name, asin?, backups?: string[] }], apply?: boolean }
+// The admin's own table: matches items by name (capitals, spaces and symbols ignored), then
+// sets the main ASIN and/or up to 3 backups. apply=false only reports what would change.
+router.post('/admin/asin-import', authenticateToken, requireAdmin, async (req: any, res: any) => {
+  try {
+    const rows = Array.isArray(req.body?.rows) ? req.body.rows.slice(0, 1000) : [];
+    if (!rows.length) return res.status(400).json({ error: 'Send { rows: [...] }' });
+    const apply = req.body?.apply === true;
+    const norm = (s: any) => String(s || '').toLowerCase().replace(/[^a-z0-9]+/g, '');
+    const all = await prisma.material.findMany({ where: { isActive: true } });
+    const byName = new Map<string, any[]>();
+    for (const m of all as any[]) {
+      const k = norm(m.name);
+      byName.set(k, [...(byName.get(k) || []), m]);
+    }
+    const out: any[] = [];
+    for (const r of rows) {
+      const key = norm(r?.name);
+      const hits = byName.get(key) || [];
+      const asin = validAsinText(r?.asin);
+      const backups = (Array.isArray(r?.backups) ? r.backups : []).map(validAsinText).filter(Boolean);
+      if (!key || hits.length === 0) { out.push({ name: r?.name || '', status: 'not found' }); continue; }
+      if (hits.length > 1) { out.push({ name: r?.name, status: 'more than one item has this name' }); continue; }
+      if (!asin && !backups.length) { out.push({ name: r?.name, status: 'no ASIN in this row' }); continue; }
+      const m = hits[0];
+      const mainAsin = asin || m.amazonASIN || '';
+      const data: any = {};
+      if (asin && asin !== m.amazonASIN) {
+        data.amazonASIN = asin;
+        data.amazonUrl = 'https://www.amazon.in/dp/' + asin + '?tag=' + AMAZON_TAG_PUBLIC;
+        data.amazonUnavailable = false;
+        data.amazonUnavailableAt = null;
+        data.amazonUnavailableNote = null;
+        data.amazonNeedsAttention = false;
+        data.amazonAttentionReason = null;
+        data.amazonLastCheckedAt = new Date();
+      }
+      if (backups.length) {
+        data.amazonBackupAsins = Array.from(new Set(backups)).filter((a) => a !== mainAsin).slice(0, 3);
+      }
+      if (apply && Object.keys(data).length) await prisma.material.update({ where: { id: m.id }, data });
+      out.push({
+        name: m.name,
+        status: Object.keys(data).length ? (apply ? 'updated' : 'will update') : 'no change',
+        asin: data.amazonASIN || m.amazonASIN || null,
+        backups: data.amazonBackupAsins || m.amazonBackupAsins || [],
+      });
+    }
+    res.json({ applied: apply, results: out });
+  } catch (err: any) {
+    console.error('[materials] asin-import error:', err);
+    res.status(500).json({ error: err?.message || 'Import failed' });
+  }
+});
 
 router.post('/admin/bulk', authenticateToken, requireAdmin, async (req: Request, res: Response) => {
   try {
