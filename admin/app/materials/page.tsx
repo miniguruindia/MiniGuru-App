@@ -70,6 +70,20 @@ function suggestedGoins(m: any): number | null {
 const UNIT_OPTIONS = ['piece','pack','set','kit','bottle','tube','can','spool','gram','ml','cm','sheet','meter','pair','roll']
 
 
+// Accepts a full amazon.in link (or a bare code) and returns the 10-character ASIN.
+// Anything else comes back unchanged, so half-typed text is not lost.
+function extractAsin(text: string): string {
+  const t = (text || '').trim()
+  const m = t.match(/(?:\/dp\/|\/gp\/product\/|\/gp\/aw\/d\/|\/product\/)([A-Za-z0-9]{10})(?:[/?&#]|$)/)
+  if (m) return m[1].toUpperCase()
+  if (/^[A-Za-z0-9]{10}$/.test(t)) return t.toUpperCase()
+  return t
+}
+function validAsin(text: string): string {
+  const a = extractAsin(text)
+  return /^[A-Z0-9]{10}$/.test(a) ? a : ''
+}
+
 // ── "Find on Amazon" modal — search PA API (Gemini-refined), tap to link ────
 interface AmazonCandidate {
   asin: string
@@ -105,6 +119,7 @@ function FindOnAmazonModal({ material: m, apiBase, onClose, onPicked }: {
   const [comparing, setComparing] = React.useState(false)
   const [compareMode, setCompareMode] = React.useState(false)
   const [geminiOnly, setGeminiOnly] = React.useState(false)
+  const [pasted, setPasted] = React.useState<Record<string, string>>({})
   const [via, setVia] = React.useState('amazon')
   const [amazonError, setAmazonError] = React.useState<string | null>(null)
 
@@ -268,7 +283,16 @@ function FindOnAmazonModal({ material: m, apiBase, onClose, onPicked }: {
                     >
                       {r.title}
                     </a>
-                    <p className="text-xs text-gray-500 font-mono">{r.asin || 'No code yet: open the link and copy the ASIN'}</p>
+                    <p className="text-xs text-gray-500 font-mono">{r.asin || 'No code yet: open the link, then paste the Amazon link or ASIN below'}</p>
+                    {!r.asin && (
+                      <input
+                        type="text"
+                        value={pasted[`g${idx}`] || ''}
+                        onChange={e => setPasted(p => ({ ...p, [`g${idx}`]: e.target.value }))}
+                        placeholder="Paste the Amazon product link or ASIN here"
+                        className="mt-1 w-full px-2 py-1 border border-amber-300 rounded text-xs font-mono focus:outline-none focus:ring-1 focus:ring-orange-400"
+                      />
+                    )}
                     {r.unverified && (
                       <p className="text-xs text-amber-700">⚠️ Gemini guess{r.note ? ` · ${r.note}` : ''}</p>
                     )}
@@ -284,8 +308,8 @@ function FindOnAmazonModal({ material: m, apiBase, onClose, onPicked }: {
                     )}
                     <div className="flex gap-2 mt-1">
                       <button
-                        onClick={() => onPicked(r.asin, r.priceRupees, r.imageUrl, r.extractedUnit, r.title ?? null)}
-                        disabled={!r.asin}
+                        onClick={() => onPicked(r.asin || validAsin(pasted[`g${idx}`] || ''), r.priceRupees, r.imageUrl, r.extractedUnit, r.title ?? null)}
+                        disabled={!r.asin && !validAsin(pasted[`g${idx}`] || '')}
                         className="px-2 py-0.5 bg-orange-500 text-white rounded text-xs hover:bg-orange-600 disabled:opacity-30 disabled:cursor-not-allowed"
                       >
                         Link this
@@ -376,7 +400,7 @@ function AsinRow({ material: m, apiBase, onSaved, onFlash }: {
         <input
           type="text"
           value={asin}
-          onChange={e => { setAsin(e.target.value); setDirty(true) }}
+          onChange={e => { setAsin(extractAsin(e.target.value)); setDirty(true) }}
           onKeyDown={e => e.key === 'Enter' && save()}
           placeholder="B0XXXXXXXXX"
           className={`w-36 px-2 py-1 border rounded text-sm font-mono focus:outline-none focus:ring-1 focus:ring-orange-400 ${
@@ -2142,8 +2166,8 @@ function MaterialsPageInner() {
                     — from amazon.in/dp/<strong>B0XXXXXXXXX</strong>
                   </span>
                 </label>
-                <input type="text" value={form.amazonASIN} onChange={e => setForm(f => ({...f, amazonASIN: e.target.value}))}
-                  placeholder="B0XXXXXXXXX"
+                <input type="text" value={form.amazonASIN} onChange={e => setForm(f => ({...f, amazonASIN: extractAsin(e.target.value)}))}
+                  placeholder="B0XXXXXXXXX or paste the Amazon link"
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm font-mono focus:outline-none focus:ring-2 focus:ring-orange-400" />
                 {form.amazonASIN && (
                   <p className="text-xs text-orange-600 mt-1">
