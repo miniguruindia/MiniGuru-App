@@ -27,7 +27,7 @@ h1{font-size:22px;margin:8px 0 4px}
 .row .n{font-weight:800;font-size:15px;line-height:1.25}
 .row .m{font-size:13px;color:var(--mute)}
 .row input[type=checkbox]{width:22px;height:22px;flex:none}
-.buy{display:inline-block;background:var(--orange);color:#fff;text-decoration:none;font-weight:800;font-size:14px;padding:9px 16px;border-radius:22px;white-space:nowrap}
+.buy{display:inline-block;text-align:center;background:var(--orange);color:#fff;text-decoration:none;font-weight:800;font-size:14px;padding:9px 16px;border-radius:22px;white-space:nowrap}
 .row.done .buy{background:var(--green)}
 .cart{background:#fff;border:2px solid var(--orange);border-radius:14px;padding:12px;margin:16px 0;text-align:center}
 .cart a{display:inline-block;margin:4px;background:#fff;color:#B45309;border:2px solid var(--orange);font-weight:800;text-decoration:none;padding:10px 18px;border-radius:22px;font-size:14px}
@@ -40,18 +40,12 @@ h1{font-size:22px;margin:8px 0 4px}
 <div class="wrap">
   <h1>&#128722; Your MiniGuru kit</h1>
   <div class="how">
-    <b>How it works:</b> tap <b>Buy</b> next to an item. Amazon opens in a <b>new tab</b> &mdash; press <b>Add to Cart</b> there,
+    <b>How it works:</b> tap <b>Buy on Amazon</b> next to an item. Amazon opens in a <b>new tab</b> &mdash; press <b>Add to Cart</b> there,
     then come back here. The item turns <b style="color:#12B24A">green</b>, so nothing is missed and nothing is opened twice.
-    Untick an item you do not need.
   </div>
   <div class="bar"><i id="barfill"></i></div>
   <div class="prog" id="prog"></div>
   <div id="list"></div>
-  <div class="cart" id="cartbox" style="display:none">
-    <b>Or add all ticked items at once</b>
-    <div id="cartlinks"></div>
-    <p>Amazon may show an &ldquo;Add to Cart&rdquo; page first &mdash; press it. Amazon takes at most 10 items per cart, so a long list has more than one part.</p>
-  </div>
   <div class="foot">Prices are estimates &mdash; please check the current price on Amazon.<br>MiniGuru Innovation Pvt Ltd &middot; <a href="https://miniguru.in" style="color:#5B6EF5">miniguru.in</a></div>
 </div>
 <script>
@@ -87,11 +81,7 @@ h1{font-size:22px;margin:8px 0 4px}
     items.forEach(function (it) {
       var d = info[it.asin] || {};
       var row = document.createElement('div');
-      row.className = 'row' + (st.opened[it.asin] ? ' done' : '') + (st.off[it.asin] ? ' off' : '');
-      var cb = document.createElement('input');
-      cb.type = 'checkbox'; cb.checked = !st.off[it.asin];
-      cb.onchange = function () { if (cb.checked) delete st.off[it.asin]; else st.off[it.asin] = 1; save(); render(); };
-      row.appendChild(cb);
+      row.className = 'row' + (st.opened[it.asin] ? ' done' : '');
       if (d.img) { var im = document.createElement('img'); im.src = d.img; im.alt = ''; im.loading = 'lazy'; row.appendChild(im); }
       else { var ph = document.createElement('div'); ph.className = 'ph'; row.appendChild(ph); }
       var t = document.createElement('div'); t.className = 't';
@@ -101,29 +91,15 @@ h1{font-size:22px;margin:8px 0 4px}
       t.appendChild(n); t.appendChild(m); row.appendChild(t);
       var a = document.createElement('a');
       a.className = 'buy'; a.href = dp(it.asin); a.target = '_blank'; a.rel = 'noopener noreferrer';
-      a.textContent = st.opened[it.asin] ? 'Opened ✓' : 'Buy ↗';
+      a.textContent = st.opened[it.asin] ? 'Opened ✓' : 'Buy on Amazon ↗';
       // The link itself is the plain tagged Amazon link; the click only marks the row.
       a.addEventListener('click', function () { st.opened[it.asin] = 1; save(); setTimeout(render, 50); });
       row.appendChild(a);
       listEl.appendChild(row);
     });
-    var ticked = items.filter(function (i) { return !st.off[i.asin]; });
-    var done = ticked.filter(function (i) { return st.opened[i.asin]; }).length;
-    document.getElementById('prog').textContent = 'Opened ' + done + ' of ' + ticked.length + ' ticked items';
-    document.getElementById('barfill').style.width = (ticked.length ? Math.round(done * 100 / ticked.length) : 0) + '%';
-    // quick cart for ticked items, parts of 10
-    var box = document.getElementById('cartbox'), links = document.getElementById('cartlinks');
-    links.innerHTML = '';
-    for (var s = 0; s < ticked.length; s += 10) {
-      var q = new URLSearchParams({ AssociateTag: TAG, tag: TAG });
-      ticked.slice(s, s + 10).forEach(function (it, k) { q.append('ASIN.' + (k + 1), it.asin); q.append('Quantity.' + (k + 1), String(it.qty)); });
-      var c = document.createElement('a');
-      c.href = 'https://www.amazon.in/gp/aws/cart/add.html?' + q.toString();
-      c.target = '_blank'; c.rel = 'noopener noreferrer';
-      c.textContent = 'Quick cart' + (ticked.length > 10 ? ' — part ' + (s / 10 + 1) : '') + ' ↗';
-      links.appendChild(c);
-    }
-    box.style.display = ticked.length ? 'block' : 'none';
+    var done = items.filter(function (i) { return st.opened[i.asin]; }).length;
+    document.getElementById('prog').textContent = 'Opened ' + done + ' of ' + items.length + ' items';
+    document.getElementById('barfill').style.width = Math.round(done * 100 / items.length) + '%';
   }
 
   render();

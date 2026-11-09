@@ -676,6 +676,8 @@ model Material {
   amazonUnavailable     Boolean?
   amazonUnavailableNote String?
   amazonUnavailableAt   DateTime?
+  // Nov 2026: set only when a person reviewed the item by hand (separate from automatic checks).
+  amazonReviewedAt      DateTime?
 
   // ── Shop/catalog upgrade (Sept 2026) ──────────────────────────────
   // Additive on purpose — every existing reader of `category`/`imageUrl`

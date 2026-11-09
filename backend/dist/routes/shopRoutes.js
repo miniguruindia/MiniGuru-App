@@ -78,11 +78,11 @@ function itemLink(name, asin, url) {
 // tagged Amazon search gets "Search"; an item with no Amazon link stays "Local".
 function buyCell(asin, url, school) {
     const btn = school
-        ? 'display:inline-block;background:#f0f0f0;color:#222;text-decoration:none;padding:4px 12px;border-radius:5px;border:1px solid #ccc;font-size:13px'
-        : 'display:inline-block;background:#FF9900;color:#fff;text-decoration:none;padding:5px 14px;border-radius:14px;font-weight:700;font-size:13px';
+        ? 'display:inline-block;background:#f0f0f0;color:#222;text-decoration:none;padding:4px 10px;border-radius:5px;border:1px solid #ccc;font-size:12px;white-space:nowrap'
+        : 'display:inline-block;background:#FF9900;color:#fff;text-decoration:none;padding:5px 12px;border-radius:14px;font-weight:700;font-size:12px;white-space:nowrap';
     const a = String(asin || '').trim().toUpperCase();
     if (/^[A-Z0-9]{10}$/.test(a)) {
-        return '<a href="https://www.amazon.in/dp/' + a + '?tag=' + AMAZON_TAG + '" style="' + btn + '">Buy &#8599;</a>';
+        return '<a href="https://www.amazon.in/dp/' + a + '?tag=' + AMAZON_TAG + '" style="' + btn + '">Buy on Amazon &#8599;</a>';
     }
     const u = String(url || '');
     if (u.indexOf('https://www.amazon.in/s?k=') === 0 && u.indexOf('tag=' + AMAZON_TAG) > 0 && u.length < 400) {
@@ -114,7 +114,7 @@ function kitButton(url, school) {
         ? 'display:inline-block;background:#12B24A;color:#fff;text-decoration:none;padding:10px 22px;border-radius:6px;font-weight:700;font-size:15px'
         : 'display:inline-block;background:#12B24A;color:#fff;text-decoration:none;padding:12px 28px;border-radius:50px;font-weight:700;font-size:15px';
     return '<div style="text-align:center;margin:12px 0 16px"><a href="' + escHtml(url) + '" style="' + style + '">&#9989; Open my kit page</a>'
-        + '<p style="margin:6px 0 0;color:#666;font-size:12px">Each item turns green once you open it, so nothing is missed or opened twice.</p></div>';
+        + '<p style="margin:6px 0 0;color:#666;font-size:12px">One page with all items. Each turns green after you open it, so nothing is missed.</p></div>';
 }
 // Caption above the quick cart. When a list needs more than one cart (10 items each), say so.
 function cartNote(itemCount, parts) {
@@ -175,15 +175,15 @@ router.post('/send-to-parent', authMiddleware_1.authenticateTokenOptional, async
 <p style="margin:6px 0 0;color:rgba(255,255,255,0.85)">STEAM Education Platform</p></div>
 <div style="padding:32px">
 <h2 style="color:#1a1a2e">&#128722; ${escHtml(childName || 'Your child')} needs materials!</h2>
-<p style="color:#555">They planned a STEAM project${projectTitle ? ' <strong>"' + escHtml(projectTitle) + '"</strong>' : ''}. Here are the materials. Tap <strong>Buy &#8599;</strong> next to each item. Amazon opens in a <strong>new tab</strong>: press <strong>Add to Cart</strong> there.</p>
+<p style="color:#555">They planned a STEAM project${projectTitle ? ' <strong>"' + escHtml(projectTitle) + '"</strong>' : ''}. Here are the materials. Tap <strong>Buy on Amazon</strong> next to each item. Amazon opens in a <strong>new tab</strong>: press <strong>Add to Cart</strong> there. Do not forget this step.</p>
 ${ccNote}
-${kitButton(kitPageUrl(items.map((i) => ({ asin: i.amazonASIN, qty: i.qty }))), false)}
 <table width="100%" style="border:1px solid #eee;border-radius:8px;margin-bottom:24px">
 <tr style="background:#f5f7ff"><th style="padding:10px 12px;text-align:left;color:#5B6EF5">Material</th><th style="color:#5B6EF5">Qty</th><th style="color:#5B6EF5">Est.</th><th style="color:#5B6EF5">Buy</th></tr>
 ${rows}
 ${totalEst > 0 ? '<tr style="background:#f5f7ff"><td colspan="2" style="padding:10px 12px;font-weight:700">Total</td><td style="padding:10px 12px;font-weight:700;color:#5B6EF5;text-align:right">&#8377;' + totalEst + '</td><td></td></tr>' : ''}
 </table>
-${cartButtonsHtml ? '<div style="text-align:center;margin:28px 0">' + cartNote(amazonItems.length, cartParts.length) + cartButtonsHtml + '<p style="color:#aaa;font-size:12px;margin:10px 0 0">Quick cart adds everything at once. Pay via UPI, card or COD.</p></div>' : ''}
+${kitButton(kitPageUrl(items.map((i) => ({ asin: i.amazonASIN, qty: i.qty }))), false)}
+<p style="color:#aaa;font-size:12px;text-align:center;margin:0 0 18px">Prices are estimates. Pay via UPI, card or COD.</p>
 <div style="background:#f0f4ff;border-radius:10px;padding:16px 20px">
 <p style="margin:0;color:#5B6EF5;font-weight:700">&#9989; What happens next?</p>
 <p style="margin:8px 0 0;color:#444">Once they get the materials, they build, film, and upload to MiniGuru. On approval they earn Goins!</p></div></div>
@@ -192,26 +192,28 @@ ${cartButtonsHtml ? '<div style="text-align:center;margin:28px 0">' + cartNote(a
 <a href="https://miniguru.in" style="color:#5B6EF5">miniguru.in</a> &middot; <a href="mailto:connect@miniguru.in" style="color:#5B6EF5">connect@miniguru.in</a></p></div></div>
 </body></html>`;
         // Official, low-key purchase request (school / T-LAB accounts): plain wording, logo at the bottom.
+        const forOf = (item) => escHtml(String(item.forWho || '').trim().slice(0, 40) || 'STEAM LAB');
+        const recipient = String(req.body.recipientName || '').replace(/[<>]/g, '').trim().slice(0, 60);
         const schoolRows = items.map((item) => `<tr>
       <td style="padding:6px 10px;border-bottom:1px solid #e5e5e5">${itemLink(item.name, item.amazonASIN, item.amazonUrl)}</td>
+      <td style="padding:6px 10px;border-bottom:1px solid #e5e5e5;text-align:center;font-size:13px">${forOf(item)}</td>
       <td style="padding:6px 10px;border-bottom:1px solid #e5e5e5;text-align:center">${escHtml(item.qty)} ${escHtml(item.unit || 'piece')}</td>
       <td style="padding:6px 10px;border-bottom:1px solid #e5e5e5;text-align:right">${item.priceEstimate ? '&#8377;' + item.priceEstimate * item.qty : '-'}</td>
       <td style="padding:6px 10px;border-bottom:1px solid #e5e5e5;text-align:center">${buyCell(item.amazonASIN, item.amazonUrl, true)}</td>
     </tr>`).join('');
-        const schoolButtons = cartParts.map((u, idx) => '<a href="' + u + '" style="display:inline-block;margin:4px 6px 4px 0;background:#f0f0f0;color:#222;text-decoration:none;padding:9px 18px;border-radius:6px;border:1px solid #ccc;font-size:14px">Open Amazon cart' + (cartParts.length > 1 ? ' - part ' + (idx + 1) : '') + '</a>').join('');
         const schoolHtml = `<!DOCTYPE html><html><body style="font-family:Arial,sans-serif;background:#ffffff;color:#222">
 <div style="max-width:620px;margin:0 auto;padding:24px;font-size:15px;line-height:1.55">
-<p>Dear Purchase Department,</p>
-<p>The T-LAB facilitator at <strong>${escHtml(schoolName || 'our school')}</strong> requests your approval to purchase the items below for the STEAM LAB${projectTitle ? ' (' + escHtml(projectTitle) + ')' : ''}. Please review the list and place the order, or pass it to the person who buys.</p>
-${ccNote ? ccNote.replace('Also shared with:', 'Copy to:') : ''}
-<p style="margin:0 0 6px">Tap <strong>Buy &#8599;</strong> next to each item. Amazon opens in a <strong>new tab</strong>: press <strong>Add to Cart</strong> there, then return to this list.</p>
-${kitButton(kitPageUrl(items.map((i) => ({ asin: i.amazonASIN, qty: i.qty }))), true)}
+<p>Dear ${recipient ? escHtml(recipient) : 'Purchase Department'},</p>
+<p>The T-LAB facilitator at <strong>${escHtml(schoolName || 'our school')}</strong> requests the purchase of the items below for the STEAM LAB${projectTitle ? ' (' + escHtml(projectTitle) + ')' : ''}. Please review the list and place the order.</p>
+${ccList.length ? '<p style="color:#666;font-size:13px;margin:0 0 12px">Marked to ' + ccList.map(escHtml).join(', ') + ' to keep them in the loop and for approval.</p>' : ''}
+<p style="margin:0 0 6px">Tap <strong>Buy on Amazon</strong> next to each item. Amazon opens in a <strong>new tab</strong>: press <strong>Add to Cart</strong> there, then return to this list.</p>
 <table width="100%" style="border-collapse:collapse;border:1px solid #e5e5e5;margin:14px 0;font-size:14px">
-<tr style="background:#f6f6f6"><th style="padding:7px 10px;text-align:left">Item</th><th style="padding:7px 10px">Qty</th><th style="padding:7px 10px;text-align:right">Est.</th><th style="padding:7px 10px">Buy</th></tr>
+<tr style="background:#f6f6f6"><th style="padding:7px 10px;text-align:left">Item</th><th style="padding:7px 10px">For</th><th style="padding:7px 10px">Qty</th><th style="padding:7px 10px;text-align:right">Est.</th><th style="padding:7px 10px">Buy</th></tr>
 ${schoolRows}
-${totalEst > 0 ? '<tr><td colspan="2" style="padding:8px 10px;font-weight:700">Estimated total</td><td style="padding:8px 10px;font-weight:700;text-align:right">&#8377;' + totalEst + '</td><td></td></tr>' : ''}
+${totalEst > 0 ? '<tr><td colspan="3" style="padding:8px 10px;font-weight:700">Estimated total</td><td style="padding:8px 10px;font-weight:700;text-align:right">&#8377;' + totalEst + '</td><td></td></tr>' : ''}
 </table>
-${schoolButtons ? '<p style="margin:12px 0 4px">To order the Amazon items:</p>' + cartNote(amazonItems.length, cartParts.length) + '<div>' + schoolButtons + '</div><p style="color:#888;font-size:12px;margin:8px 0 0">The quick cart adds everything at once. Prices are estimates; please check the current price on Amazon. Items marked Local are best bought nearby.</p>' : ''}
+${kitButton(kitPageUrl(items.map((i) => ({ asin: i.amazonASIN, qty: i.qty }))), true)}
+<p style="color:#888;font-size:12px;margin:8px 0 0">Prices are estimates; please check the current price on Amazon. Items marked Local are best bought nearby.</p>
 <p style="margin-top:22px">Regards,<br>T-LAB facilitator, ${escHtml(schoolName || 'our school')}</p>
 <hr style="border:none;border-top:1px solid #e5e5e5;margin:26px 0 14px">
 <div style="text-align:center;color:#999;font-size:12px">
@@ -329,17 +331,17 @@ router.post('/send-list', async (req, res) => {
 <div style="padding:30px">
 <h2 style="color:#1a1a2e;margin-top:0">&#128203; ${isSchool ? 'Purchase request: ' : ''}${escHtml(listTitle)}</h2>
 <p style="color:#555">${isSchool
-            ? (senderName ? escHtml(senderName) : 'A teacher') + ' is requesting your approval to buy the items below. Please review the list, then order with the Amazon button or pass it to the person who buys.'
+            ? (senderName ? escHtml(senderName) : 'A teacher') + ' is requesting your purchase of the items below. Please review the list and place the order.'
             : (senderName ? escHtml(senderName) + ' has' : 'Someone has') + ' shared this materials list with you. Quantities and items were chosen from MiniGuru\'s recommended list.'}</p>
 ${ccNote}
-<p style="color:#555;margin:0 0 10px">Tap <strong>Buy &#8599;</strong> next to each item. Amazon opens in a <strong>new tab</strong>: press <strong>Add to Cart</strong> there, then return to this list.</p>
-${kitButton(kitPageUrl(asinList.map(([a, q]) => ({ asin: a, qty: q }))), isSchool)}
+<p style="color:#555;margin:0 0 10px">Tap <strong>Buy on Amazon</strong> next to each item. Amazon opens in a <strong>new tab</strong>: press <strong>Add to Cart</strong> there, then return to this list.</p>
 <table width="100%" style="border:1px solid #eee;border-radius:8px;margin-bottom:22px">
 <tr style="background:#f1f8f1"><th style="padding:10px 12px;text-align:left;color:#1B5E20">Material</th><th style="color:#1B5E20">Qty</th><th style="color:#1B5E20">Est.</th><th style="color:#1B5E20">Buy</th></tr>
 ${rows}
 ${total > 0 ? '<tr style="background:#f1f8f1"><td colspan="2" style="padding:10px 12px;font-weight:700">Estimated total</td><td style="padding:10px 12px;font-weight:700;color:#1B5E20;text-align:right">&#8377;' + total + '</td><td></td></tr>' : ''}
 </table>
-${buttons ? '<div style="text-align:center;margin:26px 0">' + cartNote(asinList.length, cartUrls.length) + buttons + '<p style="color:#aaa;font-size:12px;margin:10px 0 0">The quick cart adds everything at once. Prices are estimates — please check the current price on Amazon. Items marked Local are best bought nearby.</p></div>' : ''}
+${kitButton(kitPageUrl(asinList.map(([a, q]) => ({ asin: a, qty: q }))), isSchool)}
+<p style="color:#aaa;font-size:12px;text-align:center;margin:0 0 10px">Prices are estimates — please check the current price on Amazon. Items marked Local are best bought nearby.</p>
 </div>
 <div style="background:#f5f7ff;padding:18px 32px;text-align:center;border-top:1px solid #eee">
 <p style="margin:0;color:#aaa;font-size:12px">MiniGuru Innovation Pvt Ltd &middot; Ujjain, Madhya Pradesh<br>

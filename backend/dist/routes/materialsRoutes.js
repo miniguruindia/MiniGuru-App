@@ -849,6 +849,9 @@ router.put('/admin/:id', authMiddleware_1.authenticateToken, requireAdmin, async
                 return true;
             }).slice(0, 3);
         }
+        if (body.amazonReviewed === true || body.amazonVerified === true || body.amazonUnavailable === true) {
+            data.amazonReviewedAt = new Date();
+        }
         if ('amazonUnavailable' in body) {
             if (body.amazonUnavailable === true) {
                 data.amazonUnavailable = true;

@@ -36,6 +36,7 @@ interface Material {
   amazonUnavailable?: boolean | null
   amazonUnavailableNote?: string | null
   amazonLastCheckedAt?: string | null
+  amazonReviewedAt?: string | null
 }
 
 async function authToken() {
@@ -2301,11 +2302,9 @@ function daysAgo(iso?: string | null): number | null {
   return Number.isFinite(t) ? Math.floor((Date.now() - t) / 86400000) : null
 }
 
-// Shared by the tab badge and the review list.
+// Shared by the tab badge: flagged items, plus items nobody has looked at by hand yet.
 function asinNeedsReview(m: Material): boolean {
-  if (m.amazonUnavailable) return true
-  const d = daysAgo(m.amazonLastCheckedAt)
-  return d === null || d >= REVIEW_DAYS
+  return !!m.amazonUnavailable || !m.amazonReviewedAt
 }
 
 function AsinReviewTab({ apiBase, materials, onMaterialsChanged, flash, onEditMaterial }: {
@@ -2315,71 +2314,16 @@ function AsinReviewTab({ apiBase, materials, onMaterialsChanged, flash, onEditMa
   flash: (msg: string, isError?: boolean) => void
   onEditMaterial: (materialId: string) => void
 }) {
-  const [filter, setFilter] = React.useState<'review' | 'unavailable' | 'all'>('review')
-  const [q, setQ] = React.useState('')
+  const [mode, setMode] = React.useState<'check' | 'flagged'>('check')
   const [busy, setBusy] = React.useState<string | null>(null)
-  const [limit, setLimit] = React.useState(40)
+  const [done, setDone] = React.useState<Set<string>>(new Set())
+  const [skipped, setSkipped] = React.useState<Set<string>>(new Set())
   const [showImport, setShowImport] = React.useState(false)
   const [importText, setImportText] = React.useState('')
   const [importOut, setImportOut] = React.useState<any[] | null>(null)
   const [importing, setImporting] = React.useState(false)
-  // Cart test: tick up to 10 items, open them in an Amazon cart, then mark the ones that did not arrive.
-  const [selected, setSelected] = React.useState<Set<string>>(new Set())
-  const [testIds, setTestIds] = React.useState<string[]>([])
-  const [missing, setMissing] = React.useState<Set<string>>(new Set())
 
-  function toggle(set: Set<string>, id: string): Set<string> {
-    const n = new Set(set)
-    if (n.has(id)) n.delete(id); else n.add(id)
-    return n
-  }
-
-  function openCartTest() {
-    const picked = materials.filter(x => selected.has(x.id) && x.amazonASIN).slice(0, 10)
-    if (!picked.length) { flash('Tick some items first (up to 10).', true); return }
-    // Plain cart link with no affiliate tag: this is only a stock check, not a sale.
-    const parts = picked.map((x, i) => `ASIN.${i + 1}=${x.amazonASIN}&Quantity.${i + 1}=1`)
-    window.open(`https://www.amazon.in/gp/aws/cart/add.html?${parts.join('&')}`, '_blank', 'noopener')
-    setTestIds(picked.map(x => x.id))
-    setMissing(new Set())
-  }
-
-  // Sweep: take the next 10 unchecked items, open them in an Amazon cart, ready to mark.
-  function startSweep() {
-    const next = sweepPool.slice(0, 10)
-    if (!next.length) { flash('Everything has been checked in the last ' + REVIEW_DAYS + ' days. 🎉'); return }
-    const parts = next.map((x, i) => `ASIN.${i + 1}=${x.amazonASIN}&Quantity.${i + 1}=1`)
-    window.open(`https://www.amazon.in/gp/aws/cart/add.html?${parts.join('&')}`, '_blank', 'noopener')
-    setSelected(new Set(next.map(x => x.id)))
-    setTestIds(next.map(x => x.id))
-    setMissing(new Set())
-  }
-
-  // One save for the whole batch: missing ones are flagged, the rest are marked checked.
-  async function finishBatch() {
-    setBusy('bulk')
-    try {
-      const token = await authToken()
-      for (const id of testIds) {
-        const body = missing.has(id)
-          ? { amazonUnavailable: true, amazonUnavailableNote: 'Not in Amazon cart test' }
-          : { amazonVerified: true }
-        const res = await fetch(`${apiBase}/materials/admin/${id}`, {
-          method: 'PUT',
-          headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-          body: JSON.stringify(body),
-        })
-        if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || 'Save failed')
-      }
-      flash(`Saved: ${missing.size} flagged, ${testIds.length - missing.size} marked OK. Press Next 10.`)
-      setTestIds([]); setMissing(new Set()); setSelected(new Set())
-      onMaterialsChanged()
-    } catch (e: any) {
-      flash(e.message || 'Save failed', true)
-    } finally { setBusy(null) }
-  }
-
-  async function put(id: string, body: any, ok: string) {
+  async function put(id: string, body: any, ok: string): Promise<boolean> {
     setBusy(id)
     try {
       const token = await authToken()
@@ -2391,32 +2335,60 @@ function AsinReviewTab({ apiBase, materials, onMaterialsChanged, flash, onEditMa
       if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || 'Save failed')
       flash(ok)
       onMaterialsChanged()
+      return true
     } catch (e: any) {
       flash(e.message || 'Save failed', true)
+      return false
+    } finally { setBusy(null) }
+  }
+
+  // Check one item: the next one appears at once; if saving fails it comes back.
+  async function answer(m: Material, available: boolean) {
+    setDone(s => new Set(s).add(m.id))
+    const ok = await put(m.id,
+      available ? { amazonVerified: true } : { amazonUnavailable: true, amazonUnavailableNote: 'Checked by hand: not available' },
+      available ? 'Marked available.' : 'Flagged. The shop now uses the backup or a search link.')
+    if (!ok) setDone(s => { const n = new Set(s); n.delete(m.id); return n })
+  }
+
+  async function removeItem(m: Material) {
+    if (!window.confirm(`Remove "${m.name}" from the shop?\n\nIt stops showing in the shop and in new lists.`)) return
+    setBusy(m.id)
+    try {
+      const token = await authToken()
+      const res = await fetch(`${apiBase}/materials/admin/${m.id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } })
+      if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || 'Could not remove')
+      flash('Removed from the shop.')
+      setDone(s => new Set(s).add(m.id))
+      onMaterialsChanged()
+    } catch (e: any) {
+      flash(e.message || 'Could not remove', true)
     } finally { setBusy(null) }
   }
 
   const withAsin = materials.filter(m => m.isActive && m.amazonASIN)
-  const needsReview = asinNeedsReview
-  // Sweep: items that are not flagged and not checked in REVIEW_DAYS, never-checked first.
-  const sweepPool = withAsin
-    .filter(m => !m.amazonUnavailable && asinNeedsReview(m))
-    .sort((a, b) => (daysAgo(b.amazonLastCheckedAt) ?? 9999) - (daysAgo(a.amazonLastCheckedAt) ?? 9999))
-  const sweepDone = withAsin.length - sweepPool.length - withAsin.filter(m => m.amazonUnavailable).length
-  let rows = withAsin.filter(m =>
-    filter === 'all' ? true : filter === 'unavailable' ? !!m.amazonUnavailable : needsReview(m))
-  if (q.trim()) {
-    const t = q.trim().toLowerCase()
-    rows = rows.filter(m => m.name.toLowerCase().includes(t) || (m.amazonASIN || '').toLowerCase().includes(t))
-  }
-  // Flagged first, then the longest-unchecked.
-  rows = [...rows].sort((a, b) => {
-    if (!!a.amazonUnavailable !== !!b.amazonUnavailable) return a.amazonUnavailable ? -1 : 1
-    const da = daysAgo(a.amazonLastCheckedAt) ?? 9999
-    const db = daysAgo(b.amazonLastCheckedAt) ?? 9999
-    return db - da
+  const flagged = withAsin.filter(m => m.amazonUnavailable)
+  const pool = withAsin.filter(m => !m.amazonUnavailable)
+  const checkedCount = pool.filter(m => !!m.amazonReviewedAt).length
+  // Not yet looked at, not already answered; skipped ones go to the end.
+  const queue = pool
+    .filter(m => !m.amazonReviewedAt && !done.has(m.id))
+    .sort((a, b) => Number(skipped.has(a.id)) - Number(skipped.has(b.id)))
+  const current = queue[0]
+
+  React.useEffect(() => {
+    if (mode !== 'check' || !current) return
+    function onKey(e: KeyboardEvent) {
+      const t = e.target as HTMLElement
+      if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA')) return
+      const k = e.key.toLowerCase()
+      if (k === 'y') answer(current, true)
+      else if (k === 'n') answer(current, false)
+      else if (k === 's') setSkipped(s => new Set(s).add(current.id))
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
   })
-  const flaggedCount = withAsin.filter(m => m.amazonUnavailable).length
 
   function downloadCsv() {
     const esc = (v: any) => `"${String(v ?? '').replace(/"/g, '""')}"`
@@ -2467,24 +2439,16 @@ function AsinReviewTab({ apiBase, materials, onMaterialsChanged, flash, onEditMa
   return (
     <div className="space-y-4">
       <div className="bg-white rounded-xl border border-gray-200 p-4">
-        <p className="text-sm text-gray-700">
-          Open the item on Amazon, then press one button. <b>Unavailable</b> makes the shop use the first backup ASIN,
-          or a tagged Amazon search if there is none, so a school's cart never breaks.
-          Items not checked in {REVIEW_DAYS}+ days are listed as "to review".
-        </p>
-        <div className="flex flex-wrap gap-2 mt-3 items-center">
+        <div className="flex flex-wrap gap-2 items-center">
           {([
-            ['review', `To review (${withAsin.filter(needsReview).length})`],
-            ['unavailable', `Unavailable (${flaggedCount})`],
-            ['all', `All with ASIN (${withAsin.length})`],
+            ['check', `Check items (${queue.length} left)`],
+            ['flagged', `Flagged items (${flagged.length})`],
           ] as const).map(([k, label]) => (
-            <button key={k} onClick={() => { setFilter(k); setLimit(40) }}
-              className={`px-3 py-1 rounded-full text-xs border ${filter === k ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-gray-600 border-gray-300'}`}>
+            <button key={k} onClick={() => setMode(k)}
+              className={`px-3 py-1 rounded-full text-xs border ${mode === k ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-gray-600 border-gray-300'}`}>
               {label}
             </button>
           ))}
-          <input value={q} onChange={e => setQ(e.target.value)} placeholder="Search name or ASIN"
-            className="px-2 py-1 border border-gray-300 rounded text-xs w-48" />
           <button onClick={() => setShowImport(v => !v)} className="px-3 py-1 rounded text-xs border border-gray-300 hover:bg-gray-50">
             {showImport ? 'Close table import' : '📋 Import my table'}
           </button>
@@ -2492,31 +2456,51 @@ function AsinReviewTab({ apiBase, materials, onMaterialsChanged, flash, onEditMa
         </div>
       </div>
 
-      <div className="bg-white rounded-xl border border-blue-200 p-4">
-        <p className="text-sm text-gray-700">
-          <b>Quick stock check (10 items at a time):</b> tick up to 10 items below, press <b>Open in Amazon cart</b>,
-          and look at the cart tab. Amazon leaves out items it cannot sell. Come back, tick <b>Missing</b> on the ones
-          that are not in the cart, then flag them in one go.
-        </p>
-        <div className="flex flex-wrap gap-2 mt-2 items-center">
-          <button onClick={startSweep} disabled={testIds.length > 0}
-            className="px-3 py-1 rounded text-xs bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-40">
-            ▶ {sweepDone > 0 ? 'Next 10 (sweep)' : 'Start sweep'}
-          </button>
-          <span className="text-xs text-gray-600">Checked {Math.max(0, sweepDone)} of {withAsin.length} · {sweepPool.length} left</span>
-          <button onClick={() => setSelected(new Set(rows.slice(0, 10).map(x => x.id)))} className="px-3 py-1 rounded text-xs border border-gray-300 hover:bg-gray-50">Tick the first 10 shown</button>
-          <button onClick={() => setSelected(new Set())} className="px-3 py-1 rounded text-xs border border-gray-300 hover:bg-gray-50">Clear ticks</button>
-          <button onClick={openCartTest} className="px-3 py-1 rounded text-xs bg-blue-600 text-white hover:bg-blue-700">Open in Amazon cart ({Math.min(10, selected.size)})</button>
+      {mode === 'check' && (
+        <div className="bg-white rounded-xl border border-blue-200 p-4">
+          <p className="text-xs text-gray-600 mb-2">
+            Checked {checkedCount} of {pool.length} · {queue.length} left. The link opens Amazon <b>without</b> our tag (this is only a check, not a sale).
+          </p>
+          {!current && <p className="text-sm text-gray-700">All items have been checked. 🎉 Flagged ones are in the other tab.</p>}
+          {current && (
+            <div>
+              <p className="font-semibold text-gray-900">{current.name}</p>
+              <p className="text-xs text-gray-500 font-mono mb-3">{current.amazonASIN}</p>
+              <a href={`https://www.amazon.in/dp/${current.amazonASIN}`} target="_blank" rel="noopener noreferrer"
+                className="inline-block px-4 py-2 rounded bg-blue-600 text-white text-sm hover:bg-blue-700">Open on Amazon ↗</a>
+              <div className="flex flex-wrap gap-2 mt-3">
+                <button disabled={busy === current.id} onClick={() => answer(current, true)}
+                  className="px-5 py-2 rounded bg-green-600 text-white text-sm font-semibold hover:bg-green-700 disabled:opacity-50">✓ Available (Y)</button>
+                <button disabled={busy === current.id} onClick={() => answer(current, false)}
+                  className="px-5 py-2 rounded bg-red-600 text-white text-sm font-semibold hover:bg-red-700 disabled:opacity-50">✗ Not available (N)</button>
+                <button onClick={() => setSkipped(s => new Set(s).add(current.id))}
+                  className="px-4 py-2 rounded border border-gray-300 text-sm hover:bg-gray-50">Skip (S)</button>
+                <button disabled={busy === current.id} onClick={() => removeItem(current)}
+                  className="px-3 py-2 rounded text-xs text-red-700 border border-red-200 hover:bg-red-50 disabled:opacity-50">🗑 Remove from shop</button>
+              </div>
+              <p className="text-xs text-gray-400 mt-2">Tip: after opening Amazon, come back and press Y, N or S on the keyboard.</p>
+            </div>
+          )}
         </div>
-        {testIds.length > 0 && (
-          <div className="mt-3 p-2 bg-blue-50 border border-blue-200 rounded flex flex-wrap gap-2 items-center text-xs">
-            <span>{testIds.length} items tested. Missing ticked: <b>{missing.size}</b></span>
-            <button disabled={busy === 'bulk'} onClick={finishBatch}
-              className="px-3 py-1 rounded bg-green-600 text-white disabled:opacity-50">Save: flag {missing.size} missing, mark {testIds.length - missing.size} OK</button>
-            <button onClick={() => { setTestIds([]); setMissing(new Set()) }} className="px-2 py-1 rounded border border-gray-300">Cancel</button>
-          </div>
-        )}
-      </div>
+      )}
+
+      {mode === 'flagged' && (
+        <>
+          <p className="text-xs text-gray-600 px-1">
+            These items are marked not available. The shop shows a backup, or a search link if there is none. Fix them here: add a backup, replace the main ASIN, or remove the item.
+          </p>
+          {flagged.length === 0 && (
+            <div className="bg-white rounded-xl border border-gray-200 p-6 text-center text-sm text-gray-500">No flagged items. 🎉</div>
+          )}
+          {flagged.map(m => (
+            <ReviewRow key={m.id + (m.amazonASIN || '') + (m.amazonBackupAsins || []).join(',')} m={m} apiBase={apiBase}
+              busy={busy === m.id}
+              onSave={(body, ok) => { put(m.id, body, ok) }}
+              onRemove={() => removeItem(m)}
+              onEdit={() => onEditMaterial(m.id)} />
+          ))}
+        </>
+      )}
 
       {showImport && (
         <div className="bg-white rounded-xl border border-amber-300 p-4">
@@ -2544,26 +2528,6 @@ function AsinReviewTab({ apiBase, materials, onMaterialsChanged, flash, onEditMa
         </div>
       )}
 
-      {rows.length === 0 && (
-        <div className="bg-white rounded-xl border border-gray-200 p-6 text-center text-sm text-gray-500">Nothing here. 🎉</div>
-      )}
-
-      {rows.slice(0, limit).map(m => (
-        <ReviewRow key={m.id + (m.amazonASIN || '') + (m.amazonLastCheckedAt || '')} m={m} apiBase={apiBase}
-          busy={busy === m.id}
-          selected={selected.has(m.id)}
-          onSelect={() => setSelected(s => toggle(s, m.id))}
-          tested={testIds.includes(m.id)}
-          missing={missing.has(m.id)}
-          onMissing={() => setMissing(s => toggle(s, m.id))}
-          onSave={(body, ok) => put(m.id, body, ok)}
-          onEdit={() => onEditMaterial(m.id)} />
-      ))}
-      {rows.length > limit && (
-        <button onClick={() => setLimit(l => l + 40)} className="w-full py-2 text-sm text-indigo-700 hover:underline">
-          Show more ({rows.length - limit} left)
-        </button>
-      )}
     </div>
   )
 }
@@ -2636,25 +2600,21 @@ function GeminiHelperModal({ apiBase, m, onClose, onSave }: {
   )
 }
 
-function ReviewRow({ m, busy, onSave, onEdit, apiBase, selected, onSelect, tested, missing, onMissing }: {
+function ReviewRow({ m, busy, onSave, onEdit, onRemove, apiBase }: {
   apiBase: string
   m: Material
   busy: boolean
-  selected: boolean
-  onSelect: () => void
-  tested: boolean
-  missing: boolean
-  onMissing: () => void
   onSave: (body: any, ok: string) => void
   onEdit: () => void
+  onRemove: () => void
 }) {
   const [b1, setB1] = React.useState((m.amazonBackupAsins || [])[0] || '')
   const [b2, setB2] = React.useState((m.amazonBackupAsins || [])[1] || '')
   const [price, setPrice] = React.useState(m.priceEstimate != null ? String(m.priceEstimate) : '')
   const [newAsin, setNewAsin] = React.useState('')
   const [gemini, setGemini] = React.useState(false)
-  const d = daysAgo(m.amazonLastCheckedAt)
-  const link = `https://www.amazon.in/dp/${m.amazonASIN}?tag=miniguru04-21`
+  // Untagged on purpose: opening to check is not a sale.
+  const link = `https://www.amazon.in/dp/${m.amazonASIN}`
   const backupsList = [b1, b2].map(validAsin).filter(Boolean)
   const dirty =
     backupsList.join(',') !== (m.amazonBackupAsins || []).join(',') ||
@@ -2662,35 +2622,21 @@ function ReviewRow({ m, busy, onSave, onEdit, apiBase, selected, onSelect, teste
     !!validAsin(newAsin)
 
   return (
-    <div className={`bg-white rounded-xl border p-3 ${m.amazonUnavailable ? 'border-red-300' : 'border-gray-200'}`}>
+    <div className="bg-white rounded-xl border border-red-300 p-3">
       <div className="flex flex-wrap items-start justify-between gap-2">
-        <div className="min-w-0 flex gap-2">
-          <input type="checkbox" checked={selected} onChange={onSelect} className="mt-1" title="Tick for the cart stock check" />
-          <div>
+        <div className="min-w-0">
           <p className="font-medium text-sm text-gray-900">{m.name}</p>
           <p className="text-xs text-gray-500 font-mono">
-            {m.amazonASIN} ·{' '}
-            {d === null ? 'never checked' : d === 0 ? 'checked today' : `checked ${d} days ago`}
-            {m.amazonUnavailable && <span className="ml-2 text-red-600 font-bold">UNAVAILABLE — shop is using {backupsList.length ? 'backup 1' : 'a search link'}</span>}
+            {m.amazonASIN} · <span className="text-red-600 font-bold">Not available. Shop is using {backupsList.length ? 'backup 1' : 'a search link'}</span>
           </p>
-          {tested && (
-            <label className="text-xs text-blue-700 font-semibold flex items-center gap-1 mt-1">
-              <input type="checkbox" checked={missing} onChange={onMissing} /> Missing from the Amazon cart
-            </label>
-          )}
-          </div>
         </div>
         <div className="flex flex-wrap gap-2">
           <a href={link} target="_blank" rel="noopener noreferrer" className="px-3 py-1 rounded text-xs bg-blue-600 text-white hover:bg-blue-700">Open on Amazon ↗</a>
-          <button disabled={busy} onClick={() => onSave({ amazonVerified: true }, 'Marked as checked.')}
-            className="px-3 py-1 rounded text-xs bg-green-600 text-white hover:bg-green-700 disabled:opacity-50">Still OK ✓</button>
-          {m.amazonUnavailable
-            ? <button disabled={busy} onClick={() => onSave({ amazonUnavailable: false }, 'Flag removed.')}
-                className="px-3 py-1 rounded text-xs border border-gray-300 hover:bg-gray-50 disabled:opacity-50">Back in stock</button>
-            : <button disabled={busy} onClick={() => onSave({ amazonUnavailable: true }, 'Flagged. The shop now uses the backup or a search link.')}
-                className="px-3 py-1 rounded text-xs bg-red-600 text-white hover:bg-red-700 disabled:opacity-50">Unavailable ✗</button>}
+          <button disabled={busy} onClick={() => onSave({ amazonUnavailable: false }, 'Back in stock. Flag removed.')}
+            className="px-3 py-1 rounded text-xs border border-gray-300 hover:bg-gray-50 disabled:opacity-50">Back in stock</button>
           <button onClick={() => setGemini(true)} className="px-3 py-1 rounded text-xs border border-purple-300 text-purple-700 hover:bg-purple-50">✨ Gemini ideas</button>
           <button onClick={onEdit} className="px-3 py-1 rounded text-xs border border-gray-300 hover:bg-gray-50">Edit details</button>
+          <button disabled={busy} onClick={onRemove} className="px-3 py-1 rounded text-xs text-red-700 border border-red-200 hover:bg-red-50 disabled:opacity-50">🗑 Remove from shop</button>
         </div>
       </div>
       <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mt-2">

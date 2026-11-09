@@ -828,6 +828,9 @@ router.put('/admin/:id', authenticateToken, requireAdmin, async (req: any, res: 
         return true;
       }).slice(0, 3);
     }
+    if (body.amazonReviewed === true || body.amazonVerified === true || body.amazonUnavailable === true) {
+      data.amazonReviewedAt = new Date();
+    }
     if ('amazonUnavailable' in body) {
       if (body.amazonUnavailable === true) {
         data.amazonUnavailable = true;
