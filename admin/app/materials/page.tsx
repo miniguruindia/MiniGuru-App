@@ -123,10 +123,7 @@ function FindOnAmazonModal({ material: m, apiBase, onClose, onPicked }: {
   const [linkText, setLinkText] = React.useState('')
   const [comparing, setComparing] = React.useState(false)
   const [compareMode, setCompareMode] = React.useState(false)
-  const [geminiOnly, setGeminiOnly] = React.useState(false)
   const [pasted, setPasted] = React.useState<Record<string, string>>({})
-  const [via, setVia] = React.useState('amazon')
-  const [amazonError, setAmazonError] = React.useState<string | null>(null)
 
   async function compareLink() {
     if (!linkText.trim()) return
@@ -136,12 +133,11 @@ function FindOnAmazonModal({ material: m, apiBase, onClose, onPicked }: {
       const res = await fetch(`${apiBase}/materials/admin/${m.id}/find-by-link`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url: linkText.trim(), source: geminiOnly ? 'gemini' : undefined }),
+        body: JSON.stringify({ url: linkText.trim() }),
       })
       const data = await res.json()
       if (data.error && !(data.results || []).length) { setError(data.error) }
       else {
-        setVia(data.via || 'amazon')
         setResults(data.results || [])
         setSearchedFor(data.searchedFor || '')
         setHidden(0)
@@ -177,12 +173,10 @@ function FindOnAmazonModal({ material: m, apiBase, onClose, onPicked }: {
         const res = await fetch(`${apiBase}/materials/admin/${m.id}/find-on-amazon`, {
           method: 'POST',
           headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-          body: JSON.stringify({ source: geminiOnly ? 'gemini' : undefined }),
+          body: JSON.stringify({}),
         })
         const data = await res.json()
         setConfigured(!!data.configured)
-        setVia(data.via || 'amazon')
-        setAmazonError(data.amazonError || null)
         setResults(data.results || [])
         setSearchedFor(data.searchedFor || m.name)
         setHidden(data.hiddenCount || 0)
@@ -193,7 +187,7 @@ function FindOnAmazonModal({ material: m, apiBase, onClose, onPicked }: {
         setLoading(false)
       }
     })()
-  }, [m.id, geminiOnly])
+  }, [m.id])
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
@@ -206,16 +200,6 @@ function FindOnAmazonModal({ material: m, apiBase, onClose, onPicked }: {
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X size={20} /></button>
         </div>
         <div className="flex-1 overflow-y-auto p-4">
-          <label className="flex items-center gap-2 text-xs text-gray-700 mb-2">
-            <input type="checkbox" checked={geminiOnly} onChange={e => setGeminiOnly(e.target.checked)} />
-            Use Gemini only (skip Amazon). Amazon is tried first when this is off, and Gemini takes over if Amazon fails.
-          </label>
-          {!loading && via === 'gemini' && (
-            <div className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-lg p-2 mb-2">
-              {geminiOnly ? 'Gemini suggestions.' : <>Amazon is not answering{amazonError ? ` (${amazonError})` : ''}, so Gemini suggested these.</>}{' '}
-              Prices are <b>estimates</b> and codes may be wrong. Open the link, check it is the right product, then link it.
-            </div>
-          )}
           <div className="mb-3 p-2 border border-dashed border-orange-300 rounded-lg bg-orange-50/40">
             <p className="text-xs text-gray-600 mb-1">
               Not the right product? Paste an Amazon link (or ASIN). MiniGuru checks it and looks for the same or similar product at a lower price from a trusted seller.
@@ -241,7 +225,7 @@ function FindOnAmazonModal({ material: m, apiBase, onClose, onPicked }: {
               <Loader2 className="animate-spin mr-2" size={18} /> Searching Amazon…
             </div>
           )}
-          {!loading && !configured && via !== 'gemini' && (
+          {!loading && !configured && (
             <div className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg p-3">
               Amazon Product Advertising API isn&apos;t connected yet — add
               <code className="mx-1 px-1 bg-amber-100 rounded">AMAZON_PAAPI_ACCESS_KEY</code>,
@@ -251,8 +235,8 @@ function FindOnAmazonModal({ material: m, apiBase, onClose, onPicked }: {
             </div>
           )}
           {!loading && configured && error && (
-            <div className={`text-sm rounded-lg p-3 border ${via !== 'gemini' && /eligib/i.test(error) ? 'text-amber-800 bg-amber-50 border-amber-200' : 'text-red-700 bg-red-50 border-red-200'}`}>
-              {via !== 'gemini' && /eligib/i.test(error)
+            <div className={`text-sm rounded-lg p-3 border ${/eligib/i.test(error) ? 'text-amber-800 bg-amber-50 border-amber-200' : 'text-red-700 bg-red-50 border-red-200'}`}>
+              {/eligib/i.test(error)
                 ? <>Amazon has paused our search connection (account eligibility &mdash; it returns when qualifying sales recover). Close this and type the ASIN and price by hand in the material row.</>
                 : error}
             </div>
@@ -2476,7 +2460,7 @@ function AsinReviewTab({ apiBase, materials, onMaterialsChanged, flash, onEditMa
       )}
 
       {rows.slice(0, limit).map(m => (
-        <ReviewRow key={m.id + (m.amazonASIN || '') + (m.amazonLastCheckedAt || '')} m={m}
+        <ReviewRow key={m.id + (m.amazonASIN || '') + (m.amazonLastCheckedAt || '')} m={m} apiBase={apiBase}
           busy={busy === m.id}
           onSave={(body, ok) => put(m.id, body, ok)}
           onEdit={() => onEditMaterial(m.id)} />
@@ -2490,7 +2474,76 @@ function AsinReviewTab({ apiBase, materials, onMaterialsChanged, flash, onEditMa
   )
 }
 
-function ReviewRow({ m, busy, onSave, onEdit }: {
+
+// ── Gemini helper (separate from the Amazon Find) ───────────────────────────
+// Names and rough prices only (free Gemini plan: no web search, no ASINs). It never
+// changes anything by itself: you open the tagged search, find the product, paste its
+// link or ASIN here, and choose "Set as backup" or "Use as main".
+function GeminiHelperModal({ apiBase, m, onClose, onSave }: {
+  apiBase: string
+  m: Material
+  onClose: () => void
+  onSave: (body: any, ok: string) => void
+}) {
+  const [loading, setLoading] = React.useState(true)
+  const [err, setErr] = React.useState<string | null>(null)
+  const [items, setItems] = React.useState<any[]>([])
+  const [pasted, setPasted] = React.useState('')
+  React.useEffect(() => {
+    (async () => {
+      try {
+        const token = await authToken()
+        const res = await fetch(`${apiBase}/materials/admin/${m.id}/gemini-find`, {
+          method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: '{}',
+        })
+        const data = await res.json()
+        setItems(data.results || [])
+        if (!data.ok) setErr(data.error || 'Gemini gave no answer.')
+      } catch { setErr('Could not reach the server.') }
+      finally { setLoading(false) }
+    })()
+  }, [m.id])
+  const code = validAsin(pasted)
+  const backups = m.amazonBackupAsins || []
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl w-full max-w-lg max-h-[85vh] flex flex-col">
+        <div className="p-4 border-b flex justify-between items-start">
+          <div><p className="font-semibold text-gray-900">✨ Gemini ideas (beta)</p><p className="text-xs text-gray-500">{m.name}</p></div>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">✕</button>
+        </div>
+        <div className="p-4 overflow-y-auto text-sm space-y-2">
+          <p className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded p-2">
+            Gemini's free plan cannot see Amazon, so these are <b>ideas with rough prices</b>, not checked products.
+            Open a search, find the right product, then paste its link or ASIN below.
+          </p>
+          {loading && <p className="text-gray-500">Asking Gemini…</p>}
+          {err && !loading && <p className="text-red-600 text-xs">{err}</p>}
+          {items.map((r, i) => (
+            <div key={i} className="border border-gray-200 rounded p-2">
+              <p className="font-medium text-gray-900 text-sm">{r.title}</p>
+              <p className="text-xs text-gray-500">{r.priceRupees != null ? `≈ ₹${r.priceRupees}` : 'no price idea'}{r.note ? ` · ${r.note}` : ''}</p>
+              <a href={r.detailPageUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 hover:underline">Open Amazon search ↗</a>
+            </div>
+          ))}
+          <div className="pt-2 border-t">
+            <input value={pasted} onChange={e => setPasted(extractAsin(e.target.value))} placeholder="Paste the Amazon product link or ASIN you chose"
+              className="w-full px-2 py-1 border border-gray-300 rounded text-xs font-mono text-gray-900" />
+            <div className="flex gap-2 mt-2">
+              <button disabled={!code || backups.length >= 3} onClick={() => { onSave({ amazonBackupAsins: [...backups, code] }, 'Backup added.'); onClose() }}
+                className="px-3 py-1 rounded text-xs bg-indigo-600 text-white disabled:opacity-40">Set as backup</button>
+              <button disabled={!code} onClick={() => { onSave({ amazonASIN: code }, 'Main ASIN replaced.'); onClose() }}
+                className="px-3 py-1 rounded text-xs bg-orange-500 text-white disabled:opacity-40">Use as main</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function ReviewRow({ m, busy, onSave, onEdit, apiBase }: {
+  apiBase: string
   m: Material
   busy: boolean
   onSave: (body: any, ok: string) => void
@@ -2500,6 +2553,7 @@ function ReviewRow({ m, busy, onSave, onEdit }: {
   const [b2, setB2] = React.useState((m.amazonBackupAsins || [])[1] || '')
   const [price, setPrice] = React.useState(m.priceEstimate != null ? String(m.priceEstimate) : '')
   const [newAsin, setNewAsin] = React.useState('')
+  const [gemini, setGemini] = React.useState(false)
   const d = daysAgo(m.amazonLastCheckedAt)
   const link = `https://www.amazon.in/dp/${m.amazonASIN}?tag=miniguru04-21`
   const backupsList = [b1, b2].map(validAsin).filter(Boolean)
@@ -2528,6 +2582,7 @@ function ReviewRow({ m, busy, onSave, onEdit }: {
                 className="px-3 py-1 rounded text-xs border border-gray-300 hover:bg-gray-50 disabled:opacity-50">Back in stock</button>
             : <button disabled={busy} onClick={() => onSave({ amazonUnavailable: true }, 'Flagged. The shop now uses the backup or a search link.')}
                 className="px-3 py-1 rounded text-xs bg-red-600 text-white hover:bg-red-700 disabled:opacity-50">Unavailable ✗</button>}
+          <button onClick={() => setGemini(true)} className="px-3 py-1 rounded text-xs border border-purple-300 text-purple-700 hover:bg-purple-50">✨ Gemini ideas</button>
           <button onClick={onEdit} className="px-3 py-1 rounded text-xs border border-gray-300 hover:bg-gray-50">Edit details</button>
         </div>
       </div>
@@ -2549,6 +2604,7 @@ function ReviewRow({ m, busy, onSave, onEdit }: {
             className="w-full px-2 py-1 border border-gray-300 rounded text-xs font-mono text-gray-900" />
         </label>
       </div>
+      {gemini && <GeminiHelperModal apiBase={apiBase} m={m} onClose={() => setGemini(false)} onSave={onSave} />}
       {dirty && (
         <button disabled={busy} onClick={() => {
           const body: any = {}
