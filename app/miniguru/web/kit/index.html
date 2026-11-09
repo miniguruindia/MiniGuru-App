@@ -32,6 +32,11 @@ h1{font-size:22px;margin:8px 0 4px}
 .cart{background:#fff;border:2px solid var(--orange);border-radius:14px;padding:12px;margin:16px 0;text-align:center}
 .cart a{display:inline-block;margin:4px;background:#fff;color:#B45309;border:2px solid var(--orange);font-weight:800;text-decoration:none;padding:10px 18px;border-radius:22px;font-size:14px}
 .cart p{margin:6px 0 0;font-size:12px;color:var(--mute)}
+.acts{text-align:center;margin:18px 0}
+.acts button{font:inherit;font-weight:800;font-size:14px;border-radius:22px;padding:10px 20px;margin:4px;cursor:pointer}
+.acts .save{background:var(--blue);color:#fff;border:0}
+.acts .again{background:#fff;color:var(--mute);border:1px solid var(--line)}
+.saved{display:none;background:#EAFBF0;border:1px solid var(--green);border-radius:12px;padding:10px 14px;font-size:14px;margin:10px 0;text-align:center}
 .foot{font-size:12px;color:var(--mute);text-align:center;margin:20px 0}
 .err{background:#fdecea;border:1px solid #f5b5ae;border-radius:10px;padding:10px;font-size:14px}
 </style>
@@ -46,6 +51,11 @@ h1{font-size:22px;margin:8px 0 4px}
   <div class="bar"><i id="barfill"></i></div>
   <div class="prog" id="prog"></div>
   <div id="list"></div>
+  <div class="saved" id="saved"><b>Saved.</b> You can close this page now. To carry on later, open the same link from your email &mdash; your progress will be here for 7 days.</div>
+  <div class="acts">
+    <button class="save" id="btnsave">&#10003; Save and close</button>
+    <button class="again" id="btnagain">Start again</button>
+  </div>
   <div class="foot">Prices are estimates &mdash; please check the current price on Amazon.<br>MiniGuru Innovation Pvt Ltd &middot; <a href="https://miniguru.in" style="color:#5B6EF5">miniguru.in</a></div>
 </div>
 <script>
@@ -68,9 +78,10 @@ h1{font-size:22px;margin:8px 0 4px}
   }
 
   var KEY = 'mgkit:' + raw;
-  var st = { off: {}, opened: {} };
-  try { var saved = JSON.parse(localStorage.getItem(KEY) || 'null'); if (saved && saved.off && saved.opened) st = saved; } catch (e) {}
-  function save() { try { localStorage.setItem(KEY, JSON.stringify(st)); } catch (e) {} }
+  var st = { opened: {}, t: Date.now() };
+  var KEEP_MS = 7 * 86400000; // progress is kept 7 days, then forgotten
+  try { var saved = JSON.parse(localStorage.getItem(KEY) || 'null'); if (saved && saved.opened && saved.t && Date.now() - saved.t < KEEP_MS) st = saved; } catch (e) {}
+  function save() { st.t = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(st)); } catch (e) {} }
 
   var info = {}; // asin -> {name, img, unit, price}
 
@@ -101,6 +112,16 @@ h1{font-size:22px;margin:8px 0 4px}
     document.getElementById('prog').textContent = 'Opened ' + done + ' of ' + items.length + ' items';
     document.getElementById('barfill').style.width = Math.round(done * 100 / items.length) + '%';
   }
+
+  document.getElementById('btnsave').onclick = function () {
+    save();
+    document.getElementById('saved').style.display = 'block';
+    try { window.close(); } catch (e) {} // works only when the browser allows it; the message above covers the rest
+  };
+  document.getElementById('btnagain').onclick = function () {
+    if (!confirm('Clear your progress on this list and start again?')) return;
+    st = { opened: {}, t: Date.now() }; save(); document.getElementById('saved').style.display = 'none'; render();
+  };
 
   render();
   // Names, pictures and prices come from the public MiniGuru list. If it is slow or fails, the Buy buttons still work.
