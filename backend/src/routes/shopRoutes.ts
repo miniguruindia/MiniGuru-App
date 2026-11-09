@@ -94,7 +94,7 @@ function buyCell(asin: any, url: any, school: boolean): string {
 
 // Caption above the quick cart. When a list needs more than one cart (10 items each), say so.
 function cartNote(itemCount: number, parts: number): string {
-  const caption = '<p style="margin:0 0 6px;color:#666;font-size:13px;text-align:center">Quick cart: adds all ' + itemCount + ' Amazon items at once</p>';
+  const caption = '<p style="margin:0 0 6px;color:#666;font-size:13px;text-align:center">Quick cart: adds all ' + itemCount + ' Amazon items at once (if Amazon shows an &quot;Add to Cart&quot; page, press it)</p>';
   if (parts < 2) return caption;
   return caption + '<p style="margin:0 0 8px;color:#B45309;font-size:13px;font-weight:700;text-align:center">They are in ' + parts + ' carts. Please open every part so no item is missed.</p>';
 }
@@ -127,7 +127,8 @@ router.post('/send-to-parent', authenticateTokenOptional, async (req: any, res: 
     // Amazon allows 10 lines per cart link, so longer lists are split into parts of 10
     const cartParts: string[] = [];
     for (let s = 0; s < amazonItems.length; s += 10) {
-      const params = new URLSearchParams({ AssociateTag: AMAZON_TAG });
+      // 'tag' is the parameter every normal Amazon link uses; 'AssociateTag' is the cart form's own name. Sending both costs nothing.
+      const params = new URLSearchParams({ AssociateTag: AMAZON_TAG, tag: AMAZON_TAG });
       amazonItems.slice(s, s + 10).forEach((item: any, i: number) => {
         params.append(`ASIN.${i + 1}`, item.amazonASIN);
         params.append(`Quantity.${i + 1}`, String(item.qty));
@@ -290,7 +291,8 @@ router.post('/send-list', async (req: Request, res: Response) => {
     const asinList = Array.from(merged.entries());
     const cartUrls: string[] = [];
     for (let s = 0; s < asinList.length; s += 10) {
-      const params = new URLSearchParams({ AssociateTag: AMAZON_TAG });
+      // 'tag' is the parameter every normal Amazon link uses; 'AssociateTag' is the cart form's own name. Sending both costs nothing.
+      const params = new URLSearchParams({ AssociateTag: AMAZON_TAG, tag: AMAZON_TAG });
       asinList.slice(s, s + 10).forEach(([asin, qty], idx) => {
         params.append(`ASIN.${idx + 1}`, asin);
         params.append(`Quantity.${idx + 1}`, String(qty));
