@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en-IN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Your MiniGuru kit</title>
+<link rel="icon" type="image/png" href="/favicon.png?v=2">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap">
+<style>
+:root{--ink:#1a1a2e;--mute:#666;--bg:#f5f7ff;--card:#fff;--line:#e5e8f4;--blue:#5B6EF5;--orange:#FF9900;--green:#12B24A}
+*{box-sizing:border-box}
+body{margin:0;font-family:Nunito,system-ui,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--ink)}
+.wrap{max-width:680px;margin:0 auto;padding:16px}
+h1{font-size:22px;margin:8px 0 4px}
+.how{background:#FFF8E1;border:1px solid #FFE08A;border-radius:12px;padding:10px 14px;font-size:14px;line-height:1.5;margin:10px 0}
+.how b{color:#B45309}
+.bar{background:#e3e7fb;border-radius:10px;height:12px;overflow:hidden;margin:6px 0 2px}
+.bar i{display:block;height:100%;width:0;background:var(--green);transition:width .3s}
+.prog{font-size:13px;color:var(--mute)}
+.row{display:flex;align-items:center;gap:10px;background:var(--card);border:2px solid var(--line);border-radius:14px;padding:10px;margin:8px 0}
+.row.done{border-color:var(--green);background:#EAFBF0}
+.row.off{opacity:.45}
+.row img{width:48px;height:48px;border-radius:10px;object-fit:cover;background:#eef0fb;flex:none}
+.row .ph{width:48px;height:48px;border-radius:10px;background:#eef0fb;flex:none}
+.row .t{flex:1;min-width:0}
+.row .n{font-weight:800;font-size:15px;line-height:1.25}
+.row .m{font-size:13px;color:var(--mute)}
+.row input[type=checkbox]{width:22px;height:22px;flex:none}
+.buy{display:inline-block;background:var(--orange);color:#fff;text-decoration:none;font-weight:800;font-size:14px;padding:9px 16px;border-radius:22px;white-space:nowrap}
+.row.done .buy{background:var(--green)}
+.cart{background:#fff;border:2px solid var(--orange);border-radius:14px;padding:12px;margin:16px 0;text-align:center}
+.cart a{display:inline-block;margin:4px;background:#fff;color:#B45309;border:2px solid var(--orange);font-weight:800;text-decoration:none;padding:10px 18px;border-radius:22px;font-size:14px}
+.cart p{margin:6px 0 0;font-size:12px;color:var(--mute)}
+.foot{font-size:12px;color:var(--mute);text-align:center;margin:20px 0}
+.err{background:#fdecea;border:1px solid #f5b5ae;border-radius:10px;padding:10px;font-size:14px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>&#128722; Your MiniGuru kit</h1>
+  <div class="how">
+    <b>How it works:</b> tap <b>Buy</b> next to an item. Amazon opens in a <b>new tab</b> &mdash; press <b>Add to Cart</b> there,
+    then come back here. The item turns <b style="color:#12B24A">green</b>, so nothing is missed and nothing is opened twice.
+    Untick an item you do not need.
+  </div>
+  <div class="bar"><i id="barfill"></i></div>
+  <div class="prog" id="prog"></div>
+  <div id="list"></div>
+  <div class="cart" id="cartbox" style="display:none">
+    <b>Or add all ticked items at once</b>
+    <div id="cartlinks"></div>
+    <p>Amazon may show an &ldquo;Add to Cart&rdquo; page first &mdash; press it. Amazon takes at most 10 items per cart, so a long list has more than one part.</p>
+  </div>
+  <div class="foot">Prices are estimates &mdash; please check the current price on Amazon.<br>MiniGuru Innovation Pvt Ltd &middot; <a href="https://miniguru.in" style="color:#5B6EF5">miniguru.in</a></div>
+</div>
+<script>
+(function () {
+  var TAG = 'miniguru04-21';
+  var API = 'https://miniguru-backend-130420985234.asia-south1.run.app';
+  var params = new URLSearchParams(location.search);
+  var raw = (params.get('i') || '').slice(0, 2000);
+  var items = raw.split('_').map(function (p) {
+    var a = p.split('-');
+    var asin = (a[0] || '').toUpperCase();
+    var qty = Math.max(1, Math.min(999, parseInt(a[1], 10) || 1));
+    return /^[A-Z0-9]{10}$/.test(asin) ? { asin: asin, qty: qty } : null;
+  }).filter(Boolean).slice(0, 80);
+
+  var listEl = document.getElementById('list');
+  if (!items.length) {
+    listEl.innerHTML = '<div class="err">This kit link looks incomplete. Please open it again from your email.</div>';
+    return;
+  }
+
+  var KEY = 'mgkit:' + raw;
+  var st = { off: {}, opened: {} };
+  try { var saved = JSON.parse(localStorage.getItem(KEY) || 'null'); if (saved && saved.off && saved.opened) st = saved; } catch (e) {}
+  function save() { try { localStorage.setItem(KEY, JSON.stringify(st)); } catch (e) {} }
+
+  var info = {}; // asin -> {name, img, unit, price}
+
+  function dp(asin) { return 'https://www.amazon.in/dp/' + asin + '?tag=' + TAG; }
+
+  function render() {
+    listEl.innerHTML = '';
+    items.forEach(function (it) {
+      var d = info[it.asin] || {};
+      var row = document.createElement('div');
+      row.className = 'row' + (st.opened[it.asin] ? ' done' : '') + (st.off[it.asin] ? ' off' : '');
+      var cb = document.createElement('input');
+      cb.type = 'checkbox'; cb.checked = !st.off[it.asin];
+      cb.onchange = function () { if (cb.checked) delete st.off[it.asin]; else st.off[it.asin] = 1; save(); render(); };
+      row.appendChild(cb);
+      if (d.img) { var im = document.createElement('img'); im.src = d.img; im.alt = ''; im.loading = 'lazy'; row.appendChild(im); }
+      else { var ph = document.createElement('div'); ph.className = 'ph'; row.appendChild(ph); }
+      var t = document.createElement('div'); t.className = 't';
+      var n = document.createElement('div'); n.className = 'n'; n.textContent = d.name || ('Item ' + it.asin);
+      var m = document.createElement('div'); m.className = 'm';
+      m.textContent = 'Qty ' + it.qty + (d.unit ? ' ' + d.unit : '') + (d.price ? ' · about ₹' + (d.price * it.qty) : '');
+      t.appendChild(n); t.appendChild(m); row.appendChild(t);
+      var a = document.createElement('a');
+      a.className = 'buy'; a.href = dp(it.asin); a.target = '_blank'; a.rel = 'noopener noreferrer';
+      a.textContent = st.opened[it.asin] ? 'Opened ✓' : 'Buy ↗';
+      // The link itself is the plain tagged Amazon link; the click only marks the row.
+      a.addEventListener('click', function () { st.opened[it.asin] = 1; save(); setTimeout(render, 50); });
+      row.appendChild(a);
+      listEl.appendChild(row);
+    });
+    var ticked = items.filter(function (i) { return !st.off[i.asin]; });
+    var done = ticked.filter(function (i) { return st.opened[i.asin]; }).length;
+    document.getElementById('prog').textContent = 'Opened ' + done + ' of ' + ticked.length + ' ticked items';
+    document.getElementById('barfill').style.width = (ticked.length ? Math.round(done * 100 / ticked.length) : 0) + '%';
+    // quick cart for ticked items, parts of 10
+    var box = document.getElementById('cartbox'), links = document.getElementById('cartlinks');
+    links.innerHTML = '';
+    for (var s = 0; s < ticked.length; s += 10) {
+      var q = new URLSearchParams({ AssociateTag: TAG, tag: TAG });
+      ticked.slice(s, s + 10).forEach(function (it, k) { q.append('ASIN.' + (k + 1), it.asin); q.append('Quantity.' + (k + 1), String(it.qty)); });
+      var c = document.createElement('a');
+      c.href = 'https://www.amazon.in/gp/aws/cart/add.html?' + q.toString();
+      c.target = '_blank'; c.rel = 'noopener noreferrer';
+      c.textContent = 'Quick cart' + (ticked.length > 10 ? ' — part ' + (s / 10 + 1) : '') + ' ↗';
+      links.appendChild(c);
+    }
+    box.style.display = ticked.length ? 'block' : 'none';
+  }
+
+  render();
+  // Names, pictures and prices come from the public MiniGuru list. If it is slow or fails, the Buy buttons still work.
+  fetch(API + '/materials').then(function (r) { return r.json(); }).then(function (list) {
+    (Array.isArray(list) ? list : []).forEach(function (m) {
+      var k = String(m.amazonASIN || '').toUpperCase();
+      if (k && !info[k]) info[k] = { name: m.name, img: m.imageUrl, unit: m.unit, price: m.priceEstimate };
+    });
+    render();
+  }).catch(function () {});
+})();
+</script>
+</body>
+</html>

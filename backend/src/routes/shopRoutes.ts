@@ -92,6 +92,28 @@ function buyCell(asin: any, url: any, school: boolean): string {
     : '<span style="background:#aaa;color:#fff;padding:2px 8px;border-radius:4px;font-size:12px">Local</span>';
 }
 
+// "Your kit" page: every item turns green once opened, so nothing is missed or opened twice.
+// Only ASIN and quantity travel in the link; names and pictures load on the page from the public list.
+function kitPageUrl(lines: { asin: any; qty: any }[]): string | null {
+  const merged = new Map<string, number>();
+  for (const l of lines) {
+    const a = String(l.asin || '').trim().toUpperCase();
+    if (!/^[A-Z0-9]{10}$/.test(a)) continue;
+    merged.set(a, Math.min(999, (merged.get(a) || 0) + Math.max(1, Math.floor(Number(l.qty)) || 1)));
+  }
+  if (merged.size === 0) return null;
+  const parts = Array.from(merged.entries()).slice(0, 80).map(([a, q]) => a + '-' + q);
+  return 'https://miniguru.in/kit/?i=' + parts.join('_');
+}
+function kitButton(url: string | null, school: boolean): string {
+  if (!url) return '';
+  const style = school
+    ? 'display:inline-block;background:#12B24A;color:#fff;text-decoration:none;padding:10px 22px;border-radius:6px;font-weight:700;font-size:15px'
+    : 'display:inline-block;background:#12B24A;color:#fff;text-decoration:none;padding:12px 28px;border-radius:50px;font-weight:700;font-size:15px';
+  return '<div style="text-align:center;margin:12px 0 16px"><a href="' + escHtml(url) + '" style="' + style + '">&#9989; Open my kit page</a>'
+    + '<p style="margin:6px 0 0;color:#666;font-size:12px">Each item turns green once you open it, so nothing is missed or opened twice.</p></div>';
+}
+
 // Caption above the quick cart. When a list needs more than one cart (10 items each), say so.
 function cartNote(itemCount: number, parts: number): string {
   const caption = '<p style="margin:0 0 6px;color:#666;font-size:13px;text-align:center">Quick cart: adds all ' + itemCount + ' Amazon items at once (if Amazon shows an &quot;Add to Cart&quot; page, press it)</p>';
@@ -154,8 +176,9 @@ router.post('/send-to-parent', authenticateTokenOptional, async (req: any, res: 
 <p style="margin:6px 0 0;color:rgba(255,255,255,0.85)">STEAM Education Platform</p></div>
 <div style="padding:32px">
 <h2 style="color:#1a1a2e">&#128722; ${escHtml(childName || 'Your child')} needs materials!</h2>
-<p style="color:#555">They planned a STEAM project${projectTitle ? ' <strong>"' + escHtml(projectTitle) + '"</strong>' : ''}. Here are the materials. Tap <strong>Buy &#8599;</strong> next to each item, then press <strong>Add to Cart</strong> on Amazon:</p>
+<p style="color:#555">They planned a STEAM project${projectTitle ? ' <strong>"' + escHtml(projectTitle) + '"</strong>' : ''}. Here are the materials. Tap <strong>Buy &#8599;</strong> next to each item. Amazon opens in a <strong>new tab</strong>: press <strong>Add to Cart</strong> there.</p>
 ${ccNote}
+${kitButton(kitPageUrl(items.map((i: any) => ({ asin: i.amazonASIN, qty: i.qty }))), false)}
 <table width="100%" style="border:1px solid #eee;border-radius:8px;margin-bottom:24px">
 <tr style="background:#f5f7ff"><th style="padding:10px 12px;text-align:left;color:#5B6EF5">Material</th><th style="color:#5B6EF5">Qty</th><th style="color:#5B6EF5">Est.</th><th style="color:#5B6EF5">Buy</th></tr>
 ${rows}
@@ -185,7 +208,8 @@ ${cartButtonsHtml ? '<div style="text-align:center;margin:28px 0">' + cartNote(a
 <p>Dear Purchase Department,</p>
 <p>The T-LAB facilitator at <strong>${escHtml(schoolName || 'our school')}</strong> requests your approval to purchase the items below for the STEAM LAB${projectTitle ? ' (' + escHtml(projectTitle) + ')' : ''}. Please review the list and place the order, or pass it to the person who buys.</p>
 ${ccNote ? ccNote.replace('Also shared with:', 'Copy to:') : ''}
-<p style="margin:0 0 6px">Tap <strong>Buy &#8599;</strong> next to each item and press <strong>Add to Cart</strong> on Amazon. Go down the list so no item is missed.</p>
+<p style="margin:0 0 6px">Tap <strong>Buy &#8599;</strong> next to each item. Amazon opens in a <strong>new tab</strong>: press <strong>Add to Cart</strong> there, then return to this list.</p>
+${kitButton(kitPageUrl(items.map((i: any) => ({ asin: i.amazonASIN, qty: i.qty }))), true)}
 <table width="100%" style="border-collapse:collapse;border:1px solid #e5e5e5;margin:14px 0;font-size:14px">
 <tr style="background:#f6f6f6"><th style="padding:7px 10px;text-align:left">Item</th><th style="padding:7px 10px">Qty</th><th style="padding:7px 10px;text-align:right">Est.</th><th style="padding:7px 10px">Buy</th></tr>
 ${schoolRows}
@@ -330,7 +354,8 @@ router.post('/send-list', async (req: Request, res: Response) => {
   ? (senderName ? escHtml(senderName) : 'A teacher') + ' is requesting your approval to buy the items below. Please review the list, then order with the Amazon button or pass it to the person who buys.'
   : (senderName ? escHtml(senderName) + ' has' : 'Someone has') + ' shared this materials list with you. Quantities and items were chosen from MiniGuru\'s recommended list.'}</p>
 ${ccNote}
-<p style="color:#555;margin:0 0 10px">Tap <strong>Buy &#8599;</strong> next to each item and press <strong>Add to Cart</strong> on Amazon. Go down the list so no item is missed.</p>
+<p style="color:#555;margin:0 0 10px">Tap <strong>Buy &#8599;</strong> next to each item. Amazon opens in a <strong>new tab</strong>: press <strong>Add to Cart</strong> there, then return to this list.</p>
+${kitButton(kitPageUrl(asinList.map(([a, q]) => ({ asin: a, qty: q }))), isSchool)}
 <table width="100%" style="border:1px solid #eee;border-radius:8px;margin-bottom:22px">
 <tr style="background:#f1f8f1"><th style="padding:10px 12px;text-align:left;color:#1B5E20">Material</th><th style="color:#1B5E20">Qty</th><th style="color:#1B5E20">Est.</th><th style="color:#1B5E20">Buy</th></tr>
 ${rows}

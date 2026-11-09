@@ -1830,7 +1830,7 @@ function MaterialsPageInner() {
             { key: 'materials', label: '📦 Materials' },
             { key: 'ai',       label: '🤖 AI Scan & Refresh' },
             { key: 'suggestions', label: '💡 Suggestions' },
-            { key: 'review',   label: '🛡️ ASIN Review' },
+            { key: 'review',   label: `🛡️ ASIN Review${materials.filter(m => m.isActive && m.amazonASIN && asinNeedsReview(m)).length ? ' (' + materials.filter(m => m.isActive && m.amazonASIN && asinNeedsReview(m)).length + ')' : ''}` },
             { key: 'images',   label: '🖼️ Image Issues' },
             { key: 'collections', label: '🗂️ Collections' },
             { key: 'groups', label: '🏷️ Category Groups' },
@@ -2301,6 +2301,13 @@ function daysAgo(iso?: string | null): number | null {
   return Number.isFinite(t) ? Math.floor((Date.now() - t) / 86400000) : null
 }
 
+// Shared by the tab badge and the review list.
+function asinNeedsReview(m: Material): boolean {
+  if (m.amazonUnavailable) return true
+  const d = daysAgo(m.amazonLastCheckedAt)
+  return d === null || d >= REVIEW_DAYS
+}
+
 function AsinReviewTab({ apiBase, materials, onMaterialsChanged, flash, onEditMaterial }: {
   apiBase: string
   materials: Material[]
@@ -2337,12 +2344,26 @@ function AsinReviewTab({ apiBase, materials, onMaterialsChanged, flash, onEditMa
     setMissing(new Set())
   }
 
-  async function bulkApply(ids: string[], body: any, ok: string) {
-    if (!ids.length) { flash('Nothing to change.', true); return }
+  // Sweep: take the next 10 unchecked items, open them in an Amazon cart, ready to mark.
+  function startSweep() {
+    const next = sweepPool.slice(0, 10)
+    if (!next.length) { flash('Everything has been checked in the last ' + REVIEW_DAYS + ' days. 🎉'); return }
+    const parts = next.map((x, i) => `ASIN.${i + 1}=${x.amazonASIN}&Quantity.${i + 1}=1`)
+    window.open(`https://www.amazon.in/gp/aws/cart/add.html?${parts.join('&')}`, '_blank', 'noopener')
+    setSelected(new Set(next.map(x => x.id)))
+    setTestIds(next.map(x => x.id))
+    setMissing(new Set())
+  }
+
+  // One save for the whole batch: missing ones are flagged, the rest are marked checked.
+  async function finishBatch() {
     setBusy('bulk')
     try {
       const token = await authToken()
-      for (const id of ids) {
+      for (const id of testIds) {
+        const body = missing.has(id)
+          ? { amazonUnavailable: true, amazonUnavailableNote: 'Not in Amazon cart test' }
+          : { amazonVerified: true }
         const res = await fetch(`${apiBase}/materials/admin/${id}`, {
           method: 'PUT',
           headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
@@ -2350,7 +2371,7 @@ function AsinReviewTab({ apiBase, materials, onMaterialsChanged, flash, onEditMa
         })
         if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || 'Save failed')
       }
-      flash(ok)
+      flash(`Saved: ${missing.size} flagged, ${testIds.length - missing.size} marked OK. Press Next 10.`)
       setTestIds([]); setMissing(new Set()); setSelected(new Set())
       onMaterialsChanged()
     } catch (e: any) {
@@ -2376,11 +2397,12 @@ function AsinReviewTab({ apiBase, materials, onMaterialsChanged, flash, onEditMa
   }
 
   const withAsin = materials.filter(m => m.isActive && m.amazonASIN)
-  const needsReview = (m: Material) => {
-    if (m.amazonUnavailable) return true
-    const d = daysAgo(m.amazonLastCheckedAt)
-    return d === null || d >= REVIEW_DAYS
-  }
+  const needsReview = asinNeedsReview
+  // Sweep: items that are not flagged and not checked in REVIEW_DAYS, never-checked first.
+  const sweepPool = withAsin
+    .filter(m => !m.amazonUnavailable && asinNeedsReview(m))
+    .sort((a, b) => (daysAgo(b.amazonLastCheckedAt) ?? 9999) - (daysAgo(a.amazonLastCheckedAt) ?? 9999))
+  const sweepDone = withAsin.length - sweepPool.length - withAsin.filter(m => m.amazonUnavailable).length
   let rows = withAsin.filter(m =>
     filter === 'all' ? true : filter === 'unavailable' ? !!m.amazonUnavailable : needsReview(m))
   if (q.trim()) {
@@ -2477,6 +2499,11 @@ function AsinReviewTab({ apiBase, materials, onMaterialsChanged, flash, onEditMa
           that are not in the cart, then flag them in one go.
         </p>
         <div className="flex flex-wrap gap-2 mt-2 items-center">
+          <button onClick={startSweep} disabled={testIds.length > 0}
+            className="px-3 py-1 rounded text-xs bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-40">
+            ▶ {sweepDone > 0 ? 'Next 10 (sweep)' : 'Start sweep'}
+          </button>
+          <span className="text-xs text-gray-600">Checked {Math.max(0, sweepDone)} of {withAsin.length} · {sweepPool.length} left</span>
           <button onClick={() => setSelected(new Set(rows.slice(0, 10).map(x => x.id)))} className="px-3 py-1 rounded text-xs border border-gray-300 hover:bg-gray-50">Tick the first 10 shown</button>
           <button onClick={() => setSelected(new Set())} className="px-3 py-1 rounded text-xs border border-gray-300 hover:bg-gray-50">Clear ticks</button>
           <button onClick={openCartTest} className="px-3 py-1 rounded text-xs bg-blue-600 text-white hover:bg-blue-700">Open in Amazon cart ({Math.min(10, selected.size)})</button>
@@ -2484,10 +2511,8 @@ function AsinReviewTab({ apiBase, materials, onMaterialsChanged, flash, onEditMa
         {testIds.length > 0 && (
           <div className="mt-3 p-2 bg-blue-50 border border-blue-200 rounded flex flex-wrap gap-2 items-center text-xs">
             <span>{testIds.length} items tested. Missing ticked: <b>{missing.size}</b></span>
-            <button disabled={busy === 'bulk'} onClick={() => bulkApply(Array.from(missing), { amazonUnavailable: true, amazonUnavailableNote: 'Not in Amazon cart test' }, 'Flagged as unavailable.')}
-              className="px-3 py-1 rounded bg-red-600 text-white disabled:opacity-50">Flag {missing.size} missing as unavailable</button>
-            <button disabled={busy === 'bulk'} onClick={() => bulkApply(testIds.filter(id => !missing.has(id)), { amazonVerified: true }, 'Marked as checked.')}
-              className="px-3 py-1 rounded bg-green-600 text-white disabled:opacity-50">Mark the other {testIds.length - missing.size} as OK</button>
+            <button disabled={busy === 'bulk'} onClick={finishBatch}
+              className="px-3 py-1 rounded bg-green-600 text-white disabled:opacity-50">Save: flag {missing.size} missing, mark {testIds.length - missing.size} OK</button>
             <button onClick={() => { setTestIds([]); setMissing(new Set()) }} className="px-2 py-1 rounded border border-gray-300">Cancel</button>
           </div>
         )}
