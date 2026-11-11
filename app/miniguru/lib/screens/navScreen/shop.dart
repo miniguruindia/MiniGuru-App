@@ -990,6 +990,13 @@ class _ShopState extends State<Shop>
   void _showSendSheet() {
     final emailCtrl = TextEditingController();
     final ccCtrl = TextEditingController();
+    // School purchase request only (Nov 2026): optional "Purchase head name" and an optional
+    // "For (child, grade)" per item. Both go to the server fields recipientName / forWho.
+    final headCtrl = TextEditingController();
+    final forCtrls = <String, TextEditingController>{
+      for (final k in _kit.keys) k: TextEditingController(),
+    };
+    final showSchoolFields = _isSchool && !SessionState.isChildSession;
     // BUGFIX (Aug 2026): sending/sent/err used to be declared INSIDE the
     // StatefulBuilder's builder callback below. That callback re-runs on
     // every setSt() rebuild, which re-declared all three as fresh
@@ -1032,7 +1039,8 @@ class _ShopState extends State<Shop>
               try {
                 String? token;
                 try { token = (await DatabaseHelper().getAuthToken())?.accessToken; } catch (_) {}
-                final items = _kit.values.map((m) => {
+                final items = _kit.entries.map((e) { final m = e.value; return {
+                  'forWho':        showSchoolFields ? (forCtrls[e.key]?.text.trim() ?? '') : '',
                   'name':          m['name'] ?? '',
                   'qty':           m['qty'],
                   'unit':          m['unit'] ?? 'piece',
@@ -1041,7 +1049,7 @@ class _ShopState extends State<Shop>
                   'amazonUrl':     m['amazonUrl'] ?? '',
                   'imageUrl':      m['imageUrl'] ?? '',
                   'priceEstimate': m['priceEstimate'],
-                }).toList();
+                }; }).toList();
                 final res = await http.post(
                   Uri.parse('$apiBaseUrl/shop/send-to-parent'),
                   headers: {
@@ -1056,6 +1064,7 @@ class _ShopState extends State<Shop>
                         .where((e) => e.contains('@'))
                         .toList(),
                     'childName':   'Your child',
+                    if (showSchoolFields && headCtrl.text.trim().isNotEmpty) 'recipientName': headCtrl.text.trim(),
                     'items':       items,
                     'cartUrl':     _buildCartUrl(),
                   }),
@@ -1089,7 +1098,9 @@ class _ShopState extends State<Shop>
               }
             }
 
-            return Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+            return ConstrainedBox(
+              constraints: BoxConstraints(maxHeight: MediaQuery.of(ctx2).size.height * 0.85),
+              child: SingleChildScrollView(child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
               Center(child: Container(width: 40, height: 4,
                   decoration: BoxDecoration(color: Colors.black12, borderRadius: BorderRadius.circular(2)))),
               const SizedBox(height: 16),
@@ -1140,6 +1151,25 @@ class _ShopState extends State<Shop>
                     errorText: err,
                   ),
                 ),
+                if (showSchoolFields) ...[
+                  const SizedBox(height: 10),
+                  Text('Purchase head name (optional)',
+                      style: GoogleFonts.nunito(fontSize: 13, fontWeight: FontWeight.w700, color: _ink)),
+                  const SizedBox(height: 6),
+                  TextField(
+                    controller: headCtrl,
+                    maxLength: 60,
+                    style: GoogleFonts.nunito(fontSize: 14),
+                    decoration: InputDecoration(
+                      hintText: 'e.g. Mr. Sharma (the email will say "Dear Mr. Sharma")',
+                      hintStyle: GoogleFonts.nunito(color: _muted, fontSize: 13),
+                      counterText: '',
+                      prefixIcon: const Icon(Icons.person_outline_rounded, color: _muted, size: 20),
+                      filled: true, fillColor: const Color(0xFFE3EEFF),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                    ),
+                  ),
+                ],
                 const SizedBox(height: 10),
                 Text(_isSchool ? 'Principal / approver email (optional)' : 'Also send to (optional)',
                     style: GoogleFonts.nunito(fontSize: 13, fontWeight: FontWeight.w700, color: _ink)),
@@ -1156,6 +1186,35 @@ class _ShopState extends State<Shop>
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
                   ),
                 ),
+                if (showSchoolFields && _kit.isNotEmpty) ...[
+                  const SizedBox(height: 14),
+                  Text('For (child, grade) per item (optional)',
+                      style: GoogleFonts.nunito(fontSize: 13, fontWeight: FontWeight.w700, color: _ink)),
+                  Text('Left empty, the email says STEAM LAB.',
+                      style: GoogleFonts.nunito(fontSize: 12, color: _muted)),
+                  const SizedBox(height: 6),
+                  for (final e in _kit.entries)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: Row(children: [
+                        Expanded(flex: 5, child: Text('${e.value['name'] ?? ''}',
+                            maxLines: 2, overflow: TextOverflow.ellipsis,
+                            style: GoogleFonts.nunito(fontSize: 12, fontWeight: FontWeight.w700, color: _ink))),
+                        const SizedBox(width: 8),
+                        Expanded(flex: 5, child: TextField(
+                          controller: forCtrls[e.key],
+                          maxLength: 40,
+                          style: GoogleFonts.nunito(fontSize: 13),
+                          decoration: InputDecoration(
+                            hintText: 'STEAM LAB', counterText: '', isDense: true,
+                            hintStyle: GoogleFonts.nunito(color: _muted, fontSize: 12),
+                            filled: true, fillColor: const Color(0xFFE3EEFF),
+                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
+                          ),
+                        )),
+                      ]),
+                    ),
+                ],
                 const SizedBox(height: 16),
                 SizedBox(width: double.infinity,
                   child: ElevatedButton.icon(
@@ -1172,7 +1231,7 @@ class _ShopState extends State<Shop>
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))),
                   )),
               ],
-            ]);
+            ])));
           }),
         ),
       ),
