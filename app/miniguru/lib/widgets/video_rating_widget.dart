@@ -7,7 +7,8 @@
 // Requires: http package (already in pubspec), shared_preferences for token
 
 import 'dart:convert';
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
+import 'package:miniguru/widgets/mgText.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';

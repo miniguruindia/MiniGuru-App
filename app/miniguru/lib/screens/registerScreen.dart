@@ -2,7 +2,9 @@ import 'package:miniguru/widgets/mgIcons.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/gestures.dart';
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
+import 'package:miniguru/widgets/mgText.dart';
+import 'package:miniguru/utils/i18n.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:http/http.dart' as http;
 import 'package:miniguru/constants.dart';
@@ -645,9 +647,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
               icon: Icons.cake_outlined,
               keyboardType: TextInputType.number,
               validator: (v) {
-                if (v == null || v.isEmpty) return 'Please enter age';
+                if (v == null || v.isEmpty) return tr('Please enter age');
                 final age = int.tryParse(v);
-                if (age == null || age < 5 || age > 18) return 'Age must be 5–18';
+                if (age == null || age < 5 || age > 18) return tr('Age must be 5–18');
                 return null;
               },
             ),
@@ -669,8 +671,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
               keyboardType: TextInputType.emailAddress,
               helperText: 'Used for password reset and notices. You can verify it later from Profile.',
               validator: (v) {
-                if (v == null || v.trim().isEmpty) return 'Guardian email is required';
-                if (!v.contains('@')) return 'Enter a valid email address';
+                if (v == null || v.trim().isEmpty) return tr('Guardian email is required');
+                if (!v.contains('@')) return tr('Enter a valid email address');
                 return null;
               },
             ),
@@ -701,8 +703,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
               icon: Icons.email_outlined,
               keyboardType: TextInputType.emailAddress,
               validator: (v) {
-                if (v == null || v.isEmpty) return 'Please enter your email';
-                if (!v.contains('@')) return 'Please enter a valid email';
+                if (v == null || v.isEmpty) return tr('Please enter your email');
+                if (!v.contains('@')) return tr('Please enter a valid email');
                 return null;
               },
             ),
@@ -713,8 +715,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
               icon: Icons.phone_outlined,
               keyboardType: TextInputType.phone,
               validator: (v) {
-                if (v == null || v.isEmpty) return 'Please enter your phone number';
-                if (v.length < 10) return 'Please enter a valid phone number';
+                if (v == null || v.isEmpty) return tr('Please enter your phone number');
+                if (v.length < 10) return tr('Please enter a valid phone number');
                 return null;
               },
             ),
@@ -748,8 +750,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
               onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
             ),
             validator: (v) {
-              if (v == null || v.isEmpty) return 'Please enter a password';
-              if (v.length < 6) return 'Password must be at least 6 characters';
+              if (v == null || v.isEmpty) return tr('Please enter a password');
+              if (v.length < 6) return tr('Password must be at least 6 characters');
               return null;
             },
           ),
@@ -765,8 +767,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
               onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
             ),
             validator: (v) {
-              if (v == null || v.isEmpty) return 'Please confirm your password';
-              if (v != _passwordCtrl.text) return 'Passwords do not match';
+              if (v == null || v.isEmpty) return tr('Please confirm your password');
+              if (v != _passwordCtrl.text) return tr('Passwords do not match');
               return null;
             },
           ),
@@ -1039,8 +1041,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
       validator: validator,
       style: GoogleFonts.nunito(fontSize: 14, fontWeight: FontWeight.w700),
       decoration: InputDecoration(
-        labelText: label,
-        helperText: helperText,
+        labelText: tr(label),
+        helperText: helperText == null ? null : tr(helperText),
         helperStyle: GoogleFonts.nunito(fontSize: 11, color: Colors.grey[700]),
         labelStyle: GoogleFonts.nunito(color: Colors.grey[700], fontSize: 13),
         prefixIcon: Icon(icon, color: mgFieldIconColor(icon), size: 20),

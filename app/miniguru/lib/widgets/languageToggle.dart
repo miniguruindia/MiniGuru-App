@@ -1,5 +1,6 @@
 // English | हिन्दी switch (Nov 2026), with a note that the Hindi is machine-translated and a way to suggest better words.
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
+import 'package:miniguru/widgets/mgText.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:miniguru/utils/i18n.dart';
 

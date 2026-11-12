@@ -2,7 +2,8 @@
 // Returns PNG bytes (640x480, white paper) or null if cancelled.
 import 'dart:typed_data';
 import 'dart:ui' as ui;
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
+import 'package:miniguru/widgets/mgText.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 Future<Uint8List?> showSketchPad(BuildContext context, {Uint8List? background}) {

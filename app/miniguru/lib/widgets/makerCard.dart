@@ -4,7 +4,8 @@
 // Shows only what the child chose to share in "About me" plus level and Goins.
 // Never school, city, age or contact details.
 
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
+import 'package:miniguru/widgets/mgText.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:miniguru/network/MiniguruApi.dart';
 

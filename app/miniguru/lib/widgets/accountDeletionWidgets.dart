@@ -4,7 +4,8 @@
 //    can only ASK; hidden while a parent views a child.
 //  - DeletionRequestsBanner: shown to parents and schools when a child in their list asked.
 // Nothing is deleted at once: after 7 days an admin reviews it.
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
+import 'package:miniguru/widgets/mgText.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:miniguru/network/MiniguruApi.dart';
 import 'package:miniguru/state/sessionState.dart';

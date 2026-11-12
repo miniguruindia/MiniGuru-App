@@ -2,7 +2,8 @@
 //  - SchoolJoinCard: shown on a learner's Profile. Lets an independent child ask a
 //    school to add them (school login ID), shows waiting / declined requests.
 //  - SchoolJoinBanner: shown on the school's learner list when requests are waiting.
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
+import 'package:miniguru/widgets/mgText.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:miniguru/network/MiniguruApi.dart';
 

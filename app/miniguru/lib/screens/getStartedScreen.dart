@@ -1,7 +1,8 @@
 // lib/screens/getStartedScreen.dart
 // MiniGuru Get Started / Onboarding — Updated April 2026
 
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
+import 'package:miniguru/widgets/mgText.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:miniguru/screens/loginScreen.dart';
 import 'package:miniguru/screens/registerScreen.dart';

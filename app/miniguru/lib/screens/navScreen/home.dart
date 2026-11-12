@@ -1,7 +1,9 @@
 // lib/screens/navScreen/home.dart
 import 'package:miniguru/utils/deepLink.dart';
 import 'dart:convert';
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
+import 'package:miniguru/widgets/mgText.dart';
+import 'package:miniguru/utils/i18n.dart';
 import 'package:miniguru/widgets/navShell.dart';
 import 'package:flutter/gestures.dart';
 import 'package:miniguru/models/User.dart';
@@ -1044,7 +1046,7 @@ class _HomeState extends State<Home> {
           });
         },
         decoration: InputDecoration(
-          hintText: 'Search projects, makers...',
+          hintText: tr('Search projects, makers...'),
           hintStyle: GoogleFonts.nunito(fontSize: 14, color: Colors.black38),
           prefixIcon: const Icon(Icons.search_rounded, color: GColors.blue, size: 22),
           suffixIcon: _searchController.text.isNotEmpty

@@ -1,6 +1,7 @@
 // lib/screens/navScreen/projects.dart
 import 'dart:math';
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
+import 'package:miniguru/widgets/mgText.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:miniguru/widgets/youtubeViewsChip.dart';
 import 'package:miniguru/network/MiniguruApi.dart';

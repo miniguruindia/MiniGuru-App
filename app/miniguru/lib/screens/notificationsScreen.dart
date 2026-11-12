@@ -4,7 +4,8 @@
 // like, message from the MiniGuru team ...), with the time and a "N new"
 // pill at the top. Opened from the bell on Home and from Profile.
 
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
+import 'package:miniguru/widgets/mgText.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:miniguru/network/MiniguruApi.dart';
 import 'package:miniguru/widgets/mgIcons.dart';

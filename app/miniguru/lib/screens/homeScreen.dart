@@ -1,5 +1,7 @@
 // lib/screens/homeScreen.dart
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
+import 'package:miniguru/widgets/mgText.dart';
+import 'package:miniguru/utils/i18n.dart';
 import 'package:miniguru/screens/navScreen/home.dart';
 import 'package:miniguru/screens/navScreen/library.dart';
 import 'package:miniguru/screens/navScreen/consultancy.dart';
@@ -308,7 +310,7 @@ class _HomeScreenState extends State<HomeScreen> {
     return BottomNavigationBarItem(
       icon: NavIcon(icon: outlined, color: color),
       activeIcon: NavIcon(icon: filled, color: color, selected: true),
-      label: label,
+      label: tr(label),
     );
   }
 
@@ -334,7 +336,7 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
       (!_isMentorView && !_isAuthenticated)
           ? BottomNavigationBarItem(
-              icon: _logoIcon(0.65), activeIcon: _logoIcon(1.0), label: 'About')
+              icon: _logoIcon(0.65), activeIcon: _logoIcon(1.0), label: tr('About'))
           : _tab(
               _isMentorView ? Icons.supervisor_account_rounded : Icons.face_rounded,
               _isMentorView ? Icons.supervisor_account_rounded : Icons.face_rounded,

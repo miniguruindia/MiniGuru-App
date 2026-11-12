@@ -1,7 +1,8 @@
 import 'package:miniguru/widgets/mgIcons.dart';
 import 'dart:convert';
 import 'package:flutter/gestures.dart';
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
+import 'package:miniguru/widgets/mgText.dart';
 import 'package:flutter/services.dart';
 import 'package:miniguru/constants.dart';
 import 'package:miniguru/database/database_helper.dart';

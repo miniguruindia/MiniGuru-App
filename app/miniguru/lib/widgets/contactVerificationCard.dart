@@ -13,7 +13,8 @@
 //     contact is unreachable. Verifying the CURRENT phone number works through
 //     the backend's phone provider (Firebase Phone Auth today).
 
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
+import 'package:miniguru/widgets/mgText.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'dart:convert';
 import '../network/MiniguruApi.dart';

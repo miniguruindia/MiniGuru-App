@@ -1,5 +1,6 @@
 import 'dart:async';
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
+import 'package:miniguru/widgets/mgText.dart';
 import 'package:miniguru/utils/deepLink.dart';
 import 'package:miniguru/constants.dart';
 import 'package:miniguru/database/database_helper.dart';

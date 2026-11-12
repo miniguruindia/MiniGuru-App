@@ -2,7 +2,8 @@
 // Search by words or by ID (MG-SSK-PK-0042 for ideas/projects, MG-V-8H2M for videos).
 import 'dart:async';
 import 'dart:convert';
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
+import 'package:miniguru/widgets/mgText.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:miniguru/network/MiniguruApi.dart';
 import 'package:miniguru/repository/draftsRepository.dart';

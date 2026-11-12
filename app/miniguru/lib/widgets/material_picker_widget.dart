@@ -3,7 +3,8 @@
 // Light theme — white background, clean cards, proper image sizing
 
 import 'dart:convert';
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
+import 'package:miniguru/widgets/mgText.dart';
 import 'package:http/http.dart' as http;
 import 'package:miniguru/secrets.dart';
 import 'package:google_fonts/google_fonts.dart';

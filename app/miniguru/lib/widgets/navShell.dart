@@ -9,7 +9,8 @@
 // listens for taps. Phones and tablets keep the normal bottom bar.
 
 import 'package:miniguru/utils/deepLink.dart';
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
+import 'package:miniguru/widgets/mgText.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:miniguru/widgets/mgIcons.dart';
 import 'package:miniguru/screens/navScreen/community_screen.dart' show CommunityScreen;

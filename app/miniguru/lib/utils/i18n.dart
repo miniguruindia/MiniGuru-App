@@ -8,11 +8,14 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:miniguru/secrets.dart';
 import 'package:miniguru/utils/hi_strings.dart';
+import 'package:miniguru/utils/hi_strings_signup_home.dart';
 
 class I18n {
   /// 'en' or 'hi'. A screen that shows translated words listens to this and rebuilds when it changes.
   static final ValueNotifier<String> lang = ValueNotifier<String>('en');
   static Map<String, String> _overrides = {};
+  // All built-in Hindi, one file per area of the app.
+  static final Map<String, String> _builtin = {...hiStrings, ...hiStringsSignupHome};
 
   static bool get isHindi => lang.value == 'hi';
 
@@ -50,7 +53,7 @@ class I18n {
     } catch (_) {}
   }
 
-  static String? hindiFor(String en) => _overrides[en] ?? hiStrings[en];
+  static String? hindiFor(String en) => _overrides[en] ?? _builtin[en];
 
   static String t(String en, [Map<String, String>? args]) {
     var out = en;
@@ -64,7 +67,7 @@ class I18n {
     final s = q.trim().toLowerCase();
     if (s.length < 2) return [];
     final out = <MapEntry<String, String>>[];
-    final keys = {...hiStrings.keys, ..._overrides.keys};
+    final keys = {..._builtin.keys, ..._overrides.keys};
     for (final k in keys) {
       final hi = hindiFor(k) ?? '';
       if (k.toLowerCase().contains(s) || hi.toLowerCase().contains(s)) out.add(MapEntry(k, hi));

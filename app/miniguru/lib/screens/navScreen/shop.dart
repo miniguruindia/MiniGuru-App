@@ -5,7 +5,8 @@
 // No CartRepository, no Razorpay, no real money — Amazon affiliate only (tag: miniguru04-21)
 
 import 'dart:convert';
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
+import 'package:miniguru/widgets/mgText.dart';
 import 'package:miniguru/utils/deepLink.dart';
 import 'package:miniguru/utils/materialsListPrint.dart';
 import 'package:google_fonts/google_fonts.dart';

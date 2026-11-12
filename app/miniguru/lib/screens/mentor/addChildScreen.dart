@@ -1,5 +1,6 @@
 import 'package:flutter/services.dart';
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
+import 'package:miniguru/widgets/mgText.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:miniguru/constants.dart';
 import 'package:miniguru/network/MiniguruApi.dart';

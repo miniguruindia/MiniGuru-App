@@ -1,7 +1,8 @@
 // lib/screens/navScreen/consultancy.dart
 // CMS-wired: header stats + tagline fetched from GET /cms/consultancy
 
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
+import 'package:miniguru/widgets/mgText.dart';
 import 'package:miniguru/utils/deepLink.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:url_launcher/url_launcher.dart';

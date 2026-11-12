@@ -3,7 +3,8 @@
 
 import 'dart:async';
 import 'dart:convert';
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
+import 'package:miniguru/widgets/mgText.dart';
 import 'package:youtube_player_iframe/youtube_player_iframe.dart';
 import 'package:miniguru/widgets/video_rating_widget.dart';
 import 'package:google_fonts/google_fonts.dart';
