@@ -3,8 +3,7 @@
 // Screens added so far: login, language switch.
 const Map<String, String> hiStrings = {
   // language switch and suggestions
-  'This Hindi is machine-translated and may have mistakes.': 'यह हिंदी अनुवाद मशीन से बना है, इसमें गलतियाँ हो सकती हैं।',
-  'Suggest a better word': 'बेहतर शब्द सुझाएँ',
+  'This Hindi is machine-translated and may have mistakes.': 'यह हिंदी, मशीन-अनुवाद है, इसमें गलतियाँ हो सकती हैं।',
   'Suggest a better Hindi word': 'बेहतर हिंदी शब्द सुझाएँ',
   'Type part of the word you want to fix': 'जिस शब्द को सुधारना है, उसका कोई हिस्सा लिखें',
   'No match found': 'कोई शब्द नहीं मिला',

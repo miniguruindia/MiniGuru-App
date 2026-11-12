@@ -30,17 +30,9 @@ class LanguageToggle extends StatelessWidget {
         if (lang == 'hi')
           Padding(
             padding: const EdgeInsets.only(top: 6),
-            child: Wrap(alignment: WrapAlignment.end, crossAxisAlignment: WrapCrossAlignment.center, children: [
-              Text(tr('This Hindi is machine-translated and may have mistakes.'),
-                  textAlign: TextAlign.right,
-                  style: GoogleFonts.poppins(fontSize: 11, color: Colors.grey[700])),
-              TextButton(
-                onPressed: () => showHindiSuggestDialog(context, screen),
-                style: TextButton.styleFrom(visualDensity: VisualDensity.compact, padding: const EdgeInsets.symmetric(horizontal: 6)),
-                child: Text(tr('Suggest a better word'),
-                    style: GoogleFonts.poppins(fontSize: 12, fontWeight: FontWeight.w700)),
-              ),
-            ]),
+            child: Text(tr('This Hindi is machine-translated and may have mistakes.'),
+                textAlign: TextAlign.right,
+                style: GoogleFonts.poppins(fontSize: 11, color: Colors.grey[700])),
           ),
       ]),
     );

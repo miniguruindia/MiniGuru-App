@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:miniguru/screens/legalScreen.dart';
+import 'package:miniguru/widgets/languageToggle.dart';
 import 'package:miniguru/screens/navScreen/consultancy.dart';
 import 'package:miniguru/network/MiniguruApi.dart';
 
@@ -1392,6 +1393,26 @@ class _FooterSection extends StatelessWidget {
             _FLink(context, 'Terms & Conditions', legalTab: 1),
             _FLink(context, 'Cookie Policy', legalTab: 2),
             _FLink(context, 'Help & FAQ', legalTab: 3),
+          ],
+        ),
+        const SizedBox(height: 16),
+        // Hindi disclaimer (Nov 2026): the Hindi in the app is machine-translated; anyone can suggest a better word.
+        Wrap(
+          alignment: WrapAlignment.center,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          spacing: 6, runSpacing: 4,
+          children: [
+            Text(
+              'Hindi in this app is machine-translated and may have mistakes.',
+              style: _b(12, Colors.white.withOpacity(0.55)),
+            ),
+            GestureDetector(
+              onTap: () => showHindiSuggestDialog(context, 'about'),
+              child: Text(
+                'Suggest a better Hindi word',
+                style: _b(12, Colors.white.withOpacity(0.8), w: FontWeight.w700),
+              ),
+            ),
           ],
         ),
         const SizedBox(height: 20),

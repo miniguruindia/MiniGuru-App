@@ -22,7 +22,8 @@ import {
   Gauge,
   Download,
   Activity,
-  Lightbulb
+  Lightbulb,
+  Languages
 } from 'lucide-react'
 import Image from 'next/image'
 
@@ -59,6 +60,12 @@ export function AdminLayout({ children }: AdminLayoutProps) {
       href: '/ideas',
       icon: Lightbulb,
       current: pathname.startsWith('/ideas')
+    },
+    { 
+      name: 'Hindi words',
+      href: '/translations',
+      icon: Languages,
+      current: pathname.startsWith('/translations')
     },
     { 
       name: 'Cost & Quotas',
