@@ -32,7 +32,7 @@ class ProjectService {
         const { title, description, startDate, endDate, materials, categoryName, thumbnailPath, videoUrl, collaborators, challengeId, 
         // AI first-pass video review result (optional — undefined when the
         // review was never run, e.g. GEMINI_API_KEY not configured).
-        aiVerdict, aiReason, aiConfidence, aiReviewedAt, desiredPrivacyStatus, planId, planSketch, difficulty, hoursTaken, wentWrong, 
+        aiVerdict, aiReason, aiConfidence, aiReviewedAt, desiredPrivacyStatus, planId, planSketch, feeling, hoursTaken, wentWrong, 
         // YouTube's own reported status (Sept 2026) — a best-effort snapshot
         // taken right after upload in createProject. See checkVideoStatus()
         // in youtubeUploadService.js. Undefined when the check itself failed
@@ -65,7 +65,7 @@ class ProjectService {
                 desiredPrivacyStatus: ["PUBLIC", "UNLISTED", "PRIVATE"].includes(desiredPrivacyStatus) ? desiredPrivacyStatus : "PUBLIC",
                 ...(planId ? { planId, planCreatedAt: (await prismaClient_1.default.planSheet.findFirst({ where: { code: planId }, select: { createdAt: true } }).catch(() => null))?.createdAt ?? undefined } : {}),
                 ...(planSketch ? { planSketch } : {}),
-                ...(difficulty || hoursTaken || wentWrong ? { difficulty, hoursTaken, wentWrong } : {}),
+                ...(feeling || hoursTaken || wentWrong ? { feeling, hoursTaken, wentWrong } : {}),
                 ...{ videoCode: await (0, videoCode_1.newVideoCode)() },
                 youtubeUploadStatus: youtubeUploadStatus ?? undefined,
                 youtubeStatusReason: youtubeStatusReason ?? undefined,

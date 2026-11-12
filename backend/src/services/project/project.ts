@@ -52,7 +52,7 @@ class ProjectService {
       desiredPrivacyStatus,
       planId,
       planSketch,
-      difficulty,
+      feeling,
       hoursTaken,
       wentWrong,
       // YouTube's own reported status (Sept 2026) — a best-effort snapshot
@@ -93,7 +93,7 @@ class ProjectService {
         desiredPrivacyStatus: ["PUBLIC", "UNLISTED", "PRIVATE"].includes(desiredPrivacyStatus) ? desiredPrivacyStatus : "PUBLIC",
         ...(planId ? ({ planId, planCreatedAt: (await (prisma as any).planSheet.findFirst({ where: { code: planId }, select: { createdAt: true } }).catch(() => null))?.createdAt ?? undefined } as any) : {}),
         ...(planSketch ? ({ planSketch } as any) : {}),
-        ...(difficulty || hoursTaken || wentWrong ? ({ difficulty, hoursTaken, wentWrong } as any) : {}),
+        ...(feeling || hoursTaken || wentWrong ? ({ feeling, hoursTaken, wentWrong } as any) : {}),
         ...({ videoCode: await newVideoCode() } as any),
         youtubeUploadStatus: youtubeUploadStatus ?? undefined,
         youtubeStatusReason: youtubeStatusReason ?? undefined,

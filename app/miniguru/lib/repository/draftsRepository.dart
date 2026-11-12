@@ -205,7 +205,7 @@ class DraftRepository {
       'desiredPrivacyStatus': project['desiredPrivacyStatus'] ?? 'PUBLIC',
       if (project['planId'] != null) 'planId': project['planId'],
       if (project['planSketch'] != null) 'planSketch': project['planSketch'],
-      if (project['difficulty'] != null) 'difficulty': project['difficulty'],
+      if (project['feeling'] != null) 'feeling': project['feeling'],
       if (project['hoursTaken'] != null) 'hoursTaken': project['hoursTaken'],
       if (project['wentWrong'] != null) 'wentWrong': project['wentWrong'],
     };

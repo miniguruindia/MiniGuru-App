@@ -267,7 +267,7 @@ class _AddDraftScreenState extends State<AddDraftScreen>
   String? _selectedChallengeId;
   String _desiredPrivacyStatus = 'PUBLIC'; // 'PUBLIC' | 'UNLISTED' | 'PRIVATE'
   // Optional "how it went" answers (Nov 2026). All three can be left empty.
-  String? _difficulty; // 'EASY' | 'MEDIUM' | 'HARD'
+  String? _feeling; // 'LOVED' | 'LIKED' | 'OKAY' | 'HARD' | 'JUST_FINISHED'
   final TextEditingController _hoursCtrl = TextEditingController();
   final TextEditingController _wentWrongCtrl = TextEditingController();
   bool _collabSearching = false;
@@ -616,7 +616,7 @@ class _AddDraftScreenState extends State<AddDraftScreen>
         'collaboratorIds': _collaborators.map((c) => c['id']!).toList(),
         if (_selectedChallengeId != null) 'challengeId': _selectedChallengeId,
         'desiredPrivacyStatus': _desiredPrivacyStatus,
-        if (_difficulty != null) 'difficulty': _difficulty,
+        if (_feeling != null) 'feeling': _feeling,
         if ((int.tryParse(_hoursCtrl.text.trim()) ?? 0) >= 1) 'hoursTaken': int.parse(_hoursCtrl.text.trim()).clamp(1, 500),
         if (_wentWrongCtrl.text.trim().isNotEmpty) 'wentWrong': _wentWrongCtrl.text.trim(),
       };
@@ -881,16 +881,6 @@ class _AddDraftScreenState extends State<AddDraftScreen>
                               title: 'Sketch (optional)',
                               child: _buildSketch()),
                           const SizedBox(height: 12),
-                          _section(
-                              emoji: '📅',
-                              title: 'Timeline',
-                              child: _buildTimeline()),
-                          const SizedBox(height: 12),
-                          _section(
-                              emoji: '🎬',
-                              title: 'Media',
-                              child: _buildMedia()),
-                          const SizedBox(height: 12),
                           _buildMaterials(),
                           const SizedBox(height: 12),
                           _buildCollaborators(),
@@ -898,6 +888,30 @@ class _AddDraftScreenState extends State<AddDraftScreen>
                             const SizedBox(height: 12),
                             _buildChallengePicker(),
                           ],
+                          const SizedBox(height: 20),
+                          // Part 2 (Nov 2026): these come after the project is finished and filmed.
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFEAF3FF),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: _cardBorder),
+                            ),
+                            child: Text(
+                              '🎬 Finished making it? Add your video and tell us how it went.',
+                              style: GoogleFonts.nunito(color: _ink, fontWeight: FontWeight.w900, fontSize: 14),
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          _section(
+                              emoji: '🎬',
+                              title: 'Media',
+                              child: _buildMedia()),
+                          const SizedBox(height: 12),
+                          _section(
+                              emoji: '📅',
+                              title: 'Timeline',
+                              child: _buildTimeline()),
                           const SizedBox(height: 12),
                           _buildHowItWentCard(),
                           const SizedBox(height: 12),
@@ -1339,21 +1353,27 @@ class _AddDraftScreenState extends State<AddDraftScreen>
               style: GoogleFonts.nunito(color: _ink, fontWeight: FontWeight.w900, fontSize: 14))),
         ]),
         const SizedBox(height: 4),
-        Text('Skip any of these. Your answers help other children plan their own projects.',
+        Text('Skip any of these. Your answers may be shown with your video and help other children plan their own projects.',
             style: GoogleFonts.nunito(color: Colors.black54, fontSize: 12)),
         const SizedBox(height: 12),
-        Text('How hard was it?', style: GoogleFonts.nunito(color: _ink, fontWeight: FontWeight.w800, fontSize: 13)),
+        Text('How did you feel making it?', style: GoogleFonts.nunito(color: _ink, fontWeight: FontWeight.w800, fontSize: 13)),
         const SizedBox(height: 6),
-        Wrap(spacing: 8, children: [
-          for (final o in const [['EASY', 'Easy'], ['MEDIUM', 'Medium'], ['HARD', 'Hard']])
+        Wrap(spacing: 8, runSpacing: 0, children: [
+          for (final o in const [
+            ['LOVED', '😍 Loved it'],
+            ['LIKED', '😊 Liked working on it'],
+            ['OKAY', '🙂 It was okay'],
+            ['HARD', '😓 It was hard work'],
+            ['JUST_FINISHED', '🏁 Just finished it'],
+          ])
             ChoiceChip(
               label: Text(o[1], style: GoogleFonts.nunito(fontWeight: FontWeight.w800, fontSize: 13)),
-              selected: _difficulty == o[0],
-              onSelected: (v) => setState(() => _difficulty = v ? o[0] : null),
+              selected: _feeling == o[0],
+              onSelected: (v) => setState(() => _feeling = v ? o[0] : null),
             ),
         ]),
         const SizedBox(height: 12),
-        Text('About how many hours of making?', style: GoogleFonts.nunito(color: _ink, fontWeight: FontWeight.w800, fontSize: 13)),
+        Text('About how many hours did the making take?', style: GoogleFonts.nunito(color: _ink, fontWeight: FontWeight.w800, fontSize: 13)),
         const SizedBox(height: 6),
         TextField(
           controller: _hoursCtrl,
