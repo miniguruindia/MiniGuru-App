@@ -46,6 +46,8 @@ projectRouter.get('/search-collaborators', authMiddleware_1.authenticateToken, p
 // logged-out visitor could already see embedded from YouTube anyway.
 // MUST be registered before get('/:id') below (Rule 28).
 projectRouter.get('/feed', projectController_1.getPublishedVideoFeed);
+// Public numbers: share of projects inspired by another child's idea or project. Before get('/:id') (Rule 28).
+projectRouter.get('/inspiration-stats', projectController_1.getInspirationStats);
 // Update a project — resolveSubject added (Sept 2026): without it, a
 // mentor inside a child's PIN session editing a project would attribute
 // the edit's ownership check to the MENTOR's own id, not the child's real

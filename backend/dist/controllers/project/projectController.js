@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.searchCollaborators = exports.findCollaborator = exports.deleteProjectByID = exports.getPublishedVideoFeed = exports.getAllProjects = exports.getAllProjectsForUser = exports.getProjectById = exports.adminUpdateProject = exports.updateProject = exports.requestUploadUrl = exports.createProject = void 0;
+exports.getInspirationStats = exports.searchCollaborators = exports.findCollaborator = exports.deleteProjectByID = exports.getPublishedVideoFeed = exports.getAllProjects = exports.getAllProjectsForUser = exports.getProjectById = exports.adminUpdateProject = exports.updateProject = exports.requestUploadUrl = exports.createProject = void 0;
 const fs_1 = __importDefault(require("fs"));
 const prismaClient_1 = __importDefault(require("../../utils/prismaClient"));
 const project_1 = __importDefault(require("../../services/project/project"));
@@ -13,6 +13,7 @@ const aiVideoReviewService_1 = require("../../services/aiVideoReviewService");
 const videoApprovalController_1 = require("../admin/videoApprovalController");
 const notificationService_1 = require("../../services/notificationService");
 const youtubeDescriptionService_1 = require("../../services/youtubeDescriptionService");
+const inspirationService_1 = require("../../services/inspirationService");
 const firebaseStorageService_1 = require("../../services/firebaseStorageService");
 // ✅ Import YouTube upload service (optional)
 let uploadToYouTube = null;
@@ -296,6 +297,7 @@ const createProject = async (req, res) => {
             desiredPrivacyStatus: ['PUBLIC', 'UNLISTED', 'PRIVATE'].includes(desiredPrivacyStatus) ? desiredPrivacyStatus : 'PUBLIC',
             planSketch: typeof planSketch === 'string' && planSketch.length < 600000 && /^[A-Za-z0-9+/=]+$/.test(planSketch) ? planSketch : undefined,
             ...howItWent,
+            ...(await (0, inspirationService_1.findInspiration)(description, ownerUserId)),
             planId: typeof planId === 'string' && /^MG-[A-Z]{1,6}-[A-Z]{1,3}-\d{4,}$/.test(planId) ? planId : undefined,
             youtubeUploadStatus: ytStatus.uploadStatus,
             youtubeStatusReason: ytStatus.statusReason,
@@ -1099,3 +1101,14 @@ const searchCollaborators = async (req, res) => {
     }
 };
 exports.searchCollaborators = searchCollaborators;
+// Public: how many published projects, and what share was inspired by another child's idea or project.
+const getInspirationStats = async (_req, res) => {
+    try {
+        return res.json(await (0, inspirationService_1.inspirationStats)());
+    }
+    catch (e) {
+        logger_1.default.warn({ e: e?.message }, "inspiration stats failed");
+        return res.json({ total: 0, inspired: 0, percent: 0 });
+    }
+};
+exports.getInspirationStats = getInspirationStats;

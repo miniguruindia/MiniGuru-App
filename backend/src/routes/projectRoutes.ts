@@ -1,5 +1,5 @@
 import express from 'express';
-import { createProject, updateProject, getProjectById, getAllProjectsForUser , getAllProjects, findCollaborator, searchCollaborators, getPublishedVideoFeed, requestUploadUrl} from '../controllers/project/projectController';
+import { createProject, updateProject, getProjectById, getAllProjectsForUser , getAllProjects, findCollaborator, searchCollaborators, getPublishedVideoFeed, getInspirationStats, requestUploadUrl} from '../controllers/project/projectController';
 import { getProjectsByCategory, getAllProjectCategories, createProjectCategory, updateProjectCategory, deleteProjectCategory } from '../controllers/project/categoryController';
 import { authenticateToken } from '../middleware/authMiddleware';
 import { resolveSubject } from '../middleware/resolveSubject';
@@ -50,6 +50,8 @@ projectRouter.get('/search-collaborators', authenticateToken, searchCollaborator
 // logged-out visitor could already see embedded from YouTube anyway.
 // MUST be registered before get('/:id') below (Rule 28).
 projectRouter.get('/feed', getPublishedVideoFeed);
+// Public numbers: share of projects inspired by another child's idea or project. Before get('/:id') (Rule 28).
+projectRouter.get('/inspiration-stats', getInspirationStats);
 
 
 // Update a project — resolveSubject added (Sept 2026): without it, a

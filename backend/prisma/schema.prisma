@@ -374,6 +374,10 @@ model Project {
   feeling     String?   // LOVED | LIKED | OKAY | HARD | JUST_FINISHED (how the child felt making it)
   hoursTaken  Int?      // about how many hours of real making (1-500)
   wentWrong   String?   // what went wrong / what I learned, up to 300 characters, checked for personal details
+  // Set automatically at upload when the plan says "Inspired by <name>'s idea MG-..." (another child's idea or project).
+  inspiredByCode   String?  // the planning-sheet ID it came from
+  inspiredByKind   String?  // IDEA | PROJECT
+  inspiredByUserId String?  @db.ObjectId // whose it was (never the same child)
   // What the uploader chose at upload time — one of YouTube's own three
   // real privacy states, per YouTube API Services' RMF:
   //   "PUBLIC"   (default) — may become public once it passes review

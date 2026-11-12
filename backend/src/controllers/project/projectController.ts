@@ -8,6 +8,7 @@ import { reviewVideoFile } from "../../services/aiVideoReviewService";
 import { extractYouTubeId } from "../admin/videoApprovalController";
 import { notifyAllAdmins } from "../../services/notificationService";
 import { buildYoutubeDescription, youtubeTagsFor, cleanHowItWent } from "../../services/youtubeDescriptionService";
+import { findInspiration, inspirationStats } from "../../services/inspirationService";
 import { generateUploadUrl, downloadToTempFile, deleteFromStorage, publicUrlFor } from "../../services/firebaseStorageService";
 
 // ✅ Import YouTube upload service (optional)
@@ -309,6 +310,7 @@ export const createProject = async (req: Request, res: Response) => {
       desiredPrivacyStatus: ['PUBLIC', 'UNLISTED', 'PRIVATE'].includes(desiredPrivacyStatus) ? desiredPrivacyStatus : 'PUBLIC',
       planSketch: typeof planSketch === 'string' && planSketch.length < 600000 && /^[A-Za-z0-9+/=]+$/.test(planSketch) ? planSketch : undefined,
       ...howItWent,
+      ...(await findInspiration(description, ownerUserId)),
       planId: typeof planId === 'string' && /^MG-[A-Z]{1,6}-[A-Z]{1,3}-\d{4,}$/.test(planId) ? planId : undefined,
       youtubeUploadStatus: ytStatus.uploadStatus,
       youtubeStatusReason: ytStatus.statusReason,
@@ -1174,5 +1176,15 @@ export const searchCollaborators = async (req: Request, res: Response) => {
     });
   } catch (error) {
     return res.status(500).json({ error: (error as Error).message });
+  }
+};
+
+// Public: how many published projects, and what share was inspired by another child's idea or project.
+export const getInspirationStats = async (_req: Request, res: Response) => {
+  try {
+    return res.json(await inspirationStats());
+  } catch (e: any) {
+    logger.warn({ e: e?.message }, "inspiration stats failed");
+    return res.json({ total: 0, inspired: 0, percent: 0 });
   }
 };
