@@ -38,6 +38,7 @@ import youtubeViewsRouter from './routes/youtubeViewsRoutes';
 import planIdRouter from './routes/planIdRoutes';
 import ideaRouter from './routes/ideaRoutes';
 import adminIdeaRouter from './routes/adminIdeaRoutes';
+import { i18nRouter, adminI18nRouter } from './routes/i18nRoutes';
 import adminActivityRouter from './routes/adminActivityRoutes';
 import accountMergeRouter from './routes/accountMergeRoutes';
 import adminAccountTypeRouter from './routes/adminAccountTypeRoutes';
@@ -318,6 +319,8 @@ try {
   app.use('/admin', accountMergeRouter);   // admin-only: merge duplicate child accounts
   app.use('/admin', adminAccountTypeRouter);   // admin-only: change account type (individual/parent/school/T-LAB)
   app.use('/admin', adminIdeaRouter);   // admin-only: Ideas list (hide / show)
+  app.use('/i18n', i18nRouter);   // Hindi words: approved overrides + suggestions
+  app.use('/admin', adminI18nRouter);   // admin-only: approve / reject suggested Hindi words
   app.use('/admin', adminActivityRouter);   // admin-only: Activity page (active users, funnel, sources, shares)
   app.use('/admin', adminDeleteUserRouter);   // admin-only: safe delete (students stay, optional keep-content)
   app.use(communitySubmissionsRouter);   // ← NEW: serves /happenings, /admin/happenings, /challenges, /admin/challenges

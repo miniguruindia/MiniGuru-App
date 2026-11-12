@@ -1096,3 +1096,26 @@ model AccountDeletionRequest {
   @@index([status])
   @@map("account_deletion_requests")
 }
+
+// Hindi words (Nov 2026). The app has built-in machine-translated Hindi; approved suggestions override it.
+model Translation {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  key       String   // the English text exactly as it appears in the app
+  hi        String   // approved Hindi
+  updatedAt DateTime @updatedAt
+
+  @@map("translations")
+}
+
+// Someone (teacher, parent, child) suggested a better Hindi word. Nothing goes live until an admin approves it.
+model TranslationSuggestion {
+  id         String   @id @default(auto()) @map("_id") @db.ObjectId
+  key        String
+  suggestion String
+  screen     String?
+  userId     String?  @db.ObjectId
+  status     String   @default("pending") // pending | approved | rejected
+  createdAt  DateTime @default(now())
+
+  @@map("translation_suggestions")
+}

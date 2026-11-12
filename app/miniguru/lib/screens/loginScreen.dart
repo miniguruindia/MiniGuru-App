@@ -9,6 +9,8 @@ import 'package:miniguru/network/MiniguruApi.dart';
 import 'package:miniguru/screens/homeScreen.dart';
 import 'package:miniguru/screens/registerScreen.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:miniguru/utils/i18n.dart';
+import 'package:miniguru/widgets/languageToggle.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -53,7 +55,7 @@ class _LoginScreenState extends State<LoginScreen> {
       final isConnected = await _api.checkConnection();
       if (!isConnected) {
         if (mounted) {
-          _showSnackBar('Cannot connect to server. Please check backend.', Colors.red);
+          _showSnackBar(tr('Cannot connect to server. Please check backend.'), Colors.red);
           setState(() => _isLoading = false);
         }
         return;
@@ -85,7 +87,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
         if (!mounted) return;
 
-        _showSnackBar("Login successful! Welcome back. 🎉", Colors.green);
+        _showSnackBar(tr("Login successful! Welcome back. 🎉"), Colors.green);
         await Future.delayed(const Duration(milliseconds: 500));
 
         if (!mounted) return;
@@ -109,10 +111,10 @@ class _LoginScreenState extends State<LoginScreen> {
           );
         } else {
           print('❌ [LoginScreen] ERROR: getUserData returned null!');
-          _showSnackBar('Failed to load user data. Please try again.', Colors.red);
+          _showSnackBar(tr('Failed to load user data. Please try again.'), Colors.red);
         }
       } else {
-        String errorMessage = 'Login failed';
+        String errorMessage = tr('Login failed');
         try {
           final errorBody = jsonDecode(response.body);
           errorMessage = errorBody['message'] ?? errorBody['error'] ?? errorMessage;
@@ -120,19 +122,19 @@ class _LoginScreenState extends State<LoginScreen> {
           // ignore parse error
         }
         if (response.statusCode == 401) {
-          errorMessage = 'Invalid email or password';
+          errorMessage = tr('Invalid email or password');
         } else if (response.statusCode == 404) {
-          errorMessage = 'Account not found. Please sign up first.';
+          errorMessage = tr('Account not found. Please sign up first.');
         }
         if (mounted) _showSnackBar(errorMessage, Colors.red);
       }
     } catch (e) {
       if (mounted) {
-        String errorMsg = "Connection error.";
+        String errorMsg = tr("Connection error.");
         if (e.toString().contains('SocketException')) {
-          errorMsg = "Cannot reach server. Is backend running?";
+          errorMsg = tr("Cannot reach server. Is backend running?");
         } else if (e.toString().contains('TimeoutException')) {
-          errorMsg = "Request timed out.";
+          errorMsg = tr("Request timed out.");
         }
         _showSnackBar(errorMsg, Colors.red);
       }
@@ -155,7 +157,7 @@ class _LoginScreenState extends State<LoginScreen> {
             children: [
               const Icon(Icons.lock_reset, color: pastelBlueText),
               const SizedBox(width: 8),
-              Text('Reset Password',
+              Text(tr('Reset Password'),
                   style: GoogleFonts.poppins(
                       fontSize: 20, fontWeight: FontWeight.w700)),
             ],
@@ -166,7 +168,7 @@ class _LoginScreenState extends State<LoginScreen> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Enter your email or MiniGuru ID to reset your password.',
+                Text(tr('Enter your email or MiniGuru ID to reset your password.'),
                     style: GoogleFonts.poppins(
                         fontSize: 13, color: Colors.grey[700])),
                 const SizedBox(height: 20),
@@ -175,7 +177,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   keyboardType: TextInputType.text,
                   style: GoogleFonts.poppins(fontSize: 14),
                   decoration: InputDecoration(
-                    labelText: 'Email or MiniGuru ID',
+                    labelText: tr('Email or MiniGuru ID'),
                     labelStyle:
                         GoogleFonts.poppins(color: Colors.grey[700]),
                     prefixIcon:
@@ -190,9 +192,9 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   validator: (value) {
                     if (value == null || value.isEmpty)
-                      return 'Please enter your email';
+                      return tr('Please enter your email');
                     if (!value.contains('@'))
-                      return 'Please enter a valid email';
+                      return tr('Please enter a valid email');
                     return null;
                   },
                 ),
@@ -203,7 +205,7 @@ class _LoginScreenState extends State<LoginScreen> {
             TextButton(
               onPressed:
                   isSending ? null : () => Navigator.of(dialogContext).pop(),
-              child: Text('Cancel',
+              child: Text(tr('Cancel'),
                   style: GoogleFonts.poppins(color: Colors.grey[700])),
             ),
             ElevatedButton(
@@ -226,22 +228,22 @@ class _LoginScreenState extends State<LoginScreen> {
                             } else {
                               _showSnackBar(
                                   body['maskedEmail'] != null
-                                      ? 'Reset link sent to ${body['maskedEmail']}'
-                                      : 'Password reset instructions sent!',
+                                      ? tr('Reset link sent to {mail}', {'mail': '${body['maskedEmail']}'})
+                                      : tr('Password reset instructions sent!'),
                                   Colors.green);
                             }
                           } else {
                             final errorBody = jsonDecode(response.body);
                             _showSnackBar(
                                 errorBody['error'] ??
-                                    'Failed to send reset request',
+                                    tr('Failed to send reset request'),
                                 Colors.orange);
                           }
                         } catch (e) {
                           if (dialogContext.mounted)
                             Navigator.of(dialogContext).pop();
                           _showSnackBar(
-                              'Error sending reset request.', Colors.red);
+                              tr('Error sending reset request.'), Colors.red);
                         }
                       }
                     },
@@ -256,7 +258,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       height: 16,
                       child: CircularProgressIndicator(
                           color: Colors.white, strokeWidth: 2))
-                  : Text('Reset Password',
+                  : Text(tr('Reset Password'),
                       style: GoogleFonts.poppins(color: Colors.white)),
             ),
           ],
@@ -278,7 +280,7 @@ class _LoginScreenState extends State<LoginScreen> {
           children: [
             const Icon(Icons.check_circle, color: Colors.green, size: 28),
             const SizedBox(width: 8),
-            Text('Password Reset',
+            Text(tr('Password Reset'),
                 style: GoogleFonts.poppins(
                     fontSize: 20, fontWeight: FontWeight.w700)),
           ],
@@ -287,7 +289,7 @@ class _LoginScreenState extends State<LoginScreen> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Your password has been reset!',
+            Text(tr('Your password has been reset!'),
                 style: GoogleFonts.poppins(
                     fontSize: 14, fontWeight: FontWeight.w600)),
             const SizedBox(height: 16),
@@ -301,7 +303,7 @@ class _LoginScreenState extends State<LoginScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Email:',
+                  Text(tr('Email:'),
                       style: GoogleFonts.poppins(
                           fontSize: 12, color: Colors.grey[700])),
                   const SizedBox(height: 4),
@@ -309,7 +311,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       style: GoogleFonts.poppins(
                           fontSize: 14, fontWeight: FontWeight.w700)),
                   const SizedBox(height: 12),
-                  Text('Temporary Password:',
+                  Text(tr('Temporary Password:'),
                       style: GoogleFonts.poppins(
                           fontSize: 12, color: Colors.grey[700])),
                   const SizedBox(height: 8),
@@ -342,7 +344,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           Clipboard.setData(
                               ClipboardData(text: tempPassword));
                           _showSnackBar(
-                              'Password copied! 📋', Colors.green);
+                              tr('Password copied! 📋'), Colors.green);
                         },
                       ),
                     ],
@@ -365,7 +367,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   const SizedBox(width: 12),
                   Expanded(
                     child: Text(
-                      'Please change this password after logging in!',
+                      tr('Please change this password after logging in!'),
                       style: GoogleFonts.poppins(
                           fontSize: 12,
                           color: Colors.orange.shade900,
@@ -384,11 +386,11 @@ class _LoginScreenState extends State<LoginScreen> {
               _emailController.text = email;
               _passwordController.text = tempPassword;
               _showSnackBar(
-                  'Login details filled! Click Login to continue.',
+                  tr('Login details filled! Click Login to continue.'),
                   Colors.blue);
             },
             icon: const Icon(Icons.login, color: Colors.white),
-            label: Text('Login Now',
+            label: Text(tr('Login Now'),
                 style: GoogleFonts.poppins(
                     color: Colors.white, fontWeight: FontWeight.w700)),
             style: ElevatedButton.styleFrom(
@@ -419,7 +421,12 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => ValueListenableBuilder<String>(
+        valueListenable: I18n.lang,
+        builder: (c, _, __) => _buildBody(c),
+      );
+
+  Widget _buildBody(BuildContext context) {
     return Scaffold(
       backgroundColor: backgroundWhite,
       body: SafeArea(
@@ -444,6 +451,8 @@ class _LoginScreenState extends State<LoginScreen> {
                         onPressed: () => Navigator.of(context).pop(),
                       ),
                     ),
+                  const Align(alignment: Alignment.centerRight, child: LanguageToggle(screen: 'login')),
+                  const SizedBox(height: 8),
                   Hero(
                     tag: 'app_logo',
                     child: Container(
@@ -477,29 +486,29 @@ class _LoginScreenState extends State<LoginScreen> {
                     color: const Color(0xFF0E9A3F),
                   ),
                 ),
-                Text('Welcome Back!',
+                Text(tr('Welcome Back!'),
                       style: GoogleFonts.poppins(
                           fontSize: 28,
                           fontWeight: FontWeight.bold,
                           color: Colors.black87)),
                   const SizedBox(height: 8),
-                  Text('Login to continue your journey',
+                  Text(tr('Login to continue your journey'),
                       style: GoogleFonts.poppins(
                           fontSize: 14, color: Colors.grey[700])),
                   const SizedBox(height: 40),
 
                   _buildTextField(
                     controller: _emailController,
-                    label: 'Email',
+                    label: tr('Email'),
                     icon: Icons.email_outlined,
                     keyboardType: TextInputType.emailAddress,
                     textInputAction: TextInputAction.next,
                     onFieldSubmitted: (_) => _passwordFocusNode.requestFocus(),
                     validator: (value) {
                       if (value == null || value.isEmpty)
-                        return 'Please enter your email';
+                        return tr('Please enter your email');
                       if (!value.contains('@'))
-                        return 'Please enter a valid email';
+                        return tr('Please enter a valid email');
                       return null;
                     },
                   ),
@@ -508,7 +517,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   _buildTextField(
                     controller: _passwordController,
                     focusNode: _passwordFocusNode,
-                    label: 'Password',
+                    label: tr('Password'),
                     icon: Icons.lock_outline,
                     obscureText: _obscurePassword,
                     textInputAction: TextInputAction.done,
@@ -524,9 +533,9 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                     validator: (value) {
                       if (value == null || value.isEmpty)
-                        return 'Please enter your password';
+                        return tr('Please enter your password');
                       if (value.length < 6)
-                        return 'Password must be at least 6 characters';
+                        return tr('Password must be at least 6 characters');
                       return null;
                     },
                   ),
@@ -536,7 +545,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     alignment: Alignment.centerRight,
                     child: TextButton(
                       onPressed: _showPasswordResetDialog,
-                      child: Text('Forgot Password?',
+                      child: Text(tr('Forgot Password?'),
                           style: GoogleFonts.poppins(
                               fontSize: 13,
                               color: pastelBlueText,
@@ -563,7 +572,7 @@ class _LoginScreenState extends State<LoginScreen> {
                               height: 24,
                               child: CircularProgressIndicator(
                                   color: Colors.white, strokeWidth: 2))
-                          : Text('Login',
+                          : Text(tr('Login'),
                               style: GoogleFonts.poppins(
                                   fontSize: 16,
                                   fontWeight: FontWeight.w700)),
@@ -573,12 +582,12 @@ class _LoginScreenState extends State<LoginScreen> {
 
                   RichText(
                     text: TextSpan(
-                      text: "Don't have an account? ",
+                      text: tr("Don't have an account? "),
                       style: GoogleFonts.poppins(
                           fontSize: 14, color: Colors.grey[700]),
                       children: [
                         TextSpan(
-                          text: 'Sign Up',
+                          text: tr('Sign Up'),
                           style: GoogleFonts.poppins(
                               fontSize: 14,
                               color: pastelBlueText,

@@ -41,6 +41,7 @@ const youtubeViewsRoutes_1 = __importDefault(require("./routes/youtubeViewsRoute
 const planIdRoutes_1 = __importDefault(require("./routes/planIdRoutes"));
 const ideaRoutes_1 = __importDefault(require("./routes/ideaRoutes"));
 const adminIdeaRoutes_1 = __importDefault(require("./routes/adminIdeaRoutes"));
+const i18nRoutes_1 = require("./routes/i18nRoutes");
 const adminActivityRoutes_1 = __importDefault(require("./routes/adminActivityRoutes"));
 const accountMergeRoutes_1 = __importDefault(require("./routes/accountMergeRoutes"));
 const adminAccountTypeRoutes_1 = __importDefault(require("./routes/adminAccountTypeRoutes"));
@@ -304,6 +305,8 @@ try {
     app.use('/admin', accountMergeRoutes_1.default); // admin-only: merge duplicate child accounts
     app.use('/admin', adminAccountTypeRoutes_1.default); // admin-only: change account type (individual/parent/school/T-LAB)
     app.use('/admin', adminIdeaRoutes_1.default); // admin-only: Ideas list (hide / show)
+    app.use('/i18n', i18nRoutes_1.i18nRouter); // Hindi words: approved overrides + suggestions
+    app.use('/admin', i18nRoutes_1.adminI18nRouter); // admin-only: approve / reject suggested Hindi words
     app.use('/admin', adminActivityRoutes_1.default); // admin-only: Activity page (active users, funnel, sources, shares)
     app.use('/admin', adminDeleteUserRoutes_1.default); // admin-only: safe delete (students stay, optional keep-content)
     app.use(communitySubmissionsRoutes_1.default); // ← NEW: serves /happenings, /admin/happenings, /challenges, /admin/challenges
