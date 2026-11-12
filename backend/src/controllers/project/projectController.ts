@@ -7,6 +7,7 @@ import logger from "../../logger";
 import { reviewVideoFile } from "../../services/aiVideoReviewService";
 import { extractYouTubeId } from "../admin/videoApprovalController";
 import { notifyAllAdmins } from "../../services/notificationService";
+import { patternScreen } from "../../services/ideaScreenService";
 import { generateUploadUrl, downloadToTempFile, deleteFromStorage, publicUrlFor } from "../../services/firebaseStorageService";
 
 // ✅ Import YouTube upload service (optional)
@@ -62,6 +63,7 @@ export const createProject = async (req: Request, res: Response) => {
   const {
     title, description, startDate, endDate, materials, categoryName, collaboratorIds,
     videoStoragePath, thumbnailStoragePath, challengeId, desiredPrivacyStatus, planId, planSketch,
+    difficulty, hoursTaken, wentWrong,
   } = req.body;
 
   if (!title || !description || !startDate || !endDate || !materials || !categoryName) {
@@ -298,6 +300,10 @@ export const createProject = async (req: Request, res: Response) => {
       aiReviewedAt,
       desiredPrivacyStatus: ['PUBLIC', 'UNLISTED', 'PRIVATE'].includes(desiredPrivacyStatus) ? desiredPrivacyStatus : 'PUBLIC',
       planSketch: typeof planSketch === 'string' && planSketch.length < 600000 && /^[A-Za-z0-9+/=]+$/.test(planSketch) ? planSketch : undefined,
+      difficulty: ['EASY', 'MEDIUM', 'HARD'].includes(difficulty) ? difficulty : undefined,
+      hoursTaken: Number.isFinite(Number(hoursTaken)) && Number(hoursTaken) >= 1 && Number(hoursTaken) <= 500 ? Math.round(Number(hoursTaken)) : undefined,
+      // Free text from a child: kept only if it has no phone number, email, link or address.
+      wentWrong: typeof wentWrong === 'string' && wentWrong.trim() && patternScreen(wentWrong).ok ? wentWrong.trim().slice(0, 300) : undefined,
       planId: typeof planId === 'string' && /^MG-[A-Z]{1,6}-[A-Z]{1,3}-\d{4,}$/.test(planId) ? planId : undefined,
       youtubeUploadStatus: ytStatus.uploadStatus,
       youtubeStatusReason: ytStatus.statusReason,

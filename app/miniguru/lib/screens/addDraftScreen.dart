@@ -266,6 +266,10 @@ class _AddDraftScreenState extends State<AddDraftScreen>
   List<Map<String, dynamic>> _openChallenges = [];
   String? _selectedChallengeId;
   String _desiredPrivacyStatus = 'PUBLIC'; // 'PUBLIC' | 'UNLISTED' | 'PRIVATE'
+  // Optional "how it went" answers (Nov 2026). All three can be left empty.
+  String? _difficulty; // 'EASY' | 'MEDIUM' | 'HARD'
+  final TextEditingController _hoursCtrl = TextEditingController();
+  final TextEditingController _wentWrongCtrl = TextEditingController();
   bool _collabSearching = false;
   final TextEditingController _collabCtrl = TextEditingController();
   // Type-ahead suggestions for the friend box (same school first).
@@ -346,6 +350,8 @@ class _AddDraftScreenState extends State<AddDraftScreen>
     _fadeCtrl.dispose();
     _collabDebounce?.cancel();
     _collabCtrl.dispose();
+    _hoursCtrl.dispose();
+    _wentWrongCtrl.dispose();
     super.dispose();
   }
 
@@ -610,6 +616,9 @@ class _AddDraftScreenState extends State<AddDraftScreen>
         'collaboratorIds': _collaborators.map((c) => c['id']!).toList(),
         if (_selectedChallengeId != null) 'challengeId': _selectedChallengeId,
         'desiredPrivacyStatus': _desiredPrivacyStatus,
+        if (_difficulty != null) 'difficulty': _difficulty,
+        if ((int.tryParse(_hoursCtrl.text.trim()) ?? 0) >= 1) 'hoursTaken': int.parse(_hoursCtrl.text.trim()).clamp(1, 500),
+        if (_wentWrongCtrl.text.trim().isNotEmpty) 'wentWrong': _wentWrongCtrl.text.trim(),
       };
       // Web with a large-file-safe stream reference still available ->
       // stream it straight through, never buffering the whole video.
@@ -889,6 +898,8 @@ class _AddDraftScreenState extends State<AddDraftScreen>
                             const SizedBox(height: 12),
                             _buildChallengePicker(),
                           ],
+                          const SizedBox(height: 12),
+                          _buildHowItWentCard(),
                           const SizedBox(height: 12),
                           _buildPrivacyStatusSelector(),
                         ]),
@@ -1297,6 +1308,74 @@ class _AddDraftScreenState extends State<AddDraftScreen>
           ],
           onChanged: (v) => setState(() => _selectedChallengeId = v),
         ),
+      ]),
+    );
+  }
+
+  // Optional questions about the making (Nov 2026). Nothing here is required.
+  Widget _buildHowItWentCard() {
+    InputDecoration deco(String hint) => InputDecoration(
+          hintText: hint,
+          hintStyle: GoogleFonts.nunito(color: Colors.black38, fontSize: 13),
+          counterText: '',
+          isDense: true,
+          filled: true,
+          fillColor: const Color(0xFFE3EEFF),
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
+        );
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: _cardBorder),
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 8, offset: const Offset(0, 2))],
+      ),
+      padding: const EdgeInsets.all(16),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          const Text('🛠️', style: TextStyle(fontSize: 16)),
+          const SizedBox(width: 8),
+          Expanded(child: Text('How did it go? (optional)',
+              style: GoogleFonts.nunito(color: _ink, fontWeight: FontWeight.w900, fontSize: 14))),
+        ]),
+        const SizedBox(height: 4),
+        Text('Skip any of these. Your answers help other children plan their own projects.',
+            style: GoogleFonts.nunito(color: Colors.black54, fontSize: 12)),
+        const SizedBox(height: 12),
+        Text('How hard was it?', style: GoogleFonts.nunito(color: _ink, fontWeight: FontWeight.w800, fontSize: 13)),
+        const SizedBox(height: 6),
+        Wrap(spacing: 8, children: [
+          for (final o in const [['EASY', 'Easy'], ['MEDIUM', 'Medium'], ['HARD', 'Hard']])
+            ChoiceChip(
+              label: Text(o[1], style: GoogleFonts.nunito(fontWeight: FontWeight.w800, fontSize: 13)),
+              selected: _difficulty == o[0],
+              onSelected: (v) => setState(() => _difficulty = v ? o[0] : null),
+            ),
+        ]),
+        const SizedBox(height: 12),
+        Text('About how many hours of making?', style: GoogleFonts.nunito(color: _ink, fontWeight: FontWeight.w800, fontSize: 13)),
+        const SizedBox(height: 6),
+        TextField(
+          controller: _hoursCtrl,
+          keyboardType: TextInputType.number,
+          maxLength: 3,
+          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+          style: GoogleFonts.nunito(fontSize: 14),
+          decoration: deco('e.g. 6'),
+        ),
+        const SizedBox(height: 12),
+        Text('What went wrong, or what did you learn?', style: GoogleFonts.nunito(color: _ink, fontWeight: FontWeight.w800, fontSize: 13)),
+        const SizedBox(height: 6),
+        TextField(
+          controller: _wentWrongCtrl,
+          maxLength: 300,
+          maxLines: 3,
+          style: GoogleFonts.nunito(fontSize: 14),
+          decoration: deco('e.g. The glue did not hold, so I used tape. Next time I will wait for it to dry.'),
+        ),
+        const SizedBox(height: 4),
+        Text('Please do not write phone numbers, emails or addresses.',
+            style: GoogleFonts.nunito(color: Colors.black45, fontSize: 11)),
       ]),
     );
   }

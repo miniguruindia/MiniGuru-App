@@ -671,6 +671,9 @@ class MiniguruApi {
       'desiredPrivacyStatus': data['desiredPrivacyStatus'] ?? 'PUBLIC',
       if (data['planId'] != null) 'planId': data['planId'],
       if (data['planSketch'] != null) 'planSketch': data['planSketch'],
+      if (data['difficulty'] != null) 'difficulty': data['difficulty'],
+      if (data['hoursTaken'] != null) 'hoursTaken': data['hoursTaken'],
+      if (data['wentWrong'] != null) 'wentWrong': data['wentWrong'],
     };
 
     http.Response response;

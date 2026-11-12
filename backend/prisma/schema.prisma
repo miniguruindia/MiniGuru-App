@@ -370,6 +370,10 @@ model Project {
   videoCode   String?   // short video ID, e.g. MG-V-8H2M
   planCreatedAt DateTime?  // when that ID was created
   planSketch  String?   // optional sketch (base64), planning sheet only — never sent to YouTube
+  // Optional "how it went" answers the child can give at upload (Nov 2026). Never sent to YouTube.
+  difficulty  String?   // EASY | MEDIUM | HARD
+  hoursTaken  Int?      // about how many hours of real making (1-500)
+  wentWrong   String?   // what went wrong / what I learned, up to 300 characters, checked for personal details
   // What the uploader chose at upload time — one of YouTube's own three
   // real privacy states, per YouTube API Services' RMF:
   //   "PUBLIC"   (default) — may become public once it passes review
