@@ -17,12 +17,16 @@ class I18n {
   // All built-in Hindi, one file per area of the app.
   static final Map<String, String> _builtin = {...hiStrings, ...hiStringsSignupHome};
 
+  /// Hindi is built but switched OFF for everyone until all screens are translated and reviewed.
+  /// Set to true to bring back the language switch (login + every page) and Hindi itself.
+  static const bool hindiEnabled = false;
+
   static bool get isHindi => lang.value == 'hi';
 
   static Future<void> init() async {
     try {
       final p = await SharedPreferences.getInstance();
-      if (p.getString('mg_lang') == 'hi') {
+      if (hindiEnabled && p.getString('mg_lang') == 'hi') {
         lang.value = 'hi';
         _fetchOverrides();
       }
@@ -30,7 +34,7 @@ class I18n {
   }
 
   static Future<void> setLang(String l) async {
-    lang.value = l == 'hi' ? 'hi' : 'en';
+    lang.value = (hindiEnabled && l == 'hi') ? 'hi' : 'en';
     try {
       final p = await SharedPreferences.getInstance();
       await p.setString('mg_lang', lang.value);

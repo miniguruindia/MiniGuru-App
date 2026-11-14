@@ -6,6 +6,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:miniguru/screens/legalScreen.dart';
 import 'package:miniguru/widgets/languageToggle.dart';
+import 'package:miniguru/utils/i18n.dart';
 import 'package:miniguru/screens/navScreen/consultancy.dart';
 import 'package:miniguru/network/MiniguruApi.dart';
 
@@ -1398,7 +1399,7 @@ class _FooterSection extends StatelessWidget {
         ),
         const SizedBox(height: 16),
         // Hindi disclaimer (Nov 2026): the Hindi in the app is machine-translated; anyone can suggest a better word.
-        Wrap(
+        if (I18n.hindiEnabled) Wrap(
           alignment: WrapAlignment.center,
           crossAxisAlignment: WrapCrossAlignment.center,
           spacing: 6, runSpacing: 4,

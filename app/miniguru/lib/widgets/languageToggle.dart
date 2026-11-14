@@ -21,6 +21,7 @@ class LanguageToggle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (!I18n.hindiEnabled) return const SizedBox.shrink();
     return ValueListenableBuilder<String>(
       valueListenable: I18n.lang,
       builder: (ctx, lang, _) => Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
@@ -48,6 +49,7 @@ class LanguageFab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (!I18n.hindiEnabled) return const SizedBox.shrink();
     return ValueListenableBuilder<String>(
       valueListenable: I18n.lang,
       builder: (ctx, lang, _) {
