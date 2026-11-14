@@ -1,6 +1,7 @@
 // lib/screens/addDraftScreen.dart
 import 'dart:async';
 import 'dart:convert';
+import 'dart:math' as math;
 import 'dart:typed_data';
 import 'package:flutter/material.dart' hide Text;
 import 'package:miniguru/widgets/mgText.dart';
@@ -279,6 +280,12 @@ class _AddDraftScreenState extends State<AddDraftScreen>
   int _collabQuerySeq = 0;
   bool                 _loading             = true;
   bool                 _submitting          = false;
+  // Unique code for this upload. Kept after a failed try so a retry is recognised by the server; cleared after success.
+  String?              _uploadKey;
+  String _newUploadKey() {
+    final r = math.Random.secure();
+    return 'u${DateTime.now().millisecondsSinceEpoch.toRadixString(36)}${List.generate(12, (_) => r.nextInt(36).toRadixString(36)).join()}';
+  }
   int                  _draftId             = -1;
   DateTime?            _startDate;
   // Persistent large-video warning (Sept 2026) — upgraded from a one-off
@@ -551,6 +558,7 @@ class _AddDraftScreenState extends State<AddDraftScreen>
   }
 
   Future<void> _handleSubmit({required bool isDraft}) async {
+    if (_submitting) return; // already sending: ignore any second tap
     final error = isDraft ? _validateDraft() : _validateFinal();
     if (error != null) { _showSnack(error, isError: true); return; }
     final materialsMap = {for (final m in _pickedMaterials) m.item.id: m.quantity};
@@ -598,6 +606,7 @@ class _AddDraftScreenState extends State<AddDraftScreen>
     }
 
     setState(() => _submitting = true);
+    _uploadKey ??= _newUploadKey();
     showDialog(
         context: context,
         barrierDismissible: false,
@@ -607,6 +616,7 @@ class _AddDraftScreenState extends State<AddDraftScreen>
       await _ensurePlanId();
       final projectData = {
         if (_planId != null) 'planId': _planId,
+        'uploadKey': _uploadKey,
         if (_sketchB64 != null) 'planSketch': _sketchB64,
         'title':       _titleCtrl.text,
         'description': _descCtrl.text,
@@ -632,6 +642,7 @@ class _AddDraftScreenState extends State<AddDraftScreen>
       if (mounted) Navigator.pop(context);
 
       if (statusCode == 201) {
+        _uploadKey = null;
         if (_draftId > 0) await _draftRepo.deleteDraft(_draftId);
         if (mounted) await _showUploadCompleteDialog();
       } else {
@@ -1836,8 +1847,29 @@ class _AddDraftScreenState extends State<AddDraftScreen>
 }
 
 // ── Uploading dialog ──────────────────────────────────────────────────────────
-class _UploadingDialog extends StatelessWidget {
+class _UploadingDialog extends StatefulWidget {
   const _UploadingDialog();
+  @override
+  State<_UploadingDialog> createState() => _UploadingDialogState();
+}
+
+class _UploadingDialogState extends State<_UploadingDialog> {
+  Timer? _slowTimer;
+  bool _slow = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _slowTimer = Timer(const Duration(seconds: 45), () {
+      if (mounted) setState(() => _slow = true);
+    });
+  }
+
+  @override
+  void dispose() {
+    _slowTimer?.cancel();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -1855,7 +1887,8 @@ class _UploadingDialog extends StatelessWidget {
                   fontSize:   15,
                   fontWeight: FontWeight.w800)),
           const SizedBox(height: 6),
-          Text('This may take a minute 🎬',
+          Text(_slow ? "Still working, please don't tap again 🙏\nBig videos can take a few minutes." : 'This may take a minute 🎬',
+              textAlign: TextAlign.center,
               style: GoogleFonts.nunito(color: _muted, fontSize: 12)),
         ]),
       ),

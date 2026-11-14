@@ -367,6 +367,7 @@ model Project {
   status      String            @default("pending")
   aiVerdict   String?
   planId      String?   // planning-sheet ID, e.g. MG-SSK-PK-0042
+  uploadKey   String?   // unique code the app makes per upload, so a repeated request returns the first project (Nov 2026)
   videoCode   String?   // short video ID, e.g. MG-V-8H2M
   planCreatedAt DateTime?  // when that ID was created
   planSketch  String?   // optional sketch (base64), planning sheet only — never sent to YouTube

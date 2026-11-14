@@ -32,7 +32,49 @@ catch (error) {
     logger_1.default.warn({ error: error.message }, 'YouTube service not available in project controller - YouTube features will be disabled');
 }
 const projectService = new project_1.default();
+// ── Repeat-upload guard (Nov 2026) ──────────────────────────────────────
+// The app sends a unique "uploadKey" with every upload. If the same key
+// arrives again (a repeated tap, or a retry after a slow connection while the
+// first request is still finishing) we return the FIRST project instead of
+// sending a second video to YouTube. Requests without a key work as before.
+const uploadsInFlight = new Map();
 const createProject = async (req, res) => {
+    const userId = req.user?.userId;
+    const rawKey = req.body?.uploadKey;
+    const key = typeof rawKey === "string" && /^[A-Za-z0-9_-]{8,64}$/.test(rawKey) ? rawKey : undefined;
+    if (!userId || !key)
+        return createProjectInner(req, res);
+    const owner = req.subject?.isChild && req.subject.linkedUserId ? req.subject.linkedUserId : userId;
+    const flightKey = `${owner}:${key}`;
+    for (;;) {
+        try {
+            const running = uploadsInFlight.get(flightKey);
+            if (running)
+                await running;
+            const existing = await prismaClient_1.default.project.findFirst({ where: { userId: owner, uploadKey: key } });
+            if (existing) {
+                logger_1.default.info(`Repeat upload request (key ${key}) — returning the first project ${existing.id}`);
+                return res.status(201).json(existing);
+            }
+        }
+        catch (guardError) {
+            logger_1.default.warn(`Repeat-upload check failed (continuing normally): ${guardError.message}`);
+        }
+        if (!uploadsInFlight.has(flightKey))
+            break;
+    }
+    let done = () => { };
+    uploadsInFlight.set(flightKey, new Promise((resolve) => { done = resolve; }));
+    try {
+        return await createProjectInner(req, res);
+    }
+    finally {
+        uploadsInFlight.delete(flightKey);
+        done();
+    }
+};
+exports.createProject = createProject;
+const createProjectInner = async (req, res) => {
     const userId = req.user?.userId;
     if (!userId)
         return res.status(401).json({ error: "Unauthorized" });
@@ -295,6 +337,7 @@ const createProject = async (req, res) => {
             aiConfidence: aiReview.confidence,
             aiReviewedAt,
             desiredPrivacyStatus: ['PUBLIC', 'UNLISTED', 'PRIVATE'].includes(desiredPrivacyStatus) ? desiredPrivacyStatus : 'PUBLIC',
+            uploadKey: typeof req.body.uploadKey === "string" && /^[A-Za-z0-9_-]{8,64}$/.test(req.body.uploadKey) ? req.body.uploadKey : undefined,
             planSketch: typeof planSketch === 'string' && planSketch.length < 600000 && /^[A-Za-z0-9+/=]+$/.test(planSketch) ? planSketch : undefined,
             ...howItWent,
             ...(await (0, inspirationService_1.findInspiration)(description, ownerUserId)),
@@ -436,7 +479,6 @@ const createProject = async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 };
-exports.createProject = createProject;
 // POST /project/request-upload-url — generates a short-lived signed URL the
 // client can PUT a video or thumbnail to DIRECTLY, bypassing Cloud Run's
 // hard 32MB request body limit entirely for the actual file bytes.

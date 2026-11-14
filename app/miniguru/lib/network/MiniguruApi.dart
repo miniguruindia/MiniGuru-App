@@ -670,6 +670,7 @@ class MiniguruApi {
       if (data['challengeId'] != null) 'challengeId': data['challengeId'],
       'desiredPrivacyStatus': data['desiredPrivacyStatus'] ?? 'PUBLIC',
       if (data['planId'] != null) 'planId': data['planId'],
+      if (data['uploadKey'] != null) 'uploadKey': data['uploadKey'],
       if (data['planSketch'] != null) 'planSketch': data['planSketch'],
       if (data['feeling'] != null) 'feeling': data['feeling'],
       if (data['hoursTaken'] != null) 'hoursTaken': data['hoursTaken'],
