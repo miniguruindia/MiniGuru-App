@@ -1,5 +1,6 @@
 // English | हिन्दी switch (Nov 2026), with a note that the Hindi is machine-translated and a way to suggest better words.
 import 'package:flutter/material.dart' hide Text;
+import 'package:flutter/material.dart' as m show Text;
 import 'package:miniguru/widgets/mgText.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:miniguru/utils/i18n.dart';
@@ -36,6 +37,41 @@ class LanguageToggle extends StatelessWidget {
                 style: GoogleFonts.poppins(fontSize: 11, color: Colors.grey[700])),
           ),
       ]),
+    );
+  }
+}
+
+/// Small floating one-tap switch shown on every page (placed by NavShellFrame, above the Navigator,
+/// so it uses no Navigator-dependent widgets). Shows the language you can switch TO.
+class LanguageFab extends StatelessWidget {
+  const LanguageFab({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return ValueListenableBuilder<String>(
+      valueListenable: I18n.lang,
+      builder: (ctx, lang, _) {
+        final toHindi = lang != 'hi';
+        return GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: () => I18n.setLang(toHindi ? 'hi' : 'en'),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(22),
+              border: Border.all(color: const Color(0xFFC9D0F0)),
+              boxShadow: const [BoxShadow(color: Color(0x26000000), blurRadius: 6, offset: Offset(0, 2))],
+            ),
+            child: Row(mainAxisSize: MainAxisSize.min, children: [
+              const Icon(Icons.translate, size: 16, color: Color(0xFF4A5BD4)),
+              const SizedBox(width: 6),
+              m.Text(toHindi ? 'हिन्दी' : 'English',
+                  style: GoogleFonts.poppins(fontSize: 13, fontWeight: FontWeight.w700, color: const Color(0xFF1F2A6B))),
+            ]),
+          ),
+        );
+      },
     );
   }
 }
