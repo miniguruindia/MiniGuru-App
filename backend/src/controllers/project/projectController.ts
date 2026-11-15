@@ -1091,7 +1091,16 @@ export const deleteProjectByID = async (req: Request, res: Response) => {
   const { id } = req.params;
 
   try {
+    // One ID, one piece of content: remove the shared idea that carries the same planning-sheet ID.
+    const gone: any = await prisma.project.findUnique({ where: { id }, select: { planId: true, userId: true } }).catch(() => null);
     await projectService.deleteById(id);
+    if (gone?.planId) {
+      const ideaRows: any[] = await (prisma as any).idea.findMany({ where: { code: gone.planId, makerUserId: gone.userId }, select: { id: true } }).catch(() => []);
+      for (const row of ideaRows) {
+        await (prisma as any).ideaTry.deleteMany({ where: { ideaId: row.id } }).catch(() => {});
+        await (prisma as any).idea.delete({ where: { id: row.id } }).catch(() => {});
+      }
+    }
     res.status(204).end();
   } catch (error) {
     if (error instanceof NotFoundError) {

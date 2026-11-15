@@ -1023,7 +1023,16 @@ const deleteProjectByID = async (req, res) => {
     // delete attempt passed `undefined` to Prisma and 500'd.
     const { id } = req.params;
     try {
+        // One ID, one piece of content: remove the shared idea that carries the same planning-sheet ID.
+        const gone = await prismaClient_1.default.project.findUnique({ where: { id }, select: { planId: true, userId: true } }).catch(() => null);
         await projectService.deleteById(id);
+        if (gone?.planId) {
+            const ideaRows = await prismaClient_1.default.idea.findMany({ where: { code: gone.planId, makerUserId: gone.userId }, select: { id: true } }).catch(() => []);
+            for (const row of ideaRows) {
+                await prismaClient_1.default.ideaTry.deleteMany({ where: { ideaId: row.id } }).catch(() => { });
+                await prismaClient_1.default.idea.delete({ where: { id: row.id } }).catch(() => { });
+            }
+        }
         res.status(204).end();
     }
     catch (error) {

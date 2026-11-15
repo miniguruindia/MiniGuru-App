@@ -35,4 +35,18 @@ router.post('/ideas/:id/status', async (req, res) => {
         return res.status(500).json({ error: 'Could not change it.' });
     }
 });
+// Delete an idea for good (and the "I tried this" rows that belong to it).
+router.delete('/ideas/:id', async (req, res) => {
+    try {
+        const id = String(req.params.id);
+        if (!/^[a-f0-9]{24}$/i.test(id))
+            return res.status(400).json({ error: 'Bad id' });
+        await db.ideaTry.deleteMany({ where: { ideaId: id } }).catch(() => { });
+        await db.idea.delete({ where: { id } });
+        return res.json({ ok: true });
+    }
+    catch {
+        return res.status(500).json({ error: 'Could not delete it.' });
+    }
+});
 exports.default = router;

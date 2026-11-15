@@ -65,7 +65,14 @@ router.get('/', authenticateToken, async (req: Request, res: Response) => {
       type === 'projects' || !ideaWhere ? [] : db.idea.findMany({ where: ideaWhere, orderBy: { createdAt: 'desc' }, take: 30, select: { id: true, code: true, title: true, description: true, makerName: true, tries: true, materials: true, createdAt: true, sketch: true } }),
       type === 'ideas' ? [] : db.project.findMany({ where: projWhere, orderBy: { updatedAt: 'desc' }, take: 30, include: { user: { select: { name: true } } } }),
     ]);
-    const items = [...ideas.map(ideaCard), ...projects.filter((p: any) => p.video?.url).map(projectCard)]
+    // One idea = one ID: once the project made from an idea is published, only the finished project shows.
+    let shownIdeas: any[] = ideas;
+    if (ideas.length) {
+      const built: any[] = await db.project.findMany({ where: { planId: { in: ideas.map((i: any) => i.code) }, status: 'published' }, select: { planId: true } });
+      const done = new Set(built.map((p: any) => p.planId));
+      shownIdeas = ideas.filter((i: any) => !done.has(i.code));
+    }
+    const items = [...shownIdeas.map(ideaCard), ...projects.filter((p: any) => p.video?.url).map(projectCard)]
       .sort((a: any, b: any) => +new Date(b.createdAt) - +new Date(a.createdAt)).slice(0, 40);
     return res.json({ items });
   } catch (e: any) {

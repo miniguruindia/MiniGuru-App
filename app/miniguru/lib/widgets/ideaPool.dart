@@ -152,7 +152,7 @@ class _IdeaPoolTabState extends State<IdeaPoolTab> with AutomaticKeepAliveClient
               ]),
               const SizedBox(height: 4),
               Text(it['title']?.toString() ?? '', style: GoogleFonts.nunito(fontWeight: FontWeight.w900, fontSize: 14, color: _ink)),
-              Text('by ${it['maker'] ?? ''}  ·  ${(isIdea ? it['code'] : (it['videoCode'] ?? it['code'])) ?? ''}',
+              Text('by ${it['maker'] ?? ''}  ·  ${(it['code'] ?? it['videoCode']) ?? ''}',
                   style: GoogleFonts.nunito(fontSize: 11, fontWeight: FontWeight.w700, color: _muted)),
               const SizedBox(height: 3),
               Text(it['description']?.toString() ?? '', maxLines: 2, overflow: TextOverflow.ellipsis, style: GoogleFonts.nunito(fontSize: 12.5)),

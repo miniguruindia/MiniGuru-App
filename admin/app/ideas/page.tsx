@@ -48,6 +48,14 @@ export default function IdeasPage() {
     else setError('Could not change it. Please try again.')
   }
 
+  async function removeIdea(id: string, title: string) {
+    if (!window.confirm(`Delete "${title}" for good? This cannot be undone.`)) return
+    const token = await authToken()
+    const r = await fetch(`${API_BASE}/admin/ideas/${id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } })
+    if (r.ok) setIdeas((x) => x.filter((i) => i.id !== id))
+    else setError('Could not delete it. Please try again.')
+  }
+
   const t = q.trim().toLowerCase()
   const rows = ideas.filter((i) => !t || `${i.title} ${i.code} ${i.makerName}`.toLowerCase().includes(t))
 
@@ -57,7 +65,7 @@ export default function IdeasPage() {
         <div className="flex items-center justify-between flex-wrap gap-2">
           <div>
             <h1 className="text-2xl font-bold">Ideas</h1>
-            <p className="text-sm text-gray-500">Ideas shared by children. They are checked automatically, not by staff. Hide one if it should not be there.</p>
+            <p className="text-sm text-gray-500">Ideas shared by children. They are checked automatically, not by staff. Hide one to take it off the pool for now, or Delete it for good.</p>
           </div>
           <button onClick={load} className="flex items-center gap-1 text-sm border rounded px-3 py-1.5">
             <RefreshCw className={`h-4 w-4 ${busy ? 'animate-spin' : ''}`} /> Refresh
@@ -84,6 +92,7 @@ export default function IdeasPage() {
                     {i.status === 'hidden'
                       ? <button onClick={() => setStatus(i.id, 'visible')} className="border rounded px-2 py-1 text-green-700">Show again</button>
                       : <button onClick={() => setStatus(i.id, 'hidden')} className="border rounded px-2 py-1 text-red-700">Hide</button>}
+                    <button onClick={() => removeIdea(i.id, i.title)} className="border rounded px-2 py-1 text-red-700 ml-2">Delete</button>
                   </td>
                 </tr>
               ))}
