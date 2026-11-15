@@ -100,10 +100,10 @@ class _AddDraftScreenState extends State<AddDraftScreen>
   Future<void> _pickSketchPhoto() async {
     try {
       final f = await _picker.pickImage(
-          source: ImageSource.gallery, maxWidth: 800, maxHeight: 800, imageQuality: 70);
+          source: ImageSource.gallery, maxWidth: 640, maxHeight: 640, imageQuality: 60);
       if (f == null) return;
       final bytes = await f.readAsBytes();
-      if (bytes.length > 400 * 1024) {
+      if (bytes.length > 250 * 1024) {
         _showSnack('That picture is too big. Please choose a smaller one.', isError: true);
         return;
       }

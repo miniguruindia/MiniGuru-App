@@ -27,7 +27,7 @@ class _SketchPad extends StatefulWidget {
 }
 
 class _SketchPadState extends State<_SketchPad> {
-  static const _w = 640.0, _h = 480.0;
+  static const _w = 560.0, _h = 420.0;
   final List<_Stroke> _strokes = [];
   Color _color = const Color(0xFF1A1A2E);
   double _width = 4;
