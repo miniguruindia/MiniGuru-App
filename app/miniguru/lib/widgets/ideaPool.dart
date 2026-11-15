@@ -189,7 +189,7 @@ class _IdeaPoolTabState extends State<IdeaPoolTab> with AutomaticKeepAliveClient
   }
 
   void _openIdea(Map<String, dynamic> it) {
-    Navigator.push(context, MaterialPageRoute(builder: (_) => IdeaDetailScreen(id: it['id'].toString())));
+    Navigator.push(context, MaterialPageRoute(builder: (_) => IdeaDetailScreen(id: it['id'].toString()))).then((_) { if (mounted) _load(); });
   }
 }
 
@@ -211,6 +211,32 @@ class _IdeaDetailScreenState extends State<IdeaDetailScreen> {
     MiniguruApi().fetchIdea(widget.id).then((r) {
       if (mounted) setState(() { _idea = r; _loading = false; });
     });
+  }
+
+  Future<void> _withdraw() async {
+    if (_busy) return;
+    final go = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Withdraw this idea?'),
+        content: const Text('It will be removed from the Idea Pool for everyone. This cannot be undone.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Keep it')),
+          ElevatedButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Withdraw')),
+        ],
+      ),
+    );
+    if (go != true) return;
+    setState(() => _busy = true);
+    final ok = await MiniguruApi().withdrawIdea(widget.id);
+    if (!mounted) return;
+    setState(() => _busy = false);
+    if (ok) {
+      Navigator.pop(context);
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Your idea was withdrawn.')));
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Could not withdraw it right now. Please try again.')));
+    }
   }
 
   Future<void> _try() async {
@@ -297,6 +323,14 @@ class _IdeaDetailScreenState extends State<IdeaDetailScreen> {
                     ),
                     child: Text(_busy ? 'Please wait…' : '🚀 I\'ll try this', style: GoogleFonts.nunito(fontWeight: FontWeight.w900, fontSize: 16)),
                   ),
+                  if (i['mine'] == true) ...[
+                    const SizedBox(height: 10),
+                    OutlinedButton(
+                      onPressed: _busy ? null : _withdraw,
+                      style: OutlinedButton.styleFrom(minimumSize: const Size(double.infinity, 46), foregroundColor: Colors.red.shade700),
+                      child: Text('🗑️ Withdraw my idea', style: GoogleFonts.nunito(fontWeight: FontWeight.w900)),
+                    ),
+                  ],
                   const SizedBox(height: 6),
                   Text('This copies the idea into your own planning sheet. ${i['maker']} stays credited and may get a few Goins.',
                       textAlign: TextAlign.center, style: GoogleFonts.nunito(fontSize: 11.5, color: _muted, fontWeight: FontWeight.w700)),

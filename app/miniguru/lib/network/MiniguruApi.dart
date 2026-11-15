@@ -1732,6 +1732,17 @@ class MiniguruApi {
     return {'ok': false, 'error': 'Could not share the idea right now.'};
   }
 
+  /// The maker withdraws their own idea. Returns true when it is gone.
+  Future<bool> withdrawIdea(String id) async {
+    try {
+      final authToken = await _db!.getAuthToken();
+      if (authToken == null) return false;
+      final r = await http.delete(Uri.parse('$_baseUrl/ideas/$id'), headers: _buildHeaders(authToken.accessToken)).timeout(const Duration(seconds: 30));
+      return r.statusCode == 200;
+    } catch (e) { print('❌ withdrawIdea: $e'); }
+    return false;
+  }
+
   /// "I'll try this": returns {idea: {...}, goinsGiven, already?, own?} or null.
   Future<Map<String, dynamic>?> tryIdea(String id) async {
     try {

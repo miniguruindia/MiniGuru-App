@@ -81,13 +81,14 @@ router.get('/', authenticateToken, async (req: Request, res: Response) => {
   }
 });
 
-router.get('/:id', authenticateToken, async (req: Request, res: Response) => {
+router.get('/:id', authenticateToken, resolveSubject, async (req: any, res: Response) => {
   try {
     const id = String(req.params.id);
     if (!/^[a-f0-9]{24}$/i.test(id)) return res.status(400).json({ error: 'Bad id' });
     const i = await db.idea.findUnique({ where: { id } });
     if (!i || i.status !== 'visible') return res.status(404).json({ error: 'Not found' });
-    return res.json({ ...ideaCard(i), description: i.description, sketch: i.sketch || null, materials: i.materials || [], category: i.category || '' });
+    const meId: string = req.subject?.isChild ? (req.subject.linkedUserId || req.user?.userId) : req.user?.userId;
+    return res.json({ ...ideaCard(i), description: i.description, sketch: i.sketch || null, materials: i.materials || [], category: i.category || '', mine: i.makerUserId === meId });
   } catch {
     return res.status(500).json({ error: 'Could not load.' });
   }
@@ -131,6 +132,26 @@ router.post('/share', authenticateToken, resolveSubject, async (req: any, res: R
   } catch (e: any) {
     console.error('idea share:', e?.message || e);
     return res.status(500).json({ error: 'Could not share the idea right now.' });
+  }
+});
+
+// DELETE /ideas/:id  -> the maker withdraws their own idea (gone for good).
+router.delete('/:id', authenticateToken, resolveSubject, async (req: any, res: Response) => {
+  try {
+    const authedId = req.user?.userId;
+    if (!authedId) return res.status(401).json({ error: 'Unauthorized' });
+    const me: string = req.subject?.isChild ? (req.subject.linkedUserId || authedId) : authedId;
+    const id = String(req.params.id);
+    if (!/^[a-f0-9]{24}$/i.test(id)) return res.status(400).json({ error: 'Bad id' });
+    const i = await db.idea.findUnique({ where: { id }, select: { makerUserId: true } });
+    if (!i) return res.status(404).json({ error: 'Not found' });
+    if (i.makerUserId !== me) return res.status(403).json({ error: 'Only the maker can withdraw an idea.' });
+    await db.ideaTry.deleteMany({ where: { ideaId: id } }).catch(() => {});
+    await db.idea.delete({ where: { id } });
+    return res.json({ ok: true });
+  } catch (e: any) {
+    console.error('idea withdraw:', e?.message || e);
+    return res.status(500).json({ error: 'Could not withdraw it right now.' });
   }
 });
 
