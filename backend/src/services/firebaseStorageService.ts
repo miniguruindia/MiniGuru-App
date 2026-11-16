@@ -235,3 +235,24 @@ export async function uploadConsultancyFile(buffer: Buffer, mimeType: string, or
   });
   return publicUrlFor(storagePath);
 }
+
+// ── Planning-sheet sketches (Nov 2026): private files under sketches/, read only by the backend ──
+export async function uploadSketchBuffer(storagePath: string, buffer: Buffer, mimeType: string): Promise<void> {
+  const firebaseApp = ensureInitialized();
+  const file = getStorage(firebaseApp).bucket().file(storagePath);
+  await file.save(buffer, { metadata: { contentType: mimeType, cacheControl: 'private, max-age=0' }, validation: false });
+}
+export async function downloadSketchBuffer(storagePath: string): Promise<Buffer | null> {
+  const firebaseApp = ensureInitialized();
+  const file = getStorage(firebaseApp).bucket().file(storagePath);
+  const [exists] = await file.exists();
+  if (!exists) return null;
+  const [buf] = await file.download();
+  return buf;
+}
+export async function deleteSketchFile(storagePath: string): Promise<void> {
+  try {
+    const firebaseApp = ensureInitialized();
+    await getStorage(firebaseApp).bucket().file(storagePath).delete();
+  } catch { /* already gone */ }
+}

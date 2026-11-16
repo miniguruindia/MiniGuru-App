@@ -513,13 +513,12 @@ router.post('/forward-kit', async (req: Request, res: Response) => {
       + (notAsked > 0 ? ' (' + notAsked + ' item' + (notAsked > 1 ? 's' : '') + ' on the original list were not approved and are not included)' : '') + '.</p>'
       + (note ? '<p style="background:#f6f6f6;padding:8px 12px;border-radius:6px">Note: ' + escHtml(note) + '</p>' : '')
       + (cc.length ? '<p style="color:#666;font-size:13px;margin:0 0 12px">Marked to ' + cc.map(escHtml).join(', ') + ' to keep them in the loop.</p>' : '')
-      + cartButtons(lines, true)
       + '<table width="100%" style="border-collapse:collapse;border:1px solid #e5e5e5;margin:14px 0;font-size:14px">'
       + '<tr style="background:#f6f6f6"><th style="padding:7px 10px">Approved</th><th style="padding:7px 10px;text-align:left">Item</th><th style="padding:7px 10px">Qty</th><th style="padding:7px 10px;text-align:right">Est.</th><th style="padding:7px 10px"></th></tr>'
       + rows
       + (total > 0 ? '<tr><td colspan="3" style="padding:8px 10px;font-weight:700">Estimated total</td><td style="padding:8px 10px;font-weight:700;text-align:right">&#8377;' + total + '</td><td></td></tr>' : '')
       + '</table>'
-      + kitButton(kitPageUrl(lines), true)
+      + cartButtons(lines, true)
       + '<p style="color:#888;font-size:12px;margin:8px 0 0">Prices are estimates; please check the current price on Amazon. Only the items above are approved: nothing else should be bought.</p>'
       + '<hr style="border:none;border-top:1px solid #e5e5e5;margin:26px 0 14px">'
       + '<div style="text-align:center;color:#999;font-size:12px"><img src="https://miniguru.in/icons/Icon-192.png" width="32" height="32" alt="MiniGuru" style="border-radius:8px"><br>'

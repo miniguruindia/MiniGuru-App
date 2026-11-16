@@ -1,4 +1,5 @@
 import { Request, Response } from "express";
+import { sketchFields, dropSketchIfUnused } from '../../services/sketchStore';
 import fs from "fs";
 import prisma from "../../utils/prismaClient";
 import ProjectService from "../../services/project/project";
@@ -347,7 +348,7 @@ const createProjectInner = async (req: Request, res: Response) => {
       aiReviewedAt,
       desiredPrivacyStatus: ['PUBLIC', 'UNLISTED', 'PRIVATE'].includes(desiredPrivacyStatus) ? desiredPrivacyStatus : 'PUBLIC',
       uploadKey: typeof req.body.uploadKey === "string" && /^[A-Za-z0-9_-]{8,64}$/.test(req.body.uploadKey) ? req.body.uploadKey : undefined,
-      planSketch: typeof planSketch === 'string' && planSketch.length < 600000 && /^[A-Za-z0-9+/=]+$/.test(planSketch) ? planSketch : undefined,
+      ...(await sketchFields(typeof planSketch === 'string' && planSketch.length < 600000 && /^[A-Za-z0-9+/=]+$/.test(planSketch) ? planSketch : undefined)),
       ...howItWent,
       ...(await findInspiration(description, ownerUserId)),
       planId: typeof planId === 'string' && /^MG-[A-Z]{1,6}-[A-Z]{1,3}-\d{4,}$/.test(planId) ? planId : undefined,
@@ -1092,7 +1093,7 @@ export const deleteProjectByID = async (req: Request, res: Response) => {
 
   try {
     // One ID, one piece of content: remove the shared idea that carries the same planning-sheet ID.
-    const gone: any = await prisma.project.findUnique({ where: { id }, select: { planId: true, userId: true } }).catch(() => null);
+    const gone: any = await prisma.project.findUnique({ where: { id }, select: { planId: true, userId: true, planSketchPath: true } }).catch(() => null);
     await projectService.deleteById(id);
     if (gone?.planId) {
       const ideaRows: any[] = await (prisma as any).idea.findMany({ where: { code: gone.planId, makerUserId: gone.userId }, select: { id: true } }).catch(() => []);
@@ -1101,6 +1102,7 @@ export const deleteProjectByID = async (req: Request, res: Response) => {
         await (prisma as any).idea.delete({ where: { id: row.id } }).catch(() => {});
       }
     }
+    await dropSketchIfUnused(gone?.planSketchPath);
     res.status(204).end();
   } catch (error) {
     if (error instanceof NotFoundError) {

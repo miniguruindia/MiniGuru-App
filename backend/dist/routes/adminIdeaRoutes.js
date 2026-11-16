@@ -6,6 +6,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 // Admin "Ideas" list (Nov 2026). Mounted at /admin. Ideas are not reviewed; admin can only hide or show one.
 const express_1 = require("express");
 const prismaClient_1 = __importDefault(require("../utils/prismaClient"));
+const sketchStore_1 = require("../services/sketchStore");
 const authMiddleware_1 = require("../middleware/authMiddleware");
 const router = (0, express_1.Router)();
 router.use(authMiddleware_1.authenticateToken, authMiddleware_1.authorizeAdmin);
@@ -41,8 +42,10 @@ router.delete('/ideas/:id', async (req, res) => {
         const id = String(req.params.id);
         if (!/^[a-f0-9]{24}$/i.test(id))
             return res.status(400).json({ error: 'Bad id' });
+        const gone = await db.idea.findUnique({ where: { id }, select: { sketchPath: true } }).catch(() => null);
         await db.ideaTry.deleteMany({ where: { ideaId: id } }).catch(() => { });
         await db.idea.delete({ where: { id } });
+        await (0, sketchStore_1.dropSketchIfUnused)(gone?.sketchPath);
         return res.json({ ok: true });
     }
     catch {

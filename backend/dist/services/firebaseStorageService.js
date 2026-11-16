@@ -64,6 +64,9 @@ exports.deleteFromStorage = deleteFromStorage;
 exports.getBucketTotalSizeBytes = getBucketTotalSizeBytes;
 exports.uploadConsultancyImage = uploadConsultancyImage;
 exports.uploadConsultancyFile = uploadConsultancyFile;
+exports.uploadSketchBuffer = uploadSketchBuffer;
+exports.downloadSketchBuffer = downloadSketchBuffer;
+exports.deleteSketchFile = deleteSketchFile;
 const app_1 = require("firebase-admin/app");
 const storage_1 = require("firebase-admin/storage");
 const path = __importStar(require("path"));
@@ -260,4 +263,26 @@ async function uploadConsultancyFile(buffer, mimeType, originalName) {
         validation: false,
     });
     return publicUrlFor(storagePath);
+}
+// ── Planning-sheet sketches (Nov 2026): private files under sketches/, read only by the backend ──
+async function uploadSketchBuffer(storagePath, buffer, mimeType) {
+    const firebaseApp = ensureInitialized();
+    const file = (0, storage_1.getStorage)(firebaseApp).bucket().file(storagePath);
+    await file.save(buffer, { metadata: { contentType: mimeType, cacheControl: 'private, max-age=0' }, validation: false });
+}
+async function downloadSketchBuffer(storagePath) {
+    const firebaseApp = ensureInitialized();
+    const file = (0, storage_1.getStorage)(firebaseApp).bucket().file(storagePath);
+    const [exists] = await file.exists();
+    if (!exists)
+        return null;
+    const [buf] = await file.download();
+    return buf;
+}
+async function deleteSketchFile(storagePath) {
+    try {
+        const firebaseApp = ensureInitialized();
+        await (0, storage_1.getStorage)(firebaseApp).bucket().file(storagePath).delete();
+    }
+    catch { /* already gone */ }
 }

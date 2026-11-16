@@ -4,6 +4,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.getInspirationStats = exports.searchCollaborators = exports.findCollaborator = exports.deleteProjectByID = exports.getPublishedVideoFeed = exports.getAllProjects = exports.getAllProjectsForUser = exports.getProjectById = exports.adminUpdateProject = exports.updateProject = exports.requestUploadUrl = exports.createProject = void 0;
+const sketchStore_1 = require("../../services/sketchStore");
 const fs_1 = __importDefault(require("fs"));
 const prismaClient_1 = __importDefault(require("../../utils/prismaClient"));
 const project_1 = __importDefault(require("../../services/project/project"));
@@ -338,7 +339,7 @@ const createProjectInner = async (req, res) => {
             aiReviewedAt,
             desiredPrivacyStatus: ['PUBLIC', 'UNLISTED', 'PRIVATE'].includes(desiredPrivacyStatus) ? desiredPrivacyStatus : 'PUBLIC',
             uploadKey: typeof req.body.uploadKey === "string" && /^[A-Za-z0-9_-]{8,64}$/.test(req.body.uploadKey) ? req.body.uploadKey : undefined,
-            planSketch: typeof planSketch === 'string' && planSketch.length < 600000 && /^[A-Za-z0-9+/=]+$/.test(planSketch) ? planSketch : undefined,
+            ...(await (0, sketchStore_1.sketchFields)(typeof planSketch === 'string' && planSketch.length < 600000 && /^[A-Za-z0-9+/=]+$/.test(planSketch) ? planSketch : undefined)),
             ...howItWent,
             ...(await (0, inspirationService_1.findInspiration)(description, ownerUserId)),
             planId: typeof planId === 'string' && /^MG-[A-Z]{1,6}-[A-Z]{1,3}-\d{4,}$/.test(planId) ? planId : undefined,
@@ -1024,7 +1025,7 @@ const deleteProjectByID = async (req, res) => {
     const { id } = req.params;
     try {
         // One ID, one piece of content: remove the shared idea that carries the same planning-sheet ID.
-        const gone = await prismaClient_1.default.project.findUnique({ where: { id }, select: { planId: true, userId: true } }).catch(() => null);
+        const gone = await prismaClient_1.default.project.findUnique({ where: { id }, select: { planId: true, userId: true, planSketchPath: true } }).catch(() => null);
         await projectService.deleteById(id);
         if (gone?.planId) {
             const ideaRows = await prismaClient_1.default.idea.findMany({ where: { code: gone.planId, makerUserId: gone.userId }, select: { id: true } }).catch(() => []);
@@ -1033,6 +1034,7 @@ const deleteProjectByID = async (req, res) => {
                 await prismaClient_1.default.idea.delete({ where: { id: row.id } }).catch(() => { });
             }
         }
+        await (0, sketchStore_1.dropSketchIfUnused)(gone?.planSketchPath);
         res.status(204).end();
     }
     catch (error) {

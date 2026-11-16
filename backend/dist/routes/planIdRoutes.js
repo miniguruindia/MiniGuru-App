@@ -13,6 +13,7 @@ const prismaClient_1 = __importDefault(require("../utils/prismaClient"));
 const authMiddleware_1 = require("../middleware/authMiddleware");
 const resolveSubject_1 = require("../middleware/resolveSubject");
 const planCode_1 = require("../utils/planCode");
+const sketchStore_1 = require("../services/sketchStore");
 const router = (0, express_1.Router)();
 const FIRST_NUMBER = 42;
 router.post('/', authMiddleware_1.authenticateToken, resolveSubject_1.resolveSubject, async (req, res) => {
@@ -96,6 +97,11 @@ router.get('/project/:projectId', authMiddleware_1.authenticateToken, resolveSub
         }
         if (!ok)
             return res.status(403).json({ error: 'Not allowed' });
+        // Old sketches (saved as text before Nov 2026) move to Storage the first time they are opened.
+        if (p.planSketch && !p.planSketchPath) {
+            (0, sketchStore_1.saveSketch)(p.planSketch).then((path) => { if (path)
+                prismaClient_1.default.project.update({ where: { id: pid }, data: { planSketchPath: path, planSketch: null } }).catch(() => { }); }).catch(() => { });
+        }
         const published = p.status === 'published';
         let goins = null;
         let publishedAt = null;
@@ -132,7 +138,7 @@ router.get('/project/:projectId', authMiddleware_1.authenticateToken, resolveSub
             startDate: p.startDate,
             endDate: p.endDate,
             materials: (p.materials || []).map((m) => ({ name: m.name || '', quantity: m.quantity })),
-            sketch: p.planSketch || null,
+            sketch: p.planSketchPath ? await (0, sketchStore_1.loadSketch)(p.planSketchPath) : (p.planSketch || null),
             published,
             thumbnail: published ? p.thumbnail : null,
             publishedAt,

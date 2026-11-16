@@ -11,6 +11,7 @@ import { screenIdea } from '../services/ideaScreenService';
 import { ensureVideoCodes } from '../utils/videoCode';
 import { recordGoinsEvents } from '../utils/goinsLedger';
 import { notifyUser } from '../services/notificationService';
+import { saveSketch, loadSketch, dropSketchIfUnused } from '../services/sketchStore';
 
 const router = Router();
 const db: any = prisma;
@@ -26,9 +27,20 @@ function ideaCard(i: any) {
   return {
     type: 'idea', id: i.id, code: i.code, title: i.title, description: clip(i.description || '', 160),
     maker: i.makerName, tries: i.tries || 0, materials: mats.slice(0, 5).map((m) => m.name).filter(Boolean),
-    hasSketch: !!i.sketch, createdAt: i.createdAt,
+    hasSketch: !!(i.sketch || i.sketchPath), createdAt: i.createdAt,
   };
 }
+// The sketch of an idea as base64: from Storage, or (old ideas) from the database, which is then moved to Storage.
+async function sketchOf(i: any): Promise<string | null> {
+  if (i.sketchPath) return loadSketch(i.sketchPath);
+  if (i.sketch) {
+    const path = await saveSketch(i.sketch);
+    if (path) db.idea.update({ where: { id: i.id }, data: { sketchPath: path, sketch: null } }).catch(() => {});
+    return i.sketch;
+  }
+  return null;
+}
+
 function projectCard(p: any) {
   const mats: any[] = Array.isArray(p.materials) ? p.materials : [];
   const collab: any[] = Array.isArray(p.collaborators) ? p.collaborators : [];
@@ -62,7 +74,7 @@ router.get('/', authenticateToken, async (req: Request, res: Response) => {
       }
     }
     const [ideas, projects] = await Promise.all([
-      type === 'projects' || !ideaWhere ? [] : db.idea.findMany({ where: ideaWhere, orderBy: { createdAt: 'desc' }, take: 30, select: { id: true, code: true, title: true, description: true, makerName: true, tries: true, materials: true, createdAt: true, sketch: true } }),
+      type === 'projects' || !ideaWhere ? [] : db.idea.findMany({ where: ideaWhere, orderBy: { createdAt: 'desc' }, take: 30, select: { id: true, code: true, title: true, description: true, makerName: true, tries: true, materials: true, createdAt: true, sketch: true, sketchPath: true } }),
       type === 'ideas' ? [] : db.project.findMany({ where: projWhere, orderBy: { updatedAt: 'desc' }, take: 30, include: { user: { select: { name: true } } } }),
     ]);
     // One idea = one ID: once the project made from an idea is published, only the finished project shows.
@@ -88,7 +100,7 @@ router.get('/:id', authenticateToken, resolveSubject, async (req: any, res: Resp
     const i = await db.idea.findUnique({ where: { id } });
     if (!i || i.status !== 'visible') return res.status(404).json({ error: 'Not found' });
     const meId: string = req.subject?.isChild ? (req.subject.linkedUserId || req.user?.userId) : req.user?.userId;
-    return res.json({ ...ideaCard(i), description: i.description, sketch: i.sketch || null, materials: i.materials || [], category: i.category || '', mine: i.makerUserId === meId });
+    return res.json({ ...ideaCard(i), description: i.description, sketch: await sketchOf(i), materials: i.materials || [], category: i.category || '', mine: i.makerUserId === meId });
   } catch {
     return res.status(500).json({ error: 'Could not load.' });
   }
@@ -117,16 +129,18 @@ router.post('/share', authenticateToken, resolveSubject, async (req: any, res: R
     if (!scr.ok) {
       return res.status(422).json({ error: `Your idea was not shared because it seems to have ${scr.reason}. Please remove it and try again.` });
     }
+    const sketchPath = sketch ? await saveSketch(sketch) : null;
     const existing = await db.idea.findFirst({ where: { code, makerUserId: ownerId } });
     if (existing) {
       const row = await db.idea.update({
         where: { id: existing.id },
-        data: { title, description, sketch, materials, category: String(b.category || '').slice(0, 40) || null, makerName },
+        data: { title, description, sketch: sketchPath ? null : sketch, sketchPath, materials, category: String(b.category || '').slice(0, 40) || null, makerName },
       });
+      if (existing.sketchPath && existing.sketchPath !== sketchPath) await dropSketchIfUnused(existing.sketchPath);
       return res.json({ shared: true, id: row.id, status: row.status });
     }
     const row = await db.idea.create({
-      data: { code, title, description, sketch, materials, category: String(b.category || '').slice(0, 40) || null, makerUserId: ownerId, makerName },
+      data: { code, title, description, sketch: sketchPath ? null : sketch, sketchPath, materials, category: String(b.category || '').slice(0, 40) || null, makerUserId: ownerId, makerName },
     });
     return res.json({ shared: true, id: row.id, status: row.status });
   } catch (e: any) {
@@ -143,11 +157,12 @@ router.delete('/:id', authenticateToken, resolveSubject, async (req: any, res: R
     const me: string = req.subject?.isChild ? (req.subject.linkedUserId || authedId) : authedId;
     const id = String(req.params.id);
     if (!/^[a-f0-9]{24}$/i.test(id)) return res.status(400).json({ error: 'Bad id' });
-    const i = await db.idea.findUnique({ where: { id }, select: { makerUserId: true } });
+    const i = await db.idea.findUnique({ where: { id }, select: { makerUserId: true, sketchPath: true } });
     if (!i) return res.status(404).json({ error: 'Not found' });
     if (i.makerUserId !== me) return res.status(403).json({ error: 'Only the maker can withdraw an idea.' });
     await db.ideaTry.deleteMany({ where: { ideaId: id } }).catch(() => {});
     await db.idea.delete({ where: { id } });
+    await dropSketchIfUnused(i.sketchPath);
     return res.json({ ok: true });
   } catch (e: any) {
     console.error('idea withdraw:', e?.message || e);
@@ -164,7 +179,7 @@ router.post('/:id/try', authenticateToken, resolveSubject, async (req: any, res:
     if (!/^[a-f0-9]{24}$/i.test(id)) return res.status(400).json({ error: 'Bad id' });
     const i = await db.idea.findUnique({ where: { id } });
     if (!i || i.status !== 'visible') return res.status(404).json({ error: 'Not found' });
-    const detail = { ...ideaCard(i), description: i.description, sketch: i.sketch || null, materials: i.materials || [], category: i.category || '' };
+    const detail = { ...ideaCard(i), description: i.description, sketch: await sketchOf(i), materials: i.materials || [], category: i.category || '' };
     if (i.makerUserId === me) return res.json({ idea: detail, goinsGiven: 0, own: true });
     const already = await db.ideaTry.findFirst({ where: { ideaId: id, userId: me } });
     if (already) return res.json({ idea: detail, goinsGiven: 0, already: true });

@@ -309,7 +309,8 @@ model Idea {
   code        String   // planning-sheet ID, e.g. MG-SSK-PK-0042
   title       String
   description String
-  sketch      String?  // base64 picture, optional
+  sketch      String?  // OLD: base64 picture (kept only for ideas saved before Nov 2026)
+  sketchPath  String?  // sketch file in Firebase Storage (shared with the project that has the same planning ID)
   materials   Json?    // [{id, name, quantity}]
   category    String?
   makerUserId String   @db.ObjectId
@@ -370,7 +371,8 @@ model Project {
   uploadKey   String?   // unique code the app makes per upload, so a repeated request returns the first project (Nov 2026)
   videoCode   String?   // short video ID, e.g. MG-V-8H2M
   planCreatedAt DateTime?  // when that ID was created
-  planSketch  String?   // optional sketch (base64), planning sheet only — never sent to YouTube
+  planSketch  String?   // OLD: sketch as base64 text (kept only for sketches saved before Nov 2026)
+  planSketchPath String? // sketch file in Firebase Storage (sketches/<hash>.png), planning sheet only — never sent to YouTube
   // Optional "how it went" answers the child can give at upload (Nov 2026). Never sent to YouTube.
   feeling     String?   // LOVED | LIKED | OKAY | HARD | JUST_FINISHED (how the child felt making it)
   hoursTaken  Int?      // about how many hours of real making (1-500)

@@ -1,6 +1,7 @@
 // Admin "Ideas" list (Nov 2026). Mounted at /admin. Ideas are not reviewed; admin can only hide or show one.
 import { Router, Request, Response } from 'express';
 import prisma from '../utils/prismaClient';
+import { dropSketchIfUnused } from '../services/sketchStore';
 import { authenticateToken, authorizeAdmin } from '../middleware/authMiddleware';
 
 const router = Router();
@@ -32,8 +33,10 @@ router.delete('/ideas/:id', async (req: Request, res: Response) => {
   try {
     const id = String(req.params.id);
     if (!/^[a-f0-9]{24}$/i.test(id)) return res.status(400).json({ error: 'Bad id' });
+    const gone = await db.idea.findUnique({ where: { id }, select: { sketchPath: true } }).catch(() => null);
     await db.ideaTry.deleteMany({ where: { ideaId: id } }).catch(() => {});
     await db.idea.delete({ where: { id } });
+    await dropSketchIfUnused(gone?.sketchPath);
     return res.json({ ok: true });
   } catch { return res.status(500).json({ error: 'Could not delete it.' }); }
 });
