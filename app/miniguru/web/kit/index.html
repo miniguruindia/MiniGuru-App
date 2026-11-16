@@ -20,7 +20,19 @@ h1{font-size:22px;margin:8px 0 4px}
 .prog{font-size:13px;color:var(--mute)}
 .row{display:flex;align-items:center;gap:10px;background:var(--card);border:2px solid var(--line);border-radius:14px;padding:10px;margin:8px 0}
 .row.done{border-color:var(--green);background:#EAFBF0}
-.row.off{opacity:.45}
+.row.off{opacity:.55}
+.qty{display:inline-flex;align-items:center;gap:6px;margin-top:4px}
+.qty button{width:28px;height:28px;border-radius:50%;border:1px solid var(--line);background:#fff;font-weight:900;font-size:16px;line-height:1;cursor:pointer}
+.qty b{min-width:26px;text-align:center}
+.fwd{background:#fff;border:2px solid var(--blue);border-radius:14px;padding:12px 14px;margin:16px 0}
+.fwd h2{font-size:16px;margin:0 0 4px}
+.fwd p{font-size:13px;color:var(--mute);margin:2px 0 8px}
+.fwd label{display:block;font-size:13px;font-weight:800;margin:8px 0 2px}
+.fwd input,.fwd textarea{width:100%;font:inherit;font-size:14px;padding:8px 10px;border:1px solid var(--line);border-radius:8px}
+.fwd button{margin-top:10px;font:inherit;font-weight:800;font-size:15px;background:var(--blue);color:#fff;border:0;border-radius:22px;padding:11px 22px;cursor:pointer}
+.fwd button[disabled]{opacity:.6;cursor:default}
+.fmsg{margin-top:8px;font-size:14px;font-weight:700}
+.fmsg.ok{color:#0E9A3F}.fmsg.bad{color:#C0392B}
 .row img{width:48px;height:48px;border-radius:10px;object-fit:cover;background:#eef0fb;flex:none}
 .row .ph{width:48px;height:48px;border-radius:10px;background:#eef0fb;flex:none}
 .row .t{flex:1;min-width:0}
@@ -46,11 +58,23 @@ h1{font-size:22px;margin:8px 0 4px}
   <h1>&#128722; Your MiniGuru kit</h1>
   <div class="how">
     <b>How it works:</b> tap <b>Buy on Amazon</b> next to an item. Amazon opens in a <b>new tab</b> &mdash; press <b>Add to Cart</b> there,
-    then come back here. The item turns <b style="color:#12B24A">green</b>, so nothing is missed and nothing is opened twice.
+    then come back here. The item turns <b style="color:#12B24A">green</b>, so nothing is missed and nothing is opened twice.<br>
+    <b>Faster:</b> tick the items you want, change the numbers if needed, then press <b>Add ticked items to Amazon cart</b>.
   </div>
   <div class="bar"><i id="barfill"></i></div>
   <div class="prog" id="prog"></div>
   <div id="list"></div>
+  <div class="cart" id="cart"></div>
+  <div class="fwd" id="fwd" style="display:none">
+    <h2>&#9989; Approve and send to purchase</h2>
+    <p>Teacher or approver: tick the items that are approved and set the quantities above. Only ticked items are sent.</p>
+    <label for="fname">Your name</label><input id="fname" maxlength="60" placeholder="For example: Mrs. Sharma, T-LAB facilitator">
+    <label for="fto">Purchase department email</label><input id="fto" type="email" maxlength="120" placeholder="purchase@school.edu">
+    <label for="fcc">Office email to copy (optional)</label><input id="fcc" type="email" maxlength="120" placeholder="office@school.edu">
+    <label for="fnote">Note (optional)</label><textarea id="fnote" rows="2" maxlength="300"></textarea>
+    <button id="fsend" type="button">Approve and send</button>
+    <div class="fmsg" id="fmsg"></div>
+  </div>
   <div class="saved" id="saved"><b>Saved.</b> You can close this page now. To carry on later, open the same link from your email &mdash; your progress will be here for 7 days.</div>
   <div class="acts">
     <button class="save" id="btnsave">&#10003; Save and close</button>
@@ -78,13 +102,15 @@ h1{font-size:22px;margin:8px 0 4px}
   }
 
   var KEY = 'mgkit:' + raw;
-  var st = { opened: {}, t: Date.now() };
+  var st = { opened: {}, off: {}, qty: {}, t: Date.now() };
   var KEEP_MS = 7 * 86400000; // progress is kept 7 days, then forgotten
-  try { var saved = JSON.parse(localStorage.getItem(KEY) || 'null'); if (saved && saved.opened && saved.t && Date.now() - saved.t < KEEP_MS) st = saved; } catch (e) {}
+  try { var saved = JSON.parse(localStorage.getItem(KEY) || 'null'); if (saved && saved.opened && saved.t && Date.now() - saved.t < KEEP_MS) { st = saved; st.off = st.off || {}; st.qty = st.qty || {}; } } catch (e) {}
   function save() { st.t = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(st)); } catch (e) {} }
 
   var info = {}; // asin -> {name, img, unit, price}
 
+  function qtyOf(it) { return st.qty[it.asin] || it.qty; }
+  function ticked() { return items.filter(function (i) { return !st.off[i.asin]; }); }
   function dp(asin) { return 'https://www.amazon.in/dp/' + asin + '?tag=' + TAG; }
 
   function render() {
@@ -92,14 +118,27 @@ h1{font-size:22px;margin:8px 0 4px}
     items.forEach(function (it) {
       var d = info[it.asin] || {};
       var row = document.createElement('div');
-      row.className = 'row' + (st.opened[it.asin] ? ' done' : '');
+      row.className = 'row' + (st.opened[it.asin] ? ' done' : '') + (st.off[it.asin] ? ' off' : '');
+      var cb = document.createElement('input'); cb.type = 'checkbox'; cb.checked = !st.off[it.asin];
+      cb.title = 'Include this item';
+      cb.addEventListener('change', function () { if (cb.checked) delete st.off[it.asin]; else st.off[it.asin] = 1; save(); render(); });
+      row.appendChild(cb);
       if (d.img) { var im = document.createElement('img'); im.src = d.img; im.alt = ''; im.loading = 'lazy'; row.appendChild(im); }
       else { var ph = document.createElement('div'); ph.className = 'ph'; row.appendChild(ph); }
       var t = document.createElement('div'); t.className = 't';
       var n = document.createElement('div'); n.className = 'n'; n.textContent = d.name || ('Item ' + it.asin);
       var m = document.createElement('div'); m.className = 'm';
-      m.textContent = 'Qty ' + it.qty + (d.unit ? ' ' + d.unit : '') + (d.price ? ' · about ₹' + (d.price * it.qty) : '');
-      t.appendChild(n); t.appendChild(m); row.appendChild(t);
+      var q = qtyOf(it);
+      m.textContent = (d.unit ? d.unit + ' · ' : '') + (d.price ? 'about ₹' + (d.price * q) : '');
+      t.appendChild(n); t.appendChild(m);
+      var qb = document.createElement('div'); qb.className = 'qty';
+      var minus = document.createElement('button'); minus.type = 'button'; minus.textContent = '−';
+      var num = document.createElement('b'); num.textContent = q;
+      var plus = document.createElement('button'); plus.type = 'button'; plus.textContent = '+';
+      minus.onclick = function () { st.qty[it.asin] = Math.max(1, qtyOf(it) - 1); save(); render(); };
+      plus.onclick = function () { st.qty[it.asin] = Math.min(999, qtyOf(it) + 1); save(); render(); };
+      qb.appendChild(minus); qb.appendChild(num); qb.appendChild(plus); t.appendChild(qb);
+      row.appendChild(t);
       var a = document.createElement('a');
       a.className = 'buy'; a.href = dp(it.asin); a.target = '_blank'; a.rel = 'noopener noreferrer';
       a.textContent = st.opened[it.asin] ? 'Opened ✓' : 'Buy on Amazon ↗';
@@ -111,6 +150,28 @@ h1{font-size:22px;margin:8px 0 4px}
     var done = items.filter(function (i) { return st.opened[i.asin]; }).length;
     document.getElementById('prog').textContent = 'Opened ' + done + ' of ' + items.length + ' items';
     document.getElementById('barfill').style.width = Math.round(done * 100 / items.length) + '%';
+    renderCart();
+  }
+
+  // Same cart link as the Shop > My Kit button in the MiniGuru app: ASIN.n + Quantity.n (1 to 10), AssociateTag last, 10 items per link.
+  function renderCart() {
+    var box = document.getElementById('cart');
+    var list = ticked();
+    box.innerHTML = '';
+    if (!list.length) { box.innerHTML = '<p>No items ticked.</p>'; return; }
+    var big = false;
+    for (var s = 0; s < list.length; s += 10) {
+      var chunk = list.slice(s, s + 10), ps = [];
+      chunk.forEach(function (it, i) { var q = qtyOf(it); if (q > 10) big = true; ps.push('ASIN.' + (i + 1) + '=' + it.asin + '&Quantity.' + (i + 1) + '=' + Math.max(1, Math.min(10, q))); });
+      var a = document.createElement('a');
+      a.href = 'https://www.amazon.in/gp/aws/cart/add.html?' + ps.join('&') + '&AssociateTag=' + TAG;
+      a.target = '_blank'; a.rel = 'noopener noreferrer';
+      a.textContent = '🛒 Add ticked items to Amazon cart' + (list.length > 10 ? ' (part ' + (Math.floor(s / 10) + 1) + ' of ' + Math.ceil(list.length / 10) + ')' : '');
+      box.appendChild(a);
+    }
+    var p = document.createElement('p');
+    p.textContent = 'Amazon opens with the ticked items already in your cart.' + (list.length > 10 ? ' Please open every part.' : '') + (big ? ' An item needed in a quantity above 10 is added as 10; change the number in the cart.' : '');
+    box.appendChild(p);
   }
 
   document.getElementById('btnsave').onclick = function () {
@@ -120,8 +181,41 @@ h1{font-size:22px;margin:8px 0 4px}
   };
   document.getElementById('btnagain').onclick = function () {
     if (!confirm('Clear your progress on this list and start again?')) return;
-    st = { opened: {}, t: Date.now() }; save(); document.getElementById('saved').style.display = 'none'; render();
+    st = { opened: {}, off: {}, qty: {}, t: Date.now() }; save(); document.getElementById('saved').style.display = 'none'; render();
   };
+
+  // Forward to purchase: only on links that MiniGuru emailed (they carry a signature s).
+  var SIG = (params.get('s') || '').slice(0, 64);
+  if (SIG) {
+    var fwd = document.getElementById('fwd'); fwd.style.display = 'block';
+    var sending = false;
+    ['fname', 'fto', 'fcc'].forEach(function (id) { try { document.getElementById(id).value = localStorage.getItem('mgkitf:' + id) || ''; } catch (e) {} });
+    document.getElementById('fsend').onclick = function () {
+      if (sending) return;
+      var msg = document.getElementById('fmsg'), btn = this;
+      var to = document.getElementById('fto').value.trim();
+      var list = ticked();
+      msg.className = 'fmsg';
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) { msg.className = 'fmsg bad'; msg.textContent = 'Please enter the purchase department email.'; return; }
+      if (!list.length) { msg.className = 'fmsg bad'; msg.textContent = 'Please tick at least one item.'; return; }
+      sending = true; btn.disabled = true; msg.textContent = 'Sending…';
+      ['fname', 'fto', 'fcc'].forEach(function (id) { try { localStorage.setItem('mgkitf:' + id, document.getElementById(id).value); } catch (e) {} });
+      var cc = document.getElementById('fcc').value.trim();
+      fetch(API + '/shop/forward-kit', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          i: raw, s: SIG, to: to, ccEmails: cc ? [cc] : [],
+          approverName: document.getElementById('fname').value.trim(), note: document.getElementById('fnote').value.trim(),
+          items: list.map(function (it) { return { asin: it.asin, qty: qtyOf(it) }; })
+        })
+      }).then(function (r) { return r.json().catch(function () { return {}; }).then(function (j) { return { ok: r.ok, j: j }; }); })
+        .then(function (res) {
+          if (res.ok) { msg.className = 'fmsg ok'; msg.textContent = 'Sent. ' + list.length + ' approved item' + (list.length > 1 ? 's' : '') + ' went to ' + to + '. You can close this page.'; }
+          else { msg.className = 'fmsg bad'; msg.textContent = (res.j && res.j.error) || 'Could not send. Please try again.'; sending = false; btn.disabled = false; }
+        })
+        .catch(function () { msg.className = 'fmsg bad'; msg.textContent = 'No connection. Please try again.'; sending = false; btn.disabled = false; });
+    };
+  }
 
   render();
   // Names, pictures and prices come from the public MiniGuru list. If it is slow or fails, the Buy buttons still work.

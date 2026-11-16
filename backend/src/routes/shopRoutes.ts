@@ -1,4 +1,5 @@
 import { Router, Request, Response } from 'express';
+import crypto from 'crypto';
 import { sendEmail, OFFICIAL_FROM } from '../services/email/emailService';
 import prisma from '../utils/prismaClient';
 import { authenticateTokenOptional, authenticateToken } from '../middleware/authMiddleware';
@@ -92,6 +93,45 @@ function buyCell(asin: any, url: any, school: boolean): string {
     : '<span style="background:#aaa;color:#fff;padding:2px 8px;border-radius:4px;font-size:12px">Local</span>';
 }
 
+// Signature on a kit link (Nov 2026). Only links MiniGuru itself emailed can use the "Forward to purchase"
+// button, so the forward endpoint cannot be used to send mail to strangers.
+function kitSig(raw: string): string {
+  const secret = process.env.JWT_SECRET || process.env.ACCESS_TOKEN_SECRET || 'miniguru-kit';
+  return crypto.createHmac('sha256', secret).update('kit:' + raw).digest('hex').slice(0, 20);
+}
+
+// Amazon "add to cart" links, built EXACTLY like the Shop > My Kit button in the app (shop.dart _buildCartUrls):
+// ASIN.n and Quantity.n (quantity 1 to 10), then AssociateTag last, 10 items per link.
+function exactCartUrls(lines: { asin: any; qty: any }[]): string[] {
+  const merged = new Map<string, number>();
+  for (const l of lines) {
+    const a = String(l.asin || '').trim().toUpperCase();
+    if (!/^[A-Z0-9]{10}$/.test(a)) continue;
+    merged.set(a, Math.min(999, (merged.get(a) || 0) + Math.max(1, Math.floor(Number(l.qty)) || 1)));
+  }
+  const items = Array.from(merged.entries());
+  const urls: string[] = [];
+  for (let s = 0; s < items.length; s += 10) {
+    const params = items.slice(s, s + 10).map(([a, q], i) => 'ASIN.' + (i + 1) + '=' + a + '&Quantity.' + (i + 1) + '=' + Math.max(1, Math.min(10, q)));
+    urls.push('https://www.amazon.in/gp/aws/cart/add.html?' + params.join('&') + '&AssociateTag=' + AMAZON_TAG);
+  }
+  return urls;
+}
+function cartButtons(lines: { asin: any; qty: any }[], school: boolean): string {
+  const urls = exactCartUrls(lines);
+  if (urls.length === 0) return '';
+  const style = school
+    ? 'display:inline-block;margin:4px;background:#FF9900;color:#fff;text-decoration:none;padding:11px 24px;border-radius:6px;font-weight:700;font-size:15px'
+    : 'display:inline-block;margin:4px;background:#FF9900;color:#fff;text-decoration:none;padding:13px 28px;border-radius:50px;font-weight:700;font-size:15px';
+  const btns = urls.map((u, i) => '<a href="' + escHtml(u) + '" style="' + style + '">&#128722; Add all to Amazon cart' + (urls.length > 1 ? ' (part ' + (i + 1) + ' of ' + urls.length + ')' : '') + '</a>').join('');
+  const big = lines.some((l) => Number(l.qty) > 10);
+  return '<div style="text-align:center;margin:12px 0 6px">' + btns
+    + '<p style="margin:6px 0 0;color:#666;font-size:12px">Amazon opens with the items already in your cart.'
+    + (urls.length > 1 ? ' They are in ' + urls.length + ' carts, so please open every part.' : '')
+    + (big ? ' An item needed in a quantity above 10 is added as 10; change the number in the cart.' : '')
+    + '</p></div>';
+}
+
 // "Your kit" page: every item turns green once opened, so nothing is missed or opened twice.
 // Only ASIN and quantity travel in the link; names and pictures load on the page from the public list.
 function kitPageUrl(lines: { asin: any; qty: any }[]): string | null {
@@ -103,7 +143,8 @@ function kitPageUrl(lines: { asin: any; qty: any }[]): string | null {
   }
   if (merged.size === 0) return null;
   const parts = Array.from(merged.entries()).slice(0, 80).map(([a, q]) => a + '-' + q);
-  return 'https://miniguru.in/kit/?i=' + parts.join('_');
+  const joined = parts.join('_');
+  return 'https://miniguru.in/kit/?i=' + joined + '&s=' + kitSig(joined);
 }
 function kitButton(url: string | null, school: boolean): string {
   if (!url) return '';
@@ -183,6 +224,7 @@ ${ccNote}
 ${rows}
 ${totalEst > 0 ? '<tr style="background:#f5f7ff"><td colspan="2" style="padding:10px 12px;font-weight:700">Total</td><td style="padding:10px 12px;font-weight:700;color:#5B6EF5;text-align:right">&#8377;' + totalEst + '</td><td></td></tr>' : ''}
 </table>
+${cartButtons(items.map((i: any) => ({ asin: i.amazonASIN, qty: i.qty })), false)}
 ${kitButton(kitPageUrl(items.map((i: any) => ({ asin: i.amazonASIN, qty: i.qty }))), false)}
 <p style="color:#aaa;font-size:12px;text-align:center;margin:0 0 18px">Prices are estimates. Pay via UPI, card or COD.</p>
 <div style="background:#f0f4ff;border-radius:10px;padding:16px 20px">
@@ -214,6 +256,7 @@ ${ccList.length ? '<p style="color:#666;font-size:13px;margin:0 0 12px">Marked t
 ${schoolRows}
 ${totalEst > 0 ? '<tr><td colspan="3" style="padding:8px 10px;font-weight:700">Estimated total</td><td style="padding:8px 10px;font-weight:700;text-align:right">&#8377;' + totalEst + '</td><td></td></tr>' : ''}
 </table>
+${cartButtons(items.map((i: any) => ({ asin: i.amazonASIN, qty: i.qty })), true)}
 ${kitButton(kitPageUrl(items.map((i: any) => ({ asin: i.amazonASIN, qty: i.qty }))), true)}
 <p style="color:#888;font-size:12px;margin:8px 0 0">Prices are estimates; please check the current price on Amazon. Items marked Local are best bought nearby.</p>
 <p style="margin-top:22px">Regards,<br>T-LAB facilitator, ${escHtml(schoolName || 'our school')}</p>
@@ -360,6 +403,7 @@ ${ccNote}
 ${rows}
 ${total > 0 ? '<tr style="background:#f1f8f1"><td colspan="2" style="padding:10px 12px;font-weight:700">Estimated total</td><td style="padding:10px 12px;font-weight:700;color:#1B5E20;text-align:right">&#8377;' + total + '</td><td></td></tr>' : ''}
 </table>
+${cartButtons(asinList.map(([a, q]) => ({ asin: a, qty: q })), isSchool)}
 ${kitButton(kitPageUrl(asinList.map(([a, q]) => ({ asin: a, qty: q }))), isSchool)}
 <p style="color:#aaa;font-size:12px;text-align:center;margin:0 0 10px">Prices are estimates — please check the current price on Amazon. Items marked Local are best bought nearby.</p>
 </div>
@@ -391,6 +435,115 @@ ${kitButton(kitPageUrl(asinList.map(([a, q]) => ({ asin: a, qty: q }))), isSchoo
       return res.status(503).json({ error: "We've reached today's email limit — please try again tomorrow." });
     }
     console.error('POST /shop/send-list error:', err);
+    return res.status(500).json({ error: 'Could not send the email right now.' });
+  }
+});
+
+// ── POST /shop/forward-kit ───────────────────────────────────────────────────
+// The kit page's "Approve and send to purchase" button (Nov 2026). A teacher / approver ticks items and
+// edits quantities on the kit page, then this emails ONLY the ticked items to the purchase department
+// (optional office cc, admin always cc'd). Public, but the kit link must carry MiniGuru's own signature,
+// and sends are limited per link and per address.
+const kitForwardLog = new Map<string, number[]>();
+router.post('/forward-kit', async (req: Request, res: Response) => {
+  try {
+    const b = req.body || {};
+    const raw = String(b.i || '').slice(0, 2000);
+    const sig = String(b.s || '');
+    const good = kitSig(raw);
+    if (!raw || sig.length !== good.length || !crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(good))) {
+      return res.status(403).json({ error: 'This kit link cannot forward. Please open it again from your email.' });
+    }
+    const asked = new Map<string, number>();
+    for (const p of raw.split('_')) {
+      const [a, q] = p.split('-');
+      const asin = String(a || '').toUpperCase();
+      if (/^[A-Z0-9]{10}$/.test(asin)) asked.set(asin, Math.max(1, Math.min(999, parseInt(q, 10) || 1)));
+    }
+    const ip = String(req.headers['x-forwarded-for'] || req.ip || 'unknown').split(',')[0].trim();
+    const now = Date.now();
+    const byLink = (kitForwardLog.get('s:' + sig) || []).filter((t) => now - t < 24 * 3600 * 1000);
+    const byIp = (kitForwardLog.get('ip:' + ip) || []).filter((t) => now - t < 3600 * 1000);
+    if (byLink.length >= 5 || byIp.length >= 10) {
+      return res.status(429).json({ error: 'This list was already sent several times. Please try again later.' });
+    }
+    const to = typeof b.to === 'string' ? b.to.trim() : '';
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to) || to.length > 120) {
+      return res.status(400).json({ error: 'Please enter the purchase department email address.' });
+    }
+    const cc = parseCc(b.ccEmails, to);
+    const adminMail = String(process.env.ADMIN_EMAIL || '').trim();
+    if (adminMail && adminMail.toLowerCase() !== to.toLowerCase() && !cc.some((c) => c.toLowerCase() === adminMail.toLowerCase())) cc.push(adminMail);
+    const approver = String(b.approverName || '').replace(/[<>]/g, '').trim().slice(0, 60);
+    const note = String(b.note || '').replace(/[<>]/g, '').trim().slice(0, 300);
+
+    const chosen = new Map<string, number>();
+    for (const it of Array.isArray(b.items) ? b.items.slice(0, 80) : []) {
+      const asin = String(it && it.asin || '').toUpperCase();
+      if (!asked.has(asin)) continue; // only items that were on the original list
+      chosen.set(asin, Math.max(1, Math.min(999, Math.floor(Number(it.qty)) || 1)));
+    }
+    if (chosen.size === 0) return res.status(400).json({ error: 'Please tick at least one item.' });
+    const lines = Array.from(chosen.entries()).map(([asin, qty]) => ({ asin, qty }));
+    const mats: any[] = await (prisma as any).material.findMany({
+      where: { amazonASIN: { in: lines.map((l) => l.asin) } },
+      select: { amazonASIN: true, name: true, unit: true, priceEstimate: true },
+    });
+    const info = new Map<string, any>();
+    mats.forEach((m) => { const k = String(m.amazonASIN || '').toUpperCase(); if (k && !info.has(k)) info.set(k, m); });
+    let total = 0;
+    const rows = lines.map((l) => {
+      const m = info.get(l.asin) || {};
+      const price = Number(m.priceEstimate) > 0 ? Number(m.priceEstimate) * l.qty : 0;
+      total += price;
+      const was = asked.get(l.asin) || l.qty;
+      return '<tr>'
+        + '<td style="padding:6px 10px;border-bottom:1px solid #e5e5e5;text-align:center;color:#12B24A;font-weight:700">&#10004;</td>'
+        + '<td style="padding:6px 10px;border-bottom:1px solid #e5e5e5">' + itemLink(m.name || ('Item ' + l.asin), l.asin) + '</td>'
+        + '<td style="padding:6px 10px;border-bottom:1px solid #e5e5e5;text-align:center">' + l.qty + ' ' + escHtml(m.unit || 'piece')
+        + (was !== l.qty ? '<div style="color:#999;font-size:11px">asked for ' + was + '</div>' : '') + '</td>'
+        + '<td style="padding:6px 10px;border-bottom:1px solid #e5e5e5;text-align:right">' + (price ? '&#8377;' + price : '-') + '</td>'
+        + '<td style="padding:6px 10px;border-bottom:1px solid #e5e5e5;text-align:center">' + buyCell(l.asin, '', true) + '</td></tr>';
+    }).join('');
+    const notAsked = asked.size - lines.length;
+    const html = '<!DOCTYPE html><html><body style="font-family:Arial,sans-serif;background:#ffffff;color:#222">'
+      + '<div style="max-width:620px;margin:0 auto;padding:24px;font-size:15px;line-height:1.55">'
+      + '<p>Dear Purchase Department,</p>'
+      + '<p><strong>' + (approver ? escHtml(approver) : 'The approver') + '</strong> has approved the items below for purchase'
+      + (notAsked > 0 ? ' (' + notAsked + ' item' + (notAsked > 1 ? 's' : '') + ' on the original list were not approved and are not included)' : '') + '.</p>'
+      + (note ? '<p style="background:#f6f6f6;padding:8px 12px;border-radius:6px">Note: ' + escHtml(note) + '</p>' : '')
+      + (cc.length ? '<p style="color:#666;font-size:13px;margin:0 0 12px">Marked to ' + cc.map(escHtml).join(', ') + ' to keep them in the loop.</p>' : '')
+      + cartButtons(lines, true)
+      + '<table width="100%" style="border-collapse:collapse;border:1px solid #e5e5e5;margin:14px 0;font-size:14px">'
+      + '<tr style="background:#f6f6f6"><th style="padding:7px 10px">Approved</th><th style="padding:7px 10px;text-align:left">Item</th><th style="padding:7px 10px">Qty</th><th style="padding:7px 10px;text-align:right">Est.</th><th style="padding:7px 10px"></th></tr>'
+      + rows
+      + (total > 0 ? '<tr><td colspan="3" style="padding:8px 10px;font-weight:700">Estimated total</td><td style="padding:8px 10px;font-weight:700;text-align:right">&#8377;' + total + '</td><td></td></tr>' : '')
+      + '</table>'
+      + kitButton(kitPageUrl(lines), true)
+      + '<p style="color:#888;font-size:12px;margin:8px 0 0">Prices are estimates; please check the current price on Amazon. Only the items above are approved: nothing else should be bought.</p>'
+      + '<hr style="border:none;border-top:1px solid #e5e5e5;margin:26px 0 14px">'
+      + '<div style="text-align:center;color:#999;font-size:12px"><img src="https://miniguru.in/icons/Icon-192.png" width="32" height="32" alt="MiniGuru" style="border-radius:8px"><br>'
+      + 'Sent through MiniGuru &middot; MiniGuru Innovation Pvt Ltd, Ujjain, Madhya Pradesh<br>'
+      + '<a href="https://miniguru.in" style="color:#999">miniguru.in</a> &middot; <a href="mailto:connect@miniguru.in" style="color:#999">connect@miniguru.in</a></div>'
+      + '</div></body></html>';
+    await sendEmail({
+      to,
+      ...(cc.length ? { cc } : {}),
+      subject: ('Approved purchase request' + (approver ? ' from ' + approver : '') + ' - ' + lines.length + ' items').slice(0, 150),
+      html,
+      fromOverride: OFFICIAL_FROM,
+      kind: 'purchase-request',
+      reference: 'Approved list - ' + lines.length + ' of ' + asked.size + ' items' + (approver ? ' - ' + approver.slice(0, 40) : ''),
+    });
+    kitForwardLog.set('s:' + sig, [...byLink, now]);
+    kitForwardLog.set('ip:' + ip, [...byIp, now]);
+    await recordListShare('kit-forward', approver, lines.map((l) => ({ asin: true, price: Number(info.get(l.asin)?.priceEstimate) > 0 ? Number(info.get(l.asin).priceEstimate) : 0, qty: l.qty })));
+    return res.status(200).json({ success: true, itemCount: lines.length });
+  } catch (err: any) {
+    if (String((err && err.message) || '').includes('EMAIL_QUOTA_EXCEEDED')) {
+      return res.status(503).json({ error: "We've reached today's email limit. Please try again tomorrow." });
+    }
+    console.error('POST /shop/forward-kit error:', err?.message || err);
     return res.status(500).json({ error: 'Could not send the email right now.' });
   }
 });
