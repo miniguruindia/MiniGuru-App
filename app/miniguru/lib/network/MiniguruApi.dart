@@ -2055,6 +2055,24 @@ class MiniguruApi {
   /// Fetches materials for the project linked to a YouTube video ID.
   /// Returns a list of enriched material maps, or null on error.
   /// Used by home.dart to show the "Materials used" strip — never blocks UI.
+  /// Same call as getVideoMaterials, but also returns the "How it went" answers (Nov 2026).
+  Future<Map<String, dynamic>?> getVideoMaterialsAndStory(String videoId) async {
+    try {
+      if (videoId.isEmpty) return null;
+      final response = await http.get(
+        Uri.parse('$apiBaseUrl/api/videos/${Uri.encodeComponent(videoId)}/materials'),
+        headers: {'Content-Type': 'application/json'},
+      );
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (data is Map<String, dynamic>) return data;
+      }
+      return null;
+    } catch (_) {
+      return null;
+    }
+  }
+
   Future<List<dynamic>?> getVideoMaterials(String videoId) async {
     try {
       if (videoId.isEmpty) return null;

@@ -576,10 +576,11 @@ const updateProject = async (req, res) => {
         };
         try {
             if (uploadToYouTube) {
+                const composed = await composeProjectYoutubeDescription(id, { description: description !== undefined ? description : undefined });
                 const result = await uploadToYouTube(localVideoPath, {
                     title: title !== undefined ? title : existing.title,
-                    description: description !== undefined ? description : (existing.description || ""),
-                    tags: ["MiniGuru", "STEM", "Education", "India"],
+                    description: composed?.description ?? (description !== undefined ? description : (existing.description || "")),
+                    tags: composed?.tags ?? ["MiniGuru", "STEM", "Education", "India"],
                 });
                 newVideoUrl = result?.url;
                 if (checkVideoStatus && result?.videoId) {
@@ -666,6 +667,46 @@ exports.updateProject = updateProject;
 // replacing a video (or editing materials) gets consistent output. Kept as
 // a small standalone helper rather than refactoring createProject's inline
 // version, to avoid touching already-verified upload-path code.
+// One place that builds the YouTube description + tags for an EXISTING project (Nov 2026), so a replaced video
+// gets the same readable format as a first upload: description, how it went, materials, category, planning ID,
+// hashtags. Returns null if anything fails, and the caller keeps its old behaviour.
+async function composeProjectYoutubeDescription(projectId, overrides) {
+    try {
+        const p = await prismaClient_1.default.project.findUnique({ where: { id: projectId }, include: { category: true } });
+        if (!p)
+            return null;
+        const mats = overrides.materials && overrides.materials.length ? overrides.materials : (p.materials || []);
+        const idsOf = (m) => m.id || m.productId;
+        const ids = mats.map(idsOf).filter(Boolean);
+        let lines = [];
+        if (ids.length) {
+            const recs = await prismaClient_1.default.material.findMany({ where: { id: { in: ids } }, select: { id: true, name: true } });
+            const nameMap = new Map(recs.map((r) => [r.id, r.name]));
+            lines = mats
+                .map((m) => {
+                const name = nameMap.get(idsOf(m) || "") || m.name;
+                return name ? `• ${name}${Number(m.quantity) > 1 ? ` x${m.quantity}` : ""}` : null;
+            })
+                .filter(Boolean);
+        }
+        const category = overrides.categoryName || p.category?.name || "";
+        const planId = typeof p.planId === "string" && /^MG-[A-Z]{1,6}-[A-Z]{1,3}-\d{4,}$/.test(p.planId) ? p.planId : undefined;
+        return {
+            description: (0, youtubeDescriptionService_1.buildYoutubeDescription)({
+                description: overrides.description !== undefined ? overrides.description : (p.description || ""),
+                materialLines: lines,
+                category,
+                planId,
+                how: (0, youtubeDescriptionService_1.cleanHowItWent)(p.feeling, p.hoursTaken, p.wentWrong),
+            }),
+            tags: (0, youtubeDescriptionService_1.youtubeTagsFor)(category),
+        };
+    }
+    catch (e) {
+        logger_1.default.warn({ e }, "⚠️ Could not compose the new-format description — using the old one");
+        return null;
+    }
+}
 async function buildMaterialsEnrichedDescription(baseDescription, materials) {
     let result = baseDescription || "";
     if (!materials || materials.length === 0)
@@ -790,11 +831,16 @@ const adminUpdateProject = async (req, res) => {
                     rejectionReason: null,
                     rejectionAt: null,
                 };
-                const enrichedDescription = await buildMaterialsEnrichedDescription(description !== undefined ? description : (project.description || ""), materials || []);
+                const composed = await composeProjectYoutubeDescription(id, {
+                    description: description !== undefined ? description : undefined,
+                    materials: materials || undefined,
+                    categoryName: typeof categoryName === "string" && categoryName ? categoryName : undefined,
+                });
+                const enrichedDescription = composed?.description ?? await buildMaterialsEnrichedDescription(description !== undefined ? description : (project.description || ""), materials || []);
                 const result = await uploadToYouTube(tempPath, {
                     title: title !== undefined ? title : project.title,
                     description: enrichedDescription,
-                    tags: ["MiniGuru", "STEM", "Education", "India"],
+                    tags: composed?.tags ?? ["MiniGuru", "STEM", "Education", "India"],
                 });
                 newVideoUrl = result?.url;
                 // Deliberately NOT calling setVideoPublic here anymore — the

@@ -113,8 +113,15 @@ class _UnifiedVideoPlayerState extends State<UnifiedVideoPlayer> {
 
   Future<void> _loadMaterials() async {
     try {
-      final result = await _miniguruApi.getVideoMaterials(widget.videoId);
-      if (mounted && result != null) setState(() => _materials = result);
+      final result = await _miniguruApi.getVideoMaterialsAndStory(widget.videoId);
+      if (mounted && result != null) {
+        setState(() {
+          final mats = result['materials'];
+          if (mats is List) _materials = mats;
+          final story = result['howItWent'];
+          if (story is Map) _howItWent = Map<String, dynamic>.from(story);
+        });
+      }
     } catch (_) {
       // Materials section just doesn't show — never breaks video playback.
     }
@@ -655,6 +662,50 @@ class _UnifiedVideoPlayerState extends State<UnifiedVideoPlayer> {
   // ── Title / stats / peer rating / "About this project" ──────────────────
   // Extracted verbatim from the previous single-column build() so both
   // layouts render byte-identical content, just arranged differently.
+  Map<String, dynamic>? _howItWent;
+
+  static const Map<String, String> _feelingText = {
+    'LOVED': '😍 Loved making it',
+    'LIKED': '😊 Liked working on it',
+    'OKAY': '🙂 It was okay',
+    'HARD': '😓 It was hard work',
+    'JUST_FINISHED': '🏁 Just finished it',
+  };
+
+  // "How it went": only shown when the maker filled something in.
+  Widget _buildHowItWentSection() {
+    final s = _howItWent;
+    if (s == null) return const SizedBox.shrink();
+    final feeling = _feelingText[s['feeling']];
+    final hours = s['hoursTaken'];
+    final wrong = (s['wentWrong'] ?? '').toString().trim();
+    final bits = <String>[
+      if (feeling != null) feeling,
+      if (hours is int && hours > 0) 'About $hours hour${hours == 1 ? '' : 's'} of making',
+    ];
+    if (bits.isEmpty && wrong.isEmpty) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('🛠️ How it went',
+              style: GoogleFonts.nunito(fontWeight: FontWeight.w900, fontSize: 15, color: Colors.black87)),
+          const SizedBox(height: 6),
+          if (bits.isNotEmpty)
+            Text(bits.join('  ·  '), style: GoogleFonts.nunito(fontSize: 13, color: Colors.black87)),
+          if (wrong.isNotEmpty) ...[
+            const SizedBox(height: 6),
+            Text('💡 What went wrong, or what I learned',
+                style: GoogleFonts.nunito(fontSize: 12, fontWeight: FontWeight.w800, color: Colors.black54)),
+            const SizedBox(height: 2),
+            Text(wrong, style: GoogleFonts.nunito(fontSize: 13, color: Colors.black87, height: 1.4)),
+          ],
+        ],
+      ),
+    );
+  }
+
   Widget _buildMaterialsSection() {
     if (_materials.isEmpty) return const SizedBox.shrink();
     return Padding(
@@ -855,6 +906,7 @@ class _UnifiedVideoPlayerState extends State<UnifiedVideoPlayer> {
                         // Lets the child copy the list, and lets ANY
                         // viewer (not just the uploader) send a buy-kit
                         // email for these materials to a parent.
+                        _buildHowItWentSection(),
                         _buildMaterialsSection(),
                         if (_materials.isNotEmpty) const Divider(height: 1),
 

@@ -244,6 +244,36 @@ router.put('/comments/:commentId', authenticateToken, resolveSubject, updateVide
 router.delete('/comments/:commentId', authenticateToken, resolveSubject, deleteVideoComment);
 
 
+// Amazon link for the strip: if admin flagged the main ASIN as unavailable, use the first backup ASIN, or a tagged
+// Amazon search for the item name (same rule as the Shop, see toPublicShape in materialsRoutes.ts).
+function stripAmazon(mat: any): { amazonASIN: string | null; amazonUrl: string | null } {
+  if (!mat) return { amazonASIN: null, amazonUrl: null };
+  if (mat.amazonUnavailable !== true || !mat.amazonASIN) return { amazonASIN: mat.amazonASIN ?? null, amazonUrl: mat.amazonUrl ?? null };
+  const clean = (a: any) => { const t = String(a || '').trim().toUpperCase(); return /^[A-Z0-9]{10}$/.test(t) ? t : ''; };
+  const backup = (mat.amazonBackupAsins || []).map(clean).filter((a: string) => a && a !== mat.amazonASIN)[0];
+  if (backup) return { amazonASIN: backup, amazonUrl: 'https://www.amazon.in/dp/' + backup + '?tag=miniguru04-21' };
+  return { amazonASIN: '', amazonUrl: 'https://www.amazon.in/s?k=' + encodeURIComponent(String(mat.name || '')) + '&tag=miniguru04-21' };
+}
+
+// "How it went" (feeling, hours, what went wrong) for the video that is open, matched by the video link.
+async function howItWentFor(videoId: string): Promise<{ feeling?: string; hoursTaken?: number; wentWrong?: string } | null> {
+  try {
+    const rows: any[] = await (prisma as any).project.findMany({
+      where: { status: 'published', OR: [{ feeling: { not: null } }, { hoursTaken: { not: null } }, { wentWrong: { not: null } }] },
+      select: { video: true, feeling: true, hoursTaken: true, wentWrong: true },
+      orderBy: { createdAt: 'desc' },
+      take: 500,
+    });
+    const p = rows.find((r) => r.video?.url && String(r.video.url).includes(videoId));
+    if (!p) return null;
+    const out: any = {};
+    if (p.feeling) out.feeling = p.feeling;
+    if (p.hoursTaken) out.hoursTaken = p.hoursTaken;
+    if (p.wentWrong) out.wentWrong = p.wentWrong;
+    return Object.keys(out).length ? out : null;
+  } catch { return null; }
+}
+
 // GET /api/videos/:videoId/materials
 // Returns enriched materials for the project linked to a YouTube video ID.
 // Used by home screen to show the "Materials used" strip.
@@ -291,8 +321,9 @@ router.get('/:videoId/materials', async (req: any, res: any) => {
       if (matched) project = matched;
     }
 
+    const howItWent = await howItWentFor(videoId);
     if (!project || !project.materials || project.materials.length === 0) {
-      return res.json({ materials: [] });
+      return res.json({ materials: [], howItWent });
     }
 
     const enriched = await Promise.all(
@@ -316,6 +347,8 @@ router.get('/:videoId/materials', async (req: any, res: any) => {
                 priceEstimate: true,
                 amazonASIN: true,
                 amazonUrl: true,
+                amazonUnavailable: true,
+                amazonBackupAsins: true,
               },
             });
           } catch (_) { /* ignore */ }
@@ -328,13 +361,12 @@ router.get('/:videoId/materials', async (req: any, res: any) => {
             icon: mat?.icon ?? '🔩',
             imageUrl: mat?.imageUrl ?? null,
             priceEstimate: mat?.priceEstimate ?? null,
-            amazonASIN: mat?.amazonASIN ?? null,
-            amazonUrl: mat?.amazonUrl ?? null,
+            ...stripAmazon(mat),
           };
         })
     );
 
-    return res.json({ materials: enriched });
+    return res.json({ materials: enriched, howItWent });
   } catch (err) {
     console.error('videoMaterials error:', err);
     return res.json({ materials: [] });
