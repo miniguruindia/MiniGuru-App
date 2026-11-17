@@ -1,10 +1,7 @@
-// MiniGuru Text (Nov 2026). Works exactly like Flutter's Text, but if the app is in Hindi it shows the Hindi for that
-// English text (see utils/i18n.dart and the hi_strings files). Words with no Hindi entry, and words that carry a changing
-// part (a name, a number), stay as they are. Files use it with:
+// MiniGuru Text (Nov 2026). Works exactly like Flutter's Text, kept so existing screens need no edits. Files use it with:
 //   import 'package:flutter/material.dart' hide Text;
 //   import 'package:miniguru/widgets/mgText.dart';
 import 'package:flutter/material.dart' as m;
-import 'package:miniguru/utils/i18n.dart';
 
 class Text extends m.StatelessWidget {
   final String data;
@@ -42,24 +39,21 @@ class Text extends m.StatelessWidget {
 
   @override
   m.Widget build(m.BuildContext context) {
-    return m.ValueListenableBuilder<String>(
-      valueListenable: I18n.lang,
-      builder: (c, _, __) => m.Text(
-        I18n.t(data),
-        style: style,
-        strutStyle: strutStyle,
-        textAlign: textAlign,
-        textDirection: textDirection,
-        locale: locale,
-        softWrap: softWrap,
-        overflow: overflow,
-        textScaler: textScaler,
-        maxLines: maxLines,
-        semanticsLabel: semanticsLabel,
-        textWidthBasis: textWidthBasis,
-        textHeightBehavior: textHeightBehavior,
-        selectionColor: selectionColor,
-      ),
+    return m.Text(
+      data,
+      style: style,
+      strutStyle: strutStyle,
+      textAlign: textAlign,
+      textDirection: textDirection,
+      locale: locale,
+      softWrap: softWrap,
+      overflow: overflow,
+      textScaler: textScaler,
+      maxLines: maxLines,
+      semanticsLabel: semanticsLabel,
+      textWidthBasis: textWidthBasis,
+      textHeightBehavior: textHeightBehavior,
+      selectionColor: selectionColor,
     );
   }
 }

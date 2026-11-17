@@ -13,7 +13,6 @@ import 'package:flutter/material.dart' hide Text;
 import 'package:miniguru/widgets/mgText.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:miniguru/widgets/mgIcons.dart';
-import 'package:miniguru/widgets/languageToggle.dart' show LanguageFab;
 import 'package:miniguru/screens/navScreen/community_screen.dart' show CommunityScreen;
 
 class NavShell {
@@ -82,12 +81,6 @@ class NavShellFrame extends StatelessWidget {
                     child: child,
                   ),
                 ),
-              ),
-              // One-tap language switch, on every page (Nov 2026).
-              Positioned(
-                left: 8,
-                bottom: (width < 1000 && vis) ? 84 : 16,
-                child: const LanguageFab(),
               ),
               ]),
             ),

@@ -11,7 +11,6 @@ import 'package:miniguru/screens/homeScreen.dart';
 import 'package:miniguru/screens/registerScreen.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:miniguru/utils/i18n.dart';
-import 'package:miniguru/widgets/languageToggle.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -422,10 +421,7 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   @override
-  Widget build(BuildContext context) => ValueListenableBuilder<String>(
-        valueListenable: I18n.lang,
-        builder: (c, _, __) => _buildBody(c),
-      );
+  Widget build(BuildContext context) => _buildBody(context);
 
   Widget _buildBody(BuildContext context) {
     return Scaffold(
@@ -452,7 +448,6 @@ class _LoginScreenState extends State<LoginScreen> {
                         onPressed: () => Navigator.of(context).pop(),
                       ),
                     ),
-                  const Align(alignment: Alignment.centerRight, child: LanguageToggle(screen: 'login')),
                   const SizedBox(height: 8),
                   Hero(
                     tag: 'app_logo',

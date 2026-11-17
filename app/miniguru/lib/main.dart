@@ -2,7 +2,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_web_plugins/url_strategy.dart';
 import 'package:miniguru/utils/deepLink.dart';
-import 'package:miniguru/utils/i18n.dart';
 import 'package:miniguru/constants.dart';
 import 'package:miniguru/screens/homeScreen.dart';
 import 'package:miniguru/screens/loginScreen.dart';
@@ -18,7 +17,6 @@ void main() async {
   // Real addresses (miniguru.in/shop) instead of miniguru.in/#/shop
   usePathUrlStrategy();
   DeepLink.capture();
-  await I18n.init();   // saved English/Hindi choice
   print('🚀 MiniGuru starting...');
   runApp(const MyApp());
 }
