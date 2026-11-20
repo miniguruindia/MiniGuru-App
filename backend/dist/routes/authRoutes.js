@@ -7,6 +7,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = __importDefault(require("express"));
 const authController_1 = require("../controllers/auth/authController");
+const verifyLinkController_1 = require("../controllers/auth/verifyLinkController");
 const passwordResetController_1 = require("../controllers/auth/passwordResetController");
 const validationMiddleware_1 = require("../middleware/validationMiddleware");
 const authMiddleware_1 = require("../middleware/authMiddleware");
@@ -78,6 +79,8 @@ authRouter.post('/register-child', registrationController_1.registerChild);
 // contact at any time — a VERIFIED contact requires approval to change
 // (OTP to the old contact, or manual admin approval), an UNVERIFIED one
 // changes immediately. See contactVerificationController.ts for the design.
+authRouter.get('/verify-link', verifyLinkController_1.showVerifyLink);
+authRouter.post('/verify-link', verifyLinkController_1.confirmVerifyLink);
 authRouter.post('/verification/send-otp', authMiddleware_1.authenticateToken, contactVerificationController_1.sendVerificationOtp);
 authRouter.post('/verification/confirm-otp', authMiddleware_1.authenticateToken, contactVerificationController_1.confirmVerificationOtp);
 authRouter.post('/verification/confirm-phone', authMiddleware_1.authenticateToken, contactVerificationController_1.confirmPhoneProof);

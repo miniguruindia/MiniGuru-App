@@ -3,6 +3,7 @@
 
 import express from 'express';
 import { login, refreshToken, logout, register, changePassword, changeLoginId } from '../controllers/auth/authController';
+import { showVerifyLink, confirmVerifyLink } from '../controllers/auth/verifyLinkController';
 import { requestPasswordReset, resetPassword } from '../controllers/auth/passwordResetController';
 import { registerValidationRules } from '../middleware/validationMiddleware';
 import { authenticateToken } from '../middleware/authMiddleware';
@@ -94,6 +95,8 @@ authRouter.post('/register-child', registerChild);
 // (OTP to the old contact, or manual admin approval), an UNVERIFIED one
 // changes immediately. See contactVerificationController.ts for the design.
 
+authRouter.get('/verify-link', showVerifyLink);
+authRouter.post('/verify-link', confirmVerifyLink);
 authRouter.post('/verification/send-otp', authenticateToken, sendVerificationOtp);
 authRouter.post('/verification/confirm-otp', authenticateToken, confirmVerificationOtp);
 authRouter.post('/verification/confirm-phone', authenticateToken, confirmPhoneProof);

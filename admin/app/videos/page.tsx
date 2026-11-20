@@ -341,6 +341,18 @@ function ApprovalsTab() {
                   <td className="px-5 py-4">
                     <p className="font-medium text-gray-900 text-sm">{p.title}</p>
                     <p className="text-xs text-gray-400 line-clamp-1">{p.description}</p>
+                    {/* On a phone the Video column is hidden, so the Watch link lives here too. */}
+                    <div className="md:hidden mt-2">
+                      {p.video?.url ? (
+                        <a href={p.video.url} target="_blank" rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 px-3 py-1.5 bg-green-50 text-green-700 text-xs rounded-full font-semibold hover:bg-green-100">
+                          <Eye className="h-3.5 w-3.5" /> Watch video
+                        </a>
+                      ) : (
+                        <span className="px-2 py-1 bg-red-50 text-red-500 text-xs rounded-full font-medium">No video</span>
+                      )}
+                      {p.category?.name && <span className="ml-2 text-xs text-blue-700">{p.category.name}</span>}
+                    </div>
                   </td>
                   <td className="px-5 py-4 hidden md:table-cell">
                     <span className="px-2 py-1 bg-blue-50 text-blue-700 text-xs rounded-full font-medium">

@@ -4,6 +4,7 @@ import bcrypt from 'bcryptjs';
 import prisma from '../utils/prismaClient';
 import { authenticateToken } from '../middleware/authMiddleware';
 import { sendEmail } from '../services/emailService';
+import { verifyLinkUrl, verifyButtonHtml, VERIFY_CODE_HOURS } from '../services/verifyLink';
 import logger from '../logger';
 import { nextFreeLoginId, createUserWithFreeId } from '../utils/uniqueLoginId';
 
@@ -27,7 +28,7 @@ function generateOtp(): string {
   return Math.floor(100000 + Math.random() * 900000).toString();
 }
 function otpExpiry(): Date {
-  return new Date(Date.now() + 15 * 60 * 1000);
+  return new Date(Date.now() + VERIFY_CODE_HOURS * 3600 * 1000);
 }
 function isGeneratedLoginId(email: string | null | undefined): boolean {
   return !!email && email.trim().toLowerCase().endsWith('@miniguru.in');
@@ -50,7 +51,8 @@ async function sendRegistrationVerificationOtp(userId: string, destination: stri
         <h2 style="color:#5B6EF5">Welcome to MiniGuru!</h2>
         <p>Use this code to verify your account's email address:</p>
         <p style="font-size:32px;font-weight:800;letter-spacing:4px;color:#5B6EF5">${otp}</p>
-        <p style="color:#888;font-size:13px">This code expires in 15 minutes. You can also verify any time later from your Profile page — verification is optional and never blocks you from using MiniGuru.</p>
+        ${verifyButtonHtml(verifyLinkUrl(userId, destination))}
+        <p style="color:#888;font-size:13px">This code expires in ${VERIFY_CODE_HOURS} hours. You can also verify any time later from your Profile page — verification is optional and never blocks you from using MiniGuru.</p>
       </div>`,
     });
   } catch (err: any) {

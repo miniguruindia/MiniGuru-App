@@ -25,10 +25,16 @@ import bcrypt from 'bcryptjs';
 import prisma from '../../utils/prismaClient';
 import { sendEmail } from '../../services/emailService';
 import logger from '../../logger';
+import { verifyLinkUrl, verifyButtonHtml, VERIFY_CODE_HOURS } from '../../services/verifyLink';
 import { getPhoneProvider, normalizePhone, maskPhone } from '../../services/phoneVerification';
 import { checkPhoneSmsQuota, recordPhoneSmsStarted, recordPhoneVerified } from '../../utils/costTracking';
 
 const OTP_EXPIRY_MINUTES = 15;
+// Codes sent to VERIFY an email last 24 hours (Nov 2026) so a parent can come back to the email later.
+// Codes that approve a contact CHANGE stay at 15 minutes.
+const VERIFY_EXPIRY_MS = VERIFY_CODE_HOURS * 3600 * 1000;
+const MAX_WRONG_TRIES = 5;
+const wrongTries = new Map<string, number>();
 
 // A MiniGuru login ID is always issued on the @miniguru.in domain — for
 // children (firstname.lastname@, or the school-bulk firstnameP.code.city@
@@ -58,7 +64,7 @@ function otpExpiry(): Date {
   return new Date(Date.now() + OTP_EXPIRY_MINUTES * 60 * 1000);
 }
 
-async function sendOtpEmail(to: string, purpose: string, otp: string) {
+async function sendOtpEmail(to: string, purpose: string, otp: string, verifyUrl?: string) {
   await sendEmail({
     to,
     cc: 'miniguru.in@gmail.com',
@@ -67,7 +73,8 @@ async function sendOtpEmail(to: string, purpose: string, otp: string) {
       <p>Your MiniGuru verification code is:</p>
       <p style="font-size: 28px; font-weight: bold; letter-spacing: 4px;">${otp}</p>
       <p>${purpose}</p>
-      <p>This code expires in ${OTP_EXPIRY_MINUTES} minutes. If you didn't request this, you can safely ignore this email.</p>
+      ${verifyUrl ? verifyButtonHtml(verifyUrl) : ''}
+      <p>${verifyUrl ? `This code expires in ${VERIFY_CODE_HOURS} hours.` : `This code expires in ${OTP_EXPIRY_MINUTES} minutes.`} If you didn't request this, you can safely ignore this email.</p>
     `,
   });
 }
@@ -103,15 +110,21 @@ export const sendVerificationOtp = async (req: Request, res: Response) => {
           : 'No real email address on file to send a code to. Add a contact email first.',
       });
     }
+    // Resend is allowed, but not more than once a minute (the stored expiry tells us when the last code went out).
+    if (user.verificationOtpTarget === 'email' && user.verificationOtpExpiry &&
+        user.verificationOtpExpiry.getTime() - Date.now() > VERIFY_EXPIRY_MS - 60_000) {
+      return res.status(429).json({ error: 'A code was just sent. Please wait a minute before asking again.' });
+    }
     const otp = generateOtp();
     await prisma.user.update({
       where: { id: userId },
       data: {
         verificationOtpHash: await bcrypt.hash(otp, 10),
-        verificationOtpExpiry: otpExpiry(),
+        verificationOtpExpiry: new Date(Date.now() + VERIFY_EXPIRY_MS),
         verificationOtpTarget: 'email',
       },
     });
+    wrongTries.delete(userId);
     // BUGFIX (Aug 2026): this call used to be unguarded — if SendGrid ever
     // threw (bad/expired API key, rejected sender, network error), the
     // request never sent a response at all. The Flutter card's button
@@ -121,7 +134,7 @@ export const sendVerificationOtp = async (req: Request, res: Response) => {
     // missing try/catch. Now surfaces the real SendGrid error instead of
     // hanging silently.
     try {
-      await sendOtpEmail(destination, 'Use this to verify your MiniGuru email address.', otp);
+      await sendOtpEmail(destination, 'Use this to verify your MiniGuru email address.', otp, verifyLinkUrl(userId, destination));
     } catch (emailError: any) {
       logger.error(
         { emailError: emailError?.response?.body || emailError?.message || emailError },
@@ -286,7 +299,18 @@ export const confirmVerificationOtp = async (req: Request, res: Response) => {
     return res.status(400).json({ error: 'That code has expired. Request a new one.' });
   }
   const valid = await bcrypt.compare(otp.toString().trim(), user.verificationOtpHash);
-  if (!valid) return res.status(400).json({ error: 'Incorrect code.' });
+  if (!valid) {
+    // Codes now last 24 hours, so stop guessing: after 5 wrong tries the code is cancelled and a new one is needed.
+    const n = (wrongTries.get(userId) || 0) + 1;
+    if (n >= MAX_WRONG_TRIES) {
+      wrongTries.delete(userId);
+      await prisma.user.update({ where: { id: userId }, data: { verificationOtpHash: null, verificationOtpExpiry: null, verificationOtpTarget: null } });
+      return res.status(400).json({ error: 'Too many wrong tries. Please request a new code.' });
+    }
+    wrongTries.set(userId, n);
+    return res.status(400).json({ error: 'Incorrect code.' });
+  }
+  wrongTries.delete(userId);
 
   const data: any = {
     verificationOtpHash: null,

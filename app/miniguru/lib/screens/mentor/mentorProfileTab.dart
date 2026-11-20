@@ -13,6 +13,7 @@ import 'package:miniguru/state/sessionState.dart';
 import 'package:miniguru/screens/editProfileScreen.dart';
 import 'package:miniguru/screens/legalScreen.dart';
 import 'package:miniguru/widgets/contactVerificationCard.dart';
+import 'package:miniguru/widgets/reportProblem.dart';
 import 'package:miniguru/screens/mentor/submitHappeningScreen.dart';
 import 'package:miniguru/screens/mentor/submitChallengeScreen.dart';
 import 'package:miniguru/screens/about.dart';
@@ -472,6 +473,14 @@ class _MentorProfileTabState extends State<MentorProfileTab> {
             subtitle: 'Our story, contact info, and platform details',
             color: const Color(0xFF7DB2FF),
             onTap: () => DeepLink.openAboutPage(),
+          ),
+          const SizedBox(height: 10),
+          _actionTile(
+            icon: Icons.report_gmailerrorred_outlined,
+            label: 'Report a problem',
+            subtitle: 'Something not working? Tell us',
+            color: const Color(0xFFFF7A59),
+            onTap: () => showReportProblemDialog(context, page: 'Teacher/parent profile'),
           ),
           const SizedBox(height: 10),
           _actionTile(

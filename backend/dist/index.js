@@ -40,6 +40,7 @@ const accountDeletionRoutes_1 = __importDefault(require("./routes/accountDeletio
 const youtubeViewsRoutes_1 = __importDefault(require("./routes/youtubeViewsRoutes"));
 const planIdRoutes_1 = __importDefault(require("./routes/planIdRoutes"));
 const ideaRoutes_1 = __importDefault(require("./routes/ideaRoutes"));
+const supportRoutes_1 = __importDefault(require("./routes/supportRoutes"));
 const adminIdeaRoutes_1 = __importDefault(require("./routes/adminIdeaRoutes"));
 const adminActivityRoutes_1 = __importDefault(require("./routes/adminActivityRoutes"));
 const accountMergeRoutes_1 = __importDefault(require("./routes/accountMergeRoutes"));
@@ -324,6 +325,7 @@ try {
     app.use('/account-deletion', accountDeletionRoutes_1.default);
     app.use('/plan-ids', planIdRoutes_1.default);
     app.use('/ideas', ideaRoutes_1.default);
+    app.use('/support', supportRoutes_1.default);
     app.use('/communication', communicationRoutes_1.default);
     app.use('/admin/communication', communicationRoutes_1.default);
     app.use('/admin/cms', cmsRoutes_1.default); // ← NEW: Goins balance, deduct, award

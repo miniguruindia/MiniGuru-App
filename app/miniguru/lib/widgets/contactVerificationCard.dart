@@ -71,8 +71,14 @@ class _ContactVerificationCardState extends State<ContactVerificationCard> {
         return;
       }
       _snack('Code sent to ${body['maskedTarget'] ?? 'your email'}.');
-      final otp = await _askOtp('Enter the code we emailed you');
+      final otp = await _askOtp('Enter the code we emailed you', emailResend: true);
       if (otp == null) return;
+      if (otp == '__link__') {
+        // They tapped the button in the email: just refresh the profile.
+        widget.onChanged();
+        _snack('Checking your email status...');
+        return;
+      }
       final confirmRes = await _api.confirmVerificationOtp(otp);
       final confirmBody = jsonDecode(confirmRes.body);
       if (confirmRes.statusCode == 200) {
@@ -197,22 +203,53 @@ class _ContactVerificationCardState extends State<ContactVerificationCard> {
     }
   }
 
-  Future<String?> _askOtp(String title) {
+  Future<String?> _askOtp(String title, {bool emailResend = false}) {
     final controller = TextEditingController();
+    bool resending = false;
     return showDialog<String>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(title),
-        content: TextField(
-          controller: controller,
-          keyboardType: TextInputType.number,
-          maxLength: 6,
-          decoration: const InputDecoration(hintText: '6-digit code'),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setS) => AlertDialog(
+          title: Text(title),
+          content: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+            if (emailResend)
+              const Padding(
+                padding: EdgeInsets.only(bottom: 8),
+                child: Text('The code works for 24 hours. You can also just tap the "Verify my email" button in the email.',
+                    style: TextStyle(fontSize: 12)),
+              ),
+            TextField(
+              controller: controller,
+              keyboardType: TextInputType.number,
+              maxLength: 6,
+              decoration: const InputDecoration(hintText: '6-digit code'),
+            ),
+            if (emailResend)
+              Wrap(spacing: 8, children: [
+                TextButton(
+                  onPressed: resending
+                      ? null
+                      : () async {
+                          setS(() => resending = true);
+                          try {
+                            final r = await _api.sendVerificationOtp('email');
+                            final b = jsonDecode(r.body);
+                            _snack(r.statusCode == 200 ? 'New code sent.' : (b['error'] ?? 'Could not send.'), isError: r.statusCode != 200);
+                          } catch (_) {
+                            _snack('Could not send. Please try again.', isError: true);
+                          }
+                          if (ctx.mounted) setS(() => resending = false);
+                        },
+                  child: Text(resending ? 'Sending...' : 'Resend code'),
+                ),
+                TextButton(onPressed: () => Navigator.pop(ctx, '__link__'), child: const Text("I tapped the email button")),
+              ]),
+          ]),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+            ElevatedButton(onPressed: () => Navigator.pop(ctx, controller.text.trim()), child: const Text('Confirm')),
+          ],
         ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
-          ElevatedButton(onPressed: () => Navigator.pop(ctx, controller.text.trim()), child: const Text('Confirm')),
-        ],
       ),
     );
   }

@@ -101,6 +101,27 @@ class MiniguruApi {
     );
   }
 
+  /// "Report a problem". Returns null when sent, or a short message when not.
+  Future<String?> reportProblem(String message, String page) async {
+    try {
+      dynamic authToken;
+      try { authToken = await _getValidToken(); } catch (_) { authToken = null; }
+      final r = await http
+          .post(Uri.parse('$_baseUrl/support/report'),
+              headers: _buildHeaders(authToken?.accessToken as String?),
+              body: jsonEncode({'message': message, 'page': page}))
+          .timeout(const Duration(seconds: 20));
+      if (r.statusCode == 200) return null;
+      try {
+        return jsonDecode(r.body)['error']?.toString() ?? 'Could not send. Please try again.';
+      } catch (_) {
+        return 'Could not send. Please try again.';
+      }
+    } catch (_) {
+      return 'Could not send. Please check your internet and try again.';
+    }
+  }
+
   /// Shop "Can't find it?": real Amazon products, cheapest first.
   Future<http.Response> amazonFind(String query,
       {List<String> excludeAsins = const [], List<String> excludeTitles = const []}) async {

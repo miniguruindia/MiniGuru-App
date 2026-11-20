@@ -6,6 +6,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:miniguru/screens/legalScreen.dart';
 import 'package:miniguru/utils/i18n.dart';
+import 'package:miniguru/widgets/reportProblem.dart';
 import 'package:miniguru/screens/navScreen/consultancy.dart';
 import 'package:miniguru/network/MiniguruApi.dart';
 
@@ -1394,6 +1395,11 @@ class _FooterSection extends StatelessWidget {
             _FLink(context, 'Terms & Conditions', legalTab: 1),
             _FLink(context, 'Cookie Policy', legalTab: 2),
             _FLink(context, 'Help & FAQ', legalTab: 3),
+            GestureDetector(
+              onTap: () => showReportProblemDialog(context, page: 'About'),
+              child: Text('Report a problem',
+                  style: _b(13, Colors.white.withOpacity(0.7), w: FontWeight.w700)),
+            ),
           ],
         ),
         const SizedBox(height: 16),

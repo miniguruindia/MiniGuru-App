@@ -20,6 +20,7 @@ import 'package:miniguru/screens/loginScreen.dart';
 import 'package:miniguru/screens/walletPage.dart';
 import 'package:miniguru/screens/editProfileScreen.dart';
 import 'package:miniguru/widgets/contactVerificationCard.dart';
+import 'package:miniguru/widgets/reportProblem.dart';
 import 'package:miniguru/screens/about.dart';
 import 'package:miniguru/screens/navScreen/consultancy.dart';
 import 'package:miniguru/widgets/schoolJoinWidgets.dart';
@@ -517,6 +518,11 @@ class _ProfileState extends State<Profile>
                         _tile(Icons.info_outline, 'About MiniGuru',
                             const Color(0xFF7DB2FF),
                             () => DeepLink.openAboutPage()),
+
+                        const SizedBox(height: 8),
+                        _tile(Icons.report_gmailerrorred_outlined, 'Report a problem',
+                            const Color(0xFFFF7A59),
+                            () => showReportProblemDialog(context, page: 'Profile')),
 
                         const SizedBox(height: 24),
                         _buildLogoutBtn(),

@@ -37,6 +37,7 @@ import accountDeletionRouter from './routes/accountDeletionRoutes';
 import youtubeViewsRouter from './routes/youtubeViewsRoutes';
 import planIdRouter from './routes/planIdRoutes';
 import ideaRouter from './routes/ideaRoutes';
+import supportRouter from './routes/supportRoutes';
 import adminIdeaRouter from './routes/adminIdeaRoutes';
 import adminActivityRouter from './routes/adminActivityRoutes';
 import accountMergeRouter from './routes/accountMergeRoutes';
@@ -338,6 +339,7 @@ app.use('/school-join', schoolJoinRouter);
 app.use('/account-deletion', accountDeletionRouter);
 app.use('/plan-ids', planIdRouter);
 app.use('/ideas', ideaRouter);
+app.use('/support', supportRouter);
   app.use('/communication', communicationRouter);
   app.use('/admin/communication', communicationRouter);
   app.use('/admin/cms', cmsRouter);           // ← NEW: Goins balance, deduct, award
