@@ -1602,6 +1602,19 @@ router.post('/admin/materials-daily/run', async (req, res) => {
         return exec();
     return (0, authMiddleware_1.authenticateToken)(req, res, () => requireAdmin(req, res, exec));
 });
+// Live test of the Amazon connection: one real call, right now (not the last scan's result).
+router.post('/admin/amazon-test', authMiddleware_1.authenticateToken, requireAdmin, async (_req, res) => {
+    try {
+        const sample = await prismaClient_1.default.material.findFirst({ where: { amazonASIN: { not: null }, isActive: true }, select: { amazonASIN: true } });
+        const asin = (sample?.amazonASIN || 'B07FZ8S74R').trim();
+        const { testAmazonConnection } = require('../services/amazonProductService');
+        res.json({ ...(await testAmazonConnection(asin)), asin });
+    }
+    catch (err) {
+        console.error('[materials] POST /admin/amazon-test error:', err);
+        res.status(500).json({ error: 'Test failed' });
+    }
+});
 // What the admin page shows as proof the automatic run is working.
 router.get('/admin/materials-daily/status', authMiddleware_1.authenticateToken, requireAdmin, async (_req, res) => {
     try {

@@ -206,6 +206,36 @@ export async function getAmazonItems(asins: string[]): Promise<AmazonSearchResul
   }
 }
 
+/**
+ * One live, cheap test call (a single known ASIN) so the admin can see Amazon's answer RIGHT NOW,
+ * instead of the result of the last scan. Never throws.
+ */
+export async function testAmazonConnection(asin: string): Promise<{ configured: boolean; ok: boolean; message: string; status?: number; checkedAt: string }> {
+  const checkedAt = new Date().toISOString();
+  if (!isConfigured()) return { configured: false, ok: false, message: 'The Amazon keys are not set on the server.', checkedAt };
+  try {
+    const api = getApi();
+    const request = new GetItemsRequestContent();
+    request.partnerTag = process.env.AMAZON_CREATORS_PARTNER_TAG;
+    request.itemIds = [asin];
+    request.resources = ['itemInfo.title'];
+    const response = await api.getItems(MARKETPLACE, request);
+    recordAmazonApiCall().catch(() => {});
+    const n = (response?.itemsResult?.items || []).length;
+    const errs: string[] = (response?.errors || []).map((e: any) => e?.message).filter(Boolean);
+    if (n > 0) return { configured: true, ok: true, message: 'Amazon answered normally.', checkedAt };
+    return { configured: true, ok: false, message: errs.join('; ') || 'Amazon answered, but with no product.', checkedAt };
+  } catch (err: any) {
+    return {
+      configured: true,
+      ok: false,
+      message: describeAmazonError(err, 'Amazon refused'),
+      status: err?.status || err?.response?.status,
+      checkedAt,
+    };
+  }
+}
+
 const SELLER_RESOURCES = [
   ...RESOURCES,
   'offersV2.listings.merchantInfo',

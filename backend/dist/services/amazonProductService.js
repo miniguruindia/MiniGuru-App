@@ -13,6 +13,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.searchAmazonProducts = searchAmazonProducts;
 exports.getAmazonItems = getAmazonItems;
+exports.testAmazonConnection = testAmazonConnection;
 exports.getAmazonItemsWithSeller = getAmazonItemsWithSeller;
 exports.extractAsinFromUrl = extractAsinFromUrl;
 exports.buildAffiliateUrl = buildAffiliateUrl;
@@ -167,6 +168,38 @@ async function getAmazonItems(asins) {
         const message = describeAmazonError(err, 'Amazon lookup failed');
         console.error('[amazonProductService] getItems failed:', message);
         return { configured: true, results: [], error: message };
+    }
+}
+/**
+ * One live, cheap test call (a single known ASIN) so the admin can see Amazon's answer RIGHT NOW,
+ * instead of the result of the last scan. Never throws.
+ */
+async function testAmazonConnection(asin) {
+    const checkedAt = new Date().toISOString();
+    if (!isConfigured())
+        return { configured: false, ok: false, message: 'The Amazon keys are not set on the server.', checkedAt };
+    try {
+        const api = getApi();
+        const request = new GetItemsRequestContent();
+        request.partnerTag = process.env.AMAZON_CREATORS_PARTNER_TAG;
+        request.itemIds = [asin];
+        request.resources = ['itemInfo.title'];
+        const response = await api.getItems(MARKETPLACE, request);
+        (0, costTracking_1.recordAmazonApiCall)().catch(() => { });
+        const n = (response?.itemsResult?.items || []).length;
+        const errs = (response?.errors || []).map((e) => e?.message).filter(Boolean);
+        if (n > 0)
+            return { configured: true, ok: true, message: 'Amazon answered normally.', checkedAt };
+        return { configured: true, ok: false, message: errs.join('; ') || 'Amazon answered, but with no product.', checkedAt };
+    }
+    catch (err) {
+        return {
+            configured: true,
+            ok: false,
+            message: describeAmazonError(err, 'Amazon refused'),
+            status: err?.status || err?.response?.status,
+            checkedAt,
+        };
     }
 }
 const SELLER_RESOURCES = [

@@ -1223,6 +1223,27 @@ function AiSuggestionsTab({ apiBase, onMaterialsChanged, flash, onEditMaterial }
     }
   }
 
+  const [amzTest, setAmzTest] = React.useState<any>(null)
+  const [amzTesting, setAmzTesting] = React.useState(false)
+  const testAmazon = async () => {
+    if (amzTesting) return
+    setAmzTesting(true)
+    setAmzTest(null)
+    try {
+      const token = await authToken()
+      const res = await fetch(`${apiBase}/materials/admin/amazon-test`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      })
+      setAmzTest(await res.json())
+    } catch (e: any) {
+      setAmzTest({ ok: false, message: 'Could not reach the server: ' + e.message })
+    } finally {
+      setAmzTesting(false)
+    }
+  }
+
   const runAll = async () => {
     setScanning(true)
     try {
@@ -1296,10 +1317,22 @@ function AiSuggestionsTab({ apiBase, onMaterialsChanged, flash, onEditMaterial }
             className="px-4 py-2 bg-orange-500 text-white rounded-lg text-sm font-medium hover:bg-orange-600 disabled:opacity-50">
             {scanning ? '🤖 Working… (about a minute)' : '🤖 Scan & Refresh now'}
           </button>
+          <button onClick={testAmazon} disabled={amzTesting}
+            className="px-4 py-2 border border-orange-400 text-orange-600 rounded-lg text-sm font-medium hover:bg-orange-50 disabled:opacity-50">
+            {amzTesting ? 'Testing…' : '🔌 Test Amazon connection now'}
+          </button>
           <p className="text-xs text-gray-400 flex-1">
             One button for both jobs: it re-checks every linked ASIN for price, availability and photo (oldest-checked first), and looks for Amazon matches for materials with no ASIN. It also runs by itself several times a day. Nothing is applied without your approval — AI matches wait in the <b>Suggestions</b> tab, photo differences in the <b>Image Issues</b> tab.
           </p>
         </div>
+        {amzTest && (
+          <div className={`mt-3 text-sm rounded-lg p-3 border ${amzTest.ok ? 'bg-green-50 border-green-200 text-green-800' : 'bg-amber-50 border-amber-200 text-amber-800'}`}>
+            <p className="font-semibold">{amzTest.ok ? '✅ Amazon is answering again' : '⚠️ Amazon is still refusing'}</p>
+            <p className="text-xs mt-1">{amzTest.message}</p>
+            {amzTest.checkedAt && <p className="text-xs mt-1 text-gray-500">Checked just now ({new Date(amzTest.checkedAt).toLocaleTimeString('en-IN')}). This is a live answer, not the last scan.</p>}
+            {amzTest.ok && <p className="text-xs mt-1">Now press <b>Scan &amp; Refresh now</b> to bring prices and availability up to date.</p>}
+          </div>
+        )}
         {status && (
           <div className="mt-3 text-xs text-gray-600 space-y-0.5">
             <p>
